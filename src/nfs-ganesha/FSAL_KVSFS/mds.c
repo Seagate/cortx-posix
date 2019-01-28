@@ -37,7 +37,7 @@
 #include "fsal.h"
 #include "fsal_internal.h"
 #include "fsal_convert.h"
-#include "../fsal_private.h"
+#include "fsal_private.h"
 #include "FSAL/fsal_config.h"
 #include "FSAL/fsal_commonlib.h"
 #include "kvsfs_methods.h"
@@ -306,7 +306,7 @@ kvsfs_layoutget(struct fsal_obj_handle *obj_hdl,
 	struct kvsfs_file_handle kvsfs_ds_handle;
 	uint32_t stripe_unit = 0;
 	nfl_util4 util = 0;
-	struct pnfs_deviceid deviceid = DEVICE_ID_INIT_ZERO(FSAL_ID_KVSFS);
+	struct pnfs_deviceid deviceid = DEVICE_ID_INIT_ZERO(FSAL_ID_NO_PNFS);
 	nfsstat4 nfs_status = 0;
 	struct gsh_buffdesc ds_desc;
 
