@@ -3,9 +3,9 @@ cmake_policy(SET CMP0017 NEW)
 
 PROJECT(libkvsns C)
 set(LIBKVSNS_MAJOR_VERSION 1)
-set(LIBKVSNS_MINOR_VERSION 2)
-set(LIBKVSNS_PATCH_LEVEL 4)
-set(LIBKVSNS_EXTRA_VERSION "-fzj")
+set(LIBKVSNS_MINOR_VERSION 0)
+set(LIBKVSNS_PATCH_LEVEL 1)
+set(LIBKVSNS_EXTRA_VERSION ${RELEASE_VER})
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -I${CMAKE_SOURCE_DIR}/include -fPIC -g")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror")
@@ -71,6 +71,27 @@ if (USE_POSIX_OBJ OR USE_MERO_STORE)
   message(STATUS "Disabling POSIX Store")
 endif(USE_POSIX_OBJ OR USE_MERO_STORE)
 
+if (USE_KVS_MERO OR USE_MERO_STORE)
+  set(RPM_REQUIRES "mero ${RPM_REQUIRES}")
+  set(RPM_DEVEL_REQUIRES "mero-devel ${RPM_DEVEL_REQUIRES}")
+endif (USE_KVS_MERO OR USE_MERO_STORE)
+
+if (USE_KVS_REDIS)
+  set(RPM_REQUIRES "redis hiredis ${RPM_REQUIRES}")
+  set(RPM_DEVEL_REQUIRES "hiredis-devel ${RPM_DEVEL_REQUIRES}")
+endif (USE_KVS_REDIS)
+
+if (USE_KVS_MERO)
+  set(KVS_OPT "Mero")
+elseif (USE_KVS_REDIS)
+  set(KVS_OPT "Redis")
+endif (USE_KVS_MERO)
+
+if (USE_MERO_STORE)
+  set(EXTSTORE_OPT "Mero")
+elseif (USE_POSIX_STORE)
+  set(EXTSTORE_OPT "Posix")
+endif (USE_MERO_STORE)
 
 include(CheckIncludeFiles)
 include(CheckLibraryExists)
@@ -128,11 +149,6 @@ message(STATUS "USE_KVS_MERO=${USE_KVS_MERO}")
 message(STATUS "USE_POSIX_STORE=${USE_POSIX_STORE}")
 message(STATUS "USE_MERO_STORE=${USE_MERO_STORE}")
 message(STATUS "USE_POSIX_OBJ=${USE_POSIX_OBJ}")
-
-# FZJ PROTOTYPE : use KVS MERO and MERO STORE together
-if ( NOT(USE_KVS_MERO AND USE_MERO_STORE))
-    message(FATAL_ERROR "Use MERO for both KVS and STORE")
-endif ( NOT(USE_KVS_MERO AND USE_MERO_STORE))
 
 # Build ancillary libs
 add_subdirectory(extstore)

@@ -1,17 +1,17 @@
 %define sourcename @CPACK_SOURCE_PACKAGE_FILE_NAME@
 %global dev_version %{lua: extraver = string.gsub('@LIBKVSNS_EXTRA_VERSION@', '%-', '.'); print(extraver) }
 
-Name: libkvsns 
+Name: libkvsns
 Version: @LIBKVSNS_BASE_VERSION@
-Release: 0%{dev_version}%{?dist}
+Release: %{dev_version}%{?dist}
 Summary: Library to access to a namespace inside a KVS
-License: LGPLv3 
+License: LGPLv3
 Group: Development/Libraries
 Url: http://github.com/phdeniel/libkvsns
 Source: %{sourcename}.tar.gz
-BuildRequires: cmake hiredis-devel libini_config-devel
-BuildRequires: gcc
-Requires: redis hiredis libini_config
+BuildRequires: cmake gcc libini_config-devel
+BuildRequires: @RPM_DEVEL_REQUIRES@
+Requires: libini_config @RPM_REQUIRES@
 Provides: %{name} = %{version}-%{release}
 
 # Conditionally enable KVS and object stores
@@ -44,13 +44,13 @@ Provides: %{name} = %{version}-%{release}
 
 %description
 The libkvsns is a library that allows of a POSIX namespace built on top of
-a Key-Value Store.
+a Key-Value Store. It uses @KVS_OPT@ as Key-Value Store and @EXTSTORE_OPT@ as a backend storage.
 
 %package devel
 Summary: Development file for the library libkvsns
 Group: Development/Libraries
 Requires: %{name} = %{version}-%{release} pkgconfig
-Requires: hiredis-devel
+Requires: @RPM_DEVEL_REQUIRES@
 Provides: %{name}-devel = %{version}-%{release}
 
 
@@ -63,7 +63,7 @@ This package contains tools for libkvsns.
 Summary: Development file for the library libkvsns
 Group: Development/Libraries
 Requires: %{name} = %{version}-%{release} pkgconfig
-Requires: redis hiredis libkvsns
+Requires: libkvsns @RPM_REQUIRES@
 Provides: %{name}-utils = %{version}-%{release}
 
 %description utils
