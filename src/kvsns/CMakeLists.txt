@@ -138,9 +138,17 @@ if(USE_KVS_MERO OR USE_MERO_STORE)
 	)
   check_include_files("mero/config.h" HAVE_MERO_H)
 
-  if((NOT HAVE_MERO) OR (NOT HAVE_MERO_H))
-	message(FATAL_ERROR "Cannot find MERO")
-  endif((NOT HAVE_MERO) OR (NOT HAVE_MERO_H))
+  find_library(HAVE_MERO_HELPERS mero-helpers)
+  check_library_exists(
+	mero-helpers
+	m0_ufid_init
+	""
+	HAVE_MERO_HELPERS
+	)
+
+  if((NOT HAVE_MERO) OR (NOT HAVE_MERO_H) OR (NOT HAVE_MERO_HELPERS))
+      message(FATAL_ERROR "Cannot find MERO")
+  endif((NOT HAVE_MERO) OR (NOT HAVE_MERO_H) OR (NOT HAVE_MERO_HELPERS))
 endif(USE_KVS_MERO OR USE_MERO_STORE)
 
 # Print summary

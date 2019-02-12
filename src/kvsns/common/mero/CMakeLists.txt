@@ -20,6 +20,7 @@ add_library(m0common SHARED ${m0common_LIB_SRCS})
 
 target_link_libraries(m0common
   mero
+  mero-helpers
   uuid
   yaml
   gf_complete
