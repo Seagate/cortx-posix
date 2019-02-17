@@ -37,7 +37,8 @@
 #include <time.h>
 #include "../../common/mero/m0common.h"
 #include <kvsns/kvsal.h>
-
+#include <kvsns/kvsns.h>
+#include "kvsns/log.h"
 
 /* The REDIS context exists in the TLS, for MT-Safety */
 
@@ -88,6 +89,16 @@ int kvsal_set_char(char *k, char *v)
 	return m0kvs_set(k, klen, v, vlen);
 }
 
+int kvsal_put_string(void *ctx, char *k, char *v)
+{
+	size_t klen;
+	size_t vlen;
+
+	klen = strnlen(k, KLEN)+1;
+	vlen = strnlen(v, VLEN)+1;
+	return m0kvs_put(ctx, k, klen, v, vlen);
+}
+
 int kvsal_get_char(char *k, char *v)
 {
 	size_t klen;
@@ -95,6 +106,15 @@ int kvsal_get_char(char *k, char *v)
 
 	klen = strnlen(k, KLEN)+1;
 	return m0kvs_get(k, klen, v, &vlen);
+}
+
+int kvsal_fetch_string(void *ctx, char *k, char *v)
+{
+	size_t klen;
+	size_t vlen = VLEN;
+
+	klen = strnlen(k, KLEN)+1;
+	return m0kvs_fetch(ctx, k, klen, v, &vlen);
 }
 
 int kvsal_set_stat(char *k, struct stat *buf)
@@ -106,6 +126,15 @@ int kvsal_set_stat(char *k, struct stat *buf)
 			  (char *)buf, sizeof(struct stat));
 }
 
+int kvsal_put_stat(void *ctx, char *k, struct stat *buf)
+{
+	size_t klen;
+
+	klen = strnlen(k, KLEN)+1;
+	return m0kvs_put(ctx ,k, klen,
+			 (char *)buf, sizeof(struct stat));
+}
+
 int kvsal_get_stat(char *k, struct stat *buf)
 {
 	size_t klen;
@@ -114,6 +143,16 @@ int kvsal_get_stat(char *k, struct stat *buf)
 	klen = strnlen(k, KLEN)+1;
 	return m0kvs_get(k, klen,
 			  (char *)buf, &vlen);
+}
+
+int kvsal_fetch_stat(void *ctx, char *k, struct stat *buf)
+{
+	size_t klen;
+	size_t vlen = sizeof(struct stat);
+
+	klen = strnlen(k, KLEN)+1;
+	return m0kvs_fetch(ctx, k, klen,
+			 (char *)buf, &vlen);
 }
 
 int kvsal_set_binary(char *k, char *buf, size_t size)
@@ -148,7 +187,7 @@ int kvsal_incr_counter(char *k, unsigned long long *v)
 		return rc;
 
 	sscanf(buf, "%llu", v);
-	*v += 1; 
+	*v += 1;
 	snprintf(buf, VLEN, "%llu", *v);
 	vlen = strnlen(buf, VLEN)+1;
 
@@ -156,6 +195,41 @@ int kvsal_incr_counter(char *k, unsigned long long *v)
 	if (rc != 0)
 		return rc;
 
+	return 0;
+}
+
+int kvsal_incr_inode_counter(void *ctx, char *k, unsigned long long *v)
+{
+	int rc;
+	char buf[VLEN];
+	size_t vlen = VLEN;
+	size_t klen;
+	unsigned long long ino;
+
+	klen = strnlen(k, KLEN) + 1;
+
+	/* @todo: Do inode fetch and put in a single transaction */
+	rc = m0kvs_fetch(ctx, k, klen, buf, &vlen);
+	if (rc != 0)
+		return rc;
+
+	sscanf(buf, "%llu", v);
+	log_debug("fetched inode counter: %llu\n", *v);
+
+	*v += 1;
+	snprintf(buf, VLEN, "%llu", *v);
+	vlen = strnlen(buf, VLEN)+1;
+	log_debug("incremented inode counter: %llu\n", *v);
+	rc = m0kvs_put(ctx, k, klen, buf, vlen);
+	if (rc != 0)
+		return rc;
+
+	rc = m0kvs_fetch(ctx, k, klen, buf, &vlen);
+	if (rc != 0)
+		return rc;
+
+	sscanf(buf, "%llu", &ino);
+	log_debug("setkv inode counter: %llu\n", ino);
 	return 0;
 }
 

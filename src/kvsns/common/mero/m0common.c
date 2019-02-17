@@ -19,12 +19,19 @@
 #include "clovis/clovis_idx.h"
 #include "lib/thread.h"
 #include <kvsns/kvsal.h>
+#include <kvsns/kvsns.h>
 #include "m0common.h"
+#include <mero/helpers/helpers.h>
+#include "kvsns/log.h"
 
 struct clovis_io_ctx {
 	struct m0_indexvec ext;
 	struct m0_bufvec   data;
 	struct m0_bufvec   attr;
+};
+
+enum {
+	 KVS_FID_STR_LEN = 128
 };
 
 /* To be passed as argument */
@@ -59,6 +66,8 @@ static struct m0_clovis_config	clovis_conf;
 static struct m0_idx_dix_config	dix_conf;
 
 struct m0_clovis_realm     clovis_uber_realm;
+
+static struct m0_ufid_generator kvsns_ufid_generator;
 
 #define WRAP_CONFIG(__name, __cfg, __item) ({\
 	int __rc = get_config_item("mero", __name, __cfg, &__item);\
@@ -184,6 +193,12 @@ static int init_clovis(void)
 	m0_clovis_idx_init(&idx, &clovis_container.co_realm,
 			   (struct m0_uint128 *)&ifid);
 
+	rc = m0_ufid_init(clovis_instance, &kvsns_ufid_generator);
+	if (rc != 0) {
+		fprintf(stderr, "Failed to initialise fid generator: %d\n", rc);
+		goto err_exit;
+	}
+
 	return 0;
 
 err_exit:
@@ -241,6 +256,52 @@ out:
 	/* it seems like 0_free(&op) is not needed */
 	return rc;
 }
+
+
+/* @todo: Return an index for an fs_fid/ctx */
+static struct m0_clovis_idx*  m0_idx_get(void *ctx)
+{
+	return &idx;
+}
+
+static int m0_kvs_op_launch(void *ctx,
+			    enum m0_clovis_idx_opcode opcode,
+			    struct m0_bufvec *key,
+			    struct m0_bufvec *val)
+{
+	struct m0_clovis_op	 *op = NULL;
+	int rcs[1];
+	int rc;
+
+	struct m0_clovis_idx     *index = NULL;
+
+	if (!my_init_done)
+		m0kvs_reinit();
+
+	index = m0_idx_get(ctx);
+	if (index == NULL)
+		return -EINVAL;
+
+	rc = m0_clovis_idx_op(index, opcode, key, val,
+			      rcs, M0_OIF_OVERWRITE, &op);
+	if (rc)
+		return rc;
+
+	m0_clovis_op_launch(&op, 1);
+	rc = m0_clovis_op_wait(op, M0_BITS(M0_CLOVIS_OS_STABLE),
+			       M0_TIME_NEVER);
+	if (rc)
+		goto out;
+
+	/* Check rcs array even if op is succesful */
+	rc = rcs[0];
+
+out:
+	m0_clovis_op_fini(op);
+	/* it seems like 0_free(&op) is not needed */
+	return rc;
+}
+
 
 static int buf2vec(char *b, size_t len, struct m0_bufvec *vec)
 {
@@ -342,6 +403,35 @@ out:
 	return rc;
 }
 
+int m0kvs_fetch(void *ctx, char *k, size_t klen,
+	       char *v, size_t *vlen)
+{
+	struct m0_bufvec	 key;
+	struct m0_bufvec	 val;
+	int rc;
+
+	if (!my_init_done)
+		m0kvs_reinit();
+
+	rc = m0_bufvec_alloc(&key, 1, klen) ?:
+	     m0_bufvec_empty_alloc(&val, 1);
+
+	memcpy(key.ov_buf[0], k, klen);
+	memset(v, 0, *vlen);
+
+	rc = m0_kvs_op_launch(ctx, M0_CLOVIS_IC_GET, &key, &val);
+	if (rc)
+		goto out;
+
+	*vlen = (size_t)val.ov_vec.v_count[0];
+	memcpy(v, (char *)val.ov_buf[0], *vlen);
+
+out:
+	m0_bufvec_free(&key);
+	m0_bufvec_free(&val);
+	return rc;
+}
+
 int m0kvs_set(char *k, size_t klen,
 	       char *v, size_t vlen)
 {
@@ -361,6 +451,32 @@ int m0kvs_set(char *k, size_t klen,
 	memcpy(val.ov_buf[0], v, vlen);
 
 	rc = m0_op_kvs(M0_CLOVIS_IC_PUT, &key, &val);
+out:
+	m0_bufvec_free(&key);
+	m0_bufvec_free(&val);
+	return rc;
+}
+
+int m0kvs_put(void *ctx, char *k, size_t klen,
+	       char *v, size_t vlen)
+{
+	struct m0_bufvec	 key;
+	struct m0_bufvec	 val;
+	int rc;
+
+	/* @todo: This might kill the performance. Find a cleaner way to do check. */
+	if (!my_init_done)
+		m0kvs_reinit();
+
+	rc = m0_bufvec_alloc(&key, 1, klen) ?:
+	     m0_bufvec_alloc(&val, 1, vlen);
+	if (rc)
+		goto out;
+
+	memcpy(key.ov_buf[0], k, klen);
+	memcpy(val.ov_buf[0], v, vlen);
+
+	rc = m0_kvs_op_launch(ctx, M0_CLOVIS_IC_PUT, &key, &val);
 out:
 	m0_bufvec_free(&key);
 	m0_bufvec_free(&val);
@@ -558,7 +674,6 @@ static int init_ctx(struct clovis_io_ctx *ioctx, off_t off,
 	return 0;
 }
 
-
 int m0store_create_object(struct m0_uint128 id)
 {
 	int		  rc;
@@ -619,6 +734,32 @@ int m0store_delete_object(struct m0_uint128 id)
 	return rc;
 }
 
+int m0_ufid_get(struct m0_uint128 *ufid)
+{
+	int		  rc;
+
+	rc = m0_ufid_next(&kvsns_ufid_generator, 1, ufid);
+	if (rc != 0) {
+		fprintf(stderr, "Failed to generate a ufid: %d\n", rc);
+		return rc;
+	}
+
+	return 0;
+}
+
+int m0_fid_to_string(struct m0_uint128 *fid, char *fid_s)
+{
+	int rc;
+
+	rc = m0_fid_print(fid_s, KVS_FID_STR_LEN, (struct m0_fid *)fid);
+	if (rc < 0) {
+		log_err("Failed to generate fid str: %d\n", rc);
+		return rc;
+	}
+	/* @todo: Use logging instead of fprintf here */
+	log_info("Got fid : %s\n", fid_s);
+	return 0;
+}
 
 static int write_data_aligned(struct m0_uint128 id, char *buff, off_t off,
 				int block_count, int block_size)

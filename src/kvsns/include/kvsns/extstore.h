@@ -46,6 +46,9 @@
 
 int extstore_init(struct collection_item *cfg_items);
 int extstore_create(kvsns_ino_t object);
+int extstore_create_object(void *ctx,
+			   kvsns_ino_t object,
+			   kvsns_fid_t *fid);
 int extstore_read(kvsns_ino_t *ino,
 		  off_t offset,
 		  size_t buffer_size,
@@ -65,4 +68,6 @@ int extstore_truncate(kvsns_ino_t *ino,
 		      struct stat *stat);
 int extstore_attach(kvsns_ino_t *ino,
 		    char *objid, int objid_len);
+int extstore_get_fid(kvsns_ino_t object,
+		     kvsns_fid_t *fid);
 #endif
