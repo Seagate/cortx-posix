@@ -90,7 +90,6 @@
 
 /* KVSAL related definitions and functions */
 
-
 typedef unsigned long long int kvsns_ino_t;
 
 /* KVSNS related definitions and functions */
@@ -134,6 +133,11 @@ enum kvsns_type {
 typedef struct kvsns_xattr__ {
 	char name[NAME_MAX];
 } kvsns_xattr_t;
+
+typedef struct kvsns_fid {
+	uint64_t f_hi;
+	uint64_t f_lo;
+} kvsns_fid_t;
 
 /**
  * Start the kvsns library. This should be done by every thread using the library
@@ -199,6 +203,8 @@ int kvsns_access(kvsns_cred_t *cred, kvsns_ino_t *ino, int flags);
 int kvsns_creat(kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
 		mode_t mode, kvsns_ino_t *newino);
 
+int kvsns_create(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
+		mode_t mode, kvsns_ino_t *newino);
 /**
  * Creates a directory.
  *

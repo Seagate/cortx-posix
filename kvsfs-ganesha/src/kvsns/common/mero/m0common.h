@@ -49,9 +49,13 @@ void m0fini(void);
 int m0kvs_reinit(void);
 
 int m0kvs_set(char *k, size_t klen,
-	       char *v, size_t vlen);
+	      char *v, size_t vlen);
+int m0kvs_put(void *ctx, char *k, size_t klen,
+	      char *v, size_t vlen);
 int m0kvs_get(char *k, size_t klen,
-	       char *v, size_t *vlen);
+	      char *v, size_t *vlen);
+int m0kvs_fetch(void *ctx, char *k, size_t klen,
+	        char *v, size_t *vlen);
 int m0kvs_del(char *k, size_t klen);
 void m0_iter_kvs(char *k);
 int m0_pattern_kvs(char *k, char *pattern,
@@ -59,6 +63,8 @@ int m0_pattern_kvs(char *k, char *pattern,
 
 int m0store_create_object(struct m0_uint128 id);
 int m0store_delete_object(struct m0_uint128 id);
+int m0_ufid_get(struct m0_uint128 *ufid);
+int m0_fid_to_string(struct m0_uint128 *fid, char *fid_s);
 
 #define M0STORE_BLK_COUNT 10
 

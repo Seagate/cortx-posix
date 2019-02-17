@@ -37,9 +37,11 @@
 #include <time.h>
 #include <sys/time.h>
 #include <string.h>
+#include <linux/limits.h>
 #include <kvsns/kvsal.h>
 #include <kvsns/kvsns.h>
 #include "kvsns_internal.h"
+#include "kvsns/log.h"
 
 int kvsns_next_inode(kvsns_ino_t *ino)
 {
@@ -48,6 +50,19 @@ int kvsns_next_inode(kvsns_ino_t *ino)
 		return -EINVAL;
 
 	rc = kvsal_incr_counter("ino_counter", ino);
+	if (rc != 0)
+		return rc;
+
+	return 0;
+}
+
+int kvsns_next_inode_get(void *ctx, kvsns_ino_t *ino)
+{
+	int rc;
+	if (!ino)
+		return -EINVAL;
+
+	rc = kvsal_incr_inode_counter(ctx, "ino_counter", ino);
 	if (rc != 0)
 		return rc;
 
@@ -151,6 +166,127 @@ int kvsns_amend_stat(struct stat *stat, int flags)
 	return 0;
 }
 
+/* @todo : Modify this for other operations like rename/delete. */
+static int kvsns_create_check_name(const char *name, size_t len)
+{
+	const char *parent = "..";
+
+	if (len >= NAME_MAX) {
+		log_info("Name too long %s\n", name);
+		return  -E2BIG;
+	}
+
+	if (len == 1 && (name[0] == '.' || name[0] == '/')) {
+		log_info("File already exists: %s\n", name);
+		return -EEXIST;
+	}
+
+	if (len == 2 && (strncmp(name, parent, 2) == 0)) {
+		log_info("File already exists: %s\n", name);
+		return -EEXIST;
+	}
+
+	return 0;
+}
+
+int kvsns_create_dentry(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
+		       char *name, char *lnk, mode_t mode,
+		       kvsns_ino_t *new_entry, enum kvsns_type type)
+{
+	int	rc;
+	char	k[KLEN];
+	char	v[KLEN];
+	struct	stat bufstat;
+	struct	timeval t;
+	size_t	namelen;
+
+	if (!cred || !parent || !name || !new_entry)
+		return -EINVAL;
+
+	namelen = strlen(name);
+	if (namelen == 0)
+		return -EINVAL;
+
+	/* check if name is not '.' or '..' or '/' */
+	rc = kvsns_create_check_name(name, namelen);
+	if (rc != 0)
+		return rc;
+
+	if ((type == KVSNS_SYMLINK) && (lnk == NULL))
+		return -EINVAL;
+
+	/* @todo: Check if entry already exists, using lookup op */
+
+	/* Get a new inode number for the new file and set it */
+	RC_WRAP(kvsns_next_inode_get, ctx, new_entry);
+
+	/* @todo : Fetch parent stats and amend it */
+
+	/* Add an entry to parent dentries list */
+	memset(k, 0, KLEN);
+	snprintf(k, KLEN, "%llu.dentries.%s",
+		 *parent, name);
+	snprintf(v, VLEN, "%llu", *new_entry);
+
+	RC_WRAP_LABEL(rc, aborted, kvsal_put_string, ctx, k, v);
+
+	/* Set the parentdir of the new file */
+	memset(k, 0, KLEN);
+	snprintf(k, KLEN, "%llu.parentdir", *new_entry);
+	snprintf(v, VLEN, "%llu|", *parent);
+
+	RC_WRAP_LABEL(rc, aborted, kvsal_put_string, ctx,  k, v);
+
+	/* Set the stats of the new file */
+	memset(&bufstat, 0, sizeof(struct stat));
+	bufstat.st_uid = cred->uid;
+	bufstat.st_gid = cred->gid;
+	bufstat.st_ino = *new_entry;
+
+	if (gettimeofday(&t, NULL) != 0)
+		return -1;
+
+	bufstat.st_atim.tv_sec = t.tv_sec;
+	bufstat.st_atim.tv_nsec = 1000 * t.tv_usec;
+
+	bufstat.st_mtim.tv_sec = bufstat.st_atim.tv_sec;
+	bufstat.st_mtim.tv_nsec = bufstat.st_atim.tv_nsec;
+
+	bufstat.st_ctim.tv_sec = bufstat.st_atim.tv_sec;
+	bufstat.st_ctim.tv_nsec = bufstat.st_atim.tv_nsec;
+
+	switch (type) {
+	case KVSNS_DIR:
+		bufstat.st_mode = S_IFDIR|mode;
+		bufstat.st_nlink = 2;
+		break;
+
+	case KVSNS_FILE:
+		bufstat.st_mode = S_IFREG|mode;
+		bufstat.st_nlink = 1;
+		break;
+
+	case KVSNS_SYMLINK:
+		bufstat.st_mode = S_IFLNK|mode;
+		bufstat.st_nlink = 1;
+		break;
+
+	default:
+		return -EINVAL;
+	}
+	memset(k, 0, KLEN);
+	snprintf(k, KLEN, "%llu.stat", *new_entry);
+	RC_WRAP_LABEL(rc, aborted, kvsal_put_stat, ctx, k, &bufstat);
+
+	/* @todo Modify parent stats */
+
+	return 0;
+
+aborted:
+	kvsal_discard_transaction();
+	return rc;
+}
+
 int kvsns_create_entry(kvsns_cred_t *cred, kvsns_ino_t *parent,
 		       char *name, char *lnk, mode_t mode,
 		       kvsns_ino_t *new_entry, enum kvsns_type type)
@@ -248,7 +384,6 @@ aborted:
 	kvsal_discard_transaction();
 	return rc;
 }
-
 
 /* Access routines */
 static int kvsns_access_check(kvsns_cred_t *cred, struct stat *stat, int flags)

@@ -7,6 +7,9 @@ target_link_libraries(kvsns_busybox kvsns ${KVSAL_LIBRARY} ${STORE_LIBRARY})
 add_executable(kvsns_cp kvsns_cp.c)
 target_link_libraries(kvsns_cp kvsns)
 
+add_executable(kvsns_ns kvsns_ns.c)
+target_link_libraries(kvsns_ns kvsns ${KVSAL_LIBRARY} ${STORE_LIBRARY})
+
 add_custom_target(links DEPENDS kvsns_busybox)
 add_custom_command(TARGET links
 		   COMMAND ${CMAKE_COMMAND} -E remove ns_reset
@@ -55,6 +58,11 @@ add_custom_command(TARGET links
 		   COMMAND ${CMAKE_COMMAND} -E create_symlink kvsns_busybox ns_mr_proper
 		   COMMAND ${CMAKE_COMMAND} -E remove ns_cp
 		   COMMAND ${CMAKE_COMMAND} -E create_symlink kvsns_busybox ns_cp
+		   COMMAND ${CMAKE_COMMAND} -E remove kvsns_init
+		   COMMAND ${CMAKE_COMMAND} -E create_symlink kvsns_ns  kvsns_init
+		   COMMAND ${CMAKE_COMMAND} -E remove kvsns_create
+		   COMMAND ${CMAKE_COMMAND} -E create_symlink kvsns_ns  kvsns_create
+
 		   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 		   VERBATIM)
 

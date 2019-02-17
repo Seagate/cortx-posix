@@ -41,6 +41,7 @@
 #include <kvsns/kvsns.h>
 #include <kvsns/extstore.h>
 #include "kvsns_internal.h"
+#include "kvsns/log.h"
 
 static int kvsns_str2ownerlist(kvsns_open_owner_t *ownerlist, int *size,
 			        char *str)
@@ -87,7 +88,7 @@ static int kvsns_ownerlist2str(kvsns_open_owner_t *ownerlist, int size,
 				 ownerlist[i].pid, ownerlist[i].tid);
 			strcat(str, tmp);
 		}
-	
+
 	return 0;
 }
 
@@ -103,6 +104,20 @@ int kvsns_creat(kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
 	RC_WRAP(kvsns_get_stat, newfile, &stat);
 	RC_WRAP(extstore_create, *newfile);
 
+	return 0;
+}
+
+int kvsns_create(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
+		mode_t mode, kvsns_ino_t *newfile)
+{
+	kvsns_fid_t  kfid;
+	/*@todo Check write access to the directory */
+	log_trace("kvsns_create: Enter\n");
+	RC_WRAP(kvsns_create_dentry, ctx, cred, parent, name, NULL,
+		mode, newfile, KVSNS_FILE);
+	RC_WRAP(extstore_get_fid, *newfile, &kfid);
+	RC_WRAP(extstore_create_object, ctx, *newfile, &kfid);
+	log_trace("kvsns_create: Exit\n");
 	return 0;
 }
 

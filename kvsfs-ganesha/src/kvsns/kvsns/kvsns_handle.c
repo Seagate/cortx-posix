@@ -41,6 +41,7 @@
 #include <kvsns/kvsns.h>
 #include <kvsns/extstore.h>
 #include "kvsns_internal.h"
+#include "kvsns/log.h"
 
 int kvsns_fsstat(kvsns_fsstat_t *stat)
 {
@@ -260,7 +261,7 @@ int kvsns_lookup(kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
 	memset(k, 0, KLEN);
 	snprintf(k, KLEN, "%llu.dentries.%s",
 		 *parent, name);
-
+	log_debug("%llu.dentries.%s\n", *parent, name);
 	RC_WRAP(kvsal_get_char, k, v);
 
 	sscanf(v, "%llu", ino);

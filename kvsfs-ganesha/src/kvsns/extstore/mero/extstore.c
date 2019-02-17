@@ -33,6 +33,7 @@
 #include <hiredis/hiredis.h>
 #include <kvsns/extstore.h>
 #include "../../common/mero/m0common.h"
+#include "kvsns/log.h"
 
 #define RC_WRAP(__function, ...) ({\
 	int __rc = __function(__VA_ARGS__);\
@@ -143,6 +144,53 @@ int extstore_create(kvsns_ino_t object)
 		return rc;
 
 	rc = m0store_create_object(id);
+	if (rc != 0)
+		return rc;
+
+	return 0;
+}
+
+int extstore_get_fid(kvsns_ino_t object, kvsns_fid_t *kfid)
+{
+	return m0_ufid_get((struct m0_uint128 *)kfid);
+}
+
+int extstore_create_object(void *ctx, kvsns_ino_t object,
+			   kvsns_fid_t *kfid)
+{
+	char k[KLEN];
+	char v[VLEN];
+	size_t klen;
+	size_t vlen;
+	int rc;
+	struct m0_uint128 fid;
+
+	snprintf(k, KLEN, "%llu.data", object);
+	klen = strnlen(k, KLEN) + 1;
+
+	memcpy(&fid, (struct m0_uint128 *)kfid, sizeof fid);
+	rc = m0_fid_to_string(&fid, v);
+	if (rc < 0) {
+		log_err("Failed to convert fid to fid_str: %d\n", rc);
+		return rc;
+	}
+
+	vlen = strnlen(v, KLEN) + 1;
+	rc = m0kvs_put(ctx, k, klen, v, vlen);
+	if (rc != 0)
+		return rc;
+
+	/* @todo: Understand why .data_ext is used? */
+	snprintf(k, KLEN, "%llu.data_ext", object);
+	klen = strnlen(k, KLEN) + 1;
+	snprintf(v, VLEN, " ");
+	vlen = strnlen(v, KLEN) + 1;
+
+	rc = m0kvs_put(ctx, k, klen, v, vlen);
+	if (rc != 0)
+		return rc;
+
+	rc = m0store_create_object(fid);
 	if (rc != 0)
 		return rc;
 
