@@ -107,21 +107,24 @@ int kvsns_creat(kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
 	return 0;
 }
 
-int kvsns_create(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
+int kvsns2_creat(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
 		mode_t mode, kvsns_ino_t *newfile)
 {
 	kvsns_fid_t  kfid;
+
 	/*@todo Check write access to the directory */
-	log_trace("kvsns_create: Enter\n");
-	RC_WRAP(kvsns_create_dentry, ctx, cred, parent, name, NULL,
+
+	log_trace("ENTER: parent:%p name:%s file:%p mode:0x%X",
+		  parent, name, newfile, mode);
+	RC_WRAP(kvsns2_create_entry, ctx, cred, parent, name, NULL,
 		mode, newfile, KVSNS_FILE);
 	RC_WRAP(extstore_get_fid, *newfile, &kfid);
-	RC_WRAP(extstore_create_object, ctx, *newfile, &kfid);
-	log_trace("kvsns_create: Exit\n");
+	RC_WRAP(extstore2_create, ctx, *newfile, &kfid);
+	log_trace("EXIT");
 	return 0;
 }
 
-int kvsns_open(kvsns_cred_t *cred, kvsns_ino_t *ino, 
+int kvsns_open(kvsns_cred_t *cred, kvsns_ino_t *ino,
 	       int flags, mode_t mode, kvsns_file_open_t *fd)
 {
 	kvsns_open_owner_t me;

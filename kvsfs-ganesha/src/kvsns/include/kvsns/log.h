@@ -9,7 +9,7 @@
 #include <stdio.h>
 
 /* @todo : Improve this simplistic implementation of logging. */
-#define KVSNS_LOG(...) fprintf(stderr, __VA_ARGS__);
+#define KVSNS_LOG(fmt, ...) fprintf(stderr, "%s: " fmt "\n", __func__, ##__VA_ARGS__)
 
 /* @todo: Add more logging levels. */
 #define log_err KVSNS_LOG

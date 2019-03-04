@@ -84,13 +84,18 @@
 #define STAT_OTHER_WRITE	0002	/* Write by other. */
 #define STAT_OTHER_EXEC		0001	/* Execute by other. */
 
-#define KVSNS_ACCESS_READ 	1
+#define KVSNS_ACCESS_READ	1
 #define KVSNS_ACCESS_WRITE	2
 #define KVSNS_ACCESS_EXEC	4
+
+#define KVSNS_NULL_FS_CTX NULL
+#define KVSNS_FS_ID_DEFAULT 0
 
 /* KVSAL related definitions and functions */
 
 typedef unsigned long long int kvsns_ino_t;
+typedef unsigned long int kvsns_fsid_t;
+typedef void *kvsns_fs_ctx_t;
 
 /* KVSNS related definitions and functions */
 typedef struct kvsns_cred__ {
@@ -203,7 +208,7 @@ int kvsns_access(kvsns_cred_t *cred, kvsns_ino_t *ino, int flags);
 int kvsns_creat(kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
 		mode_t mode, kvsns_ino_t *newino);
 
-int kvsns_create(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
+int kvsns2_creat(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
 		mode_t mode, kvsns_ino_t *newino);
 /**
  * Creates a directory.
@@ -644,5 +649,26 @@ int kvsns_lookup_path(kvsns_cred_t *cred, kvsns_ino_t *parent, char *path,
 int kvsns_attach(kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
 		 char *objid, int objid_len, struct stat *stat,
 		 int statflags, kvsns_ino_t *newfile);
+
+/**
+ * High level API: Get a fs specific handle for the passed fs id.
+ * @param fs_id Filesystem id
+ * @param fs_ctx [OUT] File system ctx for the passed fs id.
+ *
+ * @return 0 if successful, a negative "-errno" value in case of failure
+ */
+int kvsns_fsid_to_ctx(kvsns_fsid_t fs_id, kvsns_fs_ctx_t *fs_ctx);
+
+/**
+ * High level API: Create a fs context for the passed fs id. This function
+ * would be invoked during kvsns_start.
+ * @todo: Currently only sets a global context to fs_ctx.
+ * @param fs_id Filesystem id
+ * @param fs_ctx: Generated fs_ctx for that fs_id
+ *
+ * @return 0 if successful, a negative "-errno" value in case of failure
+ */
+
+int kvsns_create_fs_ctx(kvsns_fsid_t fs_id, kvsns_fs_ctx_t *fs_ctx);
 
 #endif

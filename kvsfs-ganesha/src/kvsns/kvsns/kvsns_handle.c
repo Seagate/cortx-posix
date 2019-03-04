@@ -43,6 +43,12 @@
 #include "kvsns_internal.h"
 #include "kvsns/log.h"
 
+/*
+ * @todo : In future, this would be an array of filesystem contexts indexed by
+ * fs id. This array would be created and populated during kvsns start/init.
+ */
+static kvsns_fs_ctx_t *kvsns_fs_ctx = KVSNS_NULL_FS_CTX;
+
 int kvsns_fsstat(kvsns_fsstat_t *stat)
 {
 	char k[KLEN];
@@ -261,7 +267,7 @@ int kvsns_lookup(kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
 	memset(k, 0, KLEN);
 	snprintf(k, KLEN, "%llu.dentries.%s",
 		 *parent, name);
-	log_debug("%llu.dentries.%s\n", *parent, name);
+	log_debug("%llu.dentries.%s", *parent, name);
 	RC_WRAP(kvsal_get_char, k, v);
 
 	sscanf(v, "%llu", ino);
@@ -660,3 +666,16 @@ int kvsns_mr_proper(void)
 	return 0;
 }
 
+int kvsns_fsid_to_ctx(kvsns_fsid_t fsid, kvsns_fs_ctx_t *fs_ctx)
+{
+	*fs_ctx = kvsns_fs_ctx;
+	return 0;
+}
+
+int kvsns_create_fs_ctx(kvsns_fsid_t fs_id, kvsns_fs_ctx_t *fs_ctx)
+{
+	RC_WRAP(kvsal_create_fs_ctx, fs_id, fs_ctx);
+
+	kvsns_fs_ctx = *fs_ctx;
+	return 0;
+}

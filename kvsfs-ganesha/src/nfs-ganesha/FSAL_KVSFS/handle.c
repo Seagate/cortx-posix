@@ -51,6 +51,38 @@
 /* helpers
  */
 
+static int kvsfs_get_fsid(const struct fsal_obj_handle *hdl,
+			  kvsns_fsid_t *fs_id)
+{
+	*fs_id = KVSNS_FS_ID_DEFAULT;
+	return 0;
+}
+
+/*
+ * @todo: Get the kvsns specific filesystem handle from FSAL object handle.
+ *
+ */
+static int kvsfs_obj_to_kvsns_ctx(const struct fsal_obj_handle *hdl,
+				  kvsns_fs_ctx_t *fs_ctx)
+{
+	int rc;
+	kvsns_fsid_t fs_id = KVSNS_FS_ID_DEFAULT;
+
+	rc = kvsfs_get_fsid(hdl, &fs_id);
+	if (rc != 0) {
+		LogCrit(COMPONENT_FSAL, "Invalid fs_id: %lu rc: %d", fs_id,
+			rc);
+		return rc;
+	}
+
+	rc = kvsns_fsid_to_ctx(fs_id, *fs_ctx);
+	if (rc != 0)
+		LogCrit(COMPONENT_FSAL,
+			"fs_handle not found, fsid: %lu, rc: %d", fs_id, rc);
+
+	return rc;
+}
+
 /* alloc_handle
  * allocate and fill in a handle
  * this uses malloc/free for the time being.
@@ -209,6 +241,7 @@ static fsal_status_t kvsfs_create(struct fsal_obj_handle *dir_hdl,
 	kvsns_cred_t cred;
 	kvsns_ino_t object;
 	struct stat stat;
+	kvsns_fs_ctx_t fs_ctx = KVSNS_NULL_FS_CTX;
 
 	*handle = NULL;		/* poison it */
 	if (!dir_hdl->obj_ops.handle_is(dir_hdl, DIRECTORY)) {
@@ -224,8 +257,14 @@ static fsal_status_t kvsfs_create(struct fsal_obj_handle *dir_hdl,
 	cred.uid = attrib->owner;
 	cred.gid = attrib->group;
 
-	retval = kvsns_creat(&cred, &myself->handle->kvsfs_handle, (char *)name,
-			     fsal2unix_mode(attrib->mode), &object);
+	retval = kvsfs_obj_to_kvsns_ctx(dir_hdl, &fs_ctx);
+	if (retval != 0) {
+		LogCrit(COMPONENT_FSAL, "Unable to get fs_handle: %d", retval);
+		goto fileerr;
+	}
+
+	retval = kvsns2_creat(fs_ctx, &cred, &myself->handle->kvsfs_handle,
+			      (char *)name, fsal2unix_mode(attrib->mode), &object);
 	if (retval)
 		goto fileerr;
 

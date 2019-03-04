@@ -75,19 +75,19 @@ int kvsal_end_transaction(void);
 int kvsal_discard_transaction(void);
 int kvsal_exists(char *k);
 int kvsal_set_char(char *k, char *v);
-int kvsal_put_string(void *ctx, char *k, char *v);
+int kvsal2_set_char(void *ctx, char *k, char *v);
 int kvsal_get_char(char *k, char *v);
 int kvsal_fetch_string(void *ctx, char *k, char *v);
 int kvsal_set_binary(char *k, char *buf, size_t size);
 int kvsal_get_binary(char *k, char *buf, size_t *size);
 int kvsal_set_stat(char *k, struct stat *buf);
-int kvsal_put_stat(void *ctx, char *k, struct stat *buf);
+int kvsal2_set_stat(void *ctx, char *k, struct stat *buf);
 int kvsal_get_stat(char *k, struct stat *buf);
-int kvsal_fetch_stat(void *ctx, char *k, struct stat *buf);
+int kvsal2_get_stat(void *ctx, char *k, struct stat *buf);
 int kvsal_get_list_size(char *pattern);
 int kvsal_del(char *k);
 int kvsal_incr_counter(char *k, unsigned long long *v);
-int kvsal_incr_inode_counter(void *ctx, char *k, unsigned long long *v);
+int kvsal2_incr_counter(void *ctx, char *k, unsigned long long *v);
 
 int kvsal_get_list_pattern(char *pattern, int start, int *end,
 			   kvsal_item_t *items);
@@ -95,5 +95,6 @@ int kvsal_get_list(kvsal_list_t *list, int start, int *end, kvsal_item_t *items)
 int kvsal_fetch_list(char *pattern, kvsal_list_t *list);
 int kvsal_dispose_list(kvsal_list_t *list);
 int kvsal_init_list(kvsal_list_t *list);
+int kvsal_create_fs_ctx(unsigned long fs_id, void **fs_ctx);
 
 #endif
