@@ -50,11 +50,11 @@ int m0kvs_reinit(void);
 
 int m0kvs_set(char *k, size_t klen,
 	      char *v, size_t vlen);
-int m0kvs_put(void *ctx, char *k, size_t klen,
+int m0kvs2_set(void *ctx, char *k, size_t klen,
 	      char *v, size_t vlen);
 int m0kvs_get(char *k, size_t klen,
 	      char *v, size_t *vlen);
-int m0kvs_fetch(void *ctx, char *k, size_t klen,
+int m0kvs2_get(void *ctx, char *k, size_t klen,
 	        char *v, size_t *vlen);
 int m0kvs_del(char *k, size_t klen);
 void m0_iter_kvs(char *k);
@@ -91,6 +91,8 @@ static inline ssize_t m0store_pread(struct m0_uint128 id, off_t x,
 {
 	return m0store_do_io(id, IO_READ, x, len, bs, buff);
 }
+
+int m0_idx_create(uint64_t fs_id, struct m0_clovis_idx **index);
 
 #endif
 /*

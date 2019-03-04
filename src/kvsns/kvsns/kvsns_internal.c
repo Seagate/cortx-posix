@@ -56,13 +56,13 @@ int kvsns_next_inode(kvsns_ino_t *ino)
 	return 0;
 }
 
-int kvsns_next_inode_get(void *ctx, kvsns_ino_t *ino)
+int kvsns2_next_inode(void *ctx, kvsns_ino_t *ino)
 {
 	int rc;
 	if (!ino)
 		return -EINVAL;
 
-	rc = kvsal_incr_inode_counter(ctx, "ino_counter", ino);
+	rc = kvsal2_incr_counter(ctx, "ino_counter", ino);
 	if (rc != 0)
 		return rc;
 
@@ -172,26 +172,26 @@ static int kvsns_create_check_name(const char *name, size_t len)
 	const char *parent = "..";
 
 	if (len >= NAME_MAX) {
-		log_info("Name too long %s\n", name);
+		log_debug("Name too long %s", name);
 		return  -E2BIG;
 	}
 
 	if (len == 1 && (name[0] == '.' || name[0] == '/')) {
-		log_info("File already exists: %s\n", name);
+		log_debug("File already exists: %s", name);
 		return -EEXIST;
 	}
 
 	if (len == 2 && (strncmp(name, parent, 2) == 0)) {
-		log_info("File already exists: %s\n", name);
+		log_debug("File already exists: %s", name);
 		return -EEXIST;
 	}
 
 	return 0;
 }
 
-int kvsns_create_dentry(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
-		       char *name, char *lnk, mode_t mode,
-		       kvsns_ino_t *new_entry, enum kvsns_type type)
+int kvsns2_create_entry(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
+		        char *name, char *lnk, mode_t mode,
+		        kvsns_ino_t *new_entry, enum kvsns_type type)
 {
 	int	rc;
 	char	k[KLEN];
@@ -218,7 +218,7 @@ int kvsns_create_dentry(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
 	/* @todo: Check if entry already exists, using lookup op */
 
 	/* Get a new inode number for the new file and set it */
-	RC_WRAP(kvsns_next_inode_get, ctx, new_entry);
+	RC_WRAP(kvsns2_next_inode, ctx, new_entry);
 
 	/* @todo : Fetch parent stats and amend it */
 
@@ -228,14 +228,14 @@ int kvsns_create_dentry(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
 		 *parent, name);
 	snprintf(v, VLEN, "%llu", *new_entry);
 
-	RC_WRAP_LABEL(rc, aborted, kvsal_put_string, ctx, k, v);
+	RC_WRAP_LABEL(rc, aborted, kvsal2_set_char, ctx, k, v);
 
 	/* Set the parentdir of the new file */
 	memset(k, 0, KLEN);
 	snprintf(k, KLEN, "%llu.parentdir", *new_entry);
 	snprintf(v, VLEN, "%llu|", *parent);
 
-	RC_WRAP_LABEL(rc, aborted, kvsal_put_string, ctx,  k, v);
+	RC_WRAP_LABEL(rc, aborted, kvsal2_set_char, ctx,  k, v);
 
 	/* Set the stats of the new file */
 	memset(&bufstat, 0, sizeof(struct stat));
@@ -276,7 +276,7 @@ int kvsns_create_dentry(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
 	}
 	memset(k, 0, KLEN);
 	snprintf(k, KLEN, "%llu.stat", *new_entry);
-	RC_WRAP_LABEL(rc, aborted, kvsal_put_stat, ctx, k, &bufstat);
+	RC_WRAP_LABEL(rc, aborted, kvsal2_set_stat, ctx, k, &bufstat);
 
 	/* @todo Modify parent stats */
 

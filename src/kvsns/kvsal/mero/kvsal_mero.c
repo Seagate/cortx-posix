@@ -26,7 +26,7 @@
  */
 
 /* kvsal_mero.c
- * KVS Abstraction Layer: interface for MERO 
+ * KVS Abstraction Layer: interface for MERO
  */
 
 #include <errno.h>
@@ -89,14 +89,14 @@ int kvsal_set_char(char *k, char *v)
 	return m0kvs_set(k, klen, v, vlen);
 }
 
-int kvsal_put_string(void *ctx, char *k, char *v)
+int kvsal2_set_char(void *ctx, char *k, char *v)
 {
 	size_t klen;
 	size_t vlen;
 
 	klen = strnlen(k, KLEN)+1;
 	vlen = strnlen(v, VLEN)+1;
-	return m0kvs_put(ctx, k, klen, v, vlen);
+	return m0kvs2_set(ctx, k, klen, v, vlen);
 }
 
 int kvsal_get_char(char *k, char *v)
@@ -114,7 +114,7 @@ int kvsal_fetch_string(void *ctx, char *k, char *v)
 	size_t vlen = VLEN;
 
 	klen = strnlen(k, KLEN)+1;
-	return m0kvs_fetch(ctx, k, klen, v, &vlen);
+	return m0kvs2_get(ctx, k, klen, v, &vlen);
 }
 
 int kvsal_set_stat(char *k, struct stat *buf)
@@ -126,12 +126,12 @@ int kvsal_set_stat(char *k, struct stat *buf)
 			  (char *)buf, sizeof(struct stat));
 }
 
-int kvsal_put_stat(void *ctx, char *k, struct stat *buf)
+int kvsal2_set_stat(void *ctx, char *k, struct stat *buf)
 {
 	size_t klen;
 
 	klen = strnlen(k, KLEN)+1;
-	return m0kvs_put(ctx ,k, klen,
+	return m0kvs2_set(ctx ,k, klen,
 			 (char *)buf, sizeof(struct stat));
 }
 
@@ -145,13 +145,13 @@ int kvsal_get_stat(char *k, struct stat *buf)
 			  (char *)buf, &vlen);
 }
 
-int kvsal_fetch_stat(void *ctx, char *k, struct stat *buf)
+int kvsal2_get_stat(void *ctx, char *k, struct stat *buf)
 {
 	size_t klen;
 	size_t vlen = sizeof(struct stat);
 
 	klen = strnlen(k, KLEN)+1;
-	return m0kvs_fetch(ctx, k, klen,
+	return m0kvs2_get(ctx, k, klen,
 			 (char *)buf, &vlen);
 }
 
@@ -198,7 +198,7 @@ int kvsal_incr_counter(char *k, unsigned long long *v)
 	return 0;
 }
 
-int kvsal_incr_inode_counter(void *ctx, char *k, unsigned long long *v)
+int kvsal2_incr_counter(void *ctx, char *k, unsigned long long *v)
 {
 	int rc;
 	char buf[VLEN];
@@ -209,27 +209,27 @@ int kvsal_incr_inode_counter(void *ctx, char *k, unsigned long long *v)
 	klen = strnlen(k, KLEN) + 1;
 
 	/* @todo: Do inode fetch and put in a single transaction */
-	rc = m0kvs_fetch(ctx, k, klen, buf, &vlen);
+	rc = m0kvs2_get(ctx, k, klen, buf, &vlen);
 	if (rc != 0)
 		return rc;
 
 	sscanf(buf, "%llu", v);
-	log_debug("fetched inode counter: %llu\n", *v);
+	log_debug("fetched inode counter: %llu", *v);
 
 	*v += 1;
 	snprintf(buf, VLEN, "%llu", *v);
 	vlen = strnlen(buf, VLEN)+1;
-	log_debug("incremented inode counter: %llu\n", *v);
-	rc = m0kvs_put(ctx, k, klen, buf, vlen);
+	log_debug("incremented inode counter: %llu", *v);
+	rc = m0kvs2_set(ctx, k, klen, buf, vlen);
 	if (rc != 0)
 		return rc;
 
-	rc = m0kvs_fetch(ctx, k, klen, buf, &vlen);
+	rc = m0kvs2_get(ctx, k, klen, buf, &vlen);
 	if (rc != 0)
 		return rc;
 
 	sscanf(buf, "%llu", &ino);
-	log_debug("setkv inode counter: %llu\n", ino);
+	log_debug("setkv inode counter: %llu", ino);
 	return 0;
 }
 
@@ -377,3 +377,16 @@ int kvsal_get_list_pattern(char *pattern, int start, int *size,
 
 	return 0;
 }
+
+int kvsal_create_fs_ctx(unsigned long fs_id, void **fs_ctx)
+{
+	int rc;
+
+	rc = m0_idx_create(fs_id, (struct m0_clovis_idx **)fs_ctx);
+	if (rc != 0) {
+		log_err("Failed to create idx: %d", rc);
+		return rc;
+	}
+	return 0;
+}
+

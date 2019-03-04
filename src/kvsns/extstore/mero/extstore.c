@@ -155,7 +155,7 @@ int extstore_get_fid(kvsns_ino_t object, kvsns_fid_t *kfid)
 	return m0_ufid_get((struct m0_uint128 *)kfid);
 }
 
-int extstore_create_object(void *ctx, kvsns_ino_t object,
+int extstore2_create(void *ctx, kvsns_ino_t object,
 			   kvsns_fid_t *kfid)
 {
 	char k[KLEN];
@@ -171,12 +171,12 @@ int extstore_create_object(void *ctx, kvsns_ino_t object,
 	memcpy(&fid, (struct m0_uint128 *)kfid, sizeof fid);
 	rc = m0_fid_to_string(&fid, v);
 	if (rc < 0) {
-		log_err("Failed to convert fid to fid_str: %d\n", rc);
+		log_err("Failed to convert fid to fid_str: %d", rc);
 		return rc;
 	}
 
 	vlen = strnlen(v, KLEN) + 1;
-	rc = m0kvs_put(ctx, k, klen, v, vlen);
+	rc = m0kvs2_set(ctx, k, klen, v, vlen);
 	if (rc != 0)
 		return rc;
 
@@ -186,7 +186,7 @@ int extstore_create_object(void *ctx, kvsns_ino_t object,
 	snprintf(v, VLEN, " ");
 	vlen = strnlen(v, KLEN) + 1;
 
-	rc = m0kvs_put(ctx, k, klen, v, vlen);
+	rc = m0kvs2_set(ctx, k, klen, v, vlen);
 	if (rc != 0)
 		return rc;
 

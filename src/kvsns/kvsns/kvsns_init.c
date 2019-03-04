@@ -42,6 +42,7 @@
 #include <kvsns/kvsns.h>
 #include <kvsns/extstore.h>
 #include "kvsns_internal.h"
+#include "kvsns/log.h"
 
 static struct collection_item *cfg_items;
 
@@ -80,6 +81,16 @@ int kvsns_init_root(int openbar)
 	char v[KLEN];
 	struct stat bufstat;
 	kvsns_ino_t ino;
+	kvsns_fs_ctx_t ctx = KVSNS_NULL_FS_CTX;
+	int rc;
+
+	/* Create fs ctx for this fs_id. Currently, returns a global index for mero.
+	   @todo: This ctx would be used in all kvs ops for this fs */
+	rc = kvsns_create_fs_ctx(openbar, &ctx);
+	if (rc != 0) {
+		log_err("kvsns init failed for fs_id: %d, rc %d", openbar, rc);
+		return rc;
+	}
 
 	ino = KVSNS_ROOT_INODE;
 

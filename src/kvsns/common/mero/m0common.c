@@ -258,10 +258,12 @@ out:
 }
 
 
-/* @todo: Return an index for an fs_fid/ctx */
-static struct m0_clovis_idx*  m0_idx_get(void *ctx)
+/* @todo: Creates an clovis index for a fs_id. Currently
+ * this only returns a global idx */
+int m0_idx_create(uint64_t fs_id, struct m0_clovis_idx **index)
 {
-	return &idx;
+	*index = &idx;
+	return 0;
 }
 
 static int m0_kvs_op_launch(void *ctx,
@@ -278,9 +280,7 @@ static int m0_kvs_op_launch(void *ctx,
 	if (!my_init_done)
 		m0kvs_reinit();
 
-	index = m0_idx_get(ctx);
-	if (index == NULL)
-		return -EINVAL;
+	index = ctx;
 
 	rc = m0_clovis_idx_op(index, opcode, key, val,
 			      rcs, M0_OIF_OVERWRITE, &op);
@@ -403,7 +403,7 @@ out:
 	return rc;
 }
 
-int m0kvs_fetch(void *ctx, char *k, size_t klen,
+int m0kvs2_get(void *ctx, char *k, size_t klen,
 	       char *v, size_t *vlen)
 {
 	struct m0_bufvec	 key;
@@ -457,7 +457,7 @@ out:
 	return rc;
 }
 
-int m0kvs_put(void *ctx, char *k, size_t klen,
+int m0kvs2_set(void *ctx, char *k, size_t klen,
 	       char *v, size_t vlen)
 {
 	struct m0_bufvec	 key;
@@ -753,11 +753,11 @@ int m0_fid_to_string(struct m0_uint128 *fid, char *fid_s)
 
 	rc = m0_fid_print(fid_s, KVS_FID_STR_LEN, (struct m0_fid *)fid);
 	if (rc < 0) {
-		log_err("Failed to generate fid str: %d\n", rc);
+		log_err("Failed to generate fid str: %d", rc);
 		return rc;
 	}
-	/* @todo: Use logging instead of fprintf here */
-	log_info("Got fid : %s\n", fid_s);
+
+	log_debug("Got fid : %s", fid_s);
 	return 0;
 }
 

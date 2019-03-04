@@ -30,6 +30,7 @@ int main(int argc, char *argv[])
 	kvsns_ino_t parent_inode = 0LL;
 	kvsns_ino_t ino = 0LL;
 	uint64_t fs_id = 1;
+	kvsns_fs_ctx_t fs_ctx = KVSNS_NULL_FS_CTX;
 
 	cred.uid = getuid();
 	cred.gid = getgid();
@@ -108,7 +109,13 @@ int main(int argc, char *argv[])
 			fprintf(stderr, "creat <newfile>\n");
 			exit(1);
 		}
-		rc = kvsns_create(&fs_id, &cred, &current_inode, argv[1], 0755, &ino);
+
+		rc = kvsns_create_fs_ctx(fs_id, &fs_ctx);
+		if (rc != 0) {
+			printf("Unable to create index for fs_id:%lu,  rc=%d !\n", fs_id, rc);
+		}
+
+		rc = kvsns2_creat(fs_ctx, &cred, &current_inode, argv[1], 0755, &ino);
 		if (rc == 0) {
 			printf("==> %llu/%s created = %llu\n",
 				current_inode, argv[1], ino);
