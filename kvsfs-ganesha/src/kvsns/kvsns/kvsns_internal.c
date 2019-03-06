@@ -447,6 +447,18 @@ int kvsns_access(kvsns_cred_t *cred, kvsns_ino_t *ino, int flags)
 	return kvsns_access_check(cred, &stat, flags);
 }
 
+int kvsns2_access(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *ino, int flags)
+{
+	struct stat stat;
+
+	if (!cred || !ino)
+		return -EINVAL;
+
+	RC_WRAP(kvsns2_getattr, ctx, cred, ino, &stat);
+
+	return kvsns_access_check(cred, &stat, flags);
+}
+
 int kvsns_get_stat(kvsns_ino_t *ino, struct stat *bufstat)
 {
 	char k[KLEN];

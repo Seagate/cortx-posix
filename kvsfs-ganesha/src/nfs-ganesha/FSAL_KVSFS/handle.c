@@ -148,6 +148,7 @@ static fsal_status_t kvsfs_lookup(struct fsal_obj_handle *parent,
 	struct kvsfs_file_handle fh;
 	kvsns_cred_t cred;
 	kvsns_ino_t object;
+	kvsns_fs_ctx_t fs_ctx = KVSNS_NULL_FS_CTX;
 
 	if (!path)
 		return fsalstat(ERR_FSAL_FAULT, 0);
@@ -163,14 +164,21 @@ static fsal_status_t kvsfs_lookup(struct fsal_obj_handle *parent,
 
 	cred.uid = op_ctx->creds->caller_uid;
 	cred.gid = op_ctx->creds->caller_gid;
-	retval = kvsns_lookup(&cred, &parent_hdl->handle->kvsfs_handle,
+
+	retval = kvsfs_obj_to_kvsns_ctx(parent, &fs_ctx);
+	if (retval != 0) {
+		LogCrit(COMPONENT_FSAL, "Unable to get fs_handle: %d", retval);
+		goto errout;
+	}
+
+	retval = kvsns2_lookup(fs_ctx, &cred, &parent_hdl->handle->kvsfs_handle,
 			      (char *)path, &object);
 	if (retval) {
 		fsal_error = posix2fsal_error(-retval);
 		goto errout;
 	}
 
-	retval = kvsns_getattr(&cred, &object, &stat);
+	retval = kvsns2_getattr(fs_ctx, &cred, &object, &stat);
 	if (retval) {
 		fsal_error = posix2fsal_error(-retval);
 		goto errout;
@@ -268,7 +276,7 @@ static fsal_status_t kvsfs_create(struct fsal_obj_handle *dir_hdl,
 	if (retval)
 		goto fileerr;
 
-	retval = kvsns_getattr(&cred, &object, &stat);
+	retval = kvsns2_getattr(fs_ctx, &cred, &object, &stat);
 	if (retval)
 		goto fileerr;
 

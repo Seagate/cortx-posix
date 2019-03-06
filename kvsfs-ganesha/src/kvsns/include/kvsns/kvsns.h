@@ -195,6 +195,22 @@ int kvsns_init_root(int openbar);
 int kvsns_access(kvsns_cred_t *cred, kvsns_ino_t *ino, int flags);
 
 /**
+ * Check is a given user can access an inode.
+ *
+ * @note: this call is similar to POSIX's access() call. It behaves the same.
+ *
+ * @param ctx - File system context
+ * @param cred - pointer to user's credentials
+ * @param ino - pointer to inode whose access is to be checked.
+ * @params flags - access to be tested. The flags are the same as those used
+ * by libc's access() function.
+ *
+ * @return 0 if access is granted, a negative value means an error. -EPERM
+ * is returned when access is not granted
+ */
+int kvsns2_access(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *ino, int flags);
+
+/**
  * Creates a file.
  *
  * @param cred - pointer to user's credentials
@@ -318,6 +334,20 @@ int kvsns_lookup(kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
 		 kvsns_ino_t *myino);
 
 /**
+ * Finds the inode of an entry whose parent and name are known. This is the
+ * basic "lookup" operation every filesystem implements.
+ *
+ * @param ctx - Filesystem context
+ * @param cred - pointer to user's credentials
+ * @param parent - pointer to parent directory's inode.
+ * @param name - name of the entry to be found.
+ * @paran myino - [OUT] points to the found ino if successful.
+ *
+ * @return 0 if successful, a negative "-errno" value in case of failure
+ */
+int kvsns2_lookup(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
+		  kvsns_ino_t *myino);
+/**
  * Finds the parent inode of an entry.
  *
  * @note : because of this call, directories do not contain explicit
@@ -355,6 +385,21 @@ int kvsns_get_root(kvsns_ino_t *ino);
  * @return 0 if successful, a negative "-errno" value in case of failure
  */
 int kvsns_getattr(kvsns_cred_t *cred, kvsns_ino_t *ino, struct stat *buffstat);
+
+/**
+ * Gets attributes for a known inode.
+ *
+ * @note: the call is similar to stat() call in libc. It uses the structure
+ * "struct stat" defined in the libC.
+ * @param ctx - Filesystem context
+ * @param cred - pointer to user's credentials
+ * @param ino - pointer to current inode
+ * @param buffstat - [OUT] points to inode's stats.
+ *
+ * @return 0 if successful, a negative "-errno" value in case of failure
+ */
+int kvsns2_getattr(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
+		   struct stat *buffstat);
 
 /**
  * Sets attributes for a known inode.

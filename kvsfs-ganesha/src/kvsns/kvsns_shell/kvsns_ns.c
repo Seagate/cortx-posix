@@ -115,6 +115,7 @@ int main(int argc, char *argv[])
 		rc = kvsns_create_fs_ctx(fs_id, &fs_ctx);
 		if (rc != 0) {
 			printf("Unable to create index for fs_id:%lu,  rc=%d !\n", fs_id, rc);
+			exit (1);
 		}
 
 		rc = kvsns2_creat(fs_ctx, &cred, &current_inode, argv[1], 0755, &ino);
@@ -139,6 +140,7 @@ int main(int argc, char *argv[])
 		rc = kvsns_create_fs_ctx(fs_id, &fs_ctx);
 		if (rc != 0) {
 			printf("Unable to create index for fs_id:%lu,  rc=%d !\n", fs_id, rc);
+			exit(1);
 		}
 
 		rc = kvsns2_open(fs_ctx, &cred, &ino, O_RDONLY, 0644, &kfd);
@@ -149,6 +151,25 @@ int main(int argc, char *argv[])
 			return 0;
 		} else
 			printf("Failed rc=%d !\n", rc);
+	} else if (!strcmp(exec_name, "kvsns_lookup")) {
+		if (argc != 2) {
+			fprintf(stderr, "lookup  <filename>\n");
+			exit(1);
+		}
+
+		rc = kvsns_create_fs_ctx(fs_id, &fs_ctx);
+		if (rc != 0) {
+			printf("Unable to create index for fs_id:%lu,  rc=%d !\n", fs_id, rc);
+			exit(1);
+		}
+
+		rc = kvsns2_lookup(fs_ctx, &cred, &current_inode, argv[1], &ino);
+		if (rc == 0) {
+			printf("==> %llu/%s Found = %llu\n",
+				current_inode, argv[1], ino);
+			return rc;
+		} else
+			printf("==> %s Not found, rc: %d!\n", argv[1],rc);
 	} else
 		fprintf(stderr, "%s does not exists\n", exec_name);
 	printf("######## OK ########\n");

@@ -287,6 +287,28 @@ int kvsns_lookup(kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
 	return 0;
 }
 
+int kvsns2_lookup(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
+		  kvsns_ino_t *ino)
+{
+	char k[KLEN];
+	char v[VLEN];
+
+	if (!cred || !parent || !name || !ino)
+		return -EINVAL;
+
+	RC_WRAP(kvsns2_access, ctx, cred, parent, KVSNS_ACCESS_READ);
+
+	memset(k, 0, KLEN);
+	snprintf(k, KLEN, "%llu.dentries.%s", *parent, name);
+	log_debug("Lookup %llu.dentries.%s", *parent, name);
+	RC_WRAP(kvsal2_get_char, ctx, k, v);
+
+	sscanf(v, "%llu", ino);
+	log_debug("%llu.dentries.%s = %llu", *parent, name, *ino);
+	return 0;
+}
+
+
 int kvsns_lookupp(kvsns_cred_t *cred, kvsns_ino_t *dir, kvsns_ino_t *parent)
 {
 	char k[KLEN];
@@ -319,6 +341,19 @@ int kvsns_getattr(kvsns_cred_t *cred, kvsns_ino_t *ino, struct stat *bufstat)
 	memset(k, 0, KLEN);
 	snprintf(k, KLEN, "%llu.stat", *ino);
 	return kvsal_get_stat(k, bufstat);
+}
+
+int kvsns2_getattr(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
+		   struct stat *bufstat)
+{
+	char k[KLEN];
+
+	if (!cred || !ino || !bufstat)
+		return -EINVAL;
+
+	memset(k, 0, KLEN);
+	snprintf(k, KLEN, "%llu.stat", *ino);
+	return kvsal2_get_stat(ctx, k, bufstat);
 }
 
 int kvsns_setattr(kvsns_cred_t *cred, kvsns_ino_t *ino,
