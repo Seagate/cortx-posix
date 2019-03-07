@@ -7,6 +7,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <errno.h>
+#include <fnmatch.h>
 #include <lib/semaphore.h>
 #include <lib/trace.h>
 #include <lib/memory.h>
@@ -19,8 +20,11 @@
 
 #define CONF_FILE    "./conf"
 #define BUFF_LEN     256
-#define MAXC0RC      4
+#define MAXC0RC      5
 #define BLOCKSIZE    4096
+#define KLEN         256
+#define VLEN         256
+#define LIST_TRUNK   10
 #define CLOVIS_MAX_BLOCK_COUNT  (1)
 
 static struct m0_clovis_config    clovis_conf;
@@ -30,7 +34,10 @@ static struct m0_clovis_realm     clovis_uber_realm;
 static struct m0_clovis_config    clovis_conf;
 static struct m0_idx_dix_config   dix_conf;
 
-static char    c0rc[8][BUFF_LEN];
+static struct m0_fid              ifid;
+static struct m0_clovis_idx       cidx;
+
+static char    c0rc[10][BUFF_LEN];
 
 struct m0_clovis_op_ctx {
 	struct m0_mutex      coc_mlock;
@@ -46,6 +53,19 @@ struct m0_clovis_vec_ctx {
 	struct m0_bufvec           cvc_attr;
 	struct m0_clovis_obj       cvc_obj;
 };
+
+typedef struct m0_item {
+	int offset;
+	char str[KLEN];
+} m0_item_t;
+
+typedef struct m0_kvlist {
+	char pattern[KLEN];
+	m0_item_t *content;
+	size_t size;
+} m0_kvlist_t;
+
+typedef bool (*get_list_cb)(char *k, void *arg);
 
 /*
  ******************************************************************************
@@ -69,6 +89,13 @@ static void clovis_write_vec_free(struct m0_clovis_vec_ctx *v_ctx);
 static void clovis_write_failed_cb(struct m0_clovis_op *op);
 static void clovis_write_stable_cb(struct m0_clovis_op *op);
 static void clovis_write_executed_cb(struct m0_clovis_op *op);
+
+static int m0_op_kvs(enum m0_clovis_idx_opcode opcode, struct m0_bufvec *key,
+		      struct m0_bufvec *val);
+
+static int m0kvs_set(char *k, char *v);
+static int m0kvs_get(char *k, char *v);
+static int m0write(char *src, int64_t idh, int64_t idl, int block_count);
 
 /*
  * trim()
@@ -142,7 +169,7 @@ int init(int idx)
 	int   rc;
 	FILE *fp;
 	char *str = NULL;
-	char  buf[256];
+	char  buf[256], tmpfid[256];
 	char* filename = CONF_FILE;
 
 	/* read conf file */
@@ -237,6 +264,23 @@ int init(int idx)
 
 	/* success */
 	clovis_uber_realm = clovis_container.co_realm;
+
+	/* Get fid from config parameter */
+	memset(&ifid, 0, sizeof(struct m0_fid));
+	rc = m0_fid_sscanf(c0rc[4], &ifid);
+	if (rc != 0) {
+		fprintf(stderr, "Failed to read ifid value from conf\n");
+		return rc;
+	}
+
+	rc = m0_fid_print(tmpfid, 256, &ifid);
+	if (rc < 0) {
+		fprintf(stderr, "Failed to read ifid value from conf\n");
+		return rc;
+	}
+
+	m0_clovis_idx_init(&cidx, &clovis_container.co_realm, (struct m0_uint128 *)&ifid);
+
 	return 0;
 }
 
@@ -470,17 +514,342 @@ static int read_data_from_file(FILE *fp, struct m0_bufvec *data, int bsz)
 }
 
 
+static int m0_op_kvs(enum m0_clovis_idx_opcode opcode,
+		      struct m0_bufvec *key, struct m0_bufvec *val)
+{
+	struct m0_clovis_op	 *op = NULL;
+	int rcs[1];
+	int rc;
+
+	rc = m0_clovis_idx_op(&cidx, opcode, key, val,
+				  rcs, M0_OIF_OVERWRITE, &op);
+	if (rc)
+		return rc;
+
+	m0_clovis_op_launch(&op, 1);
+	rc = m0_clovis_op_wait(op, M0_BITS(M0_CLOVIS_OS_STABLE),
+				   M0_TIME_NEVER);
+	if (rc)
+		goto out;
+
+	/* Check rcs array even if op is succesful */
+	rc = rcs[0];
+
+out:
+	m0_clovis_op_fini(op);
+	/* it seems like 0_free(&op) is not needed */
+	return rc;
+}
+
+bool get_list_cb_size(char *k, void *arg)
+{
+	int size;
+
+	memcpy((char *)&size, (char *)arg, sizeof(int));
+	size += 1;
+	memcpy((char *)arg, (char *)&size, sizeof(int));
+
+	return true;
+}
+
+bool populate_list(char *k, void *arg)
+{
+	m0_kvlist_t *list;
+	m0_item_t *item;
+	m0_item_t *content;
+
+	list = (m0_kvlist_t *)arg;
+
+	if (!list)
+		return false;
+
+	list->size +=1;
+	content = list->content;
+
+	list->content = realloc(content, list->size*sizeof(m0_item_t));
+	if (list->content == NULL)
+		return false;
+
+	item = &list->content[list->size - 1];
+
+	strncpy(item->str, k, KLEN);
+	item->offset = list->size -1;
+
+	return true;
+}
+
+static int m0_pattern_kvs(char *k, char *pattern,
+			  get_list_cb cb, void *arg_cb)
+{
+	struct m0_bufvec       keys;
+	struct m0_bufvec       vals;
+	struct m0_clovis_op       *op = NULL;
+	int i = 0;
+	int rc;
+	int rcs[1];
+	bool stop = false;
+	char myk[KLEN];
+	bool startp = false;
+	int size = 0;
+	int flags;
+
+	strcpy(myk, k);
+	flags = 0; /* Only for 1st iteration */
+
+	do {
+		/* Iterate over all records in the index. */
+		rc = m0_bufvec_alloc(&keys, 1, KLEN) ?:
+			m0_bufvec_alloc(&vals, 1, VLEN);
+		if (rc != 0)
+			return rc;
+
+		keys.ov_buf[0] = m0_alloc(strnlen(myk, KLEN)+1);
+		keys.ov_vec.v_count[0] = strnlen(myk, KLEN)+1;
+		strcpy(keys.ov_buf[0], myk);
+
+		rc = m0_clovis_idx_op(&cidx, M0_CLOVIS_IC_NEXT, &keys, &vals,
+				      rcs, flags,  &op);
+		if (rc != 0) {
+			m0_bufvec_free(&keys);
+			m0_bufvec_free(&vals);
+			return rc;
+		}
+		m0_clovis_op_launch(&op, 1);
+		rc = m0_clovis_op_wait(op, M0_BITS(M0_CLOVIS_OS_STABLE),
+				       M0_TIME_NEVER);
+		/* @todo : Why is op null after this call ??? */
+
+		if (rc != 0) {
+			m0_bufvec_free(&keys);
+			m0_bufvec_free(&vals);
+#if 0
+			if (op) {
+				m0_clovis_op_fini(op);
+				m0_free0(&op);
+			}
+#endif
+			return rc;
+		}
+
+		if (rcs[0] == -ENOENT) {
+			m0_bufvec_free(&keys);
+			m0_bufvec_free(&vals);
+#if 0
+			if (op) {
+				m0_clovis_op_fini(op);
+				m0_free0(&op);
+			}
+#endif
+
+			/* No more keys to be found */
+			if (startp)
+				return 0;
+			return -ENOENT;
+		}
+
+		for (i = 0; i < keys.ov_vec.v_nr; i++) {
+			if (keys.ov_buf[i] == NULL) {
+				stop = true;
+				break;
+			}
+
+			/* Small state machine to display things
+			 * (they are sorted) */
+			if (!fnmatch(pattern, (char *)keys.ov_buf[i], 0)) {
+
+				/* Avoid last one and use it as first
+				 *  of next pass */
+				if (!stop) {
+					if (!cb((char *)keys.ov_buf[i],
+						arg_cb))
+						break;
+				}
+				if (startp == false)
+					startp = true;
+			} else {
+				if (startp == true) {
+					stop = true;
+					break;
+				}
+			}
+
+			strcpy(myk, (char *)keys.ov_buf[i]);
+			flags = M0_OIF_EXCLUDE_START_KEY;
+		}
+
+		m0_bufvec_free(&keys);
+		m0_bufvec_free(&vals);
+#if 0
+		if (op) {
+			m0_clovis_op_fini(op);
+			m0_free0(&op);
+		}
+#endif
+
+	} while (!stop);
+
+	return size;
+}
+
+static int m0_get_list_size(char *pattern)
+{
+	char initk[KLEN];
+	int size = 0;
+	int rc;
+
+	strncpy(initk, pattern, KLEN);
+	initk[strnlen(pattern, KLEN)-1] = '\0';
+
+	rc = m0_pattern_kvs(initk, pattern,
+			    get_list_cb_size, &size);
+	if (rc < 0)
+		return rc;
+
+	return size;
+}
+
+static int m0_fetch_list(char *pattern, m0_kvlist_t *list)
+{
+	char initk[KLEN];
+
+	if (!pattern || !list)
+		return -EINVAL;
+
+	strncpy(initk, pattern, KLEN);
+	initk[strnlen(pattern, KLEN)-1] = '\0';
+
+	return  m0_pattern_kvs(initk, pattern,
+			       populate_list, list);
+}
+
+/** @todo: too many strncpy and mallocs, this should be optimized */
+static int m0_get_list(m0_kvlist_t *list, int start, int *size,
+		       m0_item_t *items)
+{
+	int i;
+
+	if (list->size < (start + *size))
+		*size = list->size - start;
+
+
+	for (i = start; i < start + *size ; i++) {
+		items[i-start].offset = i;
+		strncpy(items[i-start].str,
+			list->content[i].str, KLEN);
+	}
+
+	return 0;
+}
+
 int cleanup(void)
 {
 	m0_clovis_fini(clovis_instance, true);
 	return 0;
 }
 
-int process_command(char *cmd)
+static int m0kvs_set(char *k, char *v)
 {
-	int                        i, rc, block_count, block_size = BLOCKSIZE;
-	int64_t                    idh;    /* object id high       */
-	int64_t                    idl;    /* object id low        */
+	int rc = 0;
+	struct m0_bufvec    key;
+	struct m0_bufvec    val;
+	size_t              klen;
+	size_t              vlen;
+
+	klen = strnlen(k, KLEN)+1;
+	vlen = strnlen(v, VLEN)+1;
+
+	rc = m0_bufvec_alloc(&key, 1, klen) ?:
+		m0_bufvec_alloc(&val, 1, vlen);
+	if (rc)
+		goto out;
+
+	memcpy(key.ov_buf[0], k, klen);
+	memcpy(val.ov_buf[0], v, vlen);
+
+	rc = m0_op_kvs(M0_CLOVIS_IC_PUT, &key, &val);
+out:
+	m0_bufvec_free(&key);
+	m0_bufvec_free(&val);
+	return rc;
+
+}
+
+static int m0kvs_get(char *k, char *v)
+{
+	int rc;
+	struct m0_bufvec     key;
+	struct m0_bufvec     val;
+	size_t               klen;
+	size_t               vlen;
+
+	klen = strnlen(k, KLEN)+1;
+	vlen = VLEN;
+
+	rc = m0_bufvec_alloc(&key, 1, klen) ?:
+		m0_bufvec_empty_alloc(&val, 1);
+
+	memcpy(key.ov_buf[0], k, klen);
+	memset(v, 0, vlen);
+
+	rc = m0_op_kvs(M0_CLOVIS_IC_GET, &key, &val);
+	if (rc)
+		goto out;
+
+	vlen = (size_t)val.ov_vec.v_count[0];
+	memcpy(v, (char *)val.ov_buf[0], vlen);
+
+out:
+	m0_bufvec_free(&key);
+	m0_bufvec_free(&val);
+	return rc;
+}
+
+static int m0kvs_list(char *k, char *v)
+{
+	int rc, i;
+	int maxsize = 0;
+	int offset = 0;
+	int size = LIST_TRUNK;
+	m0_item_t items[LIST_TRUNK];
+	m0_kvlist_t list;
+
+	list.size = 0;
+	list.content = NULL;
+
+	rc = m0_get_list_size(k);
+	if (rc < 0) {
+		fprintf(stderr, "m0_get_list_size: err=%d\n", rc);
+		exit(1);
+	}
+	maxsize = rc;
+	printf("m0_get_list_size: found %d items\n", rc);
+
+	rc = m0_fetch_list(k, &list);
+	if (rc != 0) {
+		fprintf(stderr, "m0_fetch_list: err=%d\n", rc);
+		exit(-rc);
+	}
+
+	while (offset < maxsize) {
+		size = LIST_TRUNK;
+		rc = m0_get_list(&list, offset, &size, items);
+		if (rc < 0) {
+			fprintf(stderr, "m0_get_list: err=%d\n", rc);
+			exit(-rc);
+		}
+		for (i = 0; i < size ; i++)
+			printf("==> %d %s\n", offset+i, items[i].str);
+
+		offset += size;
+	}
+
+
+	return rc;
+}
+
+static int m0write(char *src, int64_t idh, int64_t idl, int block_count)
+{
+	int                        i, rc, block_size = BLOCKSIZE;
 	uint64_t                   last_index;
 	struct m0_uint128          id;
 	struct m0_clovis_vec_ctx  *v_ctx;
@@ -488,11 +857,6 @@ int process_command(char *cmd)
 	uint32_t                   blk_count;
 	uint32_t                   op_index;
 	FILE                      *fp;
-	char                      oper[BUFF_LEN], src[64];
-
-	/* Parse a line */
-	// TODO: oper is not used. We are assuming write operation
-	sscanf (cmd,"%s %s %lld %lld %d", oper, src, (long long int*)&idh, (long long int*)&idl, &block_count);
 
 	/* Open source file */
 	fp = fopen(src, "rb");
@@ -587,6 +951,61 @@ fail:
 	fclose(fp);
 	return rc;
 }
+
+int process_command(char *cmd)
+{
+	int rc = 0;
+	char oper[BUFF_LEN];
+
+	printf("Command: %s", cmd);
+	sscanf(cmd, "%s", oper);
+	cmd += strlen(oper);
+
+	if (strcmp(oper, "m0write") == 0) {
+		int64_t  idh;    /* object id high       */
+		int64_t  idl;    /* object id low        */
+		int      block_count;
+		char     src[BUFF_LEN];
+
+		sscanf (cmd,"%s %lld %lld %d", src, (long long int*)&idh, (long long int*)&idl, &block_count);
+		rc = m0write(src, idh, idl, block_count);
+		if (rc != 0) {
+			fprintf(stderr,"m0write command failed.\n");
+			return rc;
+		}
+	} else if (strcmp(oper, "m0kvs_set") == 0) {
+		char     key[BUFF_LEN], val[BUFF_LEN];
+
+		sscanf (cmd,"%s %s", key, val);
+		rc = m0kvs_set(key, val);
+		if (rc != 0) {
+			fprintf(stderr,"m0kvs_set command failed.\n");
+			return rc;
+		}
+	} else if (strcmp(oper, "m0kvs_get") == 0) {
+		char     key[BUFF_LEN], val[BUFF_LEN];
+
+		sscanf (cmd,"%s", key);
+		rc = m0kvs_get(key, val);
+		if (rc != 0) {
+			fprintf(stderr,"m0kvs_get command failed.\n");
+			return rc;
+		}
+		printf("====> #%s# -> #%s#\n", key, val);
+	} else if (strcmp(oper, "m0kvs_list") == 0) {
+		char     key[BUFF_LEN], val[BUFF_LEN];
+
+		sscanf (cmd,"%s*", key);
+		rc = m0kvs_list(key, val);
+		if (rc != 0) {
+			fprintf(stderr,"m0kvs_list command failed.\n");
+			return rc;
+		}
+	}
+
+	return rc;
+}
+
 
 
 int main (int argc, char *argv[])
