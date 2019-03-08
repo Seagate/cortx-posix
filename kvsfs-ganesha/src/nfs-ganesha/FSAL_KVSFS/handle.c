@@ -51,8 +51,8 @@
 /* helpers
  */
 
-static int kvsfs_get_fsid(const struct fsal_obj_handle *hdl,
-			  kvsns_fsid_t *fs_id)
+int kvsfs_get_fsid(const struct fsal_obj_handle *hdl,
+		   kvsns_fsid_t *fs_id)
 {
 	*fs_id = KVSNS_FS_ID_DEFAULT;
 	return 0;
@@ -62,8 +62,8 @@ static int kvsfs_get_fsid(const struct fsal_obj_handle *hdl,
  * @todo: Get the kvsns specific filesystem handle from FSAL object handle.
  *
  */
-static int kvsfs_obj_to_kvsns_ctx(const struct fsal_obj_handle *hdl,
-				  kvsns_fs_ctx_t *fs_ctx)
+int kvsfs_obj_to_kvsns_ctx(const struct fsal_obj_handle *hdl,
+			   kvsns_fs_ctx_t *fs_ctx)
 {
 	int rc;
 	kvsns_fsid_t fs_id = KVSNS_FS_ID_DEFAULT;

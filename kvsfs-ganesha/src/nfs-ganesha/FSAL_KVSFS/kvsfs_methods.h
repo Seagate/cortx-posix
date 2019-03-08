@@ -79,6 +79,10 @@ struct kvsfs_fsal_obj_handle {
 	} u;
 };
 
+/* Helper Methods */
+int kvsfs_get_fsid(const struct fsal_obj_handle *hdl, kvsns_fsid_t *fs_id);
+int kvsfs_obj_to_kvsns_ctx(const struct fsal_obj_handle *hdl, kvsns_fs_ctx_t *fs_ctx);
+
 	/* I/O management */
 fsal_status_t kvsfs_open(struct fsal_obj_handle *obj_hdl,
 			fsal_openflags_t openflags);
