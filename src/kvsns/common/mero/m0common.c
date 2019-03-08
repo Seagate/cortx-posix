@@ -503,6 +503,105 @@ out:
 }
 
 
+int m0_pattern2_kvs(void *ctx, char *k, char *pattern,
+		    get_list_cb cb, void *arg_cb)
+{
+	struct m0_bufvec          keys;
+	struct m0_bufvec          vals;
+	struct m0_clovis_op       *op = NULL;
+	struct m0_clovis_idx      *index = ctx;
+	int i = 0;
+	int rc;
+	int rcs[1];
+	bool stop = false;
+	char myk[KLEN];
+	bool startp = false;
+	int size = 0;
+	int flags;
+
+	strcpy(myk, k);
+	flags = 0; /* Only for 1st iteration */
+
+	do {
+		/* Iterate over all records in the index. */
+		rc = m0_bufvec_alloc(&keys, 1, KLEN);
+		if (rc != 0)
+			return rc;
+
+		rc = m0_bufvec_alloc(&vals, 1, VLEN);
+		if (rc != 0) {
+			m0_bufvec_free(&keys);
+			return rc;
+		}
+
+		keys.ov_buf[0] = m0_alloc(strnlen(myk, KLEN)+1);
+		keys.ov_vec.v_count[0] = strnlen(myk, KLEN)+1;
+		strcpy(keys.ov_buf[0], myk);
+
+		rc = m0_clovis_idx_op(index, M0_CLOVIS_IC_NEXT, &keys, &vals,
+				      rcs, flags, &op);
+		if (rc != 0) {
+			m0_bufvec_free(&keys);
+			m0_bufvec_free(&vals);
+			return rc;
+		}
+		m0_clovis_op_launch(&op, 1);
+		rc = m0_clovis_op_wait(op, M0_BITS(M0_CLOVIS_OS_STABLE),
+				       M0_TIME_NEVER);
+		/* @todo : Why is op null after this call ??? */
+
+		if (rc != 0) {
+			m0_bufvec_free(&keys);
+			m0_bufvec_free(&vals);
+			return rc;
+		}
+
+		if (rcs[0] == -ENOENT) {
+			m0_bufvec_free(&keys);
+			m0_bufvec_free(&vals);
+
+			/* No more keys to be found */
+			if (startp)
+				return 0;
+			return -ENOENT;
+		}
+		for (i = 0; i < keys.ov_vec.v_nr; i++) {
+			if (keys.ov_buf[i] == NULL) {
+				stop = true;
+				break;
+			}
+
+			/* Small state machine to display things
+			 * (they are sorted) */
+			if (!fnmatch(pattern, (char *)keys.ov_buf[i], 0)) {
+
+				/* Avoid last one and use it as first
+				 *  of next pass */
+				if (!stop) {
+					if (!cb((char *)keys.ov_buf[i],
+						arg_cb))
+						break;
+				}
+				if (startp == false)
+					startp = true;
+			} else {
+				if (startp == true) {
+					stop = true;
+					break;
+				}
+			}
+
+			strcpy(myk, (char *)keys.ov_buf[i]);
+			flags = M0_OIF_EXCLUDE_START_KEY;
+		}
+
+		m0_bufvec_free(&keys);
+		m0_bufvec_free(&vals);
+	} while (!stop);
+
+	return size;
+}
+
 int m0_pattern_kvs(char *k, char *pattern,
 		   get_list_cb cb, void *arg_cb)
 {

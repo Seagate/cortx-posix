@@ -79,6 +79,16 @@ int kvsal_exists(char *k)
 	return m0kvs_get(k, klen, myval, &vlen);
 }
 
+int kvsal2_exists(void *ctx, char *k)
+{
+	size_t klen;
+	size_t vlen = VLEN;
+	char myval[VLEN];
+
+	klen = strnlen(k, KLEN)+1;
+	return m0kvs2_get(ctx, k, klen, myval, &vlen);
+}
+
 int kvsal_set_char(char *k, char *v)
 {
 	size_t klen;
@@ -108,7 +118,7 @@ int kvsal_get_char(char *k, char *v)
 	return m0kvs_get(k, klen, v, &vlen);
 }
 
-int kvsal_fetch_string(void *ctx, char *k, char *v)
+int kvsal2_get_char(void *ctx, char *k, char *v)
 {
 	size_t klen;
 	size_t vlen = VLEN;
@@ -320,6 +330,19 @@ int kvsal_fetch_list(char *pattern, kvsal_list_t *list)
 
 	return  m0_pattern_kvs(initk, pattern,
 				populate_list, list);
+}
+
+int kvsal2_fetch_list(void *ctx, char *pattern, kvsal_list_t *list)
+{
+	char initk[KLEN];
+
+	if (!pattern || !list)
+		return -EINVAL;
+
+	strncpy(initk, pattern, KLEN);
+	initk[strnlen(pattern, KLEN) - 1] = '\0';
+
+	return m0_pattern2_kvs(ctx, initk, pattern, populate_list, list);
 }
 
 int kvsal_dispose_list(kvsal_list_t *list)
