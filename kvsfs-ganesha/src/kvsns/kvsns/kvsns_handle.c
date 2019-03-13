@@ -194,6 +194,18 @@ int kvsns_opendir(kvsns_cred_t *cred, kvsns_ino_t *dir, kvsns_dir_t *ddir)
 	return kvsal_fetch_list(pattern , &ddir->list);
 }
 
+int kvsns2_opendir(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *dir, kvsns_dir_t *ddir)
+{
+	char pattern[KLEN];
+	if (!cred || ! dir || !ddir)
+		return -EINVAL;
+
+	snprintf(pattern, KLEN, "%llu.dentries.*", *dir);
+
+	ddir->ino = *dir;
+	return kvsal2_fetch_list(ctx, pattern , &ddir->list);
+}
+
 int kvsns_closedir(kvsns_dir_t *dir)
 {
 	if (!dir)

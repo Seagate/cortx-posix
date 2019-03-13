@@ -60,7 +60,8 @@ int m0kvs_del(char *k, size_t klen);
 void m0_iter_kvs(char *k);
 int m0_pattern_kvs(char *k, char *pattern,
 		   get_list_cb cb, void *arg_cb);
-
+int m0_pattern2_kvs(void *ctx, char *k, char *pattern,
+		    get_list_cb cb, void *arg_cb);
 int m0store_create_object(struct m0_uint128 id);
 int m0store_delete_object(struct m0_uint128 id);
 int m0_ufid_get(struct m0_uint128 *ufid);

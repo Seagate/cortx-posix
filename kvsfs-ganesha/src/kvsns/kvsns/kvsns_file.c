@@ -173,6 +173,37 @@ int kvsns_open(kvsns_cred_t *cred, kvsns_ino_t *ino,
 	return 0;
 }
 
+int kvsns2_open(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
+		int flags, mode_t mode, kvsns_file_open_t *fd)
+{
+	char k[KLEN];
+	int rc;
+	int pid = getpid();
+	int tid = syscall(SYS_gettid);
+
+	log_trace("%s: Enter\n", __func__);
+	if (!cred || !ino || !fd)
+		return -EINVAL;
+
+	/* Manage the list of open owners */
+	memset(k, 0, KLEN);
+	snprintf(k, KLEN, "%llu.openowner.%d.%d", *ino, pid, tid);
+	rc = kvsal2_exists(ctx, k);
+	if (rc && rc != -ENOENT)
+		return rc;
+	RC_WRAP(kvsal2_set_char, ctx, k, "");
+
+	/** @todo Do not forget store stuffs */
+	fd->ino = *ino;
+	fd->owner.pid = pid;
+	fd->owner.tid = tid;
+	fd->flags = flags;
+
+	/* In particular create a key per opened fd */
+	log_trace("%s: Exit\n", __func__);
+	return 0;
+}
+
 int kvsns_openat(kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
 		 int flags, mode_t mode, kvsns_file_open_t *fd)
 {
@@ -184,6 +215,20 @@ int kvsns_openat(kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
 	RC_WRAP(kvsns_lookup, cred, parent, name, &ino);
 
 	return kvsns_open(cred, &ino, flags, mode, fd);
+}
+
+int kvsns2_openat(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
+		  int flags, mode_t mode, kvsns_file_open_t *fd)
+{
+	kvsns_ino_t ino = 0LL;
+
+	if (!cred || !parent || !name || !fd)
+		return -EINVAL;
+
+	/* @todo: add context as a parameter in kvsns_lookup */
+	// RC_WRAP(kvsns_lookup, cred, parent, name, &ino);
+
+	return kvsns2_open(ctx, cred, &ino, flags, mode, fd);
 }
 
 int kvsns_close(kvsns_file_open_t *fd)

@@ -11,6 +11,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/param.h>
+#include <sys/syscall.h>
 #include <libgen.h>
 #include <kvsns/kvsal.h>
 #include <kvsns/kvsns.h>
@@ -19,6 +20,7 @@ int main(int argc, char *argv[])
 {
 	int rc;
 	kvsns_cred_t cred;
+	kvsns_file_open_t kfd;
 
 	char current_path[MAXPATHLEN];
 	char prev_path[MAXPATHLEN];
@@ -119,6 +121,31 @@ int main(int argc, char *argv[])
 		if (rc == 0) {
 			printf("==> %llu/%s created = %llu\n",
 				current_inode, argv[1], ino);
+			return 0;
+		} else
+			printf("Failed rc=%d !\n", rc);
+	} else if (!strcmp(exec_name, "kvsns_open")) {
+		if (argc != 2) {
+			fprintf(stderr, "open <filename>\n");
+			exit(1);
+		}
+		/* @todo: kvsns_lookup_path needs to be updated to use filesystem context */
+		rc = kvsns_lookup_path(&cred, &current_inode, argv[1], &ino);
+		if (rc != 0) {
+			fprintf(stderr, "kvsns_lookup_path: err=%d\n", rc);
+			exit(1);
+		}
+
+		rc = kvsns_create_fs_ctx(fs_id, &fs_ctx);
+		if (rc != 0) {
+			printf("Unable to create index for fs_id:%lu,  rc=%d !\n", fs_id, rc);
+		}
+
+		rc = kvsns2_open(fs_ctx, &cred, &ino, O_RDONLY, 0644, &kfd);
+		if (rc == 0) {
+			printf("Current thread id is %u \n", (unsigned int) syscall( __NR_gettid ));
+			printf("==> %llu/%s opened by pid = %d and tid = %d\n",
+			       current_inode, argv[1], kfd.owner.pid, kfd.owner.tid);
 			return 0;
 		} else
 			printf("Failed rc=%d !\n", rc);
