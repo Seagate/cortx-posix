@@ -1,1 +1,4 @@
-write temp 0 1048577 10
+m0kvs_set seagate.nfs inprog
+m0kvs_get seagate.nfs
+m0kvs_set seagate.mero start
+m0kvs_list seagate.*

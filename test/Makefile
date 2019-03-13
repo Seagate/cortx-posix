@@ -4,7 +4,7 @@ SUDO = sudo
 undefine SUDO
 
 #executables
-EXE = io_test
+EXE = m0util
 
 #archieve/node names
 TARF = m0trace_$(shell date +%Y%m%d-%H%M%S).tar.bz2
@@ -27,7 +27,7 @@ all: $(EXE)
 .PHONY: all
 
 $(EXE):
-	gcc io_test.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(EXE)
+	gcc m0util.c -I/usr/include/mero $(CFLAGS) $(LFLAGS) -o $(EXE)
 
 clean:
 	rm -f $(EXE)
