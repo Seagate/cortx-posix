@@ -147,7 +147,7 @@ typedef struct kvsns_fid {
 /**
  * Start the kvsns library. This should be done by every thread using the library
  *
- * @note: this function will allocate required resources and set useful 
+ * @note: this function will allocate required resources and set useful
  * variables to their initial value. As the programs ends kvsns_stop() should be
  * invoked to perform all needed cleanups.
  * In this version of the API, it takes no parameter, but this may change in
@@ -180,7 +180,7 @@ int kvsns_stop(void);
 int kvsns_init_root(int openbar);
 
 /**
- * Check is a given user can access an inode 
+ * Check is a given user can access an inode
  *
  * @note: this call is similar to POSIX's access() call. It behaves the same.
  *
@@ -189,7 +189,7 @@ int kvsns_init_root(int openbar);
  * @params flags - access to be tested. The flags are the same as those used
  * by libc's access() function.
  *
- * @return 0 if access is granted, a negative value means an error. -EPERM 
+ * @return 0 if access is granted, a negative value means an error. -EPERM
  * is returned when access is not granted
  */
 int kvsns_access(kvsns_cred_t *cred, kvsns_ino_t *ino, int flags);
@@ -290,11 +290,11 @@ int kvsns_link(kvsns_cred_t *cred, kvsns_ino_t *ino, kvsns_ino_t *dino,
 	    char *dname);
 
 /**
- * Renames an entry. 
+ * Renames an entry.
  *
  * @param cred - pointer to user's credentials
  * @param sino - pointer to source directory's inode
- * @param sname - source name of the entry to be moved 
+ * @param sname - source name of the entry to be moved
  * @param dino - pointer to destination directory's inode
  * @param dname - name of the new entry in dino
  *
@@ -318,7 +318,7 @@ int kvsns_lookup(kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
 		 kvsns_ino_t *myino);
 
 /**
- * Finds the parent inode of an entry. 
+ * Finds the parent inode of an entry.
  *
  * @note : because of this call, directories do not contain explicit
  * "." and ".." directories. The namespace's root directory is the only
@@ -333,7 +333,7 @@ int kvsns_lookup(kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
  */
 int kvsns_lookupp(kvsns_cred_t *cred, kvsns_ino_t *where, kvsns_ino_t *parent);
 
-/** 
+/**
  * Finds the root of the namespace
  *
  * @param ino - [OUT] points to root inode if successful
@@ -360,7 +360,7 @@ int kvsns_getattr(kvsns_cred_t *cred, kvsns_ino_t *ino, struct stat *buffstat);
  * Sets attributes for a known inode.
  *
  * This call uses a struct stat structure as input. This structure will
- * contain the values to be set. More than one can be set in a single call. 
+ * contain the values to be set. More than one can be set in a single call.
  * The parameter "statflags: indicates which fields are to be considered:
  *  STAT_MODE_SET: sets mode
  *  STAT_UID_SET: sets owner
@@ -373,7 +373,7 @@ int kvsns_getattr(kvsns_cred_t *cred, kvsns_ino_t *ino, struct stat *buffstat);
  * @param cred - pointer to user's credentials
  * @param ino - pointer to current inode
  * @param setstat - a stat structure containing the new values
- * @param statflags - a bitmap that tells which attributes are to be set 
+ * @param statflags - a bitmap that tells which attributes are to be set
  *
  * @return 0 if successful, a negative "-errno" value in case of failure
  */
@@ -399,6 +399,18 @@ int kvsns_fsstat(kvsns_fsstat_t *stat);
  * @return 0 if successful, a negative "-errno" value in case of failure
  */
 int kvsns_opendir(kvsns_cred_t *cred, kvsns_ino_t *dir, kvsns_dir_t *ddir);
+
+/**
+ * Open a directory to be accessed by kvsns_readdir
+ *
+ * @param ctx - filesystem context pointer
+ * @param cred - pointer to user's credentials
+ * @param dir - pointer to directory's inode
+ * @param ddir - [OUT] returned handle to opened directory
+ *
+ * @return 0 if successful, a negative "-errno" value in case of failure
+ */
+int kvsns2_opendir(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *dir, kvsns_dir_t *ddir);
 
 /**
  * Reads the content of a directory
@@ -436,13 +448,34 @@ int kvsns_closedir(kvsns_dir_t *ddir);
  * @param cred - pointer to user's credentials
  * @param ino - file's inode
  * @param flags - open flags (see man 2 open)
- * @param mode - unused 
+ * @param mode - unused
  * @param fd - [OUT] handle to opened file.
  *
  * @return 0 if successful, a negative "-errno" value in case of failure
  */
 int kvsns_open(kvsns_cred_t *cred, kvsns_ino_t *ino,
 	    int flags, mode_t mode, kvsns_file_open_t *fd);
+
+/**
+ * Opens a file for reading and/or writing
+ *
+ * @note: this call use the same flags as LibC's open() call. You must know
+ * the inode to call this function so you can't use it for creating a file.
+ * In this case, kvsns_create() is to be invoked.
+ *
+ * @todo: mode parameter is unused. Remove it.
+ *
+ * @param ctx - filesystem context pointer
+ * @param cred - pointer to user's credentials
+ * @param ino - file's inode
+ * @param flags - open flags (see man 2 open)
+ * @param mode - unused
+ * @param fd - [OUT] handle to opened file.
+ *
+ * @return 0 if successful, a negative "-errno" value in case of failure
+ */
+int kvsns2_open(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
+		int flags, mode_t mode, kvsns_file_open_t *fd);
 
 /**
  * Opens a file by name and parent directory
@@ -457,13 +490,35 @@ int kvsns_open(kvsns_cred_t *cred, kvsns_ino_t *ino,
  * @param parent - parent's inode
  * @param name- file's name
  * @param flags - open flags (see man 2 open)
- * @param mode - unused 
+ * @param mode - unused
  * @param fd - [OUT] handle to opened file.
  *
  * @return 0 if successful, a negative "-errno" value in case of failure
  */
 int kvsns_openat(kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
 		 int flags, mode_t mode, kvsns_file_open_t *fd);
+
+/**
+ * Opens a file by name and parent directory
+ *
+ * @note: this call use the same flags as LibC's openat() call. You must know
+ * the inode to call this function so you can't use it for creating a file.
+ * In this case, kvsns_create() is to be invoked.
+ *
+ * @todo: mode parameter is unused. Remove it.
+ *
+ * @param ctx - filesystem context pointer
+ * @param cred - pointer to user's credentials
+ * @param parent - parent's inode
+ * @param name- file's name
+ * @param flags - open flags (see man 2 open)
+ * @param mode - unused
+ * @param fd - [OUT] handle to opened file.
+ *
+ * @return 0 if successful, a negative "-errno" value in case of failure
+ */
+int kvsns2_openat(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
+		  int flags, mode_t mode, kvsns_file_open_t *fd);
 
 /**
  * Closes a file descriptor
@@ -474,7 +529,7 @@ int kvsns_openat(kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
  */
 int kvsns_close(kvsns_file_open_t *fd);
 
-/** 
+/**
  * Writes data to an opened fd
  *
  * @param cred - pointer to user's credentials
@@ -488,7 +543,7 @@ int kvsns_close(kvsns_file_open_t *fd);
 ssize_t kvsns_write(kvsns_cred_t *cred, kvsns_file_open_t *fd,
 		  void *buf, size_t count, off_t offset);
 
-/** 
+/**
  * Reads data from an opened fd
  *
  * @param cred - pointer to user's credentials
@@ -582,7 +637,7 @@ int kvsns_remove_all_xattr(kvsns_cred_t *cred, kvsns_ino_t *ino);
 
 /* For utility */
 
-/** 
+/**
  * Deletes everything in the namespace but the root directory...
  *
  * @param (node) - void function.

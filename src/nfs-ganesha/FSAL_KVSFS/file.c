@@ -53,6 +53,7 @@ fsal_status_t kvsfs_open(struct fsal_obj_handle *obj_hdl,
 	fsal_errors_t fsal_error = ERR_FSAL_NO_ERROR;
 	int rc = 0;
 	kvsns_cred_t cred;
+	kvsns_fs_ctx_t fs_ctx = KVSNS_NULL_FS_CTX;
 
 	cred.uid = op_ctx->creds->caller_uid;
 	cred.gid = op_ctx->creds->caller_gid;
@@ -62,13 +63,17 @@ fsal_status_t kvsfs_open(struct fsal_obj_handle *obj_hdl,
 
 	assert(myself->u.file.openflags == FSAL_O_CLOSED);
 
-	rc = kvsns_open(&cred, &myself->handle->kvsfs_handle, O_RDWR,
-			0777, &myself->u.file.fd);
-
+	rc = kvsfs_obj_to_kvsns_ctx(obj_hdl, &fs_ctx);
 	if (rc) {
-		fsal_error = posix2fsal_error(-rc);
-		return fsalstat(fsal_error, -rc);
+		LogCrit(COMPONENT_FSAL, "Unable to get fs_handle: %d", rc);
+		goto errout;
 	}
+
+	rc = kvsns2_open(fs_ctx, &cred, &myself->handle->kvsfs_handle, O_RDWR,
+			 0777, &myself->u.file.fd);
+
+	if (rc)
+		goto errout;
 
 	/* >> fill output struct << */
 	myself->u.file.openflags = openflags;
@@ -77,6 +82,7 @@ fsal_status_t kvsfs_open(struct fsal_obj_handle *obj_hdl,
 	rc = kvsns_getattr(&cred, &myself->handle->kvsfs_handle,
 			   &myself->u.file.saved_stat);
 
+errout:
 	if (rc) {
 		fsal_error = posix2fsal_error(-rc);
 		return fsalstat(fsal_error, -rc);
