@@ -40,18 +40,25 @@
 	if (__rc != 0)	\
 		return __rc; })
 
+#define SNPRINTF_WRAP(size, ...) ({					\
+	int __rc = snprintf(__VA_ARGS__);	                   	\
+	if (__rc < 0) {							\
+		log_debug("error: failed to generate string: %d", __rc);\
+		return __rc;						\
+        } else if (__rc <= size) {					\
+		size = __rc + 1 /* /0 */;				\
+        }})
+
 static int build_m0store_id(kvsns_ino_t	 object,
 			    struct m0_uint128  *id)
 {
 	char k[KLEN];
 	char v[VLEN];
-	size_t klen;
+	size_t klen = KLEN;
 	size_t vlen;
 	int rc;
 
-
-	snprintf(k, KLEN, "%llu.data", object);
-	klen = strnlen(k, KLEN) + 1;
+	SNPRINTF_WRAP(klen, k, KLEN, "%llu.data", object);
 	vlen = VLEN;
 
 	rc = m0kvs_get(k, klen, v, &vlen);
@@ -160,33 +167,31 @@ int extstore2_create(void *ctx, kvsns_ino_t object,
 {
 	char k[KLEN];
 	char v[VLEN];
-	size_t klen;
-	size_t vlen;
+	size_t klen = KLEN;
+	size_t vlen = VLEN;
 	int rc;
 	struct m0_uint128 fid;
 
-	snprintf(k, KLEN, "%llu.data", object);
-	klen = strnlen(k, KLEN) + 1;
+        SNPRINTF_WRAP(klen, k, KLEN, "%llu.data", object);
 
-	memcpy(&fid, (struct m0_uint128 *)kfid, sizeof fid);
-	rc = m0_fid_to_string(&fid, v);
-	if (rc < 0) {
-		log_err("Failed to convert fid to fid_str: %d", rc);
-		return rc;
+        m0_fid_copy((struct m0_uint128 *)kfid, &fid);
+
+	vlen = m0_fid_to_string(&fid, v);
+	if (vlen < 0) {
+		log_err("Failed to convert fid to fid_str: %zd", vlen);
+		return vlen;
 	}
 
-	vlen = strnlen(v, KLEN) + 1;
 	rc = m0kvs2_set(ctx, k, klen, v, vlen);
 	if (rc != 0)
 		return rc;
 
 	/* @todo: Understand why .data_ext is used? */
-	snprintf(k, KLEN, "%llu.data_ext", object);
-	klen = strnlen(k, KLEN) + 1;
-	snprintf(v, VLEN, " ");
-	vlen = strnlen(v, KLEN) + 1;
+        klen = KLEN; vlen = VLEN;
+        SNPRINTF_WRAP(klen, k, KLEN, "%llu.data_ext", object);
+        SNPRINTF_WRAP(vlen, v, VLEN, " ");
 
-	rc = m0kvs2_set(ctx, k, klen, v, vlen);
+        rc = m0kvs2_set(ctx, k, klen, v, vlen);
 	if (rc != 0)
 		return rc;
 
@@ -276,6 +281,38 @@ int extstore_del(kvsns_ino_t *ino)
 	snprintf(k, KLEN, "%llu.data_ext", *ino);
 	klen = strnlen(k, KLEN) + 1;
 	rc = m0kvs_del(k, klen);
+	if (rc != 0)
+		return rc;
+
+	return 0;
+}
+
+int extstore2_del(void *ctx, kvsns_ino_t *ino, kvsns_fid_t *kfid)
+{
+	char k[KLEN];
+	size_t klen = KLEN;
+	struct m0_uint128 fid;
+	int rc;
+
+	m0_fid_copy((struct m0_uint128 *)kfid, &fid);
+
+	rc = m0store_delete_object(fid);
+	if (rc) {
+		if (errno == ENOENT)
+			return 0;
+
+		return -errno;
+	}
+
+	/* delete <inode>.data */
+	SNPRINTF_WRAP(klen, k, KLEN, "%llu.data", *ino);
+	rc = m0kvs2_del(ctx, k, klen);
+	if (rc != 0)
+		return rc;
+
+	/* delete <inode>.data_ext */
+	SNPRINTF_WRAP(klen, k, KLEN, "%llu.data_ext", *ino);
+	rc = m0kvs2_del(ctx, k, klen);
 	if (rc != 0)
 		return rc;
 

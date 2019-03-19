@@ -62,6 +62,7 @@ int extstore_write(kvsns_ino_t *ino,
 		   bool *fsal_stable,
 		   struct stat *stat);
 int extstore_del(kvsns_ino_t *ino);
+int extstore2_del(void *ctx, kvsns_ino_t *ino, kvsns_fid_t *fid);
 int extstore_truncate(kvsns_ino_t *ino,
 		      off_t filesize,
 		      bool on_obj_store,

@@ -74,7 +74,7 @@ int kvsal_begin_transaction(void);
 int kvsal_end_transaction(void);
 int kvsal_discard_transaction(void);
 int kvsal_exists(char *k);
-int kvsal2_exists(void * ctx, char *k);
+int kvsal2_exists(void * ctx, char *k, size_t klen);
 int kvsal_set_char(char *k, char *v);
 int kvsal2_set_char(void *ctx, char *k, char *v);
 int kvsal_get_char(char *k, char *v);
@@ -86,7 +86,9 @@ int kvsal2_set_stat(void *ctx, char *k, struct stat *buf);
 int kvsal_get_stat(char *k, struct stat *buf);
 int kvsal2_get_stat(void *ctx, char *k, struct stat *buf);
 int kvsal_get_list_size(char *pattern);
+int kvsal2_get_list_size(void *ctx, char *pattern, size_t size);
 int kvsal_del(char *k);
+int kvsal2_del(void *ctx, char *k, size_t klen);
 int kvsal_incr_counter(char *k, unsigned long long *v);
 int kvsal2_incr_counter(void *ctx, char *k, unsigned long long *v);
 
