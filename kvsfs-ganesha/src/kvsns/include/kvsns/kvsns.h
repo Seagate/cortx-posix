@@ -32,6 +32,7 @@
 #ifndef _KVSNS_H
 #define _KVSNS_H
 
+#include <assert.h>
 #include <stdio.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -50,6 +51,12 @@
 #include <sys/xattr.h>
 
 #include <kvsns/kvsal.h>
+
+#ifdef DEBUG
+#define KVSNS_DASSERT(cond) assert(cond)
+#else
+#define KVSNS_DASSERT(cond)
+#endif
 
 #define KVSNS_ROOT_INODE 2LL
 #define KVSNS_ROOT_UID 0
@@ -482,6 +489,16 @@ int kvsns_readdir(kvsns_cred_t *cred, kvsns_dir_t *dir, off_t offset,
 int kvsns_closedir(kvsns_dir_t *ddir);
 
 /**
+ * Closes a directory opened by kvsns_opendir
+ *
+ * @param ctx - filesystem context pointer
+ * @param ddir - handles to opened directory
+ *
+ * @return 0 if successful, a negative "-errno" value in case of failure
+ */
+int kvsns2_closedir(void *ctx, kvsns_dir_t *ddir);
+
+/**
  * Opens a file for reading and/or writing
  *
  * @note: this call use the same flags as LibC's open() call. You must know
@@ -564,6 +581,16 @@ int kvsns_openat(kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
  */
 int kvsns2_openat(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
 		  int flags, mode_t mode, kvsns_file_open_t *fd);
+
+/**
+ * Closes a file descriptor
+ *
+ * @param ctx - filesystem context pointer
+ * @param fd - handle to opened file
+ *
+ * @return 0 if successful, a negative "-errno" value in case of failure
+ */
+int kvsns2_close(void *ctx, kvsns_file_open_t *fd);
 
 /**
  * Closes a file descriptor

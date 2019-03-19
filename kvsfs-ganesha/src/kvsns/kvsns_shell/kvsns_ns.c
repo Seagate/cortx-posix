@@ -148,9 +148,19 @@ int main(int argc, char *argv[])
 			printf("Current thread id is %u \n", (unsigned int) syscall( __NR_gettid ));
 			printf("==> %llu/%s opened by pid = %d and tid = %d\n",
 			       current_inode, argv[1], kfd.owner.pid, kfd.owner.tid);
-			return 0;
 		} else
 			printf("Failed rc=%d !\n", rc);
+
+		rc = kvsns2_close(fs_ctx, &kfd);
+		if (rc == 0) {
+			printf("Current thread id is %u \n", (unsigned int) syscall( __NR_gettid ));
+			printf("==> %llu/%s closed for pid = %d and tid = %d\n",
+			       current_inode, argv[1], kfd.owner.pid, kfd.owner.tid);
+			return 0;
+		} else
+			printf("Close Failed rc=%d !\n", rc);
+
+
 	} else if (!strcmp(exec_name, "kvsns_lookup")) {
 		if (argc != 2) {
 			fprintf(stderr, "lookup  <filename>\n");
