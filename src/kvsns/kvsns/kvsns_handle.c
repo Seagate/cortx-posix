@@ -47,7 +47,7 @@
  * @todo : In future, this would be an array of filesystem contexts indexed by
  * fs id. This array would be created and populated during kvsns start/init.
  */
-static kvsns_fs_ctx_t *kvsns_fs_ctx = KVSNS_NULL_FS_CTX;
+static kvsns_fs_ctx_t kvsns_fs_ctx = KVSNS_NULL_FS_CTX;
 
 int kvsns_fsstat(kvsns_fsstat_t *stat)
 {
@@ -716,6 +716,7 @@ int kvsns_mr_proper(void)
 int kvsns_fsid_to_ctx(kvsns_fsid_t fsid, kvsns_fs_ctx_t *fs_ctx)
 {
 	*fs_ctx = kvsns_fs_ctx;
+	log_debug("fsid: %lu, kvsns_fs_ctx: %p", fsid, *fs_ctx);
 	return 0;
 }
 

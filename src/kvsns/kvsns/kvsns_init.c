@@ -50,6 +50,7 @@ int kvsns_start(const char *configpath)
 {
 	struct collection_item *errors = NULL;
 	int rc;
+	kvsns_fs_ctx_t ctx = KVSNS_NULL_FS_CTX;
 
 	rc = config_from_file("libkvsns", configpath, &cfg_items,
 			      INI_STOP_ON_ERROR, &errors);
@@ -61,6 +62,19 @@ int kvsns_start(const char *configpath)
 	}
 
 	RC_WRAP(kvsal_init, cfg_items);
+
+	/* Create fs ctx for all the fs ids. Currently, returns a global index
+	 * for mero.
+	 * @todo: This ctx would be used in all kvs ops for this fs
+	 */
+	rc = kvsns_create_fs_ctx(KVSNS_FS_ID_DEFAULT, &ctx);
+	if (rc != 0) {
+		log_err("kvsns init failed for fs_id: %d, rc %d",
+			KVSNS_FS_ID_DEFAULT, rc);
+		return rc;
+	}
+	log_debug("kvsns init done for fs_id: %d, rc: %d, fs_ctx: %p",
+		   KVSNS_FS_ID_DEFAULT, rc, ctx);
 
 	RC_WRAP(extstore_init, cfg_items);
 
