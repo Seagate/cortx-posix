@@ -67,6 +67,7 @@ int kvsfs_obj_to_kvsns_ctx(const struct fsal_obj_handle *hdl,
 {
 	int rc;
 	kvsns_fsid_t fs_id = KVSNS_FS_ID_DEFAULT;
+	kvsns_fs_ctx_t ctx = KVSNS_NULL_FS_CTX;
 
 	rc = kvsfs_get_fsid(hdl, &fs_id);
 	if (rc != 0) {
@@ -75,11 +76,14 @@ int kvsfs_obj_to_kvsns_ctx(const struct fsal_obj_handle *hdl,
 		return rc;
 	}
 
-	rc = kvsns_fsid_to_ctx(fs_id, *fs_ctx);
-	if (rc != 0)
+	rc = kvsns_fsid_to_ctx(fs_id, &ctx);
+	if (rc != 0) {
 		LogCrit(COMPONENT_FSAL,
 			"fs_handle not found, fsid: %lu, rc: %d", fs_id, rc);
-
+		return rc;
+	}
+	*fs_ctx = ctx;
+	LogDebug(COMPONENT_FSAL, "kvsns_fs_ctx: %p ", *fs_ctx);
 	return rc;
 }
 
