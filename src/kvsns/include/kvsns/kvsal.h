@@ -50,6 +50,8 @@
 #include <sys/xattr.h>
 #include <ini_config.h>
 
+#include <kvsns/common.h>
+
 #define KVSAL_ARRAY_SIZE 100
 
 #define KVSNS_STORE "KVSNS_STORE"
@@ -82,9 +84,9 @@ int kvsal2_get_char(void *ctx, char *k, char *v);
 int kvsal_set_binary(char *k, char *buf, size_t size);
 int kvsal_get_binary(char *k, char *buf, size_t *size);
 int kvsal_set_stat(char *k, struct stat *buf);
-int kvsal2_set_stat(void *ctx, char *k, struct stat *buf);
+int kvsal2_set_stat(void *ctx, char *k, size_t klen, struct stat *buf);
 int kvsal_get_stat(char *k, struct stat *buf);
-int kvsal2_get_stat(void *ctx, char *k, struct stat *buf);
+int kvsal2_get_stat(void *ctx, char *k, size_t klen, struct stat *buf);
 int kvsal_get_list_size(char *pattern);
 int kvsal2_get_list_size(void *ctx, char *pattern, size_t size);
 int kvsal_del(char *k);

@@ -134,13 +134,10 @@ int kvsal_set_stat(char *k, struct stat *buf)
 			  (char *)buf, sizeof(struct stat));
 }
 
-int kvsal2_set_stat(void *ctx, char *k, struct stat *buf)
+int kvsal2_set_stat(void *ctx, char *k, size_t klen, struct stat *buf)
 {
-	size_t klen;
-
-	klen = strnlen(k, KLEN)+1;
-	return m0kvs2_set(ctx ,k, klen,
-			 (char *)buf, sizeof(struct stat));
+        return m0kvs2_set(ctx ,k, klen,
+			  (char *)buf, sizeof(struct stat));
 }
 
 int kvsal_get_stat(char *k, struct stat *buf)
@@ -153,12 +150,10 @@ int kvsal_get_stat(char *k, struct stat *buf)
 			  (char *)buf, &vlen);
 }
 
-int kvsal2_get_stat(void *ctx, char *k, struct stat *buf)
+int kvsal2_get_stat(void *ctx, char *k, size_t klen, struct stat *buf)
 {
-	size_t klen;
 	size_t vlen = sizeof(struct stat);
 
-	klen = strnlen(k, KLEN)+1;
 	return m0kvs2_get(ctx, k, klen,
 			 (char *)buf, &vlen);
 }

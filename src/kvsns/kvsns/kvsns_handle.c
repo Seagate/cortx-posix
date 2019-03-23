@@ -353,14 +353,20 @@ int kvsns_getattr(kvsns_cred_t *cred, kvsns_ino_t *ino, struct stat *bufstat)
 int kvsns2_getattr(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
 		   struct stat *bufstat)
 {
+	int rc;
 	char k[KLEN];
+	size_t klen;
 
 	if (!cred || !ino || !bufstat)
 		return -EINVAL;
 
 	memset(k, 0, KLEN);
-	snprintf(k, KLEN, "%llu.stat", *ino);
-	return kvsal2_get_stat(ctx, k, bufstat);
+	RC_WRAP_LABEL(rc, out, prepare_key, k, KLEN, "%llu.stat", *ino);
+	klen = rc;
+
+	rc = kvsal2_get_stat(ctx, k, klen, bufstat);
+out:
+	return rc;
 }
 
 int kvsns_setattr(kvsns_cred_t *cred, kvsns_ino_t *ino,

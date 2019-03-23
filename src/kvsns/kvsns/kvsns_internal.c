@@ -190,14 +190,15 @@ static int kvsns_create_check_name(const char *name, size_t len)
 }
 
 int kvsns2_create_entry(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
-		        char *name, char *lnk, mode_t mode,
-		        kvsns_ino_t *new_entry, enum kvsns_type type)
+			char *name, char *lnk, mode_t mode,
+			kvsns_ino_t *new_entry, enum kvsns_type type)
 {
 	int	rc;
 	char	k[KLEN];
 	char	v[KLEN];
 	struct	stat bufstat;
 	struct	timeval t;
+	size_t	klen;
 	size_t	namelen;
 
 	if (!cred || !parent || !name || !new_entry)
@@ -222,19 +223,20 @@ int kvsns2_create_entry(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
 
 	/* @todo : Fetch parent stats and amend it */
 
+	RC_WRAP(kvsal_begin_transaction);
+
 	/* Add an entry to parent dentries list */
 	memset(k, 0, KLEN);
-	snprintf(k, KLEN, "%llu.dentries.%s",
-		 *parent, name);
-	snprintf(v, VLEN, "%llu", *new_entry);
-
+	RC_WRAP_LABEL(rc, aborted, prepare_key, k, KLEN, "%llu.dentries.%s", *parent, name);
+	klen = rc;
+	RC_WRAP_LABEL(rc, aborted, prepare_key, v, VLEN, "%llu", *new_entry);
 	RC_WRAP_LABEL(rc, aborted, kvsal2_set_char, ctx, k, v);
 
 	/* Set the parentdir of the new file */
 	memset(k, 0, KLEN);
-	snprintf(k, KLEN, "%llu.parentdir", *new_entry);
-	snprintf(v, VLEN, "%llu|", *parent);
-
+	RC_WRAP_LABEL(rc, aborted, prepare_key, k, KLEN, "%llu.parentdir", *new_entry);
+	klen = rc;
+	RC_WRAP_LABEL(rc, aborted, prepare_key, v, VLEN, "%llu|", *parent);
 	RC_WRAP_LABEL(rc, aborted, kvsal2_set_char, ctx,  k, v);
 
 	/* Set the stats of the new file */
@@ -243,8 +245,10 @@ int kvsns2_create_entry(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
 	bufstat.st_gid = cred->gid;
 	bufstat.st_ino = *new_entry;
 
-	if (gettimeofday(&t, NULL) != 0)
-		return -1;
+	if (gettimeofday(&t, NULL) != 0) {
+		rc = -1;
+		goto aborted;
+	}
 
 	bufstat.st_atim.tv_sec = t.tv_sec;
 	bufstat.st_atim.tv_nsec = 1000 * t.tv_usec;
@@ -272,14 +276,16 @@ int kvsns2_create_entry(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
 		break;
 
 	default:
-		return -EINVAL;
+		rc = -EINVAL;
+		goto aborted;
 	}
 	memset(k, 0, KLEN);
-	snprintf(k, KLEN, "%llu.stat", *new_entry);
-	RC_WRAP_LABEL(rc, aborted, kvsal2_set_stat, ctx, k, &bufstat);
+	RC_WRAP_LABEL(rc, aborted, prepare_key, k, KLEN, "%llu.stat", *new_entry);
+	klen = rc;
+	RC_WRAP_LABEL(rc, aborted, kvsal2_set_stat, ctx, k, klen, &bufstat);
 
 	/* @todo Modify parent stats */
-
+	RC_WRAP(kvsal_end_transaction);
 	return 0;
 
 aborted:
