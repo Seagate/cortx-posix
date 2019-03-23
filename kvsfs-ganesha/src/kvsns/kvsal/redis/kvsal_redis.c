@@ -39,11 +39,6 @@
 #include <ini_config.h>
 #include <kvsns/kvsal.h>
 
-#define RC_WRAP(__function, ...) ({\
-        int __rc = __function(__VA_ARGS__);\
-        if (__rc != 0)        \
-                return __rc; })
-
 /* The REDIS context exists in the TLS, for MT-Safety */
 __thread redisContext *rediscontext = NULL;
 

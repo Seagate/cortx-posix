@@ -180,18 +180,21 @@ int kvsns2_open(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
 	int rc;
 	int pid = getpid();
 	int tid = syscall(SYS_gettid);
-	int klen = KLEN;
+	int klen;
 
 	log_trace("%s: Enter\n", __func__);
-	if (!cred || !ino || !fd)
-		return -EINVAL;
+	if (!cred || !ino || !fd) {
+		rc = -EINVAL;
+		goto out;
+	}
 
 	/* Manage the list of open owners */
 	memset(k, 0, KLEN);
-	SNPRINTF_WRAP(klen, k, KLEN, "%llu.openowner.%d.%d", *ino, pid, tid);
+	RC_WRAP_LABEL(rc, out, prepare_key, k, KLEN, "%llu.openowner.%d.%d", *ino, pid, tid);
+	klen = rc;
 	rc = kvsal2_exists(ctx, k, (size_t) klen);
 	if (rc && rc != -ENOENT)
-		return rc;
+		goto out;
 	RC_WRAP(kvsal2_set_char, ctx, k, "");
 
 	/** @todo Do not forget store stuffs */
@@ -200,9 +203,10 @@ int kvsns2_open(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
 	fd->owner.tid = tid;
 	fd->flags = flags;
 
+out:
 	/* In particular create a key per opened fd */
-	log_trace("%s: Exit\n", __func__);
-	return 0;
+	log_trace("%s: Exit rc=%d\n", __func__, rc);
+	return rc;
 }
 
 int kvsns_openat(kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
@@ -236,32 +240,35 @@ int kvsns2_close(void *ctx, kvsns_file_open_t *fd)
 {
 	kvsns_fid_t  kfid;
 	char k[KLEN];
-	int klen = KLEN;
+	int klen;
 	int rc;
 	bool opened_and_deleted;
 	bool delete_object = false;
 
 	log_trace("%s: Enter\n", __func__);
-	if (!fd)
-		return -EINVAL;
+	if (!fd) {
+		rc = -EINVAL;
+		goto out;
+	}
 
 	memset(k, 0, KLEN);
-	SNPRINTF_WRAP(klen, k, KLEN, "%llu.openowner.%d.%d", fd->ino, fd->owner.pid, fd->owner.tid);
+	RC_WRAP_LABEL(rc, out, prepare_key, k, KLEN, "%llu.openowner.%d.%d", fd->ino, fd->owner.pid, fd->owner.tid);
+	klen = rc;
 	rc = kvsal2_del(ctx, k, klen);
 	if (rc != 0) {
 		if (rc == -ENOENT)
-			return -EBADF; /* File was not opened */
-		else
-			return rc;
+			rc = -EBADF; /* File was not opened */
+		goto out;
 	}
 
 	/* Was the file deleted as it was opened ? */
 	/* The last close should perform actual data deletion */
-	memset(k, 0, KLEN); klen = KLEN;
-	SNPRINTF_WRAP(klen, k, KLEN, "%llu.opened_and_deleted", fd->ino);
+	memset(k, 0, KLEN);
+	RC_WRAP_LABEL(rc, out, prepare_key, k, KLEN, "%llu.opened_and_deleted", fd->ino);
+	klen = rc;
 	rc = kvsal2_exists(ctx, k, klen);
 	if ((rc != 0) && (rc != -ENOENT))
-		return rc;
+		goto out;
 	opened_and_deleted = (rc == -ENOENT) ? false : true;
 
 	RC_WRAP(kvsal_begin_transaction);
@@ -269,20 +276,22 @@ int kvsns2_close(void *ctx, kvsns_file_open_t *fd)
 	/* Was the file deleted as it was opened ? */
 	if (opened_and_deleted) {
 		/* Check if this is the last open file */
-		memset(k, 0, KLEN); klen = KLEN;
-		SNPRINTF_WRAP(klen, k, KLEN, "%llu.openowner.*", fd->ino);
+		memset(k, 0, KLEN);
+		RC_WRAP_LABEL(rc, out, prepare_key, k, KLEN, "%llu.openowner.*", fd->ino);
+		klen = rc;
 		rc = kvsal2_get_list_size(ctx, k, klen);
 		if (rc < 0) {
-			return rc;
+			goto out;
 		} else if (rc > 0) {
 			/* There are other entries, do not delete the object now */
-			return 0;
+			rc = 0;
+			goto out;
 		}
 
 		delete_object = true;
-		klen = KLEN;
-		SNPRINTF_WRAP(klen, k, KLEN, "%llu.opened_and_deleted", fd->ino);
-		RC_WRAP_LABEL(rc, aborted, kvsal2_del, ctx, k, klen);
+		RC_WRAP_LABEL(rc, out, prepare_key, k, KLEN, "%llu.opened_and_deleted", fd->ino);
+		klen = rc;
+		RC_WRAP_LABEL(rc, out, kvsal2_del, ctx, k, klen);
 	}
 	RC_WRAP(kvsal_end_transaction);
 
@@ -293,7 +302,7 @@ int kvsns2_close(void *ctx, kvsns_file_open_t *fd)
 
 	return 0;
 
-aborted:
+out:
 	kvsal_discard_transaction();
 	return rc;
 }
@@ -460,6 +469,38 @@ ssize_t kvsns_read(kvsns_cred_t *cred, kvsns_file_open_t *fd,
 	return read_amount;
 }
 
+ssize_t kvsns2_read(void *ctx, kvsns_cred_t *cred, kvsns_file_open_t *fd,
+		    void *buf, size_t count, off_t offset)
+{
+	int rc;
+	ssize_t read_amount;
+	bool eof;
+	struct stat stat;
+	char k[KLEN];
+	size_t klen;
+	kvsns_fid_t kfid;
+
+	log_trace("%s: Entry\n", __func__);
+
+	RC_WRAP(kvsns2_getattr, ctx, cred, &fd->ino, &stat);
+	RC_WRAP(extstore_get_fid, fd->ino, &kfid);
+	/** @todo use flags to check correct access */
+	read_amount = extstore2_read(ctx, &fd->ino, offset, count,
+				     buf, &eof, &stat, &kfid);
+	if (read_amount < 0) {
+		rc = read_amount;
+		goto out;
+	}
+
+	memset(k, 0, KLEN);
+	RC_WRAP_LABEL(rc, out, prepare_key, k, KLEN, "%llu.stat", fd->ino);
+	klen = rc;
+	RC_WRAP(kvsal2_set_stat, ctx, k, klen, &stat);
+	rc = read_amount;
+out:
+	log_trace("%s: Exit rc=%d\n", __func__, rc);
+	return rc;
+}
 
 int kvsns_attach(kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
 		 char *objid, int objid_len, struct stat *stat, int statflags,

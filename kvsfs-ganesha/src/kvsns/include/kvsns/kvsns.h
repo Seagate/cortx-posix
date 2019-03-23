@@ -34,6 +34,7 @@
 
 #include <assert.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <unistd.h>
@@ -50,6 +51,7 @@
 #include <sys/param.h>
 #include <sys/xattr.h>
 
+#include <kvsns/common.h>
 #include <kvsns/kvsal.h>
 
 #ifdef DEBUG
@@ -150,6 +152,30 @@ typedef struct kvsns_fid {
 	uint64_t f_hi;
 	uint64_t f_lo;
 } kvsns_fid_t;
+
+
+/**
+ * Generates a key based on variable parameter list.
+ * *
+ * @param: k - Buffer to store the generated key
+ * @param: klen - Key length of the generated key
+ * @param: fmt - String that contains a format string
+ * @return buffer length including '\0' if successful, a negative value in case of failure
+ */
+static inline int prepare_key(char k[], size_t klen, const char *fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+
+	int rc = vsnprintf(k, klen, fmt, args);
+	if (rc > 0) {
+		rc = rc + 1 /* For \0 */;
+		goto out;
+	}
+out:
+	va_end(args);
+	return rc;
+}
 
 /**
  * Start the kvsns library. This should be done by every thread using the library
@@ -628,6 +654,21 @@ ssize_t kvsns_write(kvsns_cred_t *cred, kvsns_file_open_t *fd,
  */
 ssize_t kvsns_read(kvsns_cred_t *cred, kvsns_file_open_t *fd,
 		  void *buf, size_t count, off_t offset);
+
+/**
+ * Reads data from an opened fd
+ *
+ * @param ctx - filesystem context pointer
+ * @param cred - pointer to user's credentials
+ * @param fd - handle to opened file
+ * @param buf - [OUT] read data
+ * @param count - size of buffer to be read
+ * @param offset - read offset
+ *
+ * @return read size or a negative "-errno" in case of failure
+ */
+ssize_t kvsns2_read(void *ctx, kvsns_cred_t *cred, kvsns_file_open_t *fd,
+		    void *buf, size_t count, off_t offset);
 
 /* Xattr */
 

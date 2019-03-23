@@ -43,6 +43,7 @@
 #include <ini_config.h>
 #include <kvsns/kvsal.h>
 #include <kvsns/kvsns.h>
+#include <kvsns/common.h>
 
 int extstore_init(struct collection_item *cfg_items);
 int extstore_create(kvsns_ino_t object);
@@ -55,6 +56,9 @@ int extstore_read(kvsns_ino_t *ino,
 		  void *buffer,
 		  bool *end_of_file,
 		  struct stat *stat);
+int extstore2_read(void *ctx, kvsns_ino_t *ino, off_t offset,
+		   size_t buffer_size, void *buffer, bool *end_of_file,
+		   struct stat *stat, kvsns_fid_t *kfid);
 int extstore_write(kvsns_ino_t *ino,
 		   off_t offset,
 		   size_t buffer_size,

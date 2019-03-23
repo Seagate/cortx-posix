@@ -33,17 +33,6 @@
 #include <hiredis/hiredis.h>
 #include <kvsns/extstore.h>
 
-#define RC_WRAP(__function, ...) ({\
-	int __rc = __function(__VA_ARGS__);\
-	if (__rc != 0)	\
-		return __rc; })
-
-#define RC_WRAP_LABEL(__rc, __label, __function, ...) ({\
-	__rc = __function(__VA_ARGS__);\
-	if (__rc != 0)        \
-		goto __label; })
-
-
 /* The REDIS context exists in the TLS, for MT-Safety */
 __thread redisContext *rediscontext = NULL;
 

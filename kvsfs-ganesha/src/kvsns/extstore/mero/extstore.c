@@ -35,40 +35,25 @@
 #include "../../common/mero/m0common.h"
 #include "kvsns/log.h"
 
-#define RC_WRAP(__function, ...) ({\
-	int __rc = __function(__VA_ARGS__);\
-	if (__rc != 0)	\
-		return __rc; })
-
-#define SNPRINTF_WRAP(size, ...) ({					\
-	int __rc = snprintf(__VA_ARGS__);	                   	\
-	if (__rc < 0) {							\
-		log_debug("error: failed to generate string: %d", __rc);\
-		return __rc;						\
-        } else if (__rc <= size) {					\
-		size = __rc + 1 /* /0 */;				\
-        }})
-
 static int build_m0store_id(kvsns_ino_t	 object,
 			    struct m0_uint128  *id)
 {
 	char k[KLEN];
 	char v[VLEN];
-	size_t klen = KLEN;
-	size_t vlen;
+	size_t klen, vlen;
 	int rc;
 
-	SNPRINTF_WRAP(klen, k, KLEN, "%llu.data", object);
-	vlen = VLEN;
+	RC_WRAP_LABEL(rc, out, prepare_key, k, KLEN, "%llu.data", object);
+	klen = rc;
 
 	rc = m0kvs_get(k, klen, v, &vlen);
 	if (rc != 0)
-		return rc;
+		goto out;
 
 	*id = M0_CLOVIS_ID_APP;
 	id->u_lo = atoi(v);
-
-	return 0;
+out:
+	return rc;
 }
 
 enum update_stat_how {
@@ -163,43 +148,37 @@ int extstore_get_fid(kvsns_ino_t object, kvsns_fid_t *kfid)
 }
 
 int extstore2_create(void *ctx, kvsns_ino_t object,
-			   kvsns_fid_t *kfid)
+		     kvsns_fid_t *kfid)
 {
 	char k[KLEN];
 	char v[VLEN];
-	size_t klen = KLEN;
-	size_t vlen = VLEN;
+	size_t klen;
+	size_t vlen;
 	int rc;
 	struct m0_uint128 fid;
 
-        SNPRINTF_WRAP(klen, k, KLEN, "%llu.data", object);
+	RC_WRAP_LABEL(rc, out, prepare_key, k, KLEN, "%llu.data", object);
+	klen = rc;
 
-        m0_fid_copy((struct m0_uint128 *)kfid, &fid);
+	m0_fid_copy((struct m0_uint128 *)kfid, &fid);
 
 	vlen = m0_fid_to_string(&fid, v);
 	if (vlen < 0) {
 		log_err("Failed to convert fid to fid_str: %zd", vlen);
-		return vlen;
+		rc = vlen;
+		goto out;
 	}
 
 	rc = m0kvs2_set(ctx, k, klen, v, vlen);
 	if (rc != 0)
-		return rc;
-
-	/* @todo: Understand why .data_ext is used? */
-        klen = KLEN; vlen = VLEN;
-        SNPRINTF_WRAP(klen, k, KLEN, "%llu.data_ext", object);
-        SNPRINTF_WRAP(vlen, v, VLEN, " ");
-
-        rc = m0kvs2_set(ctx, k, klen, v, vlen);
-	if (rc != 0)
-		return rc;
+		goto out;
 
 	rc = m0store_create_object(fid);
 	if (rc != 0)
-		return rc;
+		goto out;
 
-	return 0;
+out:
+	return rc;
 }
 
 int extstore_attach(kvsns_ino_t *ino, char *objid, int objid_len)
@@ -224,7 +203,6 @@ int extstore_attach(kvsns_ino_t *ino, char *objid, int objid_len)
 	if (rc != 0)
 		return rc;
 
-	snprintf(k, KLEN, "%llu.data_ext", *ino);
 	snprintf(k, KLEN, "%llu.data", *ino);
 	snprintf(v, VLEN, " ");
 	vlen = strnlen(v, KLEN) + 1;
@@ -300,23 +278,18 @@ int extstore2_del(void *ctx, kvsns_ino_t *ino, kvsns_fid_t *kfid)
 	if (rc) {
 		if (errno == ENOENT)
 			return 0;
-
-		return -errno;
+		rc = -errno;
+		goto out;
 	}
 
 	/* delete <inode>.data */
-	SNPRINTF_WRAP(klen, k, KLEN, "%llu.data", *ino);
+	RC_WRAP_LABEL(rc, out, prepare_key, k, KLEN, "%llu.data", *ino);
+	klen = rc;
 	rc = m0kvs2_del(ctx, k, klen);
 	if (rc != 0)
-		return rc;
-
-	/* delete <inode>.data_ext */
-	SNPRINTF_WRAP(klen, k, KLEN, "%llu.data_ext", *ino);
-	rc = m0kvs2_del(ctx, k, klen);
-	if (rc != 0)
-		return rc;
-
-	return 0;
+		goto out;
+out:
+	return rc;
 }
 
 int extstore_read(kvsns_ino_t *ino,
@@ -344,6 +317,41 @@ int extstore_read(kvsns_ino_t *ino,
 	RC_WRAP(update_stat, stat, UP_ST_READ, 0);
 
 	return read_bytes;
+}
+
+
+int extstore2_read(void *ctx, kvsns_ino_t *ino, off_t offset,
+		   size_t buffer_size, void *buffer, bool *end_of_file,
+		   struct stat *stat, kvsns_fid_t *kfid)
+{
+	int rc;
+	ssize_t read_bytes;
+	ssize_t bsize;
+	char k[KLEN];
+	size_t klen;
+	struct m0_uint128 fid;
+
+	RC_WRAP_LABEL(rc, out, prepare_key, k, KLEN, "%llu.data", *ino);
+	klen = rc;
+	m0_fid_copy((struct m0_uint128 *)kfid, &fid);
+
+	bsize = m0store_get_bsize(fid);
+	if (bsize < 0) {
+		rc = bsize;
+		goto out;
+	}
+
+	read_bytes = m0store_pread(fid, offset, buffer_size,
+				   bsize, buffer);
+	if (read_bytes < 0) {
+		rc = -1;
+		goto out;
+	}
+
+	RC_WRAP(update_stat, stat, UP_ST_READ, 0);
+	rc = read_bytes;
+out:
+	return rc;
 }
 
 int extstore_write(kvsns_ino_t *ino,

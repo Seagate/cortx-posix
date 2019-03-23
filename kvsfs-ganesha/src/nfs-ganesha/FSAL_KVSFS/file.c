@@ -115,6 +115,7 @@ fsal_status_t kvsfs_read(struct fsal_obj_handle *obj_hdl,
 			bool *end_of_file)
 {
 	struct kvsfs_fsal_obj_handle *myself;
+	kvsns_fs_ctx_t fs_ctx = KVSNS_NULL_FS_CTX;
 	int retval = 0;
 	kvsns_cred_t cred;
 	fsal_errors_t fsal_error = ERR_FSAL_NO_ERROR;
@@ -122,13 +123,19 @@ fsal_status_t kvsfs_read(struct fsal_obj_handle *obj_hdl,
 	cred.uid = op_ctx->creds->caller_uid;
 	cred.gid = op_ctx->creds->caller_gid;
 
+	retval = kvsfs_obj_to_kvsns_ctx(obj_hdl, &fs_ctx);
+	if (retval) {
+		fsal_error = posix2fsal_error(-retval);
+		LogCrit(COMPONENT_FSAL, "Unable to get fs_handle: %d", retval);
+		goto errout;
+	}
 	myself = container_of(obj_hdl,
 			      struct kvsfs_fsal_obj_handle, obj_handle);
 
 	assert(myself->u.file.openflags != FSAL_O_CLOSED);
 
-	retval = kvsns_read(&cred, &myself->u.file.fd,
-			    buffer, buffer_size, offset);
+	retval = kvsns2_read(fs_ctx, &cred, &myself->u.file.fd,
+			     buffer, buffer_size, offset);
 
 
 	/* With FSAL_ZFS, "end of file" is always returned via a last call,
@@ -145,6 +152,7 @@ fsal_status_t kvsfs_read(struct fsal_obj_handle *obj_hdl,
 		*read_amount = retval;
 	}
 
+errout:
 	return fsalstat(ERR_FSAL_NO_ERROR, 0);
 }
 
