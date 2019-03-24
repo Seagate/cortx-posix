@@ -13,6 +13,7 @@
 
 /* @todo: Add more logging levels. */
 #define log_err KVSNS_LOG
+#define log_warn KVSNS_LOG
 #define log_info KVSNS_LOG
 #define log_debug KVSNS_LOG
 #define log_trace KVSNS_LOG

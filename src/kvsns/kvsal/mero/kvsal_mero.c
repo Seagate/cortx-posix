@@ -97,13 +97,8 @@ int kvsal_set_char(char *k, char *v)
 	return m0kvs_set(k, klen, v, vlen);
 }
 
-int kvsal2_set_char(void *ctx, char *k, char *v)
+int kvsal2_set_char(void *ctx, char *k, size_t klen, char *v, size_t vlen)
 {
-	size_t klen;
-	size_t vlen;
-
-	klen = strnlen(k, KLEN)+1;
-	vlen = strnlen(v, VLEN)+1;
 	return m0kvs2_set(ctx, k, klen, v, vlen);
 }
 
@@ -136,7 +131,8 @@ int kvsal_set_stat(char *k, struct stat *buf)
 
 int kvsal2_set_stat(void *ctx, char *k, size_t klen, struct stat *buf)
 {
-        return m0kvs2_set(ctx ,k, klen,
+        log_debug("stat=%s len=%d", k, (int)klen);
+	return m0kvs2_set(ctx ,k, klen,
 			  (char *)buf, sizeof(struct stat));
 }
 
@@ -207,7 +203,6 @@ int kvsal2_incr_counter(void *ctx, char *k, unsigned long long *v)
 	char buf[VLEN];
 	size_t vlen = VLEN;
 	size_t klen;
-	unsigned long long ino;
 
 	klen = strnlen(k, KLEN) + 1;
 
@@ -217,22 +212,15 @@ int kvsal2_incr_counter(void *ctx, char *k, unsigned long long *v)
 		return rc;
 
 	sscanf(buf, "%llu", v);
-	log_debug("fetched inode counter: %llu", *v);
 
 	*v += 1;
 	snprintf(buf, VLEN, "%llu", *v);
 	vlen = strnlen(buf, VLEN)+1;
-	log_debug("incremented inode counter: %llu", *v);
+	log_debug("inode counter=%llu", *v);
 	rc = m0kvs2_set(ctx, k, klen, buf, vlen);
 	if (rc != 0)
 		return rc;
 
-	rc = m0kvs2_get(ctx, k, klen, buf, &vlen);
-	if (rc != 0)
-		return rc;
-
-	sscanf(buf, "%llu", &ino);
-	log_debug("setkv inode counter: %llu", ino);
 	return 0;
 }
 
@@ -296,7 +284,7 @@ int kvsal2_get_list_size(void *ctx, char *pattern, size_t plen)
 	int rc;
 
 	strcpy(initk, pattern);
-	initk[plen - 1] = '\0';
+	initk[plen - 2] = '\0';
 
 	rc = m0_pattern2_kvs(ctx, initk, pattern,
 			     get_list_cb_size, &size);
@@ -422,7 +410,7 @@ int kvsal_create_fs_ctx(unsigned long fs_id, void **fs_ctx)
 
 	rc = m0_idx_create(fs_id, (struct m0_clovis_idx **)fs_ctx);
 	if (rc != 0) {
-		log_err("Failed to create idx: %d", rc);
+		log_err("Failed to create idx, rc=%d", rc);
 		return rc;
 	}
 	return 0;

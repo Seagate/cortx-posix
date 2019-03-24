@@ -180,6 +180,26 @@ int main(int argc, char *argv[])
 			return rc;
 		} else
 			printf("==> %s Not found, rc: %d!\n", argv[1],rc);
+
+	} else if (!strcmp(exec_name, "kvsns_del")) {
+		if (argc != 2) {
+			fprintf(stderr, "kvsns_del <filename>\n");
+			exit(1);
+		}
+
+		rc = kvsns_create_fs_ctx(fs_id, &fs_ctx);
+		if (rc != 0) {
+			printf("Unable to create index for fs_id:%lu, rc=%d \n", fs_id, rc);
+			exit(1);
+		}
+
+		rc = kvsns2_unlink(fs_ctx, &cred, &current_inode, argv[1]);
+		if (rc == 0) {
+			printf("==> Deleted %llu/%s \n", current_inode, argv[1]);
+			return rc;
+		} else
+			printf("==> Delete failed %llu/%s, rc: %d!\n",
+				current_inode, argv[1], rc);
 	} else
 		fprintf(stderr, "%s does not exists\n", exec_name);
 	printf("######## OK ########\n");
