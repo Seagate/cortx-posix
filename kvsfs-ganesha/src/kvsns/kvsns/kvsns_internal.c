@@ -199,6 +199,7 @@ int kvsns2_create_entry(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
 	struct	stat bufstat;
 	struct	timeval t;
 	size_t	klen;
+	size_t vlen;
 	size_t	namelen;
 
 	if (!cred || !parent || !name || !new_entry)
@@ -226,18 +227,20 @@ int kvsns2_create_entry(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
 	RC_WRAP(kvsal_begin_transaction);
 
 	/* Add an entry to parent dentries list */
-	memset(k, 0, KLEN);
-	RC_WRAP_LABEL(rc, aborted, prepare_key, k, KLEN, "%llu.dentries.%s", *parent, name);
+	RC_WRAP_LABEL(rc, aborted, prepare_key, k, KLEN, "%llu.dentries.%s",
+		      *parent, name);
 	klen = rc;
 	RC_WRAP_LABEL(rc, aborted, prepare_key, v, VLEN, "%llu", *new_entry);
-	RC_WRAP_LABEL(rc, aborted, kvsal2_set_char, ctx, k, v);
+	vlen = rc;
+	RC_WRAP_LABEL(rc, aborted, kvsal2_set_char, ctx, k, klen, v, vlen);
 
 	/* Set the parentdir of the new file */
-	memset(k, 0, KLEN);
-	RC_WRAP_LABEL(rc, aborted, prepare_key, k, KLEN, "%llu.parentdir", *new_entry);
+	RC_WRAP_LABEL(rc, aborted, prepare_key, k, KLEN, "%llu.parentdir.%llu",
+		      *new_entry, *parent);
 	klen = rc;
-	RC_WRAP_LABEL(rc, aborted, prepare_key, v, VLEN, "%llu|", *parent);
-	RC_WRAP_LABEL(rc, aborted, kvsal2_set_char, ctx,  k, v);
+	RC_WRAP_LABEL(rc, aborted, prepare_key, v, VLEN, "%llu", *parent);
+	vlen = rc;
+	RC_WRAP_LABEL(rc, aborted, kvsal2_set_char, ctx,  k, klen, v, vlen);
 
 	/* Set the stats of the new file */
 	memset(&bufstat, 0, sizeof(struct stat));
@@ -279,8 +282,8 @@ int kvsns2_create_entry(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
 		rc = -EINVAL;
 		goto aborted;
 	}
-	memset(k, 0, KLEN);
-	RC_WRAP_LABEL(rc, aborted, prepare_key, k, KLEN, "%llu.stat", *new_entry);
+	RC_WRAP_LABEL(rc, aborted, prepare_key, k, KLEN, "%llu.stat",
+		      *new_entry);
 	klen = rc;
 	RC_WRAP_LABEL(rc, aborted, kvsal2_set_stat, ctx, k, klen, &bufstat);
 
@@ -477,6 +480,25 @@ int kvsns_get_stat(kvsns_ino_t *ino, struct stat *bufstat)
 	return kvsal_get_stat(k, bufstat);
 }
 
+int kvsns2_get_stat(void *ctx, kvsns_ino_t *ino, struct stat *bufstat)
+{
+	int rc;
+	char k[KLEN];
+	size_t klen;
+
+	if (!ino || !bufstat)
+		return -EINVAL;
+
+	RC_WRAP_LABEL(rc, out, prepare_key, k, KLEN, "%llu.stat", *ino);
+	klen = rc;
+	RC_WRAP_LABEL(rc, out, kvsal2_get_stat, ctx, k, klen, bufstat);
+
+out:
+	return rc;
+
+}
+
+
 int kvsns_set_stat(kvsns_ino_t *ino, struct stat *bufstat)
 {
 	char k[KLEN];
@@ -487,6 +509,25 @@ int kvsns_set_stat(kvsns_ino_t *ino, struct stat *bufstat)
 	memset(k, 0, KLEN);
 	snprintf(k, KLEN, "%llu.stat", *ino);
 	return kvsal_set_stat(k, bufstat);
+}
+
+int kvsns2_set_stat(void *ctx, kvsns_ino_t *ino, struct stat *bufstat)
+{
+	char k[KLEN];
+	int rc;
+	size_t klen;
+
+	if (!ino || !bufstat) {
+		rc = -EINVAL;
+		goto out;
+	}
+
+	RC_WRAP_LABEL(rc, out, prepare_key, k, KLEN, "%llu.stat", *ino);
+	klen = rc;
+	RC_WRAP_LABEL(rc, out, kvsal2_set_stat, ctx, k, klen, bufstat);
+
+out:
+	return rc;
 }
 
 int kvsns_lookup_path(kvsns_cred_t *cred, kvsns_ino_t *parent, char *path,

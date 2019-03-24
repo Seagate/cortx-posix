@@ -75,4 +75,5 @@ int extstore_attach(kvsns_ino_t *ino,
 		    char *objid, int objid_len);
 int extstore_get_fid(kvsns_ino_t object,
 		     kvsns_fid_t *fid);
+int extstore_ino_to_fid(void *ctx, kvsns_ino_t object, kvsns_fid_t *fid);
 #endif

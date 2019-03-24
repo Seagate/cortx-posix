@@ -69,11 +69,11 @@ int kvsns_start(const char *configpath)
 	 */
 	rc = kvsns_create_fs_ctx(KVSNS_FS_ID_DEFAULT, &ctx);
 	if (rc != 0) {
-		log_err("kvsns init failed for fs_id: %d, rc %d",
+		log_err("kvsns init failed for fs_id=%d, rc=%d",
 			KVSNS_FS_ID_DEFAULT, rc);
 		return rc;
 	}
-	log_debug("kvsns init done for fs_id: %d, rc: %d, fs_ctx: %p",
+	log_debug("kvsns init done for fs_id=%d, rc=%d, fs_ctx=%p",
 		   KVSNS_FS_ID_DEFAULT, rc, ctx);
 
 	RC_WRAP(extstore_init, cfg_items);

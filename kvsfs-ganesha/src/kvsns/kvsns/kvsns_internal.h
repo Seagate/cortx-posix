@@ -51,7 +51,9 @@ int kvsns2_create_entry(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
 		         char *name, char *lnk, mode_t mode,
 		         kvsns_ino_t *newdir, enum kvsns_type type);
 int kvsns_get_stat(kvsns_ino_t *ino, struct stat *bufstat);
+int kvsns2_get_stat(void *ctx, kvsns_ino_t *ino, struct stat *bufstat);
 int kvsns_set_stat(kvsns_ino_t *ino, struct stat *bufstat);
+int kvsns2_set_stat(void *ctx, kvsns_ino_t *ino, struct stat *bufstat);
 int kvsns_update_stat(kvsns_ino_t *ino, int flags);
 int kvsns_amend_stat(struct stat *stat, int flags);
 int kvsns_delall_xattr(kvsns_cred_t *cred, kvsns_ino_t *ino);

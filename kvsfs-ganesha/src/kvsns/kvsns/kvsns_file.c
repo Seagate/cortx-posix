@@ -114,7 +114,7 @@ int kvsns2_creat(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
 
 	/*@todo Check write access to the directory */
 
-	log_trace("ENTER: parent:%p name:%s file:%p mode:0x%X",
+	log_trace("ENTER: parent=%p name=%s file=%p mode=0x%X",
 		  parent, name, newfile, mode);
 	RC_WRAP(kvsns2_create_entry, ctx, cred, parent, name, NULL,
 		mode, newfile, KVSNS_FILE);
@@ -189,13 +189,12 @@ int kvsns2_open(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
 	}
 
 	/* Manage the list of open owners */
-	memset(k, 0, KLEN);
 	RC_WRAP_LABEL(rc, out, prepare_key, k, KLEN, "%llu.openowner.%d.%d", *ino, pid, tid);
 	klen = rc;
 	rc = kvsal2_exists(ctx, k, (size_t) klen);
 	if (rc && rc != -ENOENT)
 		goto out;
-	RC_WRAP(kvsal2_set_char, ctx, k, "");
+	RC_WRAP(kvsal2_set_char, ctx, k, klen, "", 1);
 
 	/** @todo Do not forget store stuffs */
 	fd->ino = *ino;
@@ -251,7 +250,6 @@ int kvsns2_close(void *ctx, kvsns_file_open_t *fd)
 		goto out;
 	}
 
-	memset(k, 0, KLEN);
 	RC_WRAP_LABEL(rc, out, prepare_key, k, KLEN, "%llu.openowner.%d.%d", fd->ino, fd->owner.pid, fd->owner.tid);
 	klen = rc;
 	rc = kvsal2_del(ctx, k, klen);
@@ -263,7 +261,6 @@ int kvsns2_close(void *ctx, kvsns_file_open_t *fd)
 
 	/* Was the file deleted as it was opened ? */
 	/* The last close should perform actual data deletion */
-	memset(k, 0, KLEN);
 	RC_WRAP_LABEL(rc, out, prepare_key, k, KLEN, "%llu.opened_and_deleted", fd->ino);
 	klen = rc;
 	rc = kvsal2_exists(ctx, k, klen);
@@ -276,7 +273,6 @@ int kvsns2_close(void *ctx, kvsns_file_open_t *fd)
 	/* Was the file deleted as it was opened ? */
 	if (opened_and_deleted) {
 		/* Check if this is the last open file */
-		memset(k, 0, KLEN);
 		RC_WRAP_LABEL(rc, out, prepare_key, k, KLEN, "%llu.openowner.*", fd->ino);
 		klen = rc;
 		rc = kvsal2_get_list_size(ctx, k, klen);
@@ -492,7 +488,6 @@ ssize_t kvsns2_read(void *ctx, kvsns_cred_t *cred, kvsns_file_open_t *fd,
 		goto out;
 	}
 
-	memset(k, 0, KLEN);
 	RC_WRAP_LABEL(rc, out, prepare_key, k, KLEN, "%llu.stat", fd->ino);
 	klen = rc;
 	RC_WRAP(kvsal2_set_stat, ctx, k, klen, &stat);

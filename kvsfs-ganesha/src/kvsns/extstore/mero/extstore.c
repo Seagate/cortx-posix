@@ -147,6 +147,30 @@ int extstore_get_fid(kvsns_ino_t object, kvsns_fid_t *kfid)
 	return m0_ufid_get((struct m0_uint128 *)kfid);
 }
 
+int extstore_ino_to_fid(void *ctx, kvsns_ino_t object, kvsns_fid_t *kfid)
+{
+	char k[KLEN];
+	char v[VLEN];
+	size_t vlen = VLEN;
+	size_t klen;
+	int rc;
+
+	RC_WRAP_LABEL(rc, out, prepare_key, k, KLEN, "%llu.data", object);
+	klen = rc;
+	rc = m0kvs2_get(ctx, k, klen, v, &vlen);
+	if (rc != 0) {
+		log_err("Unable to get FID for inode=%llu rc=%d",
+			object, rc);
+		goto out;
+	}
+
+	RC_WRAP_LABEL(rc, out, m0_fid_sscanf, v, (struct m0_fid *)kfid);
+
+out:
+	log_debug("rc=%d inode=%llu FID=%s", rc, object, v);
+	return rc;
+}
+
 int extstore2_create(void *ctx, kvsns_ino_t object,
 		     kvsns_fid_t *kfid)
 {
@@ -164,7 +188,6 @@ int extstore2_create(void *ctx, kvsns_ino_t object,
 
 	vlen = m0_fid_to_string(&fid, v);
 	if (vlen < 0) {
-		log_err("Failed to convert fid to fid_str: %zd", vlen);
 		rc = vlen;
 		goto out;
 	}
@@ -178,6 +201,7 @@ int extstore2_create(void *ctx, kvsns_ino_t object,
 		goto out;
 
 out:
+	log_debug("ino=%llu fid=%s rc=%d", object, v, rc);
 	return rc;
 }
 
@@ -271,13 +295,24 @@ int extstore2_del(void *ctx, kvsns_ino_t *ino, kvsns_fid_t *kfid)
 	size_t klen = KLEN;
 	struct m0_uint128 fid;
 	int rc;
+	char fid_str[M0_FID_STR_LEN];
 
 	m0_fid_copy((struct m0_uint128 *)kfid, &fid);
 
+	RC_WRAP_LABEL(rc, out, m0_fid_print, fid_str, M0_FID_STR_LEN,
+		     (struct m0_fid *)kfid);
+
+	/* Delete the object from backend store */
 	rc = m0store_delete_object(fid);
 	if (rc) {
-		if (errno == ENOENT)
-			return 0;
+		if (errno == ENOENT) {
+			rc = 0;
+			log_warn("Object for fid=%s does not exist rc=%d",
+				 fid_str, rc);
+			goto out;
+		}
+		log_err("Unable to delete object ino=%llu fid=%s rc=%d",
+			 *ino, fid_str, rc);
 		rc = -errno;
 		goto out;
 	}
@@ -286,8 +321,6 @@ int extstore2_del(void *ctx, kvsns_ino_t *ino, kvsns_fid_t *kfid)
 	RC_WRAP_LABEL(rc, out, prepare_key, k, KLEN, "%llu.data", *ino);
 	klen = rc;
 	rc = m0kvs2_del(ctx, k, klen);
-	if (rc != 0)
-		goto out;
 out:
 	return rc;
 }

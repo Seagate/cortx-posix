@@ -78,7 +78,7 @@ int kvsal_discard_transaction(void);
 int kvsal_exists(char *k);
 int kvsal2_exists(void * ctx, char *k, size_t klen);
 int kvsal_set_char(char *k, char *v);
-int kvsal2_set_char(void *ctx, char *k, char *v);
+int kvsal2_set_char(void *ctx, char *k, size_t klen, char *v, size_t vlen);
 int kvsal_get_char(char *k, char *v);
 int kvsal2_get_char(void *ctx, char *k, char *v);
 int kvsal_set_binary(char *k, char *buf, size_t size);

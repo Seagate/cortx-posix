@@ -53,6 +53,7 @@
 
 #include <kvsns/common.h>
 #include <kvsns/kvsal.h>
+#include <kvsns/log.h>
 
 #ifdef DEBUG
 #define KVSNS_DASSERT(cond) assert(cond)
@@ -166,7 +167,7 @@ static inline int prepare_key(char k[], size_t klen, const char *fmt, ...)
 {
 	va_list args;
 	va_start(args, fmt);
-
+	memset(k, 0, klen);
 	int rc = vsnprintf(k, klen, fmt, args);
 	if (rc > 0) {
 		rc = rc + 1 /* For \0 */;
@@ -174,6 +175,7 @@ static inline int prepare_key(char k[], size_t klen, const char *fmt, ...)
 	}
 out:
 	va_end(args);
+	log_debug("key=%s len=%d", k, rc);
 	return rc;
 }
 
@@ -322,6 +324,20 @@ int kvsns_rmdir(kvsns_cred_t *cred, kvsns_ino_t *parent, char *name);
  * @return 0 if successful, a negative "-errno" value in case of failure
  */
 int kvsns_unlink(kvsns_cred_t *cred, kvsns_ino_t *ino, char *name);
+
+/**
+ * Creates a file's hardlink
+ *
+ * @note: this call will failed if not performed on a file.
+ *
+ * @param cred - pointer to user's credentials
+ * @param ino - pointer to current inode.
+ * @param dino - pointer to destination directory's inode
+ * @param dname - name of the new entry in dino
+ *
+ * @return 0 if successful, a negative "-errno" value in case of failure
+ */
+int kvsns2_unlink(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *ino, char *name);
 
 /**
  * Creates a file's hardlink

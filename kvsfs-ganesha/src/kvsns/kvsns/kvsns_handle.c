@@ -360,7 +360,6 @@ int kvsns2_getattr(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
 	if (!cred || !ino || !bufstat)
 		return -EINVAL;
 
-	memset(k, 0, KLEN);
 	RC_WRAP_LABEL(rc, out, prepare_key, k, KLEN, "%llu.stat", *ino);
 	klen = rc;
 
@@ -613,6 +612,131 @@ aborted:
 	return rc;
 }
 
+int kvsns2_unlink(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *dir, char *name)
+{
+	int rc;
+	char k[KLEN];
+	char v[VLEN];
+	kvsns_ino_t ino = 0LL;
+	kvsns_ino_t parent[KVSAL_ARRAY_SIZE];
+	struct stat ino_stat;
+	struct stat dir_stat;
+	size_t klen;
+	size_t vlen;
+	int size;
+	bool opened;
+	kvsns_fid_t kfid;
+
+	opened = false;
+
+	if (!cred || !dir || !name) {
+		rc =  -EINVAL;
+		goto aborted;
+	}
+
+	log_trace("ENTER: name=%s dir=%p", name, dir);
+
+	memset(parent, 0, KVSAL_ARRAY_SIZE*sizeof(kvsns_ino_t));
+	memset(&ino_stat, 0, sizeof(ino_stat));
+	memset(&dir_stat, 0, sizeof(dir_stat));
+
+	RC_WRAP(kvsns2_access, ctx, cred, dir, KVSNS_ACCESS_WRITE);
+
+	RC_WRAP(kvsns2_lookup, ctx, cred, dir, name, &ino);
+
+	RC_WRAP(kvsns2_get_stat, ctx, dir, &dir_stat);
+	RC_WRAP(kvsns2_get_stat, ctx, &ino, &ino_stat);
+
+	/* Get the count of links for this file. */
+	RC_WRAP_LABEL(rc, aborted, prepare_key, k, KLEN, "%llu.parentdir.*",
+		      ino);
+	klen = rc;
+	size = kvsal2_get_list_size(ctx, k, klen);
+	log_debug("link count=%d name=%s dir=%p", size, name, dir);
+	if (size < 0) {
+		rc = size;
+		goto aborted;
+	}
+
+	/* Check if the file is opened */
+	RC_WRAP_LABEL(rc, aborted, prepare_key, k, KLEN, "%llu.openowner.*", ino);
+	rc = kvsal2_exists(ctx, k, KLEN);
+	if ((rc != 0) && (rc != -ENOENT))
+		goto aborted;
+
+	opened = (rc == -ENOENT) ? false : true;
+
+	RC_WRAP(kvsal_begin_transaction);
+
+	if (size == 1) {
+		/* Last link, delete all the key values */
+		RC_WRAP_LABEL(rc, aborted, prepare_key, k, KLEN,
+			      "%llu.parentdir.%llu", ino, *dir);
+		klen = rc;
+		RC_WRAP_LABEL(rc, aborted, kvsal2_del, ctx, k, klen);
+
+		RC_WRAP_LABEL(rc, aborted, prepare_key, k, KLEN,
+			      "%llu.stat", ino);
+		klen = rc;
+		RC_WRAP_LABEL(rc, aborted, kvsal2_del, ctx, k, klen);
+
+
+		if (opened) {
+			/* File is opened, the final close will delete it */
+			log_debug("File is opened by other thread/process.");
+			RC_WRAP_LABEL(rc, aborted, prepare_key, k, KLEN,
+				      "%llu.opened_and_deleted", ino);
+			klen = rc;
+			RC_WRAP_LABEL(rc, aborted, prepare_key, v, VLEN, "1");
+			vlen = rc;
+			RC_WRAP_LABEL(rc, aborted, kvsal2_set_char, ctx, k,
+				      klen, v, vlen);
+		}
+		/* @todo: Remove all associated xattrs */
+	} else {
+		/*
+		 * More links are present in other directories, just delete the
+		 * parent dir key and val for current directory.
+		 */
+		RC_WRAP_LABEL(rc, aborted, prepare_key, k, KLEN,
+			      "%llu.parentdir.%llu", ino, *dir);
+		RC_WRAP_LABEL(rc, aborted, kvsal2_del, ctx, k, KLEN);
+
+		RC_WRAP_LABEL(rc, aborted, kvsns_amend_stat, &ino_stat,
+			 STAT_CTIME_SET|STAT_DECR_LINK);
+		RC_WRAP_LABEL(rc, aborted, kvsns2_set_stat, ctx, &ino, &ino_stat);
+	}
+	/* Delete the dentry. */
+	RC_WRAP_LABEL(rc, aborted, prepare_key, k, KLEN, "%llu.dentries.%s", *dir,
+		      name);
+	RC_WRAP_LABEL(rc, aborted, kvsal_del, k);
+
+	/* if object is a link, delete the link content as well */
+	/* @todo: Untested. Revisit this during implementation of symlinks. */
+	if ((ino_stat.st_mode & S_IFLNK) == S_IFLNK) {
+		RC_WRAP_LABEL(rc, aborted, prepare_key, k, KLEN, "%llu.link",
+			      ino);
+		RC_WRAP_LABEL(rc, aborted, kvsal2_del, ctx, k, KLEN);
+	}
+
+	RC_WRAP_LABEL(rc, aborted, kvsns_amend_stat, &dir_stat,
+		      STAT_MTIME_SET|STAT_CTIME_SET);
+	RC_WRAP_LABEL(rc, aborted, kvsns2_set_stat, ctx, dir, &dir_stat);
+
+	RC_WRAP(kvsal_end_transaction);
+
+	/* Call to object store : do not mix with metadata transaction */
+	if (!opened) {
+		RC_WRAP(extstore_ino_to_fid, ctx, ino, &kfid);
+		RC_WRAP(extstore2_del, ctx, &ino, &kfid);
+	}
+
+aborted:
+	kvsal_discard_transaction();
+	log_trace("EXIT rc=%d", rc);
+	return rc;
+}
+
 int kvsns_rename(kvsns_cred_t *cred,  kvsns_ino_t *sino,
 		 char *sname, kvsns_ino_t *dino, char *dname)
 {
@@ -729,7 +853,7 @@ int kvsns_mr_proper(void)
 int kvsns_fsid_to_ctx(kvsns_fsid_t fsid, kvsns_fs_ctx_t *fs_ctx)
 {
 	*fs_ctx = kvsns_fs_ctx;
-	log_debug("fsid: %lu, kvsns_fs_ctx: %p", fsid, *fs_ctx);
+	log_debug("fsid=%lu kvsns_fs_ctx=%p", fsid, *fs_ctx);
 	return 0;
 }
 

@@ -504,6 +504,7 @@ int m0kvs2_del(void *ctx, char *k, size_t klen)
 
 out:
 	free_buf2vec(&key);
+	log_debug("key=%s rc=%d", k, rc);
 	return rc;
 }
 
@@ -876,11 +877,11 @@ int m0_fid_to_string(struct m0_uint128 *fid, char *fid_s)
 
 	rc = m0_fid_print(fid_s, KVS_FID_STR_LEN, (struct m0_fid *)fid);
 	if (rc < 0) {
-		log_err("Failed to generate fid str: %d", rc);
+		log_err("Failed to generate fid str, rc=%d", rc);
 		return rc;
 	}
 
-	log_debug("Got fid : %s", fid_s);
+	log_debug("fid=%s", fid_s);
 	/* rc is a buffer length, therefore it should also count '\0' */
 	return rc + 1 /* '\0' */;
 }
