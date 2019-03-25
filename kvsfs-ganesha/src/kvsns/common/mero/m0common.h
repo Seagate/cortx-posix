@@ -57,6 +57,7 @@ int m0kvs_get(char *k, size_t klen,
 int m0kvs2_get(void *ctx, char *k, size_t klen,
 	        char *v, size_t *vlen);
 int m0kvs_del(char *k, size_t klen);
+int m0kvs2_del(void *ctx, char *k, size_t klen);
 void m0_iter_kvs(char *k);
 int m0_pattern_kvs(char *k, char *pattern,
 		   get_list_cb cb, void *arg_cb);
@@ -91,6 +92,12 @@ static inline ssize_t m0store_pread(struct m0_uint128 id, off_t x,
 				    size_t len, size_t bs, char *buff)
 {
 	return m0store_do_io(id, IO_READ, x, len, bs, buff);
+}
+
+static inline void m0_fid_copy(struct m0_uint128 *src, struct m0_uint128 *dest)
+{
+	dest->u_hi = src->u_hi;
+	dest->u_lo = src->u_lo;
 }
 
 int m0_idx_create(uint64_t fs_id, struct m0_clovis_idx **index);

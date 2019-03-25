@@ -214,6 +214,13 @@ int kvsns_closedir(kvsns_dir_t *dir)
 	return kvsal_dispose_list(&dir->list);
 }
 
+int kvsns2_closedir(void *ctx, kvsns_dir_t *dir)
+{
+	KVSNS_DASSERT(dir != NULL);
+
+	return kvsal_dispose_list(&dir->list);
+}
+
 int kvsns_readdir(kvsns_cred_t *cred, kvsns_dir_t *dir, off_t offset,
 		  kvsns_dentry_t *dirent, int *size)
 {
