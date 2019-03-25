@@ -266,10 +266,10 @@ int m0_idx_create(uint64_t fs_id, struct m0_clovis_idx **index)
 	return 0;
 }
 
-static int m0_kvs_op_launch(void *ctx,
-			    enum m0_clovis_idx_opcode opcode,
-			    struct m0_bufvec *key,
-			    struct m0_bufvec *val)
+static int m0_op2_kvs(void *ctx,
+		      enum m0_clovis_idx_opcode opcode,
+		      struct m0_bufvec *key,
+		      struct m0_bufvec *val)
 {
 	struct m0_clovis_op	 *op = NULL;
 	int rcs[1];
@@ -419,7 +419,7 @@ int m0kvs2_get(void *ctx, char *k, size_t klen,
 	memcpy(key.ov_buf[0], k, klen);
 	memset(v, 0, *vlen);
 
-	rc = m0_kvs_op_launch(ctx, M0_CLOVIS_IC_GET, &key, &val);
+	rc = m0_op2_kvs(ctx, M0_CLOVIS_IC_GET, &key, &val);
 	if (rc)
 		goto out;
 
@@ -468,18 +468,42 @@ int m0kvs2_set(void *ctx, char *k, size_t klen,
 	if (!my_init_done)
 		m0kvs_reinit();
 
-	rc = m0_bufvec_alloc(&key, 1, klen) ?:
-	     m0_bufvec_alloc(&val, 1, vlen);
-	if (rc)
-		goto out;
+	rc = m0_bufvec_alloc(&key, 1, klen);
+	if (rc != 0)
+		return rc;
+
+	rc = m0_bufvec_alloc(&val, 1, vlen);
+	if (rc != 0) {
+		m0_bufvec_free(&key);
+		return rc;
+	}
 
 	memcpy(key.ov_buf[0], k, klen);
 	memcpy(val.ov_buf[0], v, vlen);
 
-	rc = m0_kvs_op_launch(ctx, M0_CLOVIS_IC_PUT, &key, &val);
-out:
+	rc = m0_op2_kvs(ctx, M0_CLOVIS_IC_PUT, &key, &val);
 	m0_bufvec_free(&key);
 	m0_bufvec_free(&val);
+	return rc;
+}
+
+int m0kvs2_del(void *ctx, char *k, size_t klen)
+{
+	struct m0_bufvec	 key;
+	int rc;
+
+	/* @todo: This might kill the performance. Find a cleaner way to do check. */
+	if (!my_init_done)
+		m0kvs_reinit();
+
+	rc = buf2vec(k, klen, &key);
+	if (rc)
+		goto out;
+
+	rc = m0_op2_kvs(ctx, M0_CLOVIS_IC_DEL, &key, NULL);
+
+out:
+	free_buf2vec(&key);
 	return rc;
 }
 
@@ -857,7 +881,8 @@ int m0_fid_to_string(struct m0_uint128 *fid, char *fid_s)
 	}
 
 	log_debug("Got fid : %s", fid_s);
-	return 0;
+	/* rc is a buffer length, therefore it should also count '\0' */
+	return rc + 1 /* '\0' */;
 }
 
 static int write_data_aligned(struct m0_uint128 id, char *buff, off_t off,

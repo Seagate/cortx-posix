@@ -79,13 +79,11 @@ int kvsal_exists(char *k)
 	return m0kvs_get(k, klen, myval, &vlen);
 }
 
-int kvsal2_exists(void *ctx, char *k)
+int kvsal2_exists(void *ctx, char *k, size_t klen)
 {
-	size_t klen;
 	size_t vlen = VLEN;
 	char myval[VLEN];
 
-	klen = strnlen(k, KLEN)+1;
 	return m0kvs2_get(ctx, k, klen, myval, &vlen);
 }
 
@@ -251,6 +249,11 @@ int kvsal_del(char *k)
 	return m0kvs_del(k, klen);
 }
 
+int kvsal2_del(void *ctx, char *k, size_t klen)
+{
+	return m0kvs2_del(ctx, k, klen);
+}
+
 bool get_list_cb_size(char *k, void *arg)
 {
 	int size;
@@ -285,6 +288,23 @@ int kvsal_get_list_size(char *pattern)
 
 	rc = m0_pattern_kvs(initk, pattern,
 			    get_list_cb_size, &size);
+	if (rc < 0)
+		return rc;
+
+	return size;
+}
+
+int kvsal2_get_list_size(void *ctx, char *pattern, size_t plen)
+{
+	char initk[KLEN];
+	int size = 0;
+	int rc;
+
+	strcpy(initk, pattern);
+	initk[plen - 1] = '\0';
+
+	rc = m0_pattern2_kvs(ctx, initk, pattern,
+			     get_list_cb_size, &size);
 	if (rc < 0)
 		return rc;
 

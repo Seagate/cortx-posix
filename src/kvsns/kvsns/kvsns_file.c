@@ -180,6 +180,7 @@ int kvsns2_open(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
 	int rc;
 	int pid = getpid();
 	int tid = syscall(SYS_gettid);
+	int klen = KLEN;
 
 	log_trace("%s: Enter\n", __func__);
 	if (!cred || !ino || !fd)
@@ -187,8 +188,8 @@ int kvsns2_open(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
 
 	/* Manage the list of open owners */
 	memset(k, 0, KLEN);
-	snprintf(k, KLEN, "%llu.openowner.%d.%d", *ino, pid, tid);
-	rc = kvsal2_exists(ctx, k);
+	SNPRINTF_WRAP(klen, k, KLEN, "%llu.openowner.%d.%d", *ino, pid, tid);
+	rc = kvsal2_exists(ctx, k, (size_t) klen);
 	if (rc && rc != -ENOENT)
 		return rc;
 	RC_WRAP(kvsal2_set_char, ctx, k, "");
@@ -230,6 +231,73 @@ int kvsns2_openat(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent, char *name
 
 	return kvsns2_open(ctx, cred, &ino, flags, mode, fd);
 }
+
+int kvsns2_close(void *ctx, kvsns_file_open_t *fd)
+{
+	kvsns_fid_t  kfid;
+	char k[KLEN];
+	int klen = KLEN;
+	int rc;
+	bool opened_and_deleted;
+	bool delete_object = false;
+
+	log_trace("%s: Enter\n", __func__);
+	if (!fd)
+		return -EINVAL;
+
+	memset(k, 0, KLEN);
+	SNPRINTF_WRAP(klen, k, KLEN, "%llu.openowner.%d.%d", fd->ino, fd->owner.pid, fd->owner.tid);
+	rc = kvsal2_del(ctx, k, klen);
+	if (rc != 0) {
+		if (rc == -ENOENT)
+			return -EBADF; /* File was not opened */
+		else
+			return rc;
+	}
+
+	/* Was the file deleted as it was opened ? */
+	/* The last close should perform actual data deletion */
+	memset(k, 0, KLEN); klen = KLEN;
+	SNPRINTF_WRAP(klen, k, KLEN, "%llu.opened_and_deleted", fd->ino);
+	rc = kvsal2_exists(ctx, k, klen);
+	if ((rc != 0) && (rc != -ENOENT))
+		return rc;
+	opened_and_deleted = (rc == -ENOENT) ? false : true;
+
+	RC_WRAP(kvsal_begin_transaction);
+
+	/* Was the file deleted as it was opened ? */
+	if (opened_and_deleted) {
+		/* Check if this is the last open file */
+		memset(k, 0, KLEN); klen = KLEN;
+		SNPRINTF_WRAP(klen, k, KLEN, "%llu.openowner.*", fd->ino);
+		rc = kvsal2_get_list_size(ctx, k, klen);
+		if (rc < 0) {
+			return rc;
+		} else if (rc > 0) {
+			/* There are other entries, do not delete the object now */
+			return 0;
+		}
+
+		delete_object = true;
+		klen = KLEN;
+		SNPRINTF_WRAP(klen, k, KLEN, "%llu.opened_and_deleted", fd->ino);
+		RC_WRAP_LABEL(rc, aborted, kvsal2_del, ctx, k, klen);
+	}
+	RC_WRAP(kvsal_end_transaction);
+
+	if (delete_object) {
+		RC_WRAP(extstore_get_fid, fd->ino, &kfid);
+		RC_WRAP(extstore2_del, ctx, &fd->ino, &kfid);
+	}
+
+	return 0;
+
+aborted:
+	kvsal_discard_transaction();
+	return rc;
+}
+
 
 int kvsns_close(kvsns_file_open_t *fd)
 {

@@ -50,6 +50,15 @@
 	if (__rc != 0)        \
 		goto __label; })
 
+#define SNPRINTF_WRAP(size, ...) ({                                     \
+        int __rc = snprintf(__VA_ARGS__);                               \
+        if (__rc < 0) {                                                 \
+		log_debug("Failed to generate string: %d", __rc);       \
+		return __rc;                                            \
+        } else if (__rc <= size) {                                      \
+		size = __rc + 1 /* /0 */;                               \
+        }})
+
 int kvsns_next_inode(kvsns_ino_t *ino);
 int kvsns2_next_inode(void *ctx, kvsns_ino_t *ino);
 int kvsns_str2parentlist(kvsns_ino_t *inolist, int *size, char *str);

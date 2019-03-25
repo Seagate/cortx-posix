@@ -200,6 +200,7 @@ fsal_status_t kvsfs_commit(struct fsal_obj_handle *obj_hdl,	/* sync */
 fsal_status_t kvsfs_close(struct fsal_obj_handle *obj_hdl)
 {
 	struct kvsfs_fsal_obj_handle *myself;
+	kvsns_fs_ctx_t fs_ctx = KVSNS_NULL_FS_CTX;
 	int retval = 0;
 	fsal_errors_t fsal_error = ERR_FSAL_NO_ERROR;
 
@@ -207,14 +208,22 @@ fsal_status_t kvsfs_close(struct fsal_obj_handle *obj_hdl)
 	myself = container_of(obj_hdl,
 			      struct kvsfs_fsal_obj_handle, obj_handle);
 
+	retval = kvsfs_obj_to_kvsns_ctx(obj_hdl, &fs_ctx);
+	if (retval) {
+		fsal_error = posix2fsal_error(-retval);
+		LogCrit(COMPONENT_FSAL, "Unable to get fs_handle: %d", retval);
+		goto errout;
+	}
+
 	if (myself->u.file.openflags != FSAL_O_CLOSED) {
-		retval = kvsns_close(&myself->u.file.fd);
+		retval = kvsns2_close(fs_ctx, &myself->u.file.fd);
 		if (retval < 0)
 			fsal_error = posix2fsal_error(-retval);
 
 		myself->u.file.openflags = FSAL_O_CLOSED;
 	}
 
+errout:
 	return fsalstat(fsal_error, -retval);
 }
 
