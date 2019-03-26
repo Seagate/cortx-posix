@@ -735,10 +735,11 @@ static fsal_status_t kvsfs_unlink(struct fsal_obj_handle *dir_hdl,
 {
 	struct kvsfs_fsal_obj_handle *myself;
 	fsal_errors_t fsal_error = ERR_FSAL_NO_ERROR;
-	int retval = 0;
+	int rc = 0;
 	kvsns_cred_t cred;
 	kvsns_ino_t object;
 	struct stat stat;
+	kvsns_fs_ctx_t fs_ctx = KVSNS_NULL_FS_CTX;
 
 	cred.uid = op_ctx->creds->caller_uid;
 	cred.gid = op_ctx->creds->caller_gid;
@@ -746,33 +747,47 @@ static fsal_status_t kvsfs_unlink(struct fsal_obj_handle *dir_hdl,
 	myself =
 		container_of(dir_hdl, struct kvsfs_fsal_obj_handle, obj_handle);
 
+	rc = kvsfs_obj_to_kvsns_ctx(dir_hdl, &fs_ctx);
+	if (rc != 0) {
+		LogCrit(COMPONENT_FSAL, "Unable to get fs ctx, file=%s rc=%d",
+			name, rc);
+		goto err;
+	}
 	/* check for presence of file and get its type */
-	retval = kvsns_lookup(&cred, &myself->handle->kvsfs_handle,
+	rc = kvsns2_lookup(fs_ctx, &cred, &myself->handle->kvsfs_handle,
 			      (char *)name, &object);
-
-	if (retval == 0) {
-
-		retval = kvsns_getattr(&cred, &object, &stat);
-		if (retval) {
-			fsal_error = posix2fsal_error(-retval);
-			return fsalstat(fsal_error, -retval);
-		}
-
-		if ((stat.st_mode & S_IFDIR) == S_IFDIR)
-			retval = kvsns_rmdir(&cred,
-					     &myself->handle->kvsfs_handle,
-					     (char *)name);
-		else
-			retval = kvsns_unlink(
-					&cred,
-					&myself->handle->kvsfs_handle,
-					(char *)name);
+	if (rc != 0) {
+		LogDebug(COMPONENT_FSAL, "lookup failed for file=%s rc=%d",
+			 name, rc);
+		goto err;
 	}
 
-	if (retval)
-		fsal_error = posix2fsal_error(-retval);
+	rc = kvsns2_getattr(fs_ctx, &cred, &object, &stat);
+	if (rc != 0) {
+		LogDebug(COMPONENT_FSAL, "getattr failed for file=%s rc=%d",
+			 name, rc);
+		goto err;
+	}
+	/* @todo: Check if the passed name is a directory and call the
+	          kvsns function to delete the directory.
 
-	return fsalstat(fsal_error, -retval);
+	if ((stat.st_mode & S_IFDIR) == S_IFDIR)
+		rc = kvsns_rmdir(&cred, &myself->handle->kvsfs_handle,
+					     (char *)name);
+	*/
+	rc = kvsns2_unlink(fs_ctx, &cred, &myself->handle->kvsfs_handle,
+			      (char *)name);
+	if (rc != 0) {
+		LogCrit(COMPONENT_FSAL, "Delete failed file=%s, rc=%d",
+			name, rc);
+		goto err;
+	}
+	return fsalstat(ERR_FSAL_NO_ERROR, 0);
+
+ err:
+	/* Exit with an error */
+	fsal_error = posix2fsal_error(-rc);
+	return fsalstat(fsal_error, -rc);
 }
 
 /* handle_digest
