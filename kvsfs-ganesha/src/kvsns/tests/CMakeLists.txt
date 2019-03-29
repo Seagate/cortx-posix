@@ -9,8 +9,8 @@ add_executable(kvsns_file_test_unlink_on_close kvsns_file_test_unlink_on_close.c
 target_link_libraries(kvsns_file_test_unlink_on_close kvsns ${STORE_LIBRARY}
 		      ${KVSAL_LIBRARY})
 
-add_executable(kvsns_file_test_write kvsns_file_test_write.c)
-target_link_libraries(kvsns_file_test_write kvsns ${STORE_LIBRARY}
+add_executable(kvsns_file_test_rw kvsns_file_test_rw.c)
+target_link_libraries(kvsns_file_test_rw kvsns ${STORE_LIBRARY}
 		      ${KVSAL_LIBRARY})
 
 add_executable(kvsns_set_char kvsns_set_char.c)

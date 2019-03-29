@@ -37,6 +37,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <inttypes.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdbool.h>
@@ -56,15 +57,17 @@ int extstore_read(kvsns_ino_t *ino,
 		  void *buffer,
 		  bool *end_of_file,
 		  struct stat *stat);
-int extstore2_read(void *ctx, kvsns_ino_t *ino, off_t offset,
+int extstore2_read(void *ctx, kvsns_fid_t *kfid, off_t offset,
 		   size_t buffer_size, void *buffer, bool *end_of_file,
-		   struct stat *stat, kvsns_fid_t *kfid);
+		   struct stat *stat);
 int extstore_write(kvsns_ino_t *ino,
 		   off_t offset,
 		   size_t buffer_size,
 		   void *buffer,
 		   bool *fsal_stable,
 		   struct stat *stat);
+int extstore2_write(void *ctx, kvsns_fid_t *kfid, off_t offset, size_t buffer_size,
+		    void *buffer, bool *fsal_stable, struct stat *stat);
 int extstore_del(kvsns_ino_t *ino);
 int extstore2_del(void *ctx, kvsns_ino_t *ino, kvsns_fid_t *fid);
 int extstore_truncate(kvsns_ino_t *ino,
