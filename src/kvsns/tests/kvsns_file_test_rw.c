@@ -103,7 +103,7 @@ int main(int argc, char *argv[])
 	offset = 0;
 
 	/* TODO: Update this call to include filesystem context */
-	written = kvsns_write(&cred, &fd, buff, count, offset);
+	written = kvsns2_write(fs_ctx, &cred, &fd, buff, count, offset);
 	if (written < 0) {
 		fprintf(stderr, "kvsns_write: err=%lld\n",
 			(long long)written);
@@ -118,7 +118,11 @@ int main(int argc, char *argv[])
 	}
 
 	if (read == written) {
-		printf("Buffer data: %s", read_buff);
+		printf("Buffer data: %s\n", read_buff);
+	}
+	else {
+		fprintf(stderr, "Read and write size does not match\n");
+		exit(1);
 	}
 
 	rc = kvsns2_close(fs_ctx, &fd);

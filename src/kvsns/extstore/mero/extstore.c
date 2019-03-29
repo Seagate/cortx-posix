@@ -298,9 +298,7 @@ int extstore2_del(void *ctx, kvsns_ino_t *ino, kvsns_fid_t *kfid)
 	char fid_str[M0_FID_STR_LEN];
 
 	m0_fid_copy((struct m0_uint128 *)kfid, &fid);
-
-	RC_WRAP_LABEL(rc, out, m0_fid_print, fid_str, M0_FID_STR_LEN,
-		     (struct m0_fid *)kfid);
+	RC_WRAP_LABEL(rc, out, m0_fid_to_string, &fid, fid_str);
 
 	/* Delete the object from backend store */
 	rc = m0store_delete_object(fid);
@@ -348,24 +346,19 @@ int extstore_read(kvsns_ino_t *ino,
 		return -1;
 
 	RC_WRAP(update_stat, stat, UP_ST_READ, 0);
-
 	return read_bytes;
 }
 
 
-int extstore2_read(void *ctx, kvsns_ino_t *ino, off_t offset,
+int extstore2_read(void *ctx, kvsns_fid_t *kfid, off_t offset,
 		   size_t buffer_size, void *buffer, bool *end_of_file,
-		   struct stat *stat, kvsns_fid_t *kfid)
+		   struct stat *stat)
 {
 	int rc;
 	ssize_t read_bytes;
 	ssize_t bsize;
-	char k[KLEN];
-	size_t klen;
 	struct m0_uint128 fid;
 
-	RC_WRAP_LABEL(rc, out, prepare_key, k, KLEN, "%llu.data", *ino);
-	klen = rc;
 	m0_fid_copy((struct m0_uint128 *)kfid, &fid);
 
 	bsize = m0store_get_bsize(fid);
@@ -384,6 +377,8 @@ int extstore2_read(void *ctx, kvsns_ino_t *ino, off_t offset,
 	RC_WRAP(update_stat, stat, UP_ST_READ, 0);
 	rc = read_bytes;
 out:
+	log_debug("fid=%" PRIx64 ":%" PRIx64 " read_bytes=%lu",
+		  kfid->f_hi, kfid->f_lo, read_bytes);
 	return rc;
 }
 
@@ -414,6 +409,39 @@ int extstore_write(kvsns_ino_t *ino,
 
 	*fsal_stable = true;
 	return written_bytes;
+}
+
+int extstore2_write(void *ctx, kvsns_fid_t *kfid, off_t offset, size_t buffer_size,
+		    void *buffer, bool *fsal_stable, struct stat *stat)
+{
+	int rc;
+	ssize_t written_bytes;
+	struct m0_uint128 fid;
+	ssize_t bsize;
+
+	m0_fid_copy((struct m0_uint128 *)kfid, &fid);
+
+	bsize = m0store_get_bsize(fid);
+	if (bsize < 0) {
+		rc = bsize;
+		goto out;
+	}
+
+	written_bytes = m0store_pwrite(fid, offset, buffer_size,
+				       bsize, buffer);
+	if (written_bytes < 0) {
+		rc = -1;
+		goto out;
+	}
+
+	RC_WRAP(update_stat, stat, UP_ST_WRITE,
+		offset + written_bytes);
+	rc = written_bytes;
+	*fsal_stable = true;
+out:
+	log_debug("fid=%" PRIx64 ":%" PRIx64 " written_bytes=%lu",
+		  kfid->f_hi, kfid->f_lo, written_bytes);
+	return rc;
 }
 
 

@@ -167,6 +167,7 @@ static inline int prepare_key(char k[], size_t klen, const char *fmt, ...)
 {
 	va_list args;
 	va_start(args, fmt);
+
 	memset(k, 0, klen);
 	int rc = vsnprintf(k, klen, fmt, args);
 	if (rc > 0) {
@@ -656,6 +657,21 @@ int kvsns_close(kvsns_file_open_t *fd);
  */
 ssize_t kvsns_write(kvsns_cred_t *cred, kvsns_file_open_t *fd,
 		  void *buf, size_t count, off_t offset);
+
+/**
+ * Writes data to an opened fd
+ *
+ * @param ctx - filesystem context pointer
+ * @param cred - pointer to user's credentials
+ * @param fd - handle to opened file
+ * @param buf - write data
+ * @param count - size of buffer to be read
+ * @param offset - write offset
+ *
+ * @return write size or a negative "-errno" in case of failure
+ */
+ssize_t kvsns2_write(void *ctx, kvsns_cred_t *cred, kvsns_file_open_t *fd,
+		     void *buf, size_t count, off_t offset);
 
 /**
  * Reads data from an opened fd

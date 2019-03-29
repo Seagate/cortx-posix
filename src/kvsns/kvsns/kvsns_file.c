@@ -182,7 +182,7 @@ int kvsns2_open(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
 	int tid = syscall(SYS_gettid);
 	int klen;
 
-	log_trace("%s: Enter\n", __func__);
+	log_trace("ENTER: ino=%llu fd=%p", *ino, fd);
 	if (!cred || !ino || !fd) {
 		rc = -EINVAL;
 		goto out;
@@ -194,6 +194,9 @@ int kvsns2_open(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
 	rc = kvsal2_exists(ctx, k, (size_t) klen);
 	if (rc && rc != -ENOENT)
 		goto out;
+	else if (rc == -ENOENT)
+		/* -ENOENT is desired value in case of open. Therefore, clean the rc */
+		rc = 0;
 	RC_WRAP(kvsal2_set_char, ctx, k, klen, "", 1);
 
 	/** @todo Do not forget store stuffs */
@@ -204,7 +207,7 @@ int kvsns2_open(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
 
 out:
 	/* In particular create a key per opened fd */
-	log_trace("%s: Exit rc=%d\n", __func__, rc);
+	log_trace("Exit rc=%d", rc);
 	return rc;
 }
 
@@ -244,7 +247,7 @@ int kvsns2_close(void *ctx, kvsns_file_open_t *fd)
 	bool opened_and_deleted;
 	bool delete_object = false;
 
-	log_trace("%s: Enter\n", __func__);
+	log_trace("ENTER: ino=%llu fd=%p", fd->ino, fd);
 	if (!fd) {
 		rc = -EINVAL;
 		goto out;
@@ -300,6 +303,7 @@ int kvsns2_close(void *ctx, kvsns_file_open_t *fd)
 
 out:
 	kvsal_discard_transaction();
+	log_trace("EXIT rc=%d", rc);
 	return rc;
 }
 
@@ -438,6 +442,49 @@ ssize_t kvsns_write(kvsns_cred_t *cred, kvsns_file_open_t *fd,
 	return write_amount;
 }
 
+ssize_t kvsns2_write(void *ctx, kvsns_cred_t *cred, kvsns_file_open_t *fd,
+		     void *buf, size_t count, off_t offset)
+{
+	int rc;
+	ssize_t write_amount;
+	bool stable;
+	char k[KLEN];
+	size_t klen;
+	struct stat stat;
+	struct stat wstat;
+	kvsns_fid_t kfid;
+
+	log_trace("ENTER: ino=%llu fd=%p count=%lu offset=%ld", fd->ino, fd, count, (long)offset);
+
+	memset(&wstat, 0, sizeof(wstat));
+
+	RC_WRAP_LABEL(rc, out, extstore_ino_to_fid, ctx, fd->ino, &kfid);
+
+	/** @todo use flags to check correct access */
+	write_amount = extstore2_write(ctx, &kfid, offset, count,
+				       buf, &stable, &wstat);
+	if (write_amount < 0) {
+		rc = write_amount;
+		goto out;
+	}
+
+	RC_WRAP(kvsns2_getattr, ctx, cred, &fd->ino, &stat);
+	if (wstat.st_size > stat.st_size) {
+		stat.st_size = wstat.st_size;
+		stat.st_blocks = wstat.st_blocks;
+	}
+	stat.st_mtim = wstat.st_mtim;
+	stat.st_ctim = wstat.st_ctim;
+
+	RC_WRAP_LABEL(rc, out, prepare_key, k, KLEN, "%llu.stat", fd->ino);
+	klen = rc;
+	RC_WRAP(kvsal2_set_stat, ctx, k, klen, &stat);
+	rc = write_amount;
+out:
+	log_trace("EXIT rc=%d", rc);
+	return rc;
+}
+
 ssize_t kvsns_read(kvsns_cred_t *cred, kvsns_file_open_t *fd,
 		   void *buf, size_t count, off_t offset)
 {
@@ -476,13 +523,13 @@ ssize_t kvsns2_read(void *ctx, kvsns_cred_t *cred, kvsns_file_open_t *fd,
 	size_t klen;
 	kvsns_fid_t kfid;
 
-	log_trace("%s: Entry\n", __func__);
+	log_trace("ENTER: ino=%llu fd=%p count=%lu offset=%ld", fd->ino, fd, count, (long)offset);
 
+	RC_WRAP_LABEL(rc, out, extstore_ino_to_fid, ctx, fd->ino, &kfid);
 	RC_WRAP(kvsns2_getattr, ctx, cred, &fd->ino, &stat);
-	RC_WRAP(extstore_get_fid, fd->ino, &kfid);
 	/** @todo use flags to check correct access */
-	read_amount = extstore2_read(ctx, &fd->ino, offset, count,
-				     buf, &eof, &stat, &kfid);
+	read_amount = extstore2_read(ctx, &kfid, offset, count,
+				     buf, &eof, &stat);
 	if (read_amount < 0) {
 		rc = read_amount;
 		goto out;
@@ -493,7 +540,7 @@ ssize_t kvsns2_read(void *ctx, kvsns_cred_t *cred, kvsns_file_open_t *fd,
 	RC_WRAP(kvsal2_set_stat, ctx, k, klen, &stat);
 	rc = read_amount;
 out:
-	log_trace("%s: Exit rc=%d\n", __func__, rc);
+	log_trace("EXIT rc=%d", rc);
 	return rc;
 }
 
