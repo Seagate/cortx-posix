@@ -151,7 +151,7 @@ fsal_status_t kvsfs_read(struct fsal_obj_handle *obj_hdl,
 	}
 
 errout:
-	if (retval) {
+	if (retval < 0) {
 		fsal_error = posix2fsal_error(-retval);
 		return fsalstat(fsal_error, -retval);
 	}
@@ -195,7 +195,7 @@ fsal_status_t kvsfs_write(struct fsal_obj_handle *obj_hdl,
 	*fsal_stable = false;
 
 errout:
-	if (retval) {
+	if (retval < 0) {
 		return fsalstat(posix2fsal_error(-retval), -retval);
 	}
 
