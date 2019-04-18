@@ -476,6 +476,31 @@ int kvsns_setattr(kvsns_cred_t *cred, kvsns_ino_t *ino, struct stat *setstat,
 		 int statflags);
 
 /**
+ * Sets attributes for a known inode.
+ *
+ * This call uses a struct stat structure as input. This structure will
+ * contain the values to be set. More than one can be set in a single call.
+ * The parameter "statflags: indicates which fields are to be considered:
+ *  STAT_MODE_SET: sets mode
+ *  STAT_UID_SET: sets owner
+ *  STAT_GID_SET: set group owner
+ *  STAT_SIZE_SET: set size (aka truncate)
+ *  STAT_ATIME_SET: sets atime
+ *  STAT_MTIME_SET: sets mtime
+ *  STAT_CTIME_SET: set ctime
+ *
+ * @param ctx - Filesystem context
+ * @param cred - pointer to user's credentials
+ * @param ino - pointer to current inode
+ * @param setstat - a stat structure containing the new values
+ * @param statflags - a bitmap that tells which attributes are to be set
+ *
+ * @return 0 if successful, a negative "-errno" value in case of failure
+ */
+int kvsns2_setattr(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
+		   struct stat *setstat, int statflags);
+
+/**
  * Gets dynamic stats for the whole namespace
  *
  * @param stat - FS stats for the namespace

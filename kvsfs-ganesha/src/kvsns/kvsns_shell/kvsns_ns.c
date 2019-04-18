@@ -16,6 +16,69 @@
 #include <kvsns/kvsal.h>
 #include <kvsns/kvsns.h>
 
+
+static int setattr(void *ctx, kvsns_ino_t *ino, char *name, char *val,
+		   struct stat *stats)
+{
+	int rc = 0;
+	int flag;
+	long int attr;
+	kvsns_cred_t cred;
+	char *endptr;
+
+	cred.uid = getuid();
+	cred.gid = getgid();
+
+	if (!strcmp(name, "gid")) {
+		attr = strtol(val, &endptr, 10);
+		fprintf(stderr, "ino=%llu gid=%ld\n", *ino, attr);
+		stats->st_gid = (gid_t)attr;
+		flag = STAT_GID_SET;
+	}
+	else if (!strcmp(name, "uid")) {
+		attr = strtol(val, &endptr, 10);
+		fprintf(stderr, "ino = %llu uid = %ld\n", *ino, attr);
+		stats->st_uid = (uid_t)attr;
+		flag = STAT_UID_SET;
+	}
+	else if (!strcmp(name, "atime")) {
+		attr = strtol(val, &endptr, 10);
+		fprintf(stderr, "ino = %llu atime = %ld\n", *ino, attr);
+		stats->st_atim.tv_sec = (__time_t)attr;
+		flag = STAT_ATIME_SET;
+	}
+	else if (!strcmp(name, "mtime")) {
+		attr = strtol(val, &endptr, 10);
+		fprintf(stderr, "ino = %llu mtime = %ld\n", *ino, attr);
+		stats->st_mtim.tv_sec = (__time_t)attr;
+		flag = STAT_MTIME_SET;
+	}
+	else if (!strcmp(name, "ctime")) {
+		attr = strtol(val, &endptr, 10);
+		fprintf(stderr, "ino = %llu ctime: %ld\n", *ino, attr);
+		stats->st_ctim.tv_sec = (__time_t)attr;
+		flag = STAT_CTIME_SET;
+	}
+	else {
+		fprintf(stderr, "ino = %llu Invalid attribute name: %s\n",
+			*ino, name);
+		rc = -EINVAL;
+		goto out;
+	}
+
+	rc = kvsns2_setattr(ctx, &cred, ino, stats, flag);
+	if (rc == 0)
+		fprintf(stderr, "setattr %llu/%s %d OK\n", *ino,
+			 name, atoi(val));
+	else
+		fprintf(stderr, "Can't setattr %llu/%s rc=%d\n",
+			*ino, name, rc);
+
+out:
+	return rc;
+}
+
+
 int main(int argc, char *argv[])
 {
 	int rc;
@@ -200,8 +263,87 @@ int main(int argc, char *argv[])
 		} else
 			printf("==> Delete failed %llu/%s, rc: %d!\n",
 				current_inode, argv[1], rc);
+
+	} else if (!strcmp(exec_name, "kvsns_getattr")) {
+		struct stat buffstat;
+
+		if (argc != 2) {
+			fprintf(stderr, "getattr <name>\n");
+			exit(1);
+		}
+
+		rc = kvsns_create_fs_ctx(fs_id, &fs_ctx);
+		if (rc != 0) {
+			printf("Unable to create index for fs_id:%lu, rc=%d \n", fs_id, rc);
+			exit(1);
+		}
+
+		if (!strcmp(argv[1], "."))
+			ino = current_inode;
+		else {
+			rc = kvsns2_lookup(fs_ctx, &cred, &current_inode, argv[1], &ino);
+			if (rc != 0)
+				return rc;
+		}
+
+		rc = kvsns2_getattr(fs_ctx, &cred, &ino, &buffstat);
+		if (rc == 0) {
+			printf(" inode: %ld\n", buffstat.st_ino);
+			printf(" mode: %o\n", buffstat.st_mode);
+			printf(" number of hard links: %d\n",
+			       (int)buffstat.st_nlink);
+			printf(" user ID of owner: %d\n", buffstat.st_uid);
+			printf(" group ID of owner: %d\n", buffstat.st_gid);
+			printf(" total size, in bytes: %ld\n",
+			       buffstat.st_size);
+			printf(" blocksize for filesystem I/O: %ld\n",
+				buffstat.st_blksize);
+			printf(" number of blocks allocated: %ld\n",
+				buffstat.st_blocks);
+			printf(" time of last access: %ld : %s",
+				buffstat.st_atime,
+				ctime(&buffstat.st_atime));
+			printf(" time of last modification: %ld : %s",
+				 buffstat.st_mtime,
+				 ctime(&buffstat.st_mtime));
+			printf(" time of last change: %ld : %s",
+				buffstat.st_ctime,
+				 ctime(&buffstat.st_ctime));
+
+			return 0;
+		} else
+			printf("Failed rc=%d !\n", rc);
+		return 0;
+	} else if (!strcmp(exec_name, "kvsns_setattr")) {
+		kvsns_ino_t fino = 0LL;
+		struct stat stat;
+		memset(&stat, 0, sizeof(stat));
+
+		if (argc != 4) {
+			fprintf(stderr, "Failed!\n");
+			fprintf(stderr, "kvsns_setattr  <file> <attr_name> <value>\n");
+			fprintf(stderr, "supported attr_name: uid | gid | atime | mtime | ctime\n");
+			exit(1);
+		}
+
+		rc = kvsns_create_fs_ctx(fs_id, &fs_ctx);
+		if (rc != 0) {
+			printf("Unable to create index for fs_id:%lu, rc=%d \n", fs_id, rc);
+			exit(1);
+		}
+		rc = kvsns2_lookup(fs_ctx, &cred, &current_inode, argv[1], &fino);
+		if (rc != 0) {
+			fprintf(stderr, "%s/%s does not exist\n",
+				current_path, argv[1]);
+			exit(1);
+		}
+		rc = setattr(fs_ctx, &fino, argv[2], argv[3], &stat);
+		if (rc != 0) {
+			fprintf(stderr, "setting %s : %s failed, rc=%d\n",
+			        argv[3], argv[2], rc);
+		}
 	} else
 		fprintf(stderr, "%s does not exists\n", exec_name);
 	printf("######## OK ########\n");
-	return 0;
+	return rc;
 }

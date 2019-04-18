@@ -596,14 +596,22 @@ static fsal_status_t kvsfs_getattrs(struct fsal_obj_handle *obj_hdl)
 	fsal_errors_t fsal_error = ERR_FSAL_NO_ERROR;
 	int retval = 0;
 	kvsns_cred_t cred;
+	kvsns_fs_ctx_t fs_ctx = KVSNS_NULL_FS_CTX;
 
 	myself =
 		container_of(obj_hdl, struct kvsfs_fsal_obj_handle, obj_handle);
 
 	cred.uid = op_ctx->creds->caller_uid;
 	cred.gid = op_ctx->creds->caller_gid;
+	retval = kvsfs_obj_to_kvsns_ctx(obj_hdl, &fs_ctx);
+	if (retval != 0) {
+		LogCrit(COMPONENT_FSAL,
+			"Unable to get fs ctx, obj_hdl=%p retval=%d",
+		        obj_hdl,retval);
+		goto out;
+	}
 
-	retval = kvsns_getattr(&cred, &myself->handle->kvsfs_handle, &stat);
+	retval = kvsns2_getattr(fs_ctx, &cred, &myself->handle->kvsfs_handle, &stat);
 
 	/* An explanation is required here.
 	 * This is an exception management.
@@ -646,7 +654,7 @@ static fsal_status_t kvsfs_getattrs(struct fsal_obj_handle *obj_hdl)
  */
 
 static fsal_status_t kvsfs_setattrs(struct fsal_obj_handle *obj_hdl,
-				   struct attrlist *attrs)
+				    struct attrlist *attrs)
 {
 	struct kvsfs_fsal_obj_handle *myself;
 	struct stat stats = { 0 };
@@ -654,6 +662,15 @@ static fsal_status_t kvsfs_setattrs(struct fsal_obj_handle *obj_hdl,
 	int retval = 0;
 	int flags = 0;
 	kvsns_cred_t cred;
+	kvsns_fs_ctx_t fs_ctx = KVSNS_NULL_FS_CTX;
+
+	retval = kvsfs_obj_to_kvsns_ctx(obj_hdl, &fs_ctx);
+	if (retval != 0) {
+		LogCrit(COMPONENT_FSAL,
+			"Unable to get fs ctx, obj_hdl=%p retval=%d",
+		        obj_hdl,retval);
+		goto out;
+	}
 
 	/* apply umask, if mode attribute is to be changed */
 	if (FSAL_TEST_MASK(attrs->mask, ATTR_MODE))
@@ -712,7 +729,7 @@ static fsal_status_t kvsfs_setattrs(struct fsal_obj_handle *obj_hdl,
 	cred.uid = op_ctx->creds->caller_uid;
 	cred.gid = op_ctx->creds->caller_gid;
 
-	retval = kvsns_setattr(&cred, &myself->handle->kvsfs_handle,
+	retval = kvsns2_setattr(fs_ctx, &cred, &myself->handle->kvsfs_handle,
 			       &stats, flags);
 
 	if (retval)
