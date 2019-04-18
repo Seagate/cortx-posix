@@ -432,6 +432,84 @@ int kvsns_setattr(kvsns_cred_t *cred, kvsns_ino_t *ino,
 	return kvsal_set_stat(k, &bufstat);
 }
 
+int kvsns2_setattr(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
+		  struct stat *setstat, int statflag)
+{
+	char k[KLEN];
+	struct stat bufstat;
+	struct timeval t;
+	mode_t ifmt;
+	int rc;
+	size_t klen;
+
+	if (!cred || !ino || !setstat) {
+		rc = -EINVAL;
+		goto out;
+	}
+
+	if (statflag == 0) {
+		rc = 0;
+		/* Nothing to do */
+		goto out;
+	}
+
+	if (gettimeofday(&t, NULL) != 0) {
+		rc = errno;
+		return -errno;
+	}
+
+	RC_WRAP_LABEL(rc, out, kvsns2_access, ctx, cred, ino,
+		      KVSNS_ACCESS_WRITE);
+
+	RC_WRAP_LABEL(rc, out, prepare_key, k, KLEN, "%llu.stat", *ino);
+	klen = rc;
+	RC_WRAP_LABEL(rc, out, kvsal2_get_stat, ctx, k, klen, &bufstat);
+
+	/* ctime is to be updated if md are changed */
+	bufstat.st_ctim.tv_sec = t.tv_sec;
+	bufstat.st_ctim.tv_nsec = 1000 * t.tv_usec;
+
+	if (statflag & STAT_MODE_SET) {
+		ifmt = bufstat.st_mode & S_IFMT;
+		bufstat.st_mode = setstat->st_mode | ifmt;
+	}
+
+	if (statflag & STAT_UID_SET)
+		bufstat.st_uid = setstat->st_uid;
+
+	if (statflag & STAT_GID_SET)
+		bufstat.st_gid = setstat->st_gid;
+
+	/* @todo : Truncate is not implemented for for kvsns2 yet. */
+	if (statflag & STAT_SIZE_SET)
+		RC_WRAP(extstore_truncate, ino, setstat->st_size, true,
+			&bufstat);
+
+	if (statflag & STAT_SIZE_ATTACH)
+		RC_WRAP(extstore_truncate, ino, setstat->st_size, false,
+			&bufstat);
+
+	if (statflag & STAT_ATIME_SET) {
+		bufstat.st_atim.tv_sec = setstat->st_atim.tv_sec;
+		bufstat.st_atim.tv_nsec = setstat->st_atim.tv_nsec;
+	}
+
+	if (statflag & STAT_MTIME_SET) {
+		bufstat.st_mtim.tv_sec = setstat->st_mtim.tv_sec;
+		bufstat.st_mtim.tv_nsec = setstat->st_mtim.tv_nsec;
+	}
+
+	if (statflag & STAT_CTIME_SET) {
+		bufstat.st_ctim.tv_sec = setstat->st_ctim.tv_sec;
+		bufstat.st_ctim.tv_nsec = setstat->st_ctim.tv_nsec;
+	}
+
+	RC_WRAP_LABEL(rc, out, kvsal2_set_stat, ctx, k, klen, &bufstat);
+out:
+	log_debug("rc=%d", rc);
+	return rc;
+}
+
 int kvsns_link(kvsns_cred_t *cred, kvsns_ino_t *ino,
 	       kvsns_ino_t *dino, char *dname)
 {
