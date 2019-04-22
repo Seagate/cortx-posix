@@ -154,6 +154,30 @@ typedef struct kvsns_fid {
 	uint64_t f_lo;
 } kvsns_fid_t;
 
+typedef enum {
+	LOCKED,
+	LOCKED_MERGEABLE,
+	UNUSED
+} kvsns_lock_status;
+
+typedef enum {
+	LCK_RDONLY,
+	LCK_RW
+} kvsns_lock_type_t;
+
+typedef enum {
+	KVSNS_OP_LOCKT,
+	KVSNS_OP_LOCK,
+	KVSNS_OP_UNLOCK
+} kvsns_lock_op_t;
+
+typedef struct kvsns_lock {
+	kvsns_lock_type_t l_type;
+	uint64_t start;
+	uint64_t end;
+	kvsns_ino_t ino;
+} kvsns_lock_t;
+
 
 /**
  * Generates a key based on variable parameter list.
@@ -895,5 +919,17 @@ int kvsns_fsid_to_ctx(kvsns_fsid_t fs_id, kvsns_fs_ctx_t *fs_ctx);
  */
 
 int kvsns_create_fs_ctx(kvsns_fsid_t fs_id, kvsns_fs_ctx_t *fs_ctx);
+
+/**
+ * Locks the resource
+ *
+ * @param ctx - filesystem context pointer
+ * @param lock_op - kvsns lock operation
+ * @param req_lock - request lock
+ * @param conflict_lock - conflict lock
+ *
+ * @return 0 if successful, a negative "-errno" value in case of failure
+ */
+int kvsns_lock_op(void *ctx, kvsns_lock_op_t lock_op, kvsns_lock_t *req_lck, kvsns_lock_t *conflict_lck);
 
 #endif

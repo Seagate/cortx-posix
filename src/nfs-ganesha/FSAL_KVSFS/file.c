@@ -262,10 +262,84 @@ fsal_status_t kvsfs_lru_cleanup(struct fsal_obj_handle *obj_hdl,
 }
 
 fsal_status_t kvsfs_lock_op(struct fsal_obj_handle *obj_hdl,
-			   void *p_owner,
-			   fsal_lock_op_t lock_op,
-			   fsal_lock_param_t *request_lock,
-			   fsal_lock_param_t *conflicting_lock)
+			    void *p_owner,
+			    fsal_lock_op_t lock_op,
+			    fsal_lock_param_t *request_lock,
+			    fsal_lock_param_t *conflicting_lock)
 {
+	struct kvsfs_fsal_obj_handle *myself;
+	kvsns_fs_ctx_t fs_ctx = KVSNS_NULL_FS_CTX;
+	int retval = 0;
+	fsal_errors_t fsal_error = ERR_FSAL_NO_ERROR;
+	kvsns_lock_t req_lock, conflict_lock;
+	kvsns_lock_op_t kvsns_lock_opt;
+
+	assert(obj_hdl->type == REGULAR_FILE);
+	myself = container_of(obj_hdl,
+			      struct kvsfs_fsal_obj_handle, obj_handle);
+
+	retval = kvsfs_obj_to_kvsns_ctx(obj_hdl, &fs_ctx);
+	if (retval) {
+		fsal_error = posix2fsal_error(-retval);
+		LogCrit(COMPONENT_FSAL, "Unable to get fs_handle: %d", retval);
+		goto errout;
+	}
+
+	if (myself->u.file.fd.owner.pid < 0 ||
+	    myself->u.file.openflags == FSAL_O_CLOSED) {
+		LogDebug(COMPONENT_FSAL,
+			 "Attempting to lock with no file descriptor open, fd %d",
+			 myself->u.file.fd.owner.pid);
+		return fsalstat(ERR_FSAL_FAULT, 0);
+	}
+
+	if (conflicting_lock == NULL && lock_op == FSAL_OP_LOCKT) {
+		LogDebug(COMPONENT_FSAL,
+			 "conflicting_lock argument can't be NULL with lock_op	= LOCKT");
+		return fsalstat(ERR_FSAL_FAULT, 0);
+	}
+
+	if (lock_op == FSAL_OP_LOCKT) {
+		kvsns_lock_opt = KVSNS_OP_LOCKT;
+	} else if (lock_op == FSAL_OP_LOCK) {
+		kvsns_lock_opt = KVSNS_OP_LOCK;
+	} else if (lock_op == FSAL_OP_UNLOCK) {
+		kvsns_lock_opt = KVSNS_OP_UNLOCK;
+	} else {
+		LogDebug(COMPONENT_FSAL,
+			 "ERROR: Unsupported lock operation %d\n", lock_op);
+		return fsalstat(ERR_FSAL_NOTSUPP, 0);
+	}
+
+	if (request_lock->lock_type == FSAL_LOCK_R) {
+		req_lock.l_type = LCK_RDONLY;
+	} else if (request_lock->lock_type == FSAL_LOCK_W) {
+		req_lock.l_type = LCK_RW;
+	} else {
+		LogDebug(COMPONENT_FSAL,
+			 "ERROR: The requested lock type was not read or write.");
+		return fsalstat(ERR_FSAL_NOTSUPP, 0);
+	}
+
+	retval = kvsfs_obj_to_kvsns_ctx(obj_hdl, &fs_ctx);
+	if (retval) {
+		LogCrit(COMPONENT_FSAL, "Unable to get fs_handle: %d", retval);
+		goto errout;
+	}
+
+	req_lock.start = request_lock->lock_start;
+	req_lock.end = request_lock->lock_start + request_lock->lock_length;
+	retval = kvsns_lock_op(fs_ctx, kvsns_lock_opt, &req_lock, &conflict_lock);
+	if (retval)
+		goto errout;
+
+	LogFullDebug(COMPONENT_FSAL,
+		     "Locking: op:%d type:%d claim:%d start:%" PRIu64
+		     " length:%lu ", lock_op, request_lock->lock_type,
+		     request_lock->lock_reclaim, request_lock->lock_start,
+		     request_lock->lock_length);
 	return fsalstat(ERR_FSAL_NO_ERROR, 0);
+
+errout:
+	return fsalstat(posix2fsal_error(-retval), -retval);
 }

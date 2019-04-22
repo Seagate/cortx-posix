@@ -557,3 +557,11 @@ int kvsns_attach(kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
 
 	return 0;
 }
+
+
+
+int kvsns_lock_op(void *ctx, kvsns_lock_op_t lock_op, kvsns_lock_t *req_lck, kvsns_lock_t *conflict_lck)
+{
+	/* TODO: Logic for test, lock and unlock */
+	return 0;
+}
