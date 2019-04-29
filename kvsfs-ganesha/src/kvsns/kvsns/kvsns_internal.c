@@ -201,6 +201,7 @@ int kvsns2_create_entry(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
 	size_t	klen;
 	size_t vlen;
 	size_t	namelen;
+	struct stat parent_stat;
 
 	if (!cred || !parent || !name || !new_entry)
 		return -EINVAL;
@@ -217,12 +218,13 @@ int kvsns2_create_entry(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
 	if ((type == KVSNS_SYMLINK) && (lnk == NULL))
 		return -EINVAL;
 
-	/* @todo: Check if entry already exists, using lookup op */
+	/* Return if file/dir/symlink already exists. */
+	rc = kvsns2_lookup(ctx, cred, parent, name, new_entry);
+	if (rc == 0)
+		return -EEXIST;
 
-	/* Get a new inode number for the new file and set it */
-	RC_WRAP(kvsns2_next_inode, ctx, new_entry);
 
-	/* @todo : Fetch parent stats and amend it */
+	RC_WRAP(kvsns2_get_stat, ctx, parent, &parent_stat);
 
 	RC_WRAP(kvsal_begin_transaction);
 
@@ -230,6 +232,10 @@ int kvsns2_create_entry(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
 	RC_WRAP_LABEL(rc, aborted, prepare_key, k, KLEN, "%llu.dentries.%s",
 		      *parent, name);
 	klen = rc;
+	/* Get a new inode number for the new file and set it */
+	RC_WRAP(kvsns2_next_inode, ctx, new_entry);
+
+	/* @todo: Release the inode in case any of the calls below fail. */
 	RC_WRAP_LABEL(rc, aborted, prepare_key, v, VLEN, "%llu", *new_entry);
 	vlen = rc;
 	RC_WRAP_LABEL(rc, aborted, kvsal2_set_char, ctx, k, klen, v, vlen);
@@ -285,9 +291,12 @@ int kvsns2_create_entry(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
 	RC_WRAP_LABEL(rc, aborted, prepare_key, k, KLEN, "%llu.stat",
 		      *new_entry);
 	klen = rc;
+
 	RC_WRAP_LABEL(rc, aborted, kvsal2_set_stat, ctx, k, klen, &bufstat);
 
-	/* @todo Modify parent stats */
+	RC_WRAP_LABEL(rc, aborted, kvsns_amend_stat, &parent_stat,
+		      STAT_CTIME_SET|STAT_MTIME_SET);
+	RC_WRAP_LABEL(rc, aborted, kvsns2_set_stat, ctx, parent, &parent_stat);
 	RC_WRAP(kvsal_end_transaction);
 	return 0;
 

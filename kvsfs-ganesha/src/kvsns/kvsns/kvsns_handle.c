@@ -85,6 +85,15 @@ int kvsns_mkdir(kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
 				  mode, newdir, KVSNS_DIR);
 }
 
+int kvsns2_mkdir(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
+		 mode_t mode, kvsns_ino_t *newdir)
+{
+	RC_WRAP(kvsns2_access, ctx, cred, parent, KVSNS_ACCESS_WRITE);
+
+	return kvsns2_create_entry(ctx,cred, parent, name, NULL,
+				   mode, newdir, KVSNS_DIR);
+}
+
 int kvsns_symlink(kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
 		  char *content, kvsns_ino_t *newlnk)
 {
