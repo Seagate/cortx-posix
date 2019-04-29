@@ -1,0 +1,13 @@
+TEST_LIST=(
+	  test_uid
+	  test_gid
+          test_ctime
+          test_atime
+          test_mtime
+          test_mkdir
+          test_mkdir_exist
+          test_mkdir_longname
+          test_mkdir_parent
+          test_mkdir_current
+          test_mkdir_root
+)

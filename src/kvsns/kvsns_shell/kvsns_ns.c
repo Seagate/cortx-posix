@@ -263,7 +263,6 @@ int main(int argc, char *argv[])
 		} else
 			printf("==> Delete failed %llu/%s, rc: %d!\n",
 				current_inode, argv[1], rc);
-
 	} else if (!strcmp(exec_name, "kvsns_getattr")) {
 		struct stat buffstat;
 
@@ -342,6 +341,25 @@ int main(int argc, char *argv[])
 			fprintf(stderr, "setting %s : %s failed, rc=%d\n",
 			        argv[3], argv[2], rc);
 		}
+	} else if (!strcmp(exec_name, "kvsns_mkdir")) {
+		if (argc != 2) {
+			fprintf(stderr, "kvsns_dir <dirname>\n");
+			exit(1);
+		}
+
+		rc = kvsns_create_fs_ctx(fs_id, &fs_ctx);
+		if (rc != 0) {
+			printf("Unable to create index for fs_id:%lu, rc=%d \n", fs_id, rc);
+			exit(1);
+		}
+
+		rc = kvsns2_mkdir(fs_ctx, &cred, &current_inode, argv[1], 0755, &ino);
+		if (rc == 0) {
+			printf("==> Created dir %llu/%s \n", current_inode, argv[1]);
+			return rc;
+		} else
+			printf("==> mkdir failed %llu/%s, rc: %d!\n",
+				current_inode, argv[1], rc);
 	} else
 		fprintf(stderr, "%s does not exists\n", exec_name);
 	printf("######## OK ########\n");
