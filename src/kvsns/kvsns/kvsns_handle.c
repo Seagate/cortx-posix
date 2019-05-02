@@ -297,22 +297,25 @@ int kvsns_lookup(kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
 int kvsns2_lookup(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
 		  kvsns_ino_t *ino)
 {
+	int rc = 0;
 	char k[KLEN];
 	char v[VLEN];
+	int klen;
+	int vlen = VLEN;
 
 	if (!cred || !parent || !name || !ino)
 		return -EINVAL;
 
-	RC_WRAP(kvsns2_access, ctx, cred, parent, KVSNS_ACCESS_READ);
-
-	memset(k, 0, KLEN);
-	snprintf(k, KLEN, "%llu.dentries.%s", *parent, name);
+	RC_WRAP_LABEL(rc, out, kvsns2_access, ctx, cred, parent, KVSNS_ACCESS_READ);
+	RC_WRAP_LABEL(rc, out, prepare_key, k, KLEN, "%llu.dentries.%s", *parent, name);
+	klen = rc;
 	log_debug("Lookup %llu.dentries.%s", *parent, name);
-	RC_WRAP(kvsal2_get_char, ctx, k, v);
+	RC_WRAP_LABEL(rc, out, kvsal2_get_char, ctx, k, klen, v, vlen);
 
 	sscanf(v, "%llu", ino);
 	log_debug("%llu.dentries.%s = %llu", *parent, name, *ino);
-	return 0;
+out:
+	return rc;
 }
 
 

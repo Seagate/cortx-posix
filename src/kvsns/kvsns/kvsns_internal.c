@@ -69,6 +69,83 @@ int kvsns2_next_inode(void *ctx, kvsns_ino_t *ino)
 	return 0;
 }
 
+int kvsns_get_fd(void *ctx, kvsns_ino_t *ino, int *fd)
+{
+	int rc;
+	int cur_fd, max_fd = KVSNS_MAX_FD;
+	char k[KLEN];
+	char v[VLEN];
+	size_t vlen = VLEN;
+	size_t klen;
+
+	if (!ino)
+		return -EINVAL;
+
+	/* Get the current fd counter for corresponding inode */
+	RC_WRAP_LABEL(rc, out, prepare_key, k, KLEN, "%llu.fd_counter", *ino);
+	klen = rc;
+
+	RC_WRAP_LABEL(rc, out, kvsal2_get_char, ctx, k, klen, v, vlen);
+	sscanf(v, "%d", &cur_fd);
+
+	if (cur_fd <= max_fd) {
+		int fd_counter = cur_fd;
+		while (cur_fd < max_fd) {
+			/* Check until we get the unused fd number */
+			RC_WRAP_LABEL(rc, out, prepare_key, k, KLEN, "%llu.openowner.%d", *ino, cur_fd);
+			klen = rc;
+			rc = kvsal2_exists(ctx, k, (size_t) klen);
+			if (rc && rc != -ENOENT)
+				goto out;
+			else if (rc == -ENOENT) {
+				/* cur_fd is not in use, therefore return current fd */
+				*fd = cur_fd;
+
+				RC_WRAP_LABEL(rc, out, prepare_key, k, KLEN, "%llu.fd_counter", *ino);
+				klen = rc;
+				RC_WRAP_LABEL(rc, out, prepare_key, v, VLEN, "%d", *fd);
+				vlen = rc;
+				RC_WRAP_LABEL(rc, out, kvsal2_set_char, ctx, k, klen, v, vlen);
+				rc = 0;
+				goto out;
+			}
+			cur_fd++;
+		}
+		/* We have traversed all the FD’s from fd_counter to KVSNS_MAX_FD.
+		 * Now we need to traverse from 0 to fd_counter  */
+		max_fd = fd_counter;
+	}
+
+	/* We have reached max_fd, start from 0 to get unused fd */
+	cur_fd = 0;
+	while (cur_fd < max_fd) {
+		/* Check until we get the unused fd number */
+		RC_WRAP_LABEL(rc, out, prepare_key, k, KLEN, "%llu.openowner.%d", *ino, cur_fd);
+		klen = rc;
+		rc = kvsal2_exists(ctx, k, (size_t) klen);
+		if (rc && rc != -ENOENT)
+			goto out;
+		else if (rc == -ENOENT) {
+			/* cur_fd is not in use, therefore return current fd */
+			*fd = cur_fd;
+
+			RC_WRAP_LABEL(rc, out, prepare_key, k, KLEN, "%llu.fd_counter", *ino);
+			klen = rc;
+			RC_WRAP_LABEL(rc, out, prepare_key, v, VLEN, "%d", *fd);
+			vlen = rc;
+			RC_WRAP_LABEL(rc, out, kvsal2_set_char, ctx, k, klen, v, vlen);
+			rc = 0;
+			goto out;
+		}
+		cur_fd++;
+	}
+	/* We have exhausted all the fds therefore return too many open files*/
+	rc = -EMFILE;
+out:
+	log_trace("Exit rc=%d", rc);
+	return rc;
+}
+
 int kvsns_str2parentlist(kvsns_ino_t *inolist, int *size, char *str)
 {
 	char *token;
@@ -247,6 +324,10 @@ int kvsns2_create_entry(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
 	RC_WRAP_LABEL(rc, aborted, prepare_key, v, VLEN, "%llu", *parent);
 	vlen = rc;
 	RC_WRAP_LABEL(rc, aborted, kvsal2_set_char, ctx,  k, klen, v, vlen);
+
+	RC_WRAP_LABEL(rc, aborted, prepare_key, k, KLEN, "%llu.fd_counter", *new_entry);
+	klen = rc;
+	RC_WRAP_LABEL(rc, aborted, kvsal2_set_char, ctx, k, klen, "0", 2 /* "0" */);
 
 	/* Set the stats of the new file */
 	memset(&bufstat, 0, sizeof(struct stat));

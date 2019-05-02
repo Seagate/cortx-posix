@@ -57,6 +57,6 @@ int kvsns2_set_stat(void *ctx, kvsns_ino_t *ino, struct stat *bufstat);
 int kvsns_update_stat(kvsns_ino_t *ino, int flags);
 int kvsns_amend_stat(struct stat *stat, int flags);
 int kvsns_delall_xattr(kvsns_cred_t *cred, kvsns_ino_t *ino);
-
+int kvsns_get_fd(void *ctx, kvsns_ino_t *ino, int *fd);
 
 #endif

@@ -100,7 +100,7 @@
 
 #define KVSNS_NULL_FS_CTX NULL
 #define KVSNS_FS_ID_DEFAULT 0
-
+#define KVSNS_MAX_FD  4096
 /* KVSAL related definitions and functions */
 
 typedef unsigned long long int kvsns_ino_t;
@@ -130,7 +130,8 @@ typedef struct kvsns_open_owner_ {
 
 typedef struct kvsns_file_open_ {
 	kvsns_ino_t ino;
-	kvsns_open_owner_t owner;
+	kvsns_open_owner_t owner;   // TODO: Remove this while implementing close
+	int fd_index;
 	int flags;
 } kvsns_file_open_t;
 

@@ -55,6 +55,7 @@ fsal_status_t kvsfs_open(struct fsal_obj_handle *obj_hdl,
 	kvsns_cred_t cred;
 	kvsns_fs_ctx_t fs_ctx = KVSNS_NULL_FS_CTX;
 
+	log_trace("ENTER: ino=%llu fd=%p", myself->handle->kvsfs_handle, &myself->u.file.fd);
 	cred.uid = op_ctx->creds->caller_uid;
 	cred.gid = op_ctx->creds->caller_gid;
 
@@ -71,7 +72,6 @@ fsal_status_t kvsfs_open(struct fsal_obj_handle *obj_hdl,
 
 	rc = kvsns2_open(fs_ctx, &cred, &myself->handle->kvsfs_handle, O_RDWR,
 			 0777, &myself->u.file.fd);
-
 	if (rc)
 		goto errout;
 
@@ -83,6 +83,7 @@ fsal_status_t kvsfs_open(struct fsal_obj_handle *obj_hdl,
 			   &myself->u.file.saved_stat);
 
 errout:
+	log_trace("Exit rc=%d", rc);
 	if (rc) {
 		fsal_error = posix2fsal_error(-rc);
 		return fsalstat(fsal_error, -rc);

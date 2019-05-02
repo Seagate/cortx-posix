@@ -178,8 +178,7 @@ int kvsns2_open(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
 {
 	char k[KLEN];
 	int rc;
-	int pid = getpid();
-	int tid = syscall(SYS_gettid);
+	int fd_index;
 	int klen;
 
 	log_trace("ENTER: ino=%llu fd=%p", *ino, fd);
@@ -188,21 +187,15 @@ int kvsns2_open(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
 		goto out;
 	}
 
+	RC_WRAP_LABEL(rc, out, kvsns_get_fd, ctx, ino, &fd_index);
 	/* Manage the list of open owners */
-	RC_WRAP_LABEL(rc, out, prepare_key, k, KLEN, "%llu.openowner.%d.%d", *ino, pid, tid);
+	RC_WRAP_LABEL(rc, out, prepare_key, k, KLEN, "%llu.openowner.%d", *ino, fd_index);
 	klen = rc;
-	rc = kvsal2_exists(ctx, k, (size_t) klen);
-	if (rc && rc != -ENOENT)
-		goto out;
-	else if (rc == -ENOENT)
-		/* -ENOENT is desired value in case of open. Therefore, clean the rc */
-		rc = 0;
-	RC_WRAP(kvsal2_set_char, ctx, k, klen, "", 1);
+	RC_WRAP_LABEL(rc, out, kvsal2_set_char, ctx, k, klen, "", 1);
 
 	/** @todo Do not forget store stuffs */
 	fd->ino = *ino;
-	fd->owner.pid = pid;
-	fd->owner.tid = tid;
+	fd->fd_index = fd_index;
 	fd->flags = flags;
 
 out:
