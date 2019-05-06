@@ -307,6 +307,7 @@ static fsal_status_t kvsfs_mkdir(struct fsal_obj_handle *dir_hdl,
 	kvsns_cred_t cred;
 	kvsns_ino_t object;
 	struct stat stat;
+	kvsns_fs_ctx_t fs_ctx = KVSNS_NULL_FS_CTX;
 
 	*handle = NULL;		/* poison it */
 	if (!dir_hdl->obj_ops.handle_is(dir_hdl, DIRECTORY)) {
@@ -322,11 +323,19 @@ static fsal_status_t kvsfs_mkdir(struct fsal_obj_handle *dir_hdl,
 	cred.uid = attrib->owner;
 	cred.gid = attrib->group;
 
-	retval = kvsns_mkdir(&cred, &myself->handle->kvsfs_handle, (char *)name,
-			     fsal2unix_mode(attrib->mode), &object);
+	retval = kvsfs_obj_to_kvsns_ctx(dir_hdl, &fs_ctx);
+	if (retval != 0) {
+		LogCrit(COMPONENT_FSAL, "Unable to get fs_handle: %d", retval);
+		goto fileerr;
+	}
+
+	retval = kvsns_mkdir(fs_ctx, &cred, &myself->handle->kvsfs_handle,
+			     (char *)name, fsal2unix_mode(attrib->mode),
+			      &object);
 	if (retval)
 		goto fileerr;
-	retval = kvsns_getattr(&cred, &object, &stat);
+
+	retval = kvsns2_getattr(fs_ctx, &cred, &object, &stat);
 	if (retval)
 		goto fileerr;
 

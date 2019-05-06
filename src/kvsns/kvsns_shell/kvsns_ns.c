@@ -353,7 +353,7 @@ int main(int argc, char *argv[])
 			exit(1);
 		}
 
-		rc = kvsns2_mkdir(fs_ctx, &cred, &current_inode, argv[1], 0755, &ino);
+		rc = kvsns_mkdir(fs_ctx, &cred, &current_inode, argv[1], 0755, &ino);
 		if (rc == 0) {
 			printf("==> Created dir %llu/%s \n", current_inode, argv[1]);
 			return rc;

@@ -262,19 +262,6 @@ int kvsns_creat(kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
 
 int kvsns2_creat(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
 		mode_t mode, kvsns_ino_t *newino);
-/**
- * Creates a directory.
- *
- * @param cred - pointer to user's credentials
- * @param parent - pointer to parent directory's inode.
- * @param name - name of the directory to be created
- * @param mode - Unix mode for the new entry
- * @paran newino - [OUT] if successfuly, will point to newly created inode
- *
- * @return 0 if successful, a negative "-errno" value in case of failure
- */
-int kvsns_mkdir(kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
-		mode_t mode, kvsns_ino_t *newdir);
 
 /**
  * Creates a directory.
@@ -288,7 +275,7 @@ int kvsns_mkdir(kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
  *
  * @return 0 if successful, a negative "-errno" value in case of failure
  */
-int kvsns2_mkdir(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
+int kvsns_mkdir(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
 		 mode_t mode, kvsns_ino_t *newdir);
 
 /**

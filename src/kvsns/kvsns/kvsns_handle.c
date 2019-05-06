@@ -76,16 +76,7 @@ int kvsns_get_root(kvsns_ino_t *ino)
 	return 0;
 }
 
-int kvsns_mkdir(kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
-		mode_t mode, kvsns_ino_t *newdir)
-{
-	RC_WRAP(kvsns_access, cred, parent, KVSNS_ACCESS_WRITE);
-
-	return kvsns_create_entry(cred, parent, name, NULL,
-				  mode, newdir, KVSNS_DIR);
-}
-
-int kvsns2_mkdir(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
+int kvsns_mkdir(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
 		 mode_t mode, kvsns_ino_t *newdir)
 {
 	RC_WRAP(kvsns2_access, ctx, cred, parent, KVSNS_ACCESS_WRITE);
