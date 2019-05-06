@@ -52,6 +52,7 @@ int main(int argc, char *argv[])
 	char tmp[VLEN];
 	kvsns_cred_t cred;
 	kvsal_item_t items[10];
+	kvsns_fs_ctx_t fs_ctx = KVSNS_NULL_FS_CTX;
 
 	cred.uid = getuid();
 	cred.gid = getgid();
@@ -59,6 +60,12 @@ int main(int argc, char *argv[])
 	rc = kvsns_start(KVSNS_DEFAULT_CONFIG);
 	if (rc != 0) {
 		fprintf(stderr, "kvsns_init: err=%d\n", rc);
+		exit(1);
+	}
+
+	rc = kvsns_fsid_to_ctx(KVSNS_FS_ID_DEFAULT, &fs_ctx);
+	if (rc != 0) {
+		fprintf(stderr, "fsid_to_ctx: err=%d\n", rc);
 		exit(1);
 	}
 
@@ -138,7 +145,7 @@ int main(int argc, char *argv[])
 	}
 
 	parent = KVSNS_ROOT_INODE;
-	rc = kvsns_mkdir(&cred, &parent, "mydir", 0755, &ino);
+	rc = kvsns_mkdir(&fs_ctx, &cred, &parent, "mydir", 0755, &ino);
 	if (rc != 0) {
 		if (rc == -EEXIST)
 			printf("dirent exists\n");
@@ -149,7 +156,7 @@ int main(int argc, char *argv[])
 	}
 	printf("===> New Ino = %llu\n", ino);
 
-	rc = kvsns_mkdir(&cred, &parent, "mydir2", 0755, &ino);
+	rc = kvsns_mkdir(&fs_ctx, &cred, &parent, "mydir2", 0755, &ino);
 	if (rc != 0) {
 		if (rc == -EEXIST)
 			printf("dirent exists\n");

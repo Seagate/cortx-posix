@@ -170,18 +170,6 @@ int main(int argc, char *argv[])
 		} else
 			printf("Failed rc=%d !\n", rc);
 
-	} else if (!strcmp(exec_name, "ns_mkdir")) {
-		if (argc != 2) {
-			fprintf(stderr, "mkdir <newdir>\n");
-			exit(1);
-		}
-		rc = kvsns_mkdir(&cred, &current_inode, argv[1], 0755, &ino);
-		if (rc == 0) {
-			printf("==> %llu/%s created = %llu\n",
-				current_inode, argv[1], ino);
-			return 0;
-		} else
-			printf("Failed rc=%d !\n", rc);
 	} else if (!strcmp(exec_name, "ns_rmdir")) {
 		if (argc != 2) {
 			fprintf(stderr, "rmdir <newdir>\n");
