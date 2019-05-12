@@ -4,7 +4,25 @@ Support for different file access protocols (like SAMBA, NFS etc.) to Seagate EO
 ### Prerequisite
 - Latest Mero rpms (`mero` and `mero-devel`) should be installed. Take the latest rpm from this [page](http://jenkins.mero.colo.seagate.com/share/bigstorage/releases/hermi/last_successful/mero/repo/)
 - `m0singlenode` service should be up and running before running nfs ganesha with mero/clovis
-- Specific version of NFS ganesha from phdaniels private branch and not from the public repo. Clone the NFS Ganesha [repo](https://github.com/phdeniel/nfs-ganesha.git). Check out KVSNS branch and built it using sources.
+- Specific version of NFS ganesha from phdaniels private branch and not from the public repo. Clone the NFS Ganesha [repo](https://github.com/phdeniel/nfs-ganesha.git). 
+--  Check out `KVSNS` branch
+-- Make a following change
+    ```diff
+    diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+    index af9ee07..2e5d46b 100644
+    --- a/src/CMakeLists.txt
+    +++ b/src/CMakeLists.txt
+    @@ -1012,7 +1012,7 @@ if(USE_9P_RDMA)
+    link_directories (${MOOSHIKA_LIBRARY_DIRS})
+    endif(USE_9P_RDMA)
+
+    -set(NTIRPC_VERSION 1.4.0)
+    +set(NTIRPC_VERSION 1.4.3)
+    if (USE_SYSTEM_NTIRPC)
+    find_package(NTIRPC ${NTIRPC_VERSION} REQUIRED)
+    else (USE_SYSTEM_NTIRPC)
+    ```
+  -- Build and install the `nfs-ganesha` . Find the directions to compile [here.](https://github.com/nfs-ganesha/nfs-ganesha/wiki/Compiling)
 - Clovis sample apps should be built and it's rc files should be present. Please refer to this [page](https://github.com/seagate-ssg/clovis-sample-apps) for instructions on clovis-sample-apps.
 
 ### Build
@@ -122,6 +140,7 @@ $ ./ns_init
 - Assuming you have built NFS-Ganesha from source. Edit `/etc/ganesha/ganesha.conf`
 
 ```
+EXPORT
 {
     # Export Id (mandatory)
     Export_Id = 77 ;

@@ -30,7 +30,6 @@
  */
 
 #include <ini_config.h>
-#include <hiredis/hiredis.h>
 #include <kvsns/extstore.h>
 #include "../../common/mero/m0common.h"
 #include "kvsns/log.h"
