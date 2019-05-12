@@ -56,7 +56,7 @@ set(SYSTEM_LIBRARIES "/usr/lib64/libgssapi_krb5.so;-lpthread;/usr/lib64/librt.so
 add_library(fsalkvsfs SHARED ${fsalkvsfs_LIB_SRCS})
 
 target_link_libraries(fsalkvsfs
-  kvsns hiredis
+  kvsns
   ${SYSTEM_LIBRARIES}
 )
 
