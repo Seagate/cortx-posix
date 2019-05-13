@@ -116,6 +116,7 @@ int kvsns2_creat(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
 
 	log_trace("ENTER: parent=%p name=%s file=%p mode=0x%X",
 		  parent, name, newfile, mode);
+	RC_WRAP(kvsns2_access, ctx, cred, parent, KVSNS_ACCESS_WRITE);
 	RC_WRAP(kvsns2_create_entry, ctx, cred, parent, name, NULL,
 		mode, newfile, KVSNS_FILE);
 	RC_WRAP(extstore_get_fid, *newfile, &kfid);
