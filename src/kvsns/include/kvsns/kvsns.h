@@ -155,13 +155,41 @@ typedef struct kvsns_fid {
 } kvsns_fid_t;
 
 
+/** Key val structure definitions and functions */
+typedef enum {
+	KVSNS_VER_0 = 0,
+	KVSNS_VER_INVALID,
+} kvsns_ver_t;
+
+typedef enum {
+	KVSNS_KEY_DIRENT = 1,
+	KVSNS_KEY_INVALID,
+} kvsns_key_t;
+
+/** Key header for every KVSNS key. */
+typedef struct key_header {
+	uint8_t   k_ver;
+	uint16_t  k_type;
+} kvsns_key_header_t;
+
+typedef struct kvsns_dentry_key_ {
+	kvsns_key_header_t d_header;
+	kvsns_ino_t        d_inode;
+	uint64_t	   d_namelen;
+	char               d_name[NAME_MAX + 1];
+} kvsns_dentry_key_t;
+
+typedef kvsns_ino_t kvsns_dentry_val_t;
+
 /**
  * Generates a key based on variable parameter list.
  * *
  * @param: k - Buffer to store the generated key
  * @param: klen - Key length of the generated key
- * @param: fmt - String that contains a format string
- * @return buffer length including '\0' if successful, a negative value in case of failure
+ * @param: fmt - St:
+ * ring that contains a format string
+ * @return buffer length including '\0' if successful, a negative value in case
+ * of failure
  */
 static inline int prepare_key(char k[], size_t klen, const char *fmt, ...)
 {
@@ -895,7 +923,6 @@ int kvsns_fsid_to_ctx(kvsns_fsid_t fs_id, kvsns_fs_ctx_t *fs_ctx);
  *
  * @return 0 if successful, a negative "-errno" value in case of failure
  */
-
 int kvsns_create_fs_ctx(kvsns_fsid_t fs_id, kvsns_fs_ctx_t *fs_ctx);
 
 #endif

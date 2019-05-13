@@ -43,6 +43,31 @@
 #include "kvsns_internal.h"
 #include "kvsns/log.h"
 
+
+int kvsns_prepare_dirent_key(kvsns_ver_t ver, kvsns_ino_t dino,
+			     uint64_t namelen, char *name,
+			     kvsns_dentry_key_t *key)
+{
+	uint64_t klen;
+
+	if ((ver >= KVSNS_VER_INVALID) || !key || !name || (namelen == 0))
+		return -EINVAL;
+
+	memset(key, 0, sizeof(kvsns_dentry_key_t));
+	key->d_header.k_ver = ver;
+	key->d_header.k_type = KVSNS_KEY_DIRENT;
+	key->d_inode = dino;
+	key->d_namelen = namelen;
+
+	memcpy(key->d_name, name, namelen);
+	klen = (sizeof(kvsns_dentry_key_t) - sizeof key->d_name)
+	        + key->d_namelen;
+
+	log_debug("inode=%llu name=%s namelen=%lu klen=%lu", key->d_inode,
+		  key->d_name, namelen, klen);
+	return klen;
+}
+
 int kvsns_next_inode(kvsns_ino_t *ino)
 {
 	int rc;
@@ -176,12 +201,12 @@ static int kvsns_create_check_name(const char *name, size_t len)
 		return  -E2BIG;
 	}
 
-	if (len == 1 && (name[0] == '.' || name[0] == '/')) {
+	if (len == 2 && (name[0] == '.' || name[0] == '/')) {
 		log_debug("File already exists: %s", name);
 		return -EEXIST;
 	}
 
-	if (len == 2 && (strncmp(name, parent, 2) == 0)) {
+	if (len == 3 && (strncmp(name, parent, 2) == 0)) {
 		log_debug("File already exists: %s", name);
 		return -EEXIST;
 	}
@@ -199,14 +224,15 @@ int kvsns2_create_entry(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
 	struct	stat bufstat;
 	struct	timeval t;
 	size_t	klen;
-	size_t vlen;
+	size_t  vlen;
 	size_t	namelen;
-	struct stat parent_stat;
+	struct  stat parent_stat;
+	kvsns_dentry_key_t d_key;
 
 	if (!cred || !parent || !name || !new_entry)
 		return -EINVAL;
 
-	namelen = strlen(name);
+	namelen = strlen(name) + 1;
 	if (namelen == 0)
 		return -EINVAL;
 
@@ -223,22 +249,22 @@ int kvsns2_create_entry(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
 	if (rc == 0)
 		return -EEXIST;
 
-
 	RC_WRAP(kvsns2_get_stat, ctx, parent, &parent_stat);
 
 	RC_WRAP(kvsal_begin_transaction);
 
-	/* Add an entry to parent dentries list */
-	RC_WRAP_LABEL(rc, aborted, prepare_key, k, KLEN, "%llu.dentries.%s",
-		      *parent, name);
+	/* Create dentry key and add it to parent dentries list. */
+	RC_WRAP_LABEL(rc, aborted, kvsns_prepare_dirent_key, KVSNS_VER_0,
+		      *parent, namelen, name, &d_key);
 	klen = rc;
-	/* Get a new inode number for the new file and set it */
+	log_debug("d_key size=%lu", klen);
+	/* Get a new inode number for the new file and set it as val for
+	   dentry key */
 	RC_WRAP(kvsns2_next_inode, ctx, new_entry);
 
-	/* @todo: Release the inode in case any of the calls below fail. */
-	RC_WRAP_LABEL(rc, aborted, prepare_key, v, VLEN, "%llu", *new_entry);
-	vlen = rc;
-	RC_WRAP_LABEL(rc, aborted, kvsal2_set_char, ctx, k, klen, v, vlen);
+	/* @todo: Release the inode in case any of the calls below fail.*/
+	RC_WRAP_LABEL(rc, aborted, kvsal2_set_char, ctx, (char *)&d_key, klen,
+		     (char *)new_entry, sizeof new_entry);
 
 	/* Set the parentdir of the new file */
 	RC_WRAP_LABEL(rc, aborted, prepare_key, k, KLEN, "%llu.parentdir.%llu",
@@ -297,6 +323,7 @@ int kvsns2_create_entry(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
 	RC_WRAP_LABEL(rc, aborted, kvsns_amend_stat, &parent_stat,
 		      STAT_CTIME_SET|STAT_MTIME_SET);
 	RC_WRAP_LABEL(rc, aborted, kvsns2_set_stat, ctx, parent, &parent_stat);
+
 	RC_WRAP(kvsal_end_transaction);
 	return 0;
 

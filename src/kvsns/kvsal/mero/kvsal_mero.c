@@ -111,12 +111,9 @@ int kvsal_get_char(char *k, char *v)
 	return m0kvs_get(k, klen, v, &vlen);
 }
 
-int kvsal2_get_char(void *ctx, char *k, char *v)
+int kvsal2_get_char(void *ctx, char *k, size_t klen, char *v, size_t vlen)
 {
-	size_t klen;
-	size_t vlen = VLEN;
 
-	klen = strnlen(k, KLEN)+1;
 	return m0kvs2_get(ctx, k, klen, v, &vlen);
 }
 
