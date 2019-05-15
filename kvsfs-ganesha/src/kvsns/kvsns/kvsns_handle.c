@@ -361,21 +361,18 @@ int kvsns_getattr(kvsns_cred_t *cred, kvsns_ino_t *ino, struct stat *bufstat)
 	return kvsal_get_stat(k, bufstat);
 }
 
-int kvsns2_getattr(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
+int kvsns2_getattr(kvsns_fs_ctx_t ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
 		   struct stat *bufstat)
 {
 	int rc;
-	char k[KLEN];
-	size_t klen;
 
-	if (!cred || !ino || !bufstat)
-		return -EINVAL;
+	KVSNS_DASSERT(cred != NULL);
+	KVSNS_DASSERT(bufstat != NULL);
+	KVSNS_DASSERT(ino != NULL);
 
-	RC_WRAP_LABEL(rc, out, prepare_key, k, KLEN, "%llu.stat", *ino);
-	klen = rc;
+	rc = kvsns2_ns_get_stat(ctx, ino, bufstat);
 
-	rc = kvsal2_get_stat(ctx, k, klen, bufstat);
-out:
+	log_debug("rc=%d", rc);
 	return rc;
 }
 
@@ -443,20 +440,17 @@ int kvsns_setattr(kvsns_cred_t *cred, kvsns_ino_t *ino,
 	return kvsal_set_stat(k, &bufstat);
 }
 
-int kvsns2_setattr(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
-		  struct stat *setstat, int statflag)
+int kvsns2_setattr(kvsns_fs_ctx_t ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
+		   struct stat *setstat, int statflag)
 {
-	char k[KLEN];
 	struct stat bufstat;
 	struct timeval t;
 	mode_t ifmt;
 	int rc;
-	size_t klen;
 
-	if (!cred || !ino || !setstat) {
-		rc = -EINVAL;
-		goto out;
-	}
+	KVSNS_DASSERT(cred != NULL);
+	KVSNS_DASSERT(setstat != NULL);
+	KVSNS_DASSERT(ino != NULL);
 
 	if (statflag == 0) {
 		rc = 0;
@@ -469,12 +463,8 @@ int kvsns2_setattr(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
 		return -errno;
 	}
 
-	RC_WRAP_LABEL(rc, out, kvsns2_access, ctx, cred, ino,
-		      KVSNS_ACCESS_WRITE);
-
-	RC_WRAP_LABEL(rc, out, prepare_key, k, KLEN, "%llu.stat", *ino);
-	klen = rc;
-	RC_WRAP_LABEL(rc, out, kvsal2_get_stat, ctx, k, klen, &bufstat);
+	RC_WRAP_LABEL(rc, out, kvsns2_access, ctx, cred, ino, KVSNS_ACCESS_WRITE);
+	RC_WRAP_LABEL(rc, out, kvsns2_getattr, ctx, cred, ino, &bufstat);
 
 	/* ctime is to be updated if md are changed */
 	bufstat.st_ctim.tv_sec = t.tv_sec;
@@ -514,8 +504,7 @@ int kvsns2_setattr(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
 		bufstat.st_ctim.tv_sec = setstat->st_ctim.tv_sec;
 		bufstat.st_ctim.tv_nsec = setstat->st_ctim.tv_nsec;
 	}
-
-	RC_WRAP_LABEL(rc, out, kvsal2_set_stat, ctx, k, klen, &bufstat);
+	RC_WRAP_LABEL(rc, out, kvsns2_ns_set_stat, ctx, ino, &bufstat);
 out:
 	log_debug("rc=%d", rc);
 	return rc;
@@ -733,8 +722,8 @@ int kvsns2_unlink(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *dir, char *name)
 
 	RC_WRAP(kvsns2_lookup, ctx, cred, dir, name, &ino);
 
-	RC_WRAP(kvsns2_get_stat, ctx, dir, &dir_stat);
-	RC_WRAP(kvsns2_get_stat, ctx, &ino, &ino_stat);
+	RC_WRAP(kvsns2_ns_get_stat, ctx, dir, &dir_stat);
+	RC_WRAP(kvsns2_ns_get_stat, ctx, &ino, &ino_stat);
 
 	/* Get the count of links for this file. */
 	RC_WRAP_LABEL(rc, aborted, prepare_key, k, KLEN, "%llu.parentdir.*",
@@ -793,7 +782,7 @@ int kvsns2_unlink(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *dir, char *name)
 
 		RC_WRAP_LABEL(rc, aborted, kvsns_amend_stat, &ino_stat,
 			 STAT_CTIME_SET|STAT_DECR_LINK);
-		RC_WRAP_LABEL(rc, aborted, kvsns2_set_stat, ctx, &ino, &ino_stat);
+		RC_WRAP_LABEL(rc, aborted, kvsns2_ns_set_stat, ctx, &ino, &ino_stat);
 	}
 	/* Delete the dentry. */
 	RC_WRAP_LABEL(rc, aborted, prepare_key, k, KLEN, "%llu.dentries.%s", *dir,
@@ -810,7 +799,7 @@ int kvsns2_unlink(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *dir, char *name)
 
 	RC_WRAP_LABEL(rc, aborted, kvsns_amend_stat, &dir_stat,
 		      STAT_MTIME_SET|STAT_CTIME_SET);
-	RC_WRAP_LABEL(rc, aborted, kvsns2_set_stat, ctx, dir, &dir_stat);
+	RC_WRAP_LABEL(rc, aborted, kvsns2_ns_set_stat, ctx, dir, &dir_stat);
 
 	RC_WRAP(kvsal_end_transaction);
 

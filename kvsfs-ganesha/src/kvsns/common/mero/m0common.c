@@ -433,7 +433,7 @@ out:
 }
 
 int m0kvs_set(char *k, size_t klen,
-	       char *v, size_t vlen)
+	      char *v, size_t vlen)
 {
 	struct m0_bufvec	 key;
 	struct m0_bufvec	 val;

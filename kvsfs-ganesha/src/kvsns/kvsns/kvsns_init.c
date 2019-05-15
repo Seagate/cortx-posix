@@ -134,9 +134,6 @@ int kvsns_init_root(int openbar)
 	bufstat.st_mtim.tv_sec = 0;
 	bufstat.st_ctim.tv_sec = 0;
 
-	memset(k, 0, KLEN);
-	snprintf(k, KLEN, "%llu.stat", ino);
-	RC_WRAP(kvsal_set_stat, k, &bufstat);
-
+	RC_WRAP(kvsns2_ns_set_stat, ctx, &ino, &bufstat);
 	return 0;
 }

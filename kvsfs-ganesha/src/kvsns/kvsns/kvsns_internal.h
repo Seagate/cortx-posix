@@ -51,13 +51,13 @@ int kvsns2_create_entry(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
 			char *name, char *lnk, mode_t mode, kvsns_ino_t *newdir,
 			enum kvsns_type type);
 int kvsns_get_stat(kvsns_ino_t *ino, struct stat *bufstat);
-int kvsns2_get_stat(void *ctx, kvsns_ino_t *ino, struct stat *bufstat);
+int kvsns2_ns_get_stat(kvsns_fs_ctx_t ctx, kvsns_ino_t *ino, struct stat *bufstat);
 int kvsns_set_stat(kvsns_ino_t *ino, struct stat *bufstat);
-int kvsns2_set_stat(void *ctx, kvsns_ino_t *ino, struct stat *bufstat);
+int kvsns2_ns_set_stat(kvsns_fs_ctx_t ctx, kvsns_ino_t *ino, struct stat *bufstat);
 int kvsns_update_stat(kvsns_ino_t *ino, int flags);
 int kvsns_amend_stat(struct stat *stat, int flags);
 int kvsns_delall_xattr(kvsns_cred_t *cred, kvsns_ino_t *ino);
 int _kvsns_prepare_dirent_key(const kvsns_ino_t dino, const uint8_t namelen,
 			      const char *name, kvsns_dentry_key_t *key);
-
+int _kvsns_ns_prepare_inode_key(const kvsns_key_type_t type, const kvsns_ino_t ino, kvsns_inode_key_t *key);
 #endif
