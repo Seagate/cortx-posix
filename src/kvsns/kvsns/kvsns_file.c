@@ -449,8 +449,6 @@ ssize_t kvsns2_write(void *ctx, kvsns_cred_t *cred, kvsns_file_open_t *fd,
 	int rc;
 	ssize_t write_amount;
 	bool stable;
-	char k[KLEN];
-	size_t klen;
 	struct stat stat;
 	struct stat wstat;
 	kvsns_fid_t kfid;
@@ -477,9 +475,7 @@ ssize_t kvsns2_write(void *ctx, kvsns_cred_t *cred, kvsns_file_open_t *fd,
 	stat.st_mtim = wstat.st_mtim;
 	stat.st_ctim = wstat.st_ctim;
 
-	RC_WRAP_LABEL(rc, out, prepare_key, k, KLEN, "%llu.stat", fd->ino);
-	klen = rc;
-	RC_WRAP(kvsal2_set_stat, ctx, k, klen, &stat);
+	RC_WRAP(kvsns2_ns_set_stat, ctx, &fd->ino, &stat);
 	rc = write_amount;
 out:
 	log_trace("EXIT rc=%d", rc);
@@ -520,8 +516,6 @@ ssize_t kvsns2_read(void *ctx, kvsns_cred_t *cred, kvsns_file_open_t *fd,
 	ssize_t read_amount;
 	bool eof;
 	struct stat stat;
-	char k[KLEN];
-	size_t klen;
 	kvsns_fid_t kfid;
 
 	log_trace("ENTER: ino=%llu fd=%p count=%lu offset=%ld", fd->ino, fd, count, (long)offset);
@@ -535,10 +529,7 @@ ssize_t kvsns2_read(void *ctx, kvsns_cred_t *cred, kvsns_file_open_t *fd,
 		rc = read_amount;
 		goto out;
 	}
-
-	RC_WRAP_LABEL(rc, out, prepare_key, k, KLEN, "%llu.stat", fd->ino);
-	klen = rc;
-	RC_WRAP(kvsal2_set_stat, ctx, k, klen, &stat);
+	RC_WRAP(kvsns2_ns_set_stat, ctx, &fd->ino, &stat);
 	rc = read_amount;
 out:
 	log_trace("EXIT rc=%d", rc);

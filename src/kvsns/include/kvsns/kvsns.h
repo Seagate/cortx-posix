@@ -161,7 +161,6 @@ typedef struct kvsns_str256 {
 
 typedef kvsns_str256_t kvsns_name_t;
 
-
 /** Key val structure definitions and functions */
 typedef enum {
 	KVSNS_VER_0 = 0,
@@ -170,8 +169,9 @@ typedef enum {
 
 typedef enum {
 	KVSNS_KEY_DIRENT = 1,
+	KVSNS_KEY_STAT,
 	KVSNS_KEY_INVALID,
-} kvsns_key_t;
+} kvsns_key_type_t;
 
 typedef struct kvsns_dentry_key_ {
 	kvsns_ino_t  d_inode;
@@ -182,6 +182,11 @@ typedef struct kvsns_dentry_key_ {
 
 typedef kvsns_ino_t kvsns_dentry_val_t;
 
+typedef struct _kvsns_inode_key {
+	kvsns_ino_t k_inode;
+	uint8_t     k_type;
+	uint8_t     k_ver;
+} kvsns_inode_key_t;
 
 /**
  * Generates a key based on variable parameter list.
@@ -274,8 +279,7 @@ int kvsns_access(kvsns_cred_t *cred, kvsns_ino_t *ino, int flags);
  * @return 0 if access is granted, a negative value means an error. -EPERM
  * is returned when access is not granted
  */
-int kvsns2_access(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
-		  int flags);
+int kvsns2_access(kvsns_fs_ctx_t ctx, kvsns_cred_t *cred, kvsns_ino_t *ino, int flags);
 
 /**
  * Creates a file.
@@ -482,7 +486,7 @@ int kvsns_getattr(kvsns_cred_t *cred, kvsns_ino_t *ino, struct stat *buffstat);
  *
  * @return 0 if successful, a negative "-errno" value in case of failure
  */
-int kvsns2_getattr(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
+int kvsns2_getattr(kvsns_fs_ctx_t ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
 		   struct stat *buffstat);
 
 /**
@@ -531,7 +535,7 @@ int kvsns_setattr(kvsns_cred_t *cred, kvsns_ino_t *ino, struct stat *setstat,
  *
  * @return 0 if successful, a negative "-errno" value in case of failure
  */
-int kvsns2_setattr(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
+int kvsns2_setattr(kvsns_fs_ctx_t ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
 		   struct stat *setstat, int statflags);
 
 /**

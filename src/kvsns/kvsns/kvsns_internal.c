@@ -43,6 +43,20 @@
 #include "kvsns_internal.h"
 #include "kvsns/log.h"
 
+int _kvsns_ns_prepare_inode_key(kvsns_key_type_t type, kvsns_ino_t ino, kvsns_inode_key_t *key)
+{
+	KVSNS_DASSERT(key != NULL);
+	KVSNS_DASSERT(ver <= KVSNS_VER_INVALID);
+
+	memset(key, 0, sizeof(kvsns_inode_key_t));
+	key->k_ver = KVSNS_VER_0;
+	key->k_type = type;
+	key->k_inode = ino;
+
+	log_debug("inode=%llu type=%d", ino, type);
+	return sizeof(kvsns_inode_key_t);
+}
+
 uint64_t _kvsns_get_dirent_key_len(const uint8_t namelen)
 {
 	uint64_t klen;
@@ -267,7 +281,7 @@ int kvsns2_create_entry(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
 	if (rc == 0)
 		return -EEXIST;
 
-	RC_WRAP(kvsns2_get_stat, ctx, parent, &parent_stat);
+	RC_WRAP(kvsns2_ns_get_stat, ctx, parent, &parent_stat);
 
 	RC_WRAP(kvsal_begin_transaction);
 
@@ -335,20 +349,16 @@ int kvsns2_create_entry(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
 		rc = -EINVAL;
 		goto aborted;
 	}
-	RC_WRAP_LABEL(rc, aborted, prepare_key, k, KLEN, "%llu.stat",
-		      *new_entry);
-	klen = rc;
-
-	RC_WRAP_LABEL(rc, aborted, kvsal2_set_stat, ctx, k, klen, &bufstat);
-
+	RC_WRAP_LABEL(rc, aborted, kvsns2_ns_set_stat, ctx, new_entry, &bufstat);
 	RC_WRAP_LABEL(rc, aborted, kvsns_amend_stat, &parent_stat,
 		      STAT_CTIME_SET|STAT_MTIME_SET);
-	RC_WRAP_LABEL(rc, aborted, kvsns2_set_stat, ctx, parent, &parent_stat);
+	RC_WRAP_LABEL(rc, aborted, kvsns2_ns_set_stat, ctx, parent, &parent_stat);
 
 	RC_WRAP(kvsal_end_transaction);
 	return 0;
 
 aborted:
+	log_trace("Exit rc=%d", rc);
 	kvsal_discard_transaction();
 	return rc;
 }
@@ -513,7 +523,7 @@ int kvsns_access(kvsns_cred_t *cred, kvsns_ino_t *ino, int flags)
 	return kvsns_access_check(cred, &stat, flags);
 }
 
-int kvsns2_access(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *ino, int flags)
+int kvsns2_access(kvsns_fs_ctx_t ctx, kvsns_cred_t *cred, kvsns_ino_t *ino, int flags)
 {
 	struct stat stat;
 
@@ -537,20 +547,21 @@ int kvsns_get_stat(kvsns_ino_t *ino, struct stat *bufstat)
 	return kvsal_get_stat(k, bufstat);
 }
 
-int kvsns2_get_stat(void *ctx, kvsns_ino_t *ino, struct stat *bufstat)
+int kvsns2_ns_get_stat(kvsns_fs_ctx_t ctx, kvsns_ino_t *ino, struct stat *bufstat)
 {
 	int rc;
-	char k[KLEN];
+	kvsns_inode_key_t key;
 	size_t klen;
 
-	if (!ino || !bufstat)
-		return -EINVAL;
+	KVSNS_DASSERT(bufstat != NULL);
+	KVSNS_DASSERT(ino != NULL);
 
-	RC_WRAP_LABEL(rc, out, prepare_key, k, KLEN, "%llu.stat", *ino);
+	RC_WRAP_LABEL(rc, out, _kvsns_ns_prepare_inode_key, KVSNS_KEY_STAT, *ino, &key);
 	klen = rc;
-	RC_WRAP_LABEL(rc, out, kvsal2_get_stat, ctx, k, klen, bufstat);
+	RC_WRAP_LABEL(rc, out, kvsal2_get_stat, ctx, (char *)&key, klen, bufstat);
 
 out:
+	log_trace("rc=%d", rc);
 	return rc;
 
 }
@@ -568,22 +579,21 @@ int kvsns_set_stat(kvsns_ino_t *ino, struct stat *bufstat)
 	return kvsal_set_stat(k, bufstat);
 }
 
-int kvsns2_set_stat(void *ctx, kvsns_ino_t *ino, struct stat *bufstat)
+int kvsns2_ns_set_stat(kvsns_fs_ctx_t ctx, kvsns_ino_t *ino, struct stat *bufstat)
 {
-	char k[KLEN];
 	int rc;
+	kvsns_inode_key_t key;
 	size_t klen;
 
-	if (!ino || !bufstat) {
-		rc = -EINVAL;
-		goto out;
-	}
+	KVSNS_DASSERT(bufstat != NULL);
+	KVSNS_DASSERT(ino != NULL);
 
-	RC_WRAP_LABEL(rc, out, prepare_key, k, KLEN, "%llu.stat", *ino);
+	RC_WRAP_LABEL(rc, out, _kvsns_ns_prepare_inode_key, KVSNS_KEY_STAT, *ino, &key);
 	klen = rc;
-	RC_WRAP_LABEL(rc, out, kvsal2_set_stat, ctx, k, klen, bufstat);
+	RC_WRAP_LABEL(rc, out, kvsal2_set_stat, ctx, (char *)&key, klen, bufstat);
 
 out:
+	log_trace("rc=%d", rc);
 	return rc;
 }
 
@@ -622,4 +632,3 @@ int kvsns_lookup_path(kvsns_cred_t *cred, kvsns_ino_t *parent, char *path,
 
 	return rc;
 }
-
