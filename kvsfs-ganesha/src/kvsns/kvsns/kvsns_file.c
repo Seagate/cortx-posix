@@ -108,7 +108,7 @@ int kvsns_creat(kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
 }
 
 int kvsns2_creat(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
-		mode_t mode, kvsns_ino_t *newfile)
+		 mode_t mode, kvsns_ino_t *newfile)
 {
 	kvsns_fid_t  kfid;
 

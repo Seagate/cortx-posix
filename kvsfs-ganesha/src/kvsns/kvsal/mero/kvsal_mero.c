@@ -102,6 +102,12 @@ int kvsal2_set_char(void *ctx, char *k, size_t klen, char *v, size_t vlen)
 	return m0kvs2_set(ctx, k, klen, v, vlen);
 }
 
+int kvsal2_set_bin(void *ctx, const void *k, size_t klen, const void *v,
+		   size_t vlen)
+{
+	return m0kvs2_set(ctx, k, klen, v, vlen);
+}
+
 int kvsal_get_char(char *k, char *v)
 {
 	size_t klen;
@@ -113,7 +119,11 @@ int kvsal_get_char(char *k, char *v)
 
 int kvsal2_get_char(void *ctx, char *k, size_t klen, char *v, size_t vlen)
 {
+	return m0kvs2_get(ctx, k, klen, v, &vlen);
+}
 
+int kvsal2_get_bin(void *ctx, const void *k, size_t klen, void *v, size_t vlen)
+{
 	return m0kvs2_get(ctx, k, klen, v, &vlen);
 }
 

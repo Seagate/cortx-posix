@@ -43,29 +43,69 @@
 #include "kvsns_internal.h"
 #include "kvsns/log.h"
 
-
-int kvsns_prepare_dirent_key(kvsns_ver_t ver, kvsns_ino_t dino,
-			     uint64_t namelen, char *name,
-			     kvsns_dentry_key_t *key)
+uint64_t kvsns_get_dirent_key_len(const char *name, const uint8_t namelen)
 {
 	uint64_t klen;
 
-	if ((ver >= KVSNS_VER_INVALID) || !key || !name || (namelen == 0))
+	if (!name) {
+		log_err("name not set");
+		klen = 0;
+		goto out;
+	}
+
+	klen = (sizeof (kvsns_dentry_key_t) - sizeof (kvsns_name_t)) +
+		(namelen + 1);
+
+out:
+	log_debug("klen=%lu", klen);
+	return klen;
+}
+
+int kvsns_name_copy(const char *name, uint8_t len, kvsns_name_t *k_name)
+{
+	int rc = 0;
+
+	if (!name || !k_name || (len > NAME_MAX)) {
+		rc = -EINVAL;
+		log_err("Invalid args");
+		goto out;
+	}
+	/* Account for null terminator. */
+	k_name->s_len = len + 1;
+	memcpy(k_name->s_str, name, k_name->s_len);
+
+out:
+	return rc;
+	log_debug("s_str=%s, s_name=%u", k_name->s_str, k_name->s_len);
+}
+
+int kvsns_prepare_dirent_key(kvsns_ver_t ver, const kvsns_ino_t dino,
+			     uint8_t namelen, const char *name,
+			     kvsns_dentry_key_t *key)
+{
+	int rc;
+
+	if ((ver >= KVSNS_VER_INVALID) || !key || !name || (namelen == 0) ||
+	    (namelen >= sizeof(key->d_name)))
 		return -EINVAL;
 
 	memset(key, 0, sizeof(kvsns_dentry_key_t));
-	key->d_header.k_ver = ver;
-	key->d_header.k_type = KVSNS_KEY_DIRENT;
+	key->d_ver = ver;
+	key->d_type = KVSNS_KEY_DIRENT;
 	key->d_inode = dino;
-	key->d_namelen = namelen;
 
-	memcpy(key->d_name, name, namelen);
-	klen = (sizeof(kvsns_dentry_key_t) - sizeof key->d_name)
-	        + key->d_namelen;
+	rc = kvsns_name_copy(name, namelen, &key->d_name);
+	if (rc != 0) {
+		log_err("kvsns_name_init failed, rc=%d", rc);
+		goto out;
+		}
 
-	log_debug("inode=%llu name=%s namelen=%lu klen=%lu", key->d_inode,
-		  key->d_name, namelen, klen);
-	return klen;
+	rc = kvsns_get_dirent_key_len(name, namelen);
+
+out:
+	log_debug("inode=%llu name=%s namelen=%u rc=%d", key->d_inode,
+		  key->d_name.s_str, namelen, rc);
+	return rc;
 }
 
 int kvsns_next_inode(kvsns_ino_t *ino)
@@ -196,17 +236,17 @@ static int kvsns_create_check_name(const char *name, size_t len)
 {
 	const char *parent = "..";
 
-	if (len >= NAME_MAX) {
+	if (len > NAME_MAX) {
 		log_debug("Name too long %s", name);
 		return  -E2BIG;
 	}
 
-	if (len == 2 && (name[0] == '.' || name[0] == '/')) {
+	if (len == 1 && (name[0] == '.' || name[0] == '/')) {
 		log_debug("File already exists: %s", name);
 		return -EEXIST;
 	}
 
-	if (len == 3 && (strncmp(name, parent, 2) == 0)) {
+	if (len == 2 && (strncmp(name, parent, 2) == 0)) {
 		log_debug("File already exists: %s", name);
 		return -EEXIST;
 	}
@@ -232,7 +272,7 @@ int kvsns2_create_entry(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
 	if (!cred || !parent || !name || !new_entry)
 		return -EINVAL;
 
-	namelen = strlen(name) + 1;
+	namelen = strlen(name);
 	if (namelen == 0)
 		return -EINVAL;
 
@@ -253,6 +293,9 @@ int kvsns2_create_entry(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
 
 	RC_WRAP(kvsal_begin_transaction);
 
+	/* @todo: Alloc mero bufvecs and use it for key to avoid extra mem copy
+	RC_WRAP_LABEL(rc, aborted, kvsns_alloc_dirent_key, namelen, &d_key); */
+
 	/* Create dentry key and add it to parent dentries list. */
 	RC_WRAP_LABEL(rc, aborted, kvsns_prepare_dirent_key, KVSNS_VER_0,
 		      *parent, namelen, name, &d_key);
@@ -263,8 +306,8 @@ int kvsns2_create_entry(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
 	RC_WRAP(kvsns2_next_inode, ctx, new_entry);
 
 	/* @todo: Release the inode in case any of the calls below fail.*/
-	RC_WRAP_LABEL(rc, aborted, kvsal2_set_char, ctx, (char *)&d_key, klen,
-		     (char *)new_entry, sizeof new_entry);
+	RC_WRAP_LABEL(rc, aborted, kvsal2_set_bin, ctx, &d_key, klen, new_entry,
+		      sizeof new_entry);
 
 	/* Set the parentdir of the new file */
 	RC_WRAP_LABEL(rc, aborted, prepare_key, k, KLEN, "%llu.parentdir.%llu",

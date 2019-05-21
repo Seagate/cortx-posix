@@ -79,8 +79,11 @@ int kvsal_exists(char *k);
 int kvsal2_exists(void * ctx, char *k, size_t klen);
 int kvsal_set_char(char *k, char *v);
 int kvsal2_set_char(void *ctx, char *k, size_t klen, char *v, size_t vlen);
+int kvsal2_set_bin(void *ctx, const void *k, size_t klen, const void *v,
+		   size_t vlen);
 int kvsal_get_char(char *k, char *v);
 int kvsal2_get_char(void *ctx, char *k, size_t klen, char *v, size_t vlen);
+int kvsal2_get_bin(void *ctx, const void *k, size_t klen, void *v, size_t vlen);
 int kvsal_set_binary(char *k, char *buf, size_t size);
 int kvsal_get_binary(char *k, char *buf, size_t *size);
 int kvsal_set_stat(char *k, struct stat *buf);
