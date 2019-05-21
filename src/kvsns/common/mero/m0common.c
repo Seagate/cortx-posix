@@ -403,8 +403,8 @@ out:
 	return rc;
 }
 
-int m0kvs2_get(void *ctx, char *k, size_t klen,
-	       char *v, size_t *vlen)
+int m0kvs2_get(void *ctx, const void *k, size_t klen,
+	       void *v, size_t *vlen)
 {
 	struct m0_bufvec	 key;
 	struct m0_bufvec	 val;
@@ -457,8 +457,8 @@ out:
 	return rc;
 }
 
-int m0kvs2_set(void *ctx, char *k, size_t klen,
-	       char *v, size_t vlen)
+int m0kvs2_set(void *ctx, const void *k, size_t klen,
+	       const void *v, size_t vlen)
 {
 	struct m0_bufvec	 key;
 	struct m0_bufvec	 val;

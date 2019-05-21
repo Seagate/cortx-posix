@@ -154,6 +154,13 @@ typedef struct kvsns_fid {
 	uint64_t f_lo;
 } kvsns_fid_t;
 
+typedef struct kvsns_str256 {
+	uint8_t s_len;
+	char    s_str[NAME_MAX + 1];
+} kvsns_str256_t;
+
+typedef kvsns_str256_t kvsns_name_t;
+
 
 /** Key val structure definitions and functions */
 typedef enum {
@@ -166,27 +173,22 @@ typedef enum {
 	KVSNS_KEY_INVALID,
 } kvsns_key_t;
 
-/** Key header for every KVSNS key. */
-typedef struct key_header {
-	uint8_t   k_ver;
-	uint16_t  k_type;
-} kvsns_key_header_t;
-
 typedef struct kvsns_dentry_key_ {
-	kvsns_key_header_t d_header;
-	kvsns_ino_t        d_inode;
-	uint64_t	   d_namelen;
-	char               d_name[NAME_MAX + 1];
+	kvsns_ino_t  d_inode;
+	uint8_t      d_type;
+	uint8_t      d_ver;
+	kvsns_name_t d_name;
 } kvsns_dentry_key_t;
 
 typedef kvsns_ino_t kvsns_dentry_val_t;
+
 
 /**
  * Generates a key based on variable parameter list.
  * *
  * @param: k - Buffer to store the generated key
  * @param: klen - Key length of the generated key
- * @param: fmt - St:
+ * @param: fmt - String that contains a format string
  * ring that contains a format string
  * @return buffer length including '\0' if successful, a negative value in case
  * of failure
@@ -272,7 +274,8 @@ int kvsns_access(kvsns_cred_t *cred, kvsns_ino_t *ino, int flags);
  * @return 0 if access is granted, a negative value means an error. -EPERM
  * is returned when access is not granted
  */
-int kvsns2_access(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *ino, int flags);
+int kvsns2_access(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
+		  int flags);
 
 /**
  * Creates a file.
@@ -425,7 +428,8 @@ int kvsns_lookup(kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
  *
  * @return 0 if successful, a negative "-errno" value in case of failure
  */
-int kvsns2_lookup(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
+int kvsns2_lookup(void *ctx, kvsns_cred_t *cred,
+		  kvsns_ino_t *parent, char *name,
 		  kvsns_ino_t *myino);
 /**
  * Finds the parent inode of an entry.
