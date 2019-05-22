@@ -47,8 +47,7 @@ uint64_t _kvsns_get_dirent_key_len(const uint8_t namelen)
 {
 	uint64_t klen;
 
-	klen = (sizeof (kvsns_dentry_key_t) - sizeof (kvsns_name_t)) +
-		(namelen + 1);
+	klen = (sizeof (kvsns_dentry_key_t) - sizeof (kvsns_name_t)) + namelen;
 	log_debug("klen=%lu", klen);
 
 	return klen;
