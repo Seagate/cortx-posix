@@ -310,8 +310,8 @@ int kvsns2_lookup(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
 	RC_WRAP(kvsns2_access, ctx, cred, parent, KVSNS_ACCESS_READ);
 
 	namelen = strlen(name);
-	RC_WRAP_LABEL(rc, aborted, kvsns_prepare_dirent_key, KVSNS_VER_0,
-		      *parent, namelen, name, &dkey);
+	RC_WRAP_LABEL(rc, aborted, _kvsns_prepare_dirent_key, *parent, namelen,
+		      name, &dkey);
 	klen = rc;
 	RC_WRAP_LABEL(rc, aborted, kvsal2_get_bin, ctx, &dkey, klen,
 		     (char *)&dval, sizeof dval);
@@ -319,7 +319,8 @@ int kvsns2_lookup(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
 	*ino = (kvsns_ino_t)dval;
 
 aborted:
-	log_debug("%llu.dentries.%s = %llu rc=%d", *parent, name, *ino, rc);
+	log_debug("%llu.dentries.%.*s = %llu rc=%d", *parent, dkey.d_name.s_len,
+		  dkey.d_name.s_str, *ino, rc);
 	return rc;
 
 
