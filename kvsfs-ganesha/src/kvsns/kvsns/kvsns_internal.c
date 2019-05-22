@@ -43,25 +43,18 @@
 #include "kvsns_internal.h"
 #include "kvsns/log.h"
 
-uint64_t kvsns_get_dirent_key_len(const char *name, const uint8_t namelen)
+uint64_t _kvsns_get_dirent_key_len(const uint8_t namelen)
 {
 	uint64_t klen;
 
-	if (!name) {
-		log_err("name not set");
-		klen = 0;
-		goto out;
-	}
-
 	klen = (sizeof (kvsns_dentry_key_t) - sizeof (kvsns_name_t)) +
 		(namelen + 1);
-
-out:
 	log_debug("klen=%lu", klen);
+
 	return klen;
 }
 
-int kvsns_name_copy(const char *name, uint8_t len, kvsns_name_t *k_name)
+int _kvsns_name_copy(const char *name, uint8_t len, kvsns_name_t *k_name)
 {
 	int rc = 0;
 
@@ -70,41 +63,41 @@ int kvsns_name_copy(const char *name, uint8_t len, kvsns_name_t *k_name)
 		log_err("Invalid args");
 		goto out;
 	}
-	/* Account for null terminator. */
-	k_name->s_len = len + 1;
+
+	k_name->s_len = len;
 	memcpy(k_name->s_str, name, k_name->s_len);
 
 out:
+	log_debug("s_str=%.*s, s_len=%u", k_name->s_len, k_name->s_str,
+	           k_name->s_len);
 	return rc;
-	log_debug("s_str=%s, s_name=%u", k_name->s_str, k_name->s_len);
 }
 
-int kvsns_prepare_dirent_key(kvsns_ver_t ver, const kvsns_ino_t dino,
-			     uint8_t namelen, const char *name,
-			     kvsns_dentry_key_t *key)
+int _kvsns_prepare_dirent_key(const kvsns_ino_t dino, uint8_t namelen,
+			      const char *name, kvsns_dentry_key_t *key)
 {
 	int rc;
 
-	if ((ver >= KVSNS_VER_INVALID) || !key || !name || (namelen == 0) ||
+	if (!key || !name || (namelen == 0) ||
 	    (namelen >= sizeof(key->d_name)))
 		return -EINVAL;
 
 	memset(key, 0, sizeof(kvsns_dentry_key_t));
-	key->d_ver = ver;
+	key->d_ver = KVSNS_VER_0;
 	key->d_type = KVSNS_KEY_DIRENT;
 	key->d_inode = dino;
 
-	rc = kvsns_name_copy(name, namelen, &key->d_name);
+	rc = _kvsns_name_copy(name, namelen, &key->d_name);
 	if (rc != 0) {
 		log_err("kvsns_name_init failed, rc=%d", rc);
 		goto out;
-		}
+	}
 
-	rc = kvsns_get_dirent_key_len(name, namelen);
+	rc = _kvsns_get_dirent_key_len(namelen);
 
 out:
-	log_debug("inode=%llu name=%s namelen=%u rc=%d", key->d_inode,
-		  key->d_name.s_str, namelen, rc);
+	log_debug("inode=%llu name=%.*s rc=%d", key->d_inode, key->d_name.s_len,
+		  key->d_name.s_str, rc);
 	return rc;
 }
 
@@ -254,6 +247,7 @@ static int kvsns_create_check_name(const char *name, size_t len)
 	return 0;
 }
 
+/* @todo : Replace void *ctx with kvsns_fs_ctx_t */
 int kvsns2_create_entry(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
 			char *name, char *lnk, mode_t mode,
 			kvsns_ino_t *new_entry, enum kvsns_type type)
@@ -269,6 +263,7 @@ int kvsns2_create_entry(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
 	struct  stat parent_stat;
 	kvsns_dentry_key_t d_key;
 
+	/* @todo use KVSNS_DASSERT here */
 	if (!cred || !parent || !name || !new_entry)
 		return -EINVAL;
 
@@ -297,8 +292,8 @@ int kvsns2_create_entry(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
 	RC_WRAP_LABEL(rc, aborted, kvsns_alloc_dirent_key, namelen, &d_key); */
 
 	/* Create dentry key and add it to parent dentries list. */
-	RC_WRAP_LABEL(rc, aborted, kvsns_prepare_dirent_key, KVSNS_VER_0,
-		      *parent, namelen, name, &d_key);
+	RC_WRAP_LABEL(rc, aborted, _kvsns_prepare_dirent_key, *parent, namelen,
+		      name, &d_key);
 	klen = rc;
 	log_debug("d_key size=%lu", klen);
 	/* Get a new inode number for the new file and set it as val for

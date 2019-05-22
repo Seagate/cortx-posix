@@ -156,7 +156,7 @@ typedef struct kvsns_fid {
 
 typedef struct kvsns_str256 {
 	uint8_t s_len;
-	char    s_str[NAME_MAX + 1];
+	char    s_str[NAME_MAX];
 } kvsns_str256_t;
 
 typedef kvsns_str256_t kvsns_name_t;

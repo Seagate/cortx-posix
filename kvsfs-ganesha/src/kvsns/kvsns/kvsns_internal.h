@@ -57,8 +57,7 @@ int kvsns2_set_stat(void *ctx, kvsns_ino_t *ino, struct stat *bufstat);
 int kvsns_update_stat(kvsns_ino_t *ino, int flags);
 int kvsns_amend_stat(struct stat *stat, int flags);
 int kvsns_delall_xattr(kvsns_cred_t *cred, kvsns_ino_t *ino);
-int kvsns_prepare_dirent_key(kvsns_ver_t ver, const kvsns_ino_t dino,
-			     const uint8_t namelen, const char *name,
-			     kvsns_dentry_key_t *key);
+int _kvsns_prepare_dirent_key(const kvsns_ino_t dino, const uint8_t namelen,
+			      const char *name, kvsns_dentry_key_t *key);
 
 #endif
