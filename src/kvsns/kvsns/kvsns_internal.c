@@ -53,23 +53,15 @@ uint64_t _kvsns_get_dirent_key_len(const uint8_t namelen)
 	return klen;
 }
 
-int _kvsns_name_copy(const char *name, uint8_t len, kvsns_name_t *k_name)
+void _kvsns_name_copy(const char *name, uint8_t len, kvsns_name_t *k_name)
 {
-	int rc = 0;
 
-	if (!name || !k_name || (len > NAME_MAX)) {
-		rc = -EINVAL;
-		log_err("Invalid args");
-		goto out;
-	}
+	KVSNS_DASSERT(k_name  && name && (namelen > 0));
 
 	k_name->s_len = len;
 	memcpy(k_name->s_str, name, k_name->s_len);
-
-out:
 	log_debug("s_str=%.*s, s_len=%u", k_name->s_len, k_name->s_str,
 	           k_name->s_len);
-	return rc;
 }
 
 int _kvsns_prepare_dirent_key(const kvsns_ino_t dino, uint8_t namelen,
@@ -77,24 +69,16 @@ int _kvsns_prepare_dirent_key(const kvsns_ino_t dino, uint8_t namelen,
 {
 	int rc;
 
-	if (!key || !name || (namelen == 0) ||
-	    (namelen >= sizeof(key->d_name)))
-		return -EINVAL;
+	KVSNS_DASSERT(key && name && (namelen > 0));
 
 	memset(key, 0, sizeof(kvsns_dentry_key_t));
 	key->d_ver = KVSNS_VER_0;
 	key->d_type = KVSNS_KEY_DIRENT;
 	key->d_inode = dino;
 
-	rc = _kvsns_name_copy(name, namelen, &key->d_name);
-	if (rc != 0) {
-		log_err("kvsns_name_init failed, rc=%d", rc);
-		goto out;
-	}
-
+	 _kvsns_name_copy(name, namelen, &key->d_name);
 	rc = _kvsns_get_dirent_key_len(namelen);
 
-out:
 	log_debug("inode=%llu name=%.*s rc=%d", key->d_inode, key->d_name.s_len,
 		  key->d_name.s_str, rc);
 	return rc;
