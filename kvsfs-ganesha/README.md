@@ -4,6 +4,7 @@ Support for different file access protocols (like SAMBA, NFS etc.) to Seagate EO
 ### Prerequisite
 - Latest Mero rpms (`mero` and `mero-devel`) should be installed. Take the latest rpm from this [page](http://jenkins.mero.colo.seagate.com/share/bigstorage/releases/hermi/last_successful/mero/repo/)
 - `m0singlenode` service should be up and running before running nfs ganesha with mero/clovis
+* Install jemalloc (`yum install jemalloc`).
 - Specific version of NFS ganesha from phdaniels private branch and not from the public repo. Clone the NFS Ganesha [repo](https://github.com/phdeniel/nfs-ganesha.git). 
 --  Check out `KVSNS` branch
 -- Make a following change
@@ -22,7 +23,7 @@ Support for different file access protocols (like SAMBA, NFS etc.) to Seagate EO
     find_package(NTIRPC ${NTIRPC_VERSION} REQUIRED)
     else (USE_SYSTEM_NTIRPC)
     ```
-  -- Build and install the `nfs-ganesha` . Find the directions to compile [here.](https://github.com/nfs-ganesha/nfs-ganesha/wiki/Compiling)
+  -- Build and install the `nfs-ganesha`. Make sure `jemalloc` is used as the allocator (check `make edit_cache` in the build dir). Find the directions to compile [here.](https://github.com/nfs-ganesha/nfs-ganesha/wiki/Compiling)
 - Clovis sample apps should be built and it's rc files should be present. Please refer to this [page](https://github.com/seagate-ssg/clovis-sample-apps) for instructions on clovis-sample-apps.
 
 ### Build
