@@ -32,4 +32,22 @@
 	if (__rc < 0)        \
 		goto __label; })
 
+/* Uncomment this define if you want to get detailed trace
+ * of RC_WRAP_LABEL calls
+ */
+// #define ENABLE_RC_WRAP_LABEL_TRACE
+#if defined(ENABLE_RC_WRAP_LABEL_TRACE)
+
+#undef RC_WRAP_LABEL
+
+#define RC_WRAP_LABEL(__rc, __label, __function, ...) ({\
+	__rc = __function(__VA_ARGS__);\
+	fprintf(stderr, "%s:%d, %s(%s) = %d\n", __FILE__, __LINE__,\
+		# __function, #__VA_ARGS__, __rc); \
+	if (__rc < 0)        \
+		goto __label; })
+
+#endif
+
+
 #endif // _COMMON_H

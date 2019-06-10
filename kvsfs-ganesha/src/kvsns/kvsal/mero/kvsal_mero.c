@@ -244,6 +244,11 @@ int kvsal2_del(void *ctx, char *k, size_t klen)
 	return m0kvs2_del(ctx, k, klen);
 }
 
+int kvsal2_del_bin(void *ctx, const void *key, size_t klen)
+{
+	return m0kvs2_del(ctx, (char *) key, klen);
+}
+
 bool get_list_cb_size(char *k, void *arg)
 {
 	int size;
@@ -423,3 +428,8 @@ int kvsal_create_fs_ctx(unsigned long fs_id, void **fs_ctx)
 	return 0;
 }
 
+int kvsal_key_prefix_exists(void *ctx, const void *key, size_t klen,
+			    bool *result)
+{
+	return m0_key_prefix_exists(ctx, key, klen, result);
+}

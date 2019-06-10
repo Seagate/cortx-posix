@@ -78,6 +78,82 @@ out:
 	return rc;
 }
 
+static int kvsns_str2ino(const char *str, kvsns_ino_t *ino)
+{
+	unsigned long long val;
+	char *end;
+	int rc;
+
+	if (strnlen(str, 256) > snprintf(NULL, 0, "%llu", ULLONG_MAX)) {
+		fprintf(stderr, "String %s is too long\n", str);
+		rc = -EINVAL;
+		goto out;
+	}
+
+	val = strtoull(str, &end, 0);
+	if (val == ULLONG_MAX || val == 0) {
+		if (errno == ERANGE) {
+			fprintf(stderr, "ERANGE while parsing ino %s\n", str);
+			rc = -EINVAL;
+			goto out;
+		}
+	}
+
+	if (end != (str + strlen(str))) {
+		fprintf(stderr, "Trailing non-numeric chars (%s) "
+			"at the end of %s\n", end, str);
+		rc = -EINVAL;
+		goto out;
+	}
+
+	*ino = val;
+	rc = 0;
+
+out:
+	return rc;
+}
+
+static int kvsns_rename_pre(const kvsns_cred_t *pcred,
+			    uint64_t fs_id, kvsns_fs_ctx_t *fs_ctx)
+{
+	return kvsns_create_fs_ctx(fs_id, fs_ctx);
+}
+
+static int kvsns_rename_cmd(kvsns_fs_ctx_t fs_ctx, const kvsns_cred_t *pcred,
+			    const char *s_src_dir_ino,
+			    const char *s_src_name,
+			    const char *s_dst_dir_ino,
+			    const char *s_dst_name)
+{
+	int rc;
+	kvsns_ino_t sdir_ino;
+	kvsns_ino_t ddir_ino;
+	kvsns_cred_t cred;
+	static const kvsns_cred_t root_cred = { .uid = 0, .gid = 0 };
+
+	rc = kvsns_str2ino(s_src_dir_ino, &sdir_ino);
+	if (rc != 0) {
+		fprintf(stderr, "Cannot parse <src_dir>\n");
+		goto out;
+	}
+	rc = kvsns_str2ino(s_dst_dir_ino, &ddir_ino);
+	if (rc != 0) {
+		fprintf(stderr, "Cannot parse <dst_dir>\n");
+		goto out;
+	}
+
+	if (pcred) {
+		cred = *pcred;
+	} else {
+		cred = root_cred;
+	}
+
+	rc = kvsns_rename(fs_ctx, &cred,
+			  &sdir_ino, (char *) s_src_name,
+			  &ddir_ino, (char *) s_dst_name);
+out:
+	return rc;
+}
 
 int main(int argc, char *argv[])
 {
@@ -360,6 +436,51 @@ int main(int argc, char *argv[])
 		} else
 			printf("==> mkdir failed %llu/%s, rc: %d!\n",
 				current_inode, argv[1], rc);
+	} else if (!strcmp(exec_name, "kvsns2_mkdir")) {
+		if (argc != 3) {
+			fprintf(stderr, "kvsns2_mkdir <parent_ino> <dirname>\n");
+			exit(1);
+		}
+
+		rc = kvsns_create_fs_ctx(fs_id, &fs_ctx);
+		if (rc != 0) {
+			printf("Unable to create index for fs_id:%lu, rc=%d \n", fs_id, rc);
+			exit(1);
+		}
+
+		kvsns_ino_t parent_ino;
+		rc = kvsns_str2ino(argv[1], &parent_ino);
+		if (rc != 0) {
+			printf("Invalid inode.\n");
+			exit(1);
+		}
+		rc = kvsns_mkdir(fs_ctx, &cred, &parent_ino, argv[2], 0755, &ino);
+		if (rc == 0) {
+			printf("==> Created dir %llu/%llu (%s) \n", parent_ino, ino, argv[2]);
+			return rc;
+		} else
+			printf("==> mkdir failed %llu/%s, rc: %d!\n",
+				current_inode, argv[1], rc);
+	} else if (!strcmp(exec_name, "kvsns_rename")) {
+		if (argc != 5) {
+			fprintf(stderr, "kvsns_rename <sino> <src> <dino> <dst>\n");
+			exit(1);
+		}
+		rc = kvsns_rename_pre(&cred, fs_id, &fs_ctx);
+		if (rc != 0) {
+			fprintf(stderr, "Failed to prepare env for rename\n");
+			exit(1);
+		}
+		rc = kvsns_rename_cmd(fs_ctx, &cred, argv[1], argv[2], argv[3], argv[4]);
+		if (rc == 0) {
+			printf("==> Renamed %llu/%s/%s to %llu/%s/%s \n",
+			       current_inode, argv[1], argv[2],
+			       current_inode, argv[3], argv[4]);
+			return rc;
+		} else
+			printf("==> Renamed failed %llu/%s/%s to %llu/%s/%s, rc = %d \n",
+			       current_inode, argv[1], argv[2],
+			       current_inode, argv[3], argv[4], rc);
 	} else
 		fprintf(stderr, "%s does not exists\n", exec_name);
 	printf("######## OK ########\n");
