@@ -55,11 +55,7 @@
 #include <kvsns/kvsal.h>
 #include <kvsns/log.h>
 
-#ifdef DEBUG
 #define KVSNS_DASSERT(cond) assert(cond)
-#else
-#define KVSNS_DASSERT(cond)
-#endif
 
 #define KVSNS_ROOT_INODE 2LL
 #define KVSNS_ROOT_UID 0
@@ -98,13 +94,26 @@
 #define KVSNS_ACCESS_WRITE	2
 #define KVSNS_ACCESS_EXEC	4
 
+/** Access level required to create an object in a directory
+ * (in other words, to link an inode into a directory).
+ */
+#define KVSNS_ACCESS_CREATE_ENTITY \
+	(KVSNS_ACCESS_WRITE | KVSNS_ACCESS_EXEC)
+/** Access level required to delete an object in a directory
+ * (i.e., to unlink an inode from it).
+ */
+#define KVSNS_ACCESS_DELETE_ENTITY \
+	(KVSNS_ACCESS_WRITE | KVSNS_ACCESS_EXEC)
+
 #define KVSNS_NULL_FS_CTX NULL
 #define KVSNS_FS_ID_DEFAULT 0
 
 /* KVSAL related definitions and functions */
-
+/* TODO: replace with a struct */
 typedef unsigned long long int kvsns_ino_t;
+/* TODO: replace with a struct */
 typedef unsigned long int kvsns_fsid_t;
+/* TODO: replace with an opaque struct or just a struct at least */
 typedef void *kvsns_fs_ctx_t;
 
 /* KVSNS related definitions and functions */
@@ -154,64 +163,40 @@ typedef struct kvsns_fid {
 	uint64_t f_lo;
 } kvsns_fid_t;
 
-typedef struct kvsns_str256 {
-	uint8_t s_len;
-	char    s_str[NAME_MAX];
-} kvsns_str256_t;
-
-typedef kvsns_str256_t kvsns_name_t;
-
-/** Key val structure definitions and functions */
-typedef enum {
-	KVSNS_VER_0 = 0,
-	KVSNS_VER_INVALID,
-} kvsns_ver_t;
-
-typedef enum {
-	KVSNS_KEY_DIRENT = 1,
-	KVSNS_KEY_STAT,
-	KVSNS_KEY_INVALID,
-} kvsns_key_type_t;
-
-typedef struct kvsns_dentry_key_ {
-	kvsns_ino_t  d_inode;
-	uint8_t      d_type;
-	uint8_t      d_ver;
-	kvsns_name_t d_name;
-} kvsns_dentry_key_t;
-
-typedef kvsns_ino_t kvsns_dentry_val_t;
-
-typedef struct _kvsns_inode_key {
-	kvsns_ino_t k_inode;
-	uint8_t     k_type;
-	uint8_t     k_ver;
-} kvsns_inode_key_t;
-
+static inline int prepare_key(char k[], size_t klen, const char *fmt, ...)
+	__attribute__ ((format (printf, 3, 4)));
 /**
  * Generates a key based on variable parameter list.
- * *
+ *
  * @param: k - Buffer to store the generated key
- * @param: klen - Key length of the generated key
+ * @param: klen - Key length of the buffer
  * @param: fmt - String that contains a format string
- * ring that contains a format string
- * @return buffer length including '\0' if successful, a negative value in case
- * of failure
+ * @return buffer length ( > 1) including '\0' if successful,
+ *	   otherwise, -errno.
  */
 static inline int prepare_key(char k[], size_t klen, const char *fmt, ...)
 {
+	int rc;
 	va_list args;
-	va_start(args, fmt);
 
-	memset(k, 0, klen);
-	int rc = vsnprintf(k, klen, fmt, args);
-	if (rc > 0) {
-		rc = rc + 1 /* For \0 */;
+	va_start(args, fmt);
+	rc = vsnprintf(k, klen, fmt, args);
+	va_end(args);
+
+	if (rc < 0) {
+		rc = -errno;
+		log_err("Failed to format a key (fmt='%s', errno=%d)",
+			fmt, rc);
 		goto out;
 	}
-out:
-	va_end(args);
+
+	KVSNS_DASSERT(rc != 0);
+	KVSNS_DASSERT(rc < klen);
+
+	rc = rc + 1 /* For \0 */;
 	log_debug("key=%s len=%d", k, rc);
+
+out:
 	return rc;
 }
 
@@ -393,18 +378,18 @@ int kvsns_link(kvsns_cred_t *cred, kvsns_ino_t *ino, kvsns_ino_t *dino,
 	    char *dname);
 
 /**
- * Renames an entry.
- *
- * @param cred - pointer to user's credentials
- * @param sino - pointer to source directory's inode
- * @param sname - source name of the entry to be moved
- * @param dino - pointer to destination directory's inode
- * @param dname - name of the new entry in dino
- *
- * @return 0 if successful, a negative "-errno" value in case of failure
+ * Renames an entry in a filesystem.
+ * @param[in] fs_ctx - A context associated with the filesystem.
+ * @param[in] cred - User's credentials.
+ * @param [in] sino - Inode of the source dir.
+ * @param[in] sname - Name of the entry within `sino`.
+ * @param[in] dino - Inode of the destination dir.
+ * @param[in] dname - Name of the entry within `dino`.
+ * @return 0 if successfull, oterwise -errno.
  */
-int kvsns_rename(kvsns_cred_t *cred, kvsns_ino_t *sino, char *sname,
-		 kvsns_ino_t *dino, char *dname);
+int kvsns_rename(kvsns_fs_ctx_t fs_ctx, kvsns_cred_t *cred,
+		 kvsns_ino_t *sino_dir, char *sname,
+		 kvsns_ino_t *dino_dir, char *dname);
 
 /**
  * Finds the inode of an entry whose parent and name are known. This is the

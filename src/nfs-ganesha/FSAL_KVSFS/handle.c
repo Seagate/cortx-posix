@@ -214,6 +214,7 @@ fsal_status_t kvsfs_lookup_path(struct fsal_export *exp_hdl,
 	struct stat stat;
 	kvsns_cred_t cred;
 	struct kvsfs_fsal_obj_handle *hdl;
+	kvsns_fs_ctx_t fs_ctx = KVSNS_NULL_FS_CTX;
 
 	if (strcmp(path, "/"))
 		return fsalstat(ERR_FSAL_NOTSUPP, 0);
@@ -225,8 +226,20 @@ fsal_status_t kvsfs_lookup_path(struct fsal_export *exp_hdl,
 	cred.uid = op_ctx->creds->caller_uid;
 	cred.gid = op_ctx->creds->caller_gid;
 
+	/* TODO: Add a separate function to get fs_ctx from exp_hdl, i.e.:
+	 * int kvsfs_fsal_export_to_fs_ctx(struct fsal_export *exp,
+	 *				   kvsns_fs_ctx_t *pfs_ctx)
+	 * and use it here.
+	 */
+	rc = kvsfs_obj_to_kvsns_ctx(NULL, &fs_ctx);
+	if (rc != 0) {
+		LogCrit(COMPONENT_FSAL,
+			"Unable to get fs_ctx for export root: (%p,%s), rc=%d",
+			exp_hdl, path, rc);
+		return fsalstat(posix2fsal_error(-rc), -rc);
+	}
 
-	rc = kvsns_getattr(&cred, &object, &stat);
+	rc = kvsns2_getattr(fs_ctx, &cred, &object, &stat);
 	if (rc != 0)
 		return fsalstat(posix2fsal_error(-rc), -rc);
 
@@ -563,32 +576,97 @@ static fsal_status_t kvsfs_readdir(struct fsal_obj_handle *dir_hdl,
 	return fsalstat(posix2fsal_error(-retval), -retval);
 }
 
+/** Rename (re-link) an object in a filesystem.
+ *  @param[in] obj_hdl An existing object in the FS to be renamed.
+ *  @param[in] olddir_hdl A parent dir where the object is linked under the
+ *  name `old_name`.
+ *  @param[in] old_name The current name of the object.
+ *  @param[in] newdir_hdl A dir where the object will be linked under the name
+ *  `new_name`.
+ *  @param[in] new_name A name of the object.
+ *  @return @see kvsns2_rename error codes.
+*/
 static fsal_status_t kvsfs_rename(struct fsal_obj_handle *obj_hdl,
 				 struct fsal_obj_handle *olddir_hdl,
 				 const char *old_name,
 				 struct fsal_obj_handle *newdir_hdl,
 				 const char *new_name)
 {
-	struct kvsfs_fsal_obj_handle *olddir, *newdir;
+	struct kvsfs_fsal_obj_handle *olddir;
+	struct kvsfs_fsal_obj_handle *newdir;
+	struct kvsfs_fsal_obj_handle *obj;
+	kvsns_fs_ctx_t src_fs_ctx = KVSNS_NULL_FS_CTX;
+	kvsns_fs_ctx_t dst_fs_ctx = KVSNS_NULL_FS_CTX;
+	kvsns_fs_ctx_t obj_fs_ctx = KVSNS_NULL_FS_CTX;
 	fsal_errors_t fsal_error = ERR_FSAL_NO_ERROR;
-	int retval = 0;
+	int rc = 0;
 	kvsns_cred_t cred;
 
-	olddir =
-	    container_of(olddir_hdl, struct kvsfs_fsal_obj_handle, obj_handle);
-	newdir =
-	    container_of(newdir_hdl, struct kvsfs_fsal_obj_handle, obj_handle);
+	rc = kvsfs_obj_to_kvsns_ctx(obj_hdl, &obj_fs_ctx);
+	if (rc != 0) {
+		LogFatal(COMPONENT_FSAL,
+			 "Unable to get fs_ctx of obj_hdl '%p' (%d)",
+			 obj_hdl, -rc);
+		fsal_error = ERR_FSAL_SERVERFAULT;
+		goto out_err;
+	}
+	rc = kvsfs_obj_to_kvsns_ctx(olddir_hdl, &src_fs_ctx);
+	if (rc != 0) {
+		LogFatal(COMPONENT_FSAL,
+			 "Unable to get fs_ctx of olddir '%p' (%d)",
+			 olddir_hdl, -rc);
+		fsal_error = ERR_FSAL_SERVERFAULT;
+		goto out_err;
+	}
+	rc = kvsfs_obj_to_kvsns_ctx(newdir_hdl, &dst_fs_ctx);
+	if (rc != 0) {
+		LogFatal(COMPONENT_FSAL,
+			 "Unable to get fs_ctx of newdir '%p' (%d)",
+			 newdir_hdl, -rc);
+		fsal_error = ERR_FSAL_SERVERFAULT;
+		goto out_err;
+	}
+
+	if (obj_fs_ctx != src_fs_ctx) {
+		LogFatal(COMPONENT_FSAL,
+			 "obj fs_ctx does not match olddir fs_ctx "
+			 "'%p' != '%p'", obj_hdl, olddir_hdl);
+		rc = -EXDEV;
+		fsal_error = ERR_FSAL_XDEV;
+		goto out_err;
+	}
+	if (obj_fs_ctx != dst_fs_ctx) {
+		LogFatal(COMPONENT_FSAL,
+			 "obj fs_ctx does not match newdir fs_ctx "
+			 "'%p' != '%p'", obj_hdl, newdir_hdl);
+		rc = -EXDEV;
+		fsal_error = ERR_FSAL_XDEV;
+		goto out_err;
+	}
+
+	obj = container_of(obj_hdl, struct kvsfs_fsal_obj_handle, obj_handle);
+	olddir = container_of(olddir_hdl, struct kvsfs_fsal_obj_handle, obj_handle);
+	newdir = container_of(newdir_hdl, struct kvsfs_fsal_obj_handle, obj_handle);
 
 	cred.uid = op_ctx->creds->caller_uid;
 	cred.gid = op_ctx->creds->caller_gid;
 
-	retval = kvsns_rename(&cred,
-			      &olddir->handle->kvsfs_handle, (char *)old_name,
-			      &newdir->handle->kvsfs_handle, (char *)new_name);
+	/* NOTE: obj can be passed down in order to eliminate one extra
+	 * `lookup` call, but the inode of the object is not a part
+	 * of the kvsns_rename API right now.
+	 */
+	rc = kvsns_rename(obj_fs_ctx, &cred,
+			  &olddir->handle->kvsfs_handle, (char *)old_name,
+			  &newdir->handle->kvsfs_handle, (char *)new_name);
+	if (rc != 0) {
+		fsal_error = posix2fsal_error(-rc);
+		goto out_err;
+	}
 
-	if (retval)
-		fsal_error = posix2fsal_error(-retval);
-	return fsalstat(fsal_error, -retval);
+	return fsalstat(ERR_FSAL_NO_ERROR, 0);
+
+out_err:
+	return fsalstat(fsal_error, -rc);
 }
 
 /* FIXME: attributes are now merged into fsal_obj_handle.  This

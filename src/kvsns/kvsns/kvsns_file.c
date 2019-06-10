@@ -475,7 +475,7 @@ ssize_t kvsns2_write(void *ctx, kvsns_cred_t *cred, kvsns_file_open_t *fd,
 	stat.st_mtim = wstat.st_mtim;
 	stat.st_ctim = wstat.st_ctim;
 
-	RC_WRAP(kvsns2_ns_set_stat, ctx, &fd->ino, &stat);
+	RC_WRAP(kvsns2_set_stat, ctx, &fd->ino, &stat);
 	rc = write_amount;
 out:
 	log_trace("EXIT rc=%d", rc);
@@ -529,7 +529,7 @@ ssize_t kvsns2_read(void *ctx, kvsns_cred_t *cred, kvsns_file_open_t *fd,
 		rc = read_amount;
 		goto out;
 	}
-	RC_WRAP(kvsns2_ns_set_stat, ctx, &fd->ino, &stat);
+	RC_WRAP(kvsns2_set_stat, ctx, &fd->ino, &stat);
 	rc = read_amount;
 out:
 	log_trace("EXIT rc=%d", rc);

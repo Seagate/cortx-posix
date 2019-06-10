@@ -559,6 +559,10 @@ int m0_pattern2_kvs(void *ctx, char *k, char *pattern,
 			return rc;
 		}
 
+		/* FIXME: Memory leak? check m0_bufvec_alloc
+		 * documentation. We don't need to allocate
+		 * the buffer twice.
+		 */
 		keys.ov_buf[0] = m0_alloc(strnlen(myk, KLEN)+1);
 		keys.ov_vec.v_count[0] = strnlen(myk, KLEN)+1;
 		strcpy(keys.ov_buf[0], myk);
@@ -625,6 +629,75 @@ int m0_pattern2_kvs(void *ctx, char *k, char *pattern,
 	} while (!stop);
 
 	return size;
+}
+
+int m0_key_prefix_exists(void *ctx,
+			 const void *kprefix, size_t klen,
+			 bool *result)
+{
+	struct m0_bufvec keys;
+	struct m0_bufvec vals;
+	struct m0_clovis_op *op = NULL;
+	int rc;
+	int rcs[1];
+
+	rc = m0_bufvec_alloc(&keys, 1, klen);
+	if (rc != 0) {
+		goto out;
+	}
+
+	rc = m0_bufvec_empty_alloc(&vals, 1);
+	if (rc != 0) {
+		goto out_free_keys;
+	}
+
+	memset(keys.ov_buf[0], 0, keys.ov_vec.v_count[0]);
+	memcpy(keys.ov_buf[0], kprefix, klen);
+
+	rc = m0_clovis_idx_op(&idx, M0_CLOVIS_IC_NEXT, &keys, &vals,
+			      rcs, 0,  &op);
+
+	if (rc != 0) {
+		goto out_free_vals;
+	}
+
+	if (rcs[0] != 0) {
+		goto out_free_vals;
+	}
+
+	m0_clovis_op_launch(&op, 1);
+	rc = m0_clovis_op_wait(op, M0_BITS(M0_CLOVIS_OS_STABLE),
+			       M0_TIME_NEVER);
+	if (rc != 0) {
+		goto out_free_op;
+	}
+
+	if (rcs[0] == 0) {
+		/* The next key cannot be longer than the starting
+		 * key by the definition of lexicographical comparison
+		 */
+		KVSNS_DASSERT(keys.ov_vec.v_count[0] >= klen);
+		/* Check if the next key has the same prefix */
+		*result = memcmp(kprefix, keys.ov_buf[0], klen) == 0;
+		rc = 0;
+	} else if (rcs[0] == -ENOENT) {
+		*result = false;
+		rc = 0;
+	} else {
+		rc = rcs[0];
+	}
+
+out_free_op:
+	if (op) {
+		m0_clovis_op_fini(op);
+		m0_clovis_op_free(op);
+	}
+out_free_vals:
+	m0_bufvec_free(&vals);
+out_free_keys:
+	m0_bufvec_free(&keys);
+out:
+	return rc;
 }
 
 int m0_pattern_kvs(char *k, char *pattern,

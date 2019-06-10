@@ -94,6 +94,7 @@ int kvsal_get_list_size(char *pattern);
 int kvsal2_get_list_size(void *ctx, char *pattern, size_t size);
 int kvsal_del(char *k);
 int kvsal2_del(void *ctx, char *k, size_t klen);
+int kvsal2_del_bin(void *ctx, const void *key, size_t klen);
 int kvsal_incr_counter(char *k, unsigned long long *v);
 int kvsal2_incr_counter(void *ctx, char *k, unsigned long long *v);
 
@@ -105,5 +106,17 @@ int kvsal2_fetch_list(void *ctx, char *pattern, kvsal_list_t *list);
 int kvsal_dispose_list(kvsal_list_t *list);
 int kvsal_init_list(kvsal_list_t *list);
 int kvsal_create_fs_ctx(unsigned long fs_id, void **fs_ctx);
+
+
+/** Check if the given index (`ctx`) has at least one key with
+ * the prefix `kprefix` of len `klen`.
+ * @param[in, out] ctx - Index handle.
+ * @param[in] kprefix - Prefix of a key.
+ * @param[in] klen - Length of the prefix.
+ * @param[out] result - Presense of a key with such a prefix.
+ * @return 0 if successfull, otherwise -errno.
+ */
+int kvsal_key_prefix_exists(void *ctx, const void *key, size_t klen,
+			    bool *result);
 
 #endif

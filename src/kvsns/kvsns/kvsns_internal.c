@@ -30,73 +30,175 @@
  */
 
 
+/******************************************************************************/
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <time.h>
-#include <sys/time.h>
 #include <string.h>
+
+#include <sys/time.h>
 #include <linux/limits.h>
+
 #include <kvsns/kvsal.h>
 #include <kvsns/kvsns.h>
+
 #include "kvsns_internal.h"
 #include "kvsns/log.h"
 
-int _kvsns_ns_prepare_inode_key(kvsns_key_type_t type, kvsns_ino_t ino, kvsns_inode_key_t *key)
+/******************************************************************************/
+/* Private data types */
+
+/** Version of a namespace representation. */
+typedef enum kvsns_version {
+	KVSNS_VERSION_0 = 0,
+	KVSNS_VERSION_INVALID,
+} kvsns_version_t;
+
+/** Key type associated with particular version of a namespace representation.
+ */
+typedef enum kvsns_key_type {
+	KVSNS_KEY_TYPE_DIRENT = 1,
+	KVSNS_KEY_TYPE_PARENT,
+	KVSNS_KEY_TYPE_STAT,
+	KVSNS_KEY_TYPE_INVALID,
+	KVSNS_KEY_TYPES = KVSNS_KEY_TYPE_INVALID,
+} kvsns_key_type_t;
+
+static inline const char *kvsns_key_type_to_str(kvsns_key_type_t ktype)
 {
-	KVSNS_DASSERT(key != NULL);
-	KVSNS_DASSERT(ver <= KVSNS_VER_INVALID);
+	switch (ktype) {
+	case KVSNS_KEY_TYPE_DIRENT:
+		return "dentry";
+	case KVSNS_KEY_TYPE_PARENT:
+		return "parentdir";
+	case KVSNS_KEY_TYPE_STAT:
+		return "stat";
+	case KVSNS_KEY_TYPE_INVALID:
+		return "<invalid>";
+	}
 
-	memset(key, 0, sizeof(kvsns_inode_key_t));
-	key->k_ver = KVSNS_VER_0;
-	key->k_type = type;
-	key->k_inode = ino;
-
-	log_debug("inode=%llu type=%d", ino, type);
-	return sizeof(kvsns_inode_key_t);
+	KVSNS_DASSERT(0);
+	return "<fail>";
 }
 
-uint64_t _kvsns_get_dirent_key_len(const uint8_t namelen)
-{
-	uint64_t klen;
+/* Key metadata included into each key.
+ * The metadata has the same size across all versions of namespace representation
+ * (2 bytes).
+ */
+struct kvsns_key_md {
+	uint8_t type;
+	uint8_t version;
+} __attribute__((packed));
+typedef struct kvsns_key_md kvsns_key_md_t;
 
-	klen = (sizeof (kvsns_dentry_key_t) - sizeof (kvsns_name_t)) + namelen;
-	log_debug("klen=%lu", klen);
+/* Key for parent -> child mapping.
+ * Version 1: key = (parent, enrty_name), value = child.
+ * NOTE: This key has variable size.
+ * @see kvsns_parentdir_key for reverse mapping.
+ */
+struct kvsns_dentry_key {
+	kvsns_ino_t  pino;
+	kvsns_key_md_t md;
+	kvsns_name_t name;
+} __attribute((packed));
 
-	return klen;
+#define DENTRY_KEY_INIT(__pino, __name)			\
+{							\
+		.pino = __pino,				\
+		.md = {					\
+			.type = KVSNS_KEY_TYPE_DIRENT,	\
+			.version = KVSNS_VERSION_0,	\
+		},					\
+		.name = __name,				\
 }
 
-void _kvsns_name_copy(const char *name, uint8_t len, kvsns_name_t *k_name)
-{
+/** Dynamic size of a dentry key, i.e. the amount of bytest to be stored in
+ * the KVS storage.
+ */
+static inline size_t kvsns_dentry_key_dsize(const struct kvsns_dentry_key *key) {
+	return (sizeof(*key) - sizeof(key->name.s_str)) + key->name.s_len;
+}
+/** Pattern size of a dentry key, i.e. the size of a dentry prefix. */
+static const size_t kvsns_dentry_key_psize =
+	sizeof(struct kvsns_dentry_key) - sizeof(kvsns_name_t);
 
-	KVSNS_DASSERT(k_name  && name && (namelen > 0));
 
-	k_name->s_len = len;
-	memcpy(k_name->s_str, name, k_name->s_len);
-	log_debug("s_str=%.*s, s_len=%u", k_name->s_len, k_name->s_str,
-	           k_name->s_len);
+/* Key for child -> parent mapping.
+ * Version 1: key = (parent, child), value = link_count, where
+ * link_count is the amount of links between the parent and the child nodes.
+ * @see kvsns_dentry_key for direct mapping.
+ */
+struct kvsns_parentdir_key {
+	kvsns_ino_t ino;
+	kvsns_key_md_t md;
+	kvsns_ino_t pino;
+} __attribute__((packed));
+
+#define PARENTDIR_KEY_INIT(__ino, __pino)		\
+{							\
+		.ino = __ino,				\
+		.md = {					\
+			.type = KVSNS_KEY_TYPE_PARENT,	\
+			.version = KVSNS_VERSION_0,	\
+		},					\
+		.pino = __pino,				\
 }
 
-int _kvsns_prepare_dirent_key(const kvsns_ino_t dino, uint8_t namelen,
-			      const char *name, kvsns_dentry_key_t *key)
+typedef kvsns_ino_t kvsns_dentry_val_t;
+
+/* A generic key type for all attributes (properties) of an inode object */
+struct kvsns_inode_attr_key {
+	kvsns_ino_t ino;
+	kvsns_key_md_t md;
+} __attribute__((packed));
+
+#define INODE_ATTR_KEY_INIT(__ino, __ktype)		\
+{							\
+		.ino = __ino,				\
+		.md = {					\
+			.type = __ktype,		\
+			.version = KVSNS_VERSION_0,	\
+		},					\
+}
+
+static int kvsns_ns_get_inode_attr(kvsns_fs_ctx_t ctx,
+				   const kvsns_ino_t *ino,
+				   kvsns_key_type_t type,
+				   void *buf, size_t buf_size);
+
+static int kvsns_ns_set_inode_attr(kvsns_fs_ctx_t ctx,
+				   const kvsns_ino_t *ino,
+				   kvsns_key_type_t type,
+				   const void *buf, size_t buf_size);
+
+static int kvsns_ns_del_inode_attr(kvsns_fs_ctx_t ctx,
+				   const kvsns_ino_t *ino,
+				   kvsns_key_type_t type);
+
+/******************************************************************************/
+int kvsns_name_from_cstr(const char *name, kvsns_name_t *kname)
 {
 	int rc;
 
-	KVSNS_DASSERT(key && name && (namelen > 0));
+	rc = strlen(name);
 
-	memset(key, 0, sizeof(kvsns_dentry_key_t));
-	key->d_ver = KVSNS_VER_0;
-	key->d_type = KVSNS_KEY_DIRENT;
-	key->d_inode = dino;
+	if (rc > sizeof(kname->s_str)) {
+		log_err("Name '%s' is too long", name);
+		rc = -EINVAL;
+		goto out;
+	}
 
-	 _kvsns_name_copy(name, namelen, &key->d_name);
-	rc = _kvsns_get_dirent_key_len(namelen);
+	memset(kname->s_str, 0, sizeof(kname->s_str));
+	memcpy(kname->s_str, name, rc);
+	kname->s_len = rc;
 
-	log_debug("inode=%llu name=%.*s rc=%d", key->d_inode, key->d_name.s_len,
-		  key->d_name.s_str, rc);
+out:
 	return rc;
 }
+
+/******************************************************************************/
 
 int kvsns_next_inode(kvsns_ino_t *ino)
 {
@@ -165,6 +267,24 @@ int kvsns_parentlist2str(kvsns_ino_t *inolist, int size, char *str)
 		}
 
 	return 0;
+}
+
+int kvsns2_update_stat(kvsns_fs_ctx_t ctx, const kvsns_ino_t *ino, int flags)
+{
+	int rc;
+	struct stat stat;
+
+	KVSNS_DASSERT(ino);
+
+	RC_WRAP_LABEL(rc, out, kvsns2_get_stat, ctx, ino, &stat);
+	RC_WRAP_LABEL(rc, out, kvsns_amend_stat, &stat, flags);
+	RC_WRAP_LABEL(rc, out, kvsns2_set_stat, ctx, ino, &stat);
+
+out:
+	log_trace("Update stats (%d) for %llu, rc=%d",
+		  flags, *ino, rc);
+
+	return rc;
 }
 
 int kvsns_update_stat(kvsns_ino_t *ino, int flags)
@@ -250,15 +370,11 @@ int kvsns2_create_entry(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
 			kvsns_ino_t *new_entry, enum kvsns_type type)
 {
 	int	rc;
-	char	k[KLEN];
-	char	v[KLEN];
 	struct	stat bufstat;
 	struct	timeval t;
-	size_t	klen;
-	size_t  vlen;
 	size_t	namelen;
+	kvsns_name_t k_name;
 	struct  stat parent_stat;
-	kvsns_dentry_key_t d_key;
 
 	/* @todo use KVSNS_DASSERT here */
 	if (!cred || !parent || !name || !new_entry)
@@ -281,33 +397,16 @@ int kvsns2_create_entry(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
 	if (rc == 0)
 		return -EEXIST;
 
-	RC_WRAP(kvsns2_ns_get_stat, ctx, parent, &parent_stat);
+	RC_WRAP(kvsns2_next_inode, ctx, new_entry);
+	RC_WRAP(kvsns2_get_stat, ctx, parent, &parent_stat);
 
 	RC_WRAP(kvsal_begin_transaction);
 
 	/* @todo: Alloc mero bufvecs and use it for key to avoid extra mem copy
 	RC_WRAP_LABEL(rc, aborted, kvsns_alloc_dirent_key, namelen, &d_key); */
 
-	/* Create dentry key and add it to parent dentries list. */
-	RC_WRAP_LABEL(rc, aborted, _kvsns_prepare_dirent_key, *parent, namelen,
-		      name, &d_key);
-	klen = rc;
-	log_debug("d_key size=%lu", klen);
-	/* Get a new inode number for the new file and set it as val for
-	   dentry key */
-	RC_WRAP(kvsns2_next_inode, ctx, new_entry);
-
-	/* @todo: Release the inode in case any of the calls below fail.*/
-	RC_WRAP_LABEL(rc, aborted, kvsal2_set_bin, ctx, &d_key, klen, new_entry,
-		      sizeof new_entry);
-
-	/* Set the parentdir of the new file */
-	RC_WRAP_LABEL(rc, aborted, prepare_key, k, KLEN, "%llu.parentdir.%llu",
-		      *new_entry, *parent);
-	klen = rc;
-	RC_WRAP_LABEL(rc, aborted, prepare_key, v, VLEN, "%llu", *parent);
-	vlen = rc;
-	RC_WRAP_LABEL(rc, aborted, kvsal2_set_char, ctx,  k, klen, v, vlen);
+	(void) kvsns_name_from_cstr(name, &k_name);
+	RC_WRAP_LABEL(rc, aborted, kvsns_tree_attach, ctx, parent, new_entry, &k_name);
 
 	/* Set the stats of the new file */
 	memset(&bufstat, 0, sizeof(struct stat));
@@ -349,10 +448,10 @@ int kvsns2_create_entry(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
 		rc = -EINVAL;
 		goto aborted;
 	}
-	RC_WRAP_LABEL(rc, aborted, kvsns2_ns_set_stat, ctx, new_entry, &bufstat);
+	RC_WRAP_LABEL(rc, aborted, kvsns2_set_stat, ctx, new_entry, &bufstat);
 	RC_WRAP_LABEL(rc, aborted, kvsns_amend_stat, &parent_stat,
 		      STAT_CTIME_SET|STAT_MTIME_SET);
-	RC_WRAP_LABEL(rc, aborted, kvsns2_ns_set_stat, ctx, parent, &parent_stat);
+	RC_WRAP_LABEL(rc, aborted, kvsns2_set_stat, ctx, parent, &parent_stat);
 
 	RC_WRAP(kvsal_end_transaction);
 	return 0;
@@ -547,54 +646,23 @@ int kvsns_get_stat(kvsns_ino_t *ino, struct stat *bufstat)
 	return kvsal_get_stat(k, bufstat);
 }
 
-int kvsns2_ns_get_stat(kvsns_fs_ctx_t ctx, kvsns_ino_t *ino, struct stat *bufstat)
+int kvsns2_get_stat(kvsns_fs_ctx_t ctx, const kvsns_ino_t *ino,
+		    struct stat *bufstat)
 {
-	int rc;
-	kvsns_inode_key_t key;
-	size_t klen;
-
-	KVSNS_DASSERT(bufstat != NULL);
-	KVSNS_DASSERT(ino != NULL);
-
-	RC_WRAP_LABEL(rc, out, _kvsns_ns_prepare_inode_key, KVSNS_KEY_STAT, *ino, &key);
-	klen = rc;
-	RC_WRAP_LABEL(rc, out, kvsal2_get_stat, ctx, (char *)&key, klen, bufstat);
-
-out:
-	log_trace("rc=%d", rc);
-	return rc;
-
+	return kvsns_ns_get_inode_attr(ctx, ino, KVSNS_KEY_TYPE_STAT,
+				       bufstat, sizeof(*bufstat));
 }
 
-
-int kvsns_set_stat(kvsns_ino_t *ino, struct stat *bufstat)
+int kvsns2_set_stat(kvsns_fs_ctx_t ctx, const kvsns_ino_t *ino,
+		       const struct stat *bufstat)
 {
-	char k[KLEN];
-
-	if (!ino || !bufstat)
-		return -EINVAL;
-
-	memset(k, 0, KLEN);
-	snprintf(k, KLEN, "%llu.stat", *ino);
-	return kvsal_set_stat(k, bufstat);
+	return kvsns_ns_set_inode_attr(ctx, ino, KVSNS_KEY_TYPE_STAT,
+				       bufstat, sizeof(*bufstat));
 }
 
-int kvsns2_ns_set_stat(kvsns_fs_ctx_t ctx, kvsns_ino_t *ino, struct stat *bufstat)
+int kvsns2_del_stat(kvsns_fs_ctx_t ctx, const kvsns_ino_t *ino)
 {
-	int rc;
-	kvsns_inode_key_t key;
-	size_t klen;
-
-	KVSNS_DASSERT(bufstat != NULL);
-	KVSNS_DASSERT(ino != NULL);
-
-	RC_WRAP_LABEL(rc, out, _kvsns_ns_prepare_inode_key, KVSNS_KEY_STAT, *ino, &key);
-	klen = rc;
-	RC_WRAP_LABEL(rc, out, kvsal2_set_stat, ctx, (char *)&key, klen, bufstat);
-
-out:
-	log_trace("rc=%d", rc);
-	return rc;
+	return kvsns_ns_del_inode_attr(ctx, ino, KVSNS_KEY_TYPE_STAT);
 }
 
 int kvsns_lookup_path(kvsns_cred_t *cred, kvsns_ino_t *parent, char *path,
@@ -632,3 +700,265 @@ int kvsns_lookup_path(kvsns_cred_t *cred, kvsns_ino_t *parent, char *path,
 
 	return rc;
 }
+
+/******************************************************************************/
+static int kvsns_ns_get_inode_attr(kvsns_fs_ctx_t ctx,
+				   const kvsns_ino_t *ino,
+				   kvsns_key_type_t type,
+				   void *buf, size_t buf_size)
+{
+	int rc;
+	const struct kvsns_inode_attr_key key = INODE_ATTR_KEY_INIT(*ino, type);
+
+	KVSNS_DASSERT(buf && ino && buf_size != 0);
+
+	RC_WRAP_LABEL(rc, out, kvsal2_get_bin, ctx,
+		      &key, sizeof(key), buf, buf_size);
+
+out:
+	log_trace("GET %llu.%s = (%d), rc=%d", *ino,
+		  kvsns_key_type_to_str(type), (int) buf_size, rc);
+	return rc;
+}
+
+static int kvsns_ns_set_inode_attr(kvsns_fs_ctx_t ctx,
+				   const kvsns_ino_t *ino,
+				   kvsns_key_type_t type,
+				   const void *buf, size_t buf_size)
+{
+	int rc;
+	const struct kvsns_inode_attr_key key = INODE_ATTR_KEY_INIT(*ino, type);
+
+	KVSNS_DASSERT(buf && ino && buf_size != 0);
+
+	RC_WRAP_LABEL(rc, out, kvsal2_set_bin, ctx,
+		      &key, sizeof(key), buf, buf_size);
+
+out:
+	log_trace("SET %llu.%s = (%d), rc=%d", *ino,
+		  kvsns_key_type_to_str(type), (int) buf_size, rc);
+	return rc;
+
+}
+
+static int kvsns_ns_del_inode_attr(kvsns_fs_ctx_t ctx,
+				   const kvsns_ino_t *ino,
+				   kvsns_key_type_t type)
+{
+	int rc;
+	const struct kvsns_inode_attr_key key = INODE_ATTR_KEY_INIT(*ino, type);
+
+	KVSNS_DASSERT(ino);
+
+	RC_WRAP_LABEL(rc, out, kvsal2_del_bin, ctx, &key, sizeof(key));
+
+out:
+	log_trace("DEL %llu.%s, rc=%d", *ino,
+		  kvsns_key_type_to_str(type), rc);
+	return rc;
+}
+
+/******************************************************************************/
+
+
+int kvsns_get_inode(kvsns_fs_ctx_t ctx, kvsns_ino_t *ino, struct stat *bufstat)
+{
+	int rc;
+	const struct kvsns_inode_attr_key key =
+		INODE_ATTR_KEY_INIT(*ino, KVSNS_KEY_TYPE_STAT);
+
+	KVSNS_DASSERT(bufstat != NULL);
+	KVSNS_DASSERT(ino != NULL);
+
+	RC_WRAP_LABEL(rc, out, kvsal2_get_bin, ctx,
+		      &key, sizeof(key), bufstat, sizeof(*bufstat));
+
+out:
+	log_trace("GET %llu.stat, rc=%d", *ino, rc);
+	return rc;
+}
+
+
+int kvsns_set_stat(kvsns_ino_t *ino, struct stat *bufstat)
+{
+	char k[KLEN];
+
+	if (!ino || !bufstat)
+		return -EINVAL;
+
+	memset(k, 0, KLEN);
+	snprintf(k, KLEN, "%llu.stat", *ino);
+	return kvsal_set_stat(k, bufstat);
+}
+
+/******************************************************************************/
+int kvsns_tree_detach(kvsns_fs_ctx_t fs_ctx,
+		      const kvsns_ino_t *parent_ino,
+		      const kvsns_ino_t *ino,
+		      const kvsns_name_t *node_name)
+{
+	int rc;
+	const struct kvsns_dentry_key dentry_key =
+		DENTRY_KEY_INIT(*parent_ino, *node_name);
+	const struct kvsns_parentdir_key parent_key =
+		PARENTDIR_KEY_INIT(*ino, *parent_ino);
+	uint64_t parent_value;
+
+	// Remove dentry
+	RC_WRAP_LABEL(rc, out, kvsal2_del_bin, fs_ctx,
+		      &dentry_key, kvsns_dentry_key_dsize(&dentry_key));
+
+	// Update parent link count
+	RC_WRAP_LABEL(rc, out, kvsal2_get_bin, fs_ctx,
+		      &parent_key, sizeof(parent_key),
+		      &parent_value, sizeof(parent_value));
+	parent_value--;
+	if (parent_value > 0){
+		RC_WRAP_LABEL(rc, out, kvsal2_set_bin, fs_ctx,
+			      &parent_key, sizeof(parent_key),
+			      &parent_value, sizeof(parent_value));
+	} else {
+		RC_WRAP_LABEL(rc, out, kvsal2_del_bin, fs_ctx,
+			      &parent_key, sizeof(parent_key));
+	}
+
+	// Update stats
+	RC_WRAP_LABEL(rc, out, kvsns2_update_stat, fs_ctx, parent_ino,
+		      STAT_CTIME_SET|STAT_INCR_LINK);
+
+out:
+	log_debug("tree_detach(%p,pino=%llu,ino=%llu,n=%.*s) = %d",
+		  fs_ctx, *parent_ino, *ino, node_name->s_len, node_name->s_str, rc);
+	return rc;
+}
+
+/******************************************************************************/
+int kvsns_tree_attach(kvsns_fs_ctx_t fs_ctx,
+		      const kvsns_ino_t *parent_ino,
+		      const kvsns_ino_t *ino,
+		      const kvsns_name_t *node_name)
+{
+	int rc;
+	const struct kvsns_dentry_key dentry_key =
+		DENTRY_KEY_INIT(*parent_ino, *node_name);
+	const struct kvsns_parentdir_key parent_key =
+		PARENTDIR_KEY_INIT(*ino, *parent_ino);
+	const kvsns_ino_t dentry_value = *ino;
+	uint64_t parent_value;
+
+	// Add detntry
+	RC_WRAP_LABEL(rc, out, kvsal2_set_bin, fs_ctx,
+		      &dentry_key, kvsns_dentry_key_dsize(&dentry_key),
+		      &dentry_value, sizeof(dentry_value));
+
+	// Update parent link count
+	rc = kvsal2_get_bin(fs_ctx,
+			    &parent_key, sizeof(parent_key),
+			    &parent_value, sizeof(parent_value));
+	if (rc == -ENOENT) {
+		parent_value = 0;
+		rc = 0;
+	}
+
+	if (rc < 0) {
+		log_err("Failed to get parent key for %llu/%llu", *parent_ino, *ino);
+		goto out;
+	}
+	parent_value++;
+	RC_WRAP_LABEL(rc, out, kvsal2_set_bin, fs_ctx,
+		      &parent_key, sizeof(parent_key),
+		      &parent_value, sizeof(parent_value));
+
+	// Update stats
+	RC_WRAP_LABEL(rc, out, kvsns2_update_stat, fs_ctx, parent_ino,
+		      STAT_CTIME_SET|STAT_INCR_LINK);
+
+out:
+	log_debug("tree_attach(%p,pino=%llu,ino=%llu,n=%.*s) = %d",
+		  fs_ctx, *parent_ino, *ino, node_name->s_len, node_name->s_str, rc);
+	return rc;
+}
+
+/******************************************************************************/
+int kvsns_tree_rename_link(kvsns_fs_ctx_t fs_ctx,
+			   const kvsns_ino_t *parent_ino,
+			   const kvsns_ino_t *ino,
+			   const kvsns_name_t *old_name,
+			   const kvsns_name_t *new_name)
+{
+	int rc;
+	struct kvsns_dentry_key dentry_key =
+		DENTRY_KEY_INIT(*parent_ino, *old_name);
+	const kvsns_ino_t dentry_value = *ino;
+
+	// The caller must ensure that the entry exists prior renaming */
+	KVSNS_DASSERT(kvsns_tree_lookup(fs_ctx, parent_ino, old_name, NULL) == 0);
+
+	// Remove dentry
+	RC_WRAP_LABEL(rc, out, kvsal2_del_bin, fs_ctx,
+		      &dentry_key, kvsns_dentry_key_dsize(&dentry_key));
+
+	dentry_key.name = *new_name;
+
+	// Add detntry
+	RC_WRAP_LABEL(rc, out, kvsal2_set_bin, fs_ctx,
+		      &dentry_key, kvsns_dentry_key_dsize(&dentry_key),
+		      &dentry_value, sizeof(dentry_value));
+
+	// Update ctime stat
+	RC_WRAP_LABEL(rc, out, kvsns2_update_stat, fs_ctx, parent_ino,
+		      STAT_CTIME_SET);
+out:
+	log_debug("tree_rename(%p,pino=%llu,ino=%llu,o=%.*s,n=%.*s) = %d",
+		  fs_ctx, *parent_ino, *ino,
+		  old_name->s_len, old_name->s_str,
+		  new_name->s_len, new_name->s_str, rc);
+	return rc;
+}
+
+/******************************************************************************/
+int kvsns_tree_has_children(kvsns_fs_ctx_t fs_ctx,
+			    const kvsns_ino_t *ino,
+			    bool *has_children)
+{
+	int rc;
+	const struct kvsns_dentry_key key = DENTRY_KEY_INIT(*ino, {});
+
+	RC_WRAP_LABEL(rc, out, kvsal_key_prefix_exists, fs_ctx,
+		      &key, kvsns_dentry_key_psize, has_children);
+
+out:
+	log_debug("%llu has at least %d children, rc=%d",
+		  *ino, (int) *has_children, rc);
+	return rc;
+}
+
+/******************************************************************************/
+int kvsns_tree_lookup(kvsns_fs_ctx_t fs_ctx,
+		      const kvsns_ino_t *parent_ino,
+		      const kvsns_name_t *name,
+		      kvsns_ino_t *ino)
+{
+	const struct kvsns_dentry_key key = DENTRY_KEY_INIT(*parent_ino, *name);
+	kvsns_ino_t value = 0;
+	int rc;
+
+	KVSNS_DASSERT(parent_ino && name);
+
+	RC_WRAP_LABEL(rc, out, kvsal2_get_bin, fs_ctx,
+		      &key, kvsns_dentry_key_dsize(&key),
+		      &value, sizeof(value));
+
+	if (ino) {
+		*ino = value;
+	}
+
+out:
+	log_debug("GET %llu.dentries.%.*s (%d) = %llu, rc=%d",
+		  *parent_ino, key.name.s_len, key.name.s_str,
+		  (int) kvsns_dentry_key_dsize(&key),
+		  value, rc);
+	return rc;
+}
+
+/******************************************************************************/

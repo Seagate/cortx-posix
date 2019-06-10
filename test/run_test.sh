@@ -1,23 +1,41 @@
+#!/bin/bash
 
-#!/usr/bin/bash
+# set up base paths and names
+KVSNS_BUILD_DIR=${KVSNS_BUILD_DIR:-/tmp/kvsns_build}
+KVSNS_TEST_LOG_DIR=${KVSNS_TEST_LOG_DIR:-/var/log}
+KVSNS_TEST_MAIN_LOG_FILE_NAME=kvsns_test_log.txt
+SCRIPT_RUNNER_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
-TEST_DIR=/tmp/kvsns_build/kvsns_shell
-TEST_LOG=/var/log/kvsns_test_log.txt
+# set up derived paths
+KVSNS_SHELL_DIR="$KVSNS_BUILD_DIR/kvsns_shell"
+
+# Additional env
+TEST_DIR="$KVSNS_SHELL_DIR"
+MY_DIR="$SCRIPT_RUNNER_DIR"
+TEST_LOG="$KVSNS_TEST_LOG_DIR/$KVSNS_TEST_MAIN_LOG_FILE_NAME"
+
+
 num_failed=0
 num_passed=0
 
+print_env() {
+    echo "KVSNS_BUILD_DIR=$KVSNS_BUILD_DIR"
+    echo "KVSNS_TEST_LOG_DIR=$KVSNS_TEST_LOG_DIR"
+    echo "SCRIPT_RUNNER_DIR=$SCRIPT_RUNNER_DIR"
+}
 
-MY_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-echo $MY_DIR
+print_env
 
 echo "Cleaning up old logs and mero trace files"
-rm $TEST_LOG
-rm $MY_DIR/m0trace.*
+[[ -e "$TEST_LOG" ]] && rm "$TEST_LOG"
+find $PWD -maxdepth 1 -name 'm0trace.*' -type f -size +1M -exec rm {} ';'
 
-TEST_SCRIPTS=$MY_DIR/../src/kvsns/tests
+TEST_SCRIPTS="$MY_DIR/../src/kvsns/tests"
 failed=0
 passed=0
 
+# Imports
+. $SCRIPT_RUNNER_DIR/libtest.bashlib
 
 run_tests ()
 {
