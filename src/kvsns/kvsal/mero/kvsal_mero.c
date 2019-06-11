@@ -102,10 +102,16 @@ int kvsal2_set_char(void *ctx, char *k, size_t klen, char *v, size_t vlen)
 	return m0kvs2_set(ctx, k, klen, v, vlen);
 }
 
-int kvsal2_set_bin(void *ctx, const void *k, size_t klen, const void *v,
+int kvsal2_set_bin(void *ctx, void *k, size_t klen, const void *v,
 		   size_t vlen)
 {
-	return m0kvs2_set(ctx, k, klen, v, vlen);
+	return m0kvs3_set(ctx, k, klen, v, vlen);
+}
+
+int kvsal3_set_bin(void *ctx, void *k, size_t klen, const void *v,
+		   size_t vlen)
+{
+	return m0kvs3_set(ctx, k, klen, v, vlen);
 }
 
 int kvsal_get_char(char *k, char *v)
@@ -122,9 +128,9 @@ int kvsal2_get_char(void *ctx, char *k, size_t klen, char *v, size_t vlen)
 	return m0kvs2_get(ctx, k, klen, v, &vlen);
 }
 
-int kvsal2_get_bin(void *ctx, const void *k, size_t klen, void *v, size_t vlen)
+int kvsal2_get_bin(void *ctx, void *k, size_t klen, void *v, size_t vlen)
 {
-	return m0kvs2_get(ctx, k, klen, v, &vlen);
+	return m0kvs3_get(ctx, k, klen, v, &vlen);
 }
 
 int kvsal_set_stat(char *k, struct stat *buf)
@@ -421,5 +427,15 @@ int kvsal_create_fs_ctx(unsigned long fs_id, void **fs_ctx)
 		return rc;
 	}
 	return 0;
+}
+
+int kvsal_alloc_buf(uint64_t size, void **buf_desc, void **buf)
+{
+	return m0kvs_buf_alloc(size, buf_desc, buf);
+}
+
+void kvsal_free_buf(void **buf)
+{
+	m0kvs_buf_free(buf);
 }
 

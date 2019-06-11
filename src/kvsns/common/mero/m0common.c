@@ -1,4 +1,4 @@
-/* -*- C -*- */
+/* -*- C	 -*- */
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -403,6 +403,35 @@ out:
 	return rc;
 }
 
+int m0kvs3_get(void *ctx, void *k, size_t klen,
+	       void *v, size_t *vlen)
+{
+	struct m0_bufvec	 val;
+	int rc;
+
+	if (!my_init_done)
+		m0kvs_reinit();
+
+	rc = m0_bufvec_empty_alloc(&val, 1);
+	if (rc < 0)
+		goto out;
+
+	memset(v, 0, *vlen);
+
+	rc = m0_op2_kvs(ctx, M0_CLOVIS_IC_GET, k, &val);
+	if (rc)
+		goto cleanup;
+
+	*vlen = (size_t)val.ov_vec.v_count[0];
+	memcpy(v, (char *)val.ov_buf[0], *vlen);
+
+cleanup:
+	m0_bufvec_free(&val);
+
+out:
+	return rc;
+}
+
 int m0kvs2_get(void *ctx, const void *k, size_t klen,
 	       void *v, size_t *vlen)
 {
@@ -453,6 +482,31 @@ int m0kvs_set(char *k, size_t klen,
 	rc = m0_op_kvs(M0_CLOVIS_IC_PUT, &key, &val);
 out:
 	m0_bufvec_free(&key);
+	m0_bufvec_free(&val);
+	return rc;
+}
+
+int m0kvs3_set(void *ctx, void *k, size_t klen,
+	       const void *v, size_t vlen)
+{
+	struct m0_bufvec	 val;
+	int rc;
+
+	/* @todo: This might kill the performance. Find a cleaner way to do check. */
+	if (!my_init_done)
+		m0kvs_reinit();
+
+
+	rc = m0_bufvec_alloc(&val, 1, vlen);
+	if (rc != 0) {
+		goto cleanup;
+	}
+
+	memcpy(val.ov_buf[0], v, vlen);
+
+	rc = m0_op2_kvs(ctx, M0_CLOVIS_IC_PUT, k, &val);
+
+cleanup:
 	m0_bufvec_free(&val);
 	return rc;
 }
@@ -1397,3 +1451,43 @@ ssize_t m0store_get_bsize(struct m0_uint128 id)
 			m0_clovis_layout_id(clovis_instance));
 }
 
+int m0kvs_buf_alloc(uint64_t size, void **buf_desc, void **buf)
+{
+	struct m0_bufvec *vec = NULL;
+	int rc;
+
+	M0_ALLOC_PTR(vec);
+	if (vec == NULL) {
+		rc = -ENOMEM;
+		log_err("failed to alloc vec ptr");
+		goto out;
+	}
+
+	rc = m0_bufvec_alloc(vec, 1, size);
+	if (rc < 0) {
+		log_err("Failed to alloc bufvec, size=%lu, rc=%d", size, rc);
+		goto cleanup;
+	}
+
+	*buf_desc = vec;
+	*buf = vec->ov_buf[0];
+	goto out;
+
+cleanup:
+	m0_free(vec);
+
+out:
+	log_debug("Exit rc=%d size=%lu buf=%p", rc, size, buf);
+	return rc;
+}
+
+void m0kvs_buf_free(void **ptr)
+{
+	struct m0_bufvec *vec;
+	KVSNS_DASSERT(ptr != NULL);
+	KVSNS_DASSERT(*ptr != NULL);
+
+	vec = *ptr;
+	m0_bufvec_free(vec);
+	m0_free(vec);
+}

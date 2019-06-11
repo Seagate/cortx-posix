@@ -52,10 +52,14 @@ int m0kvs_set(char *k, size_t klen,
 	      char *v, size_t vlen);
 int m0kvs2_set(void *ctx, const void *k, size_t klen,
 	      const void *v, size_t vlen);
+int m0kvs3_set(void *ctx, void *k, size_t klen,
+	       const void *v, size_t vlen);
 int m0kvs_get(char *k, size_t klen,
 	      char *v, size_t *vlen);
 int m0kvs2_get(void *ctx, const void *k, size_t klen,
 	        void *v, size_t *vlen);
+int m0kvs3_get(void *ctx, void *k, size_t klen,
+	       void *v, size_t *vlen);
 int m0kvs_del(char *k, size_t klen);
 int m0kvs2_del(void *ctx, char *k, size_t klen);
 void m0_iter_kvs(char *k);
@@ -67,6 +71,8 @@ int m0store_create_object(struct m0_uint128 id);
 int m0store_delete_object(struct m0_uint128 id);
 int m0_ufid_get(struct m0_uint128 *ufid);
 int m0_fid_to_string(struct m0_uint128 *fid, char *fid_s);
+int m0kvs_buf_alloc(uint64_t size, void **buf_desc, void **buf);
+void m0kvs_buf_free(void **ptr);
 
 #define M0STORE_BLK_COUNT 10
 
@@ -101,6 +107,7 @@ static inline void m0_fid_copy(struct m0_uint128 *src, struct m0_uint128 *dest)
 }
 
 int m0_idx_create(uint64_t fs_id, struct m0_clovis_idx **index);
+
 
 #endif
 /*

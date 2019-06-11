@@ -79,11 +79,13 @@ int kvsal_exists(char *k);
 int kvsal2_exists(void * ctx, char *k, size_t klen);
 int kvsal_set_char(char *k, char *v);
 int kvsal2_set_char(void *ctx, char *k, size_t klen, char *v, size_t vlen);
-int kvsal2_set_bin(void *ctx, const void *k, size_t klen, const void *v,
+int kvsal2_set_bin(void *ctx, void *k, size_t klen, const void *v,
+		   size_t vlen);
+int kvsal3_set_bin(void *ctx, void *k, size_t klen, const void *v,
 		   size_t vlen);
 int kvsal_get_char(char *k, char *v);
 int kvsal2_get_char(void *ctx, char *k, size_t klen, char *v, size_t vlen);
-int kvsal2_get_bin(void *ctx, const void *k, size_t klen, void *v, size_t vlen);
+int kvsal2_get_bin(void *ctx, void *k, size_t klen, void *v, size_t vlen);
 int kvsal_set_binary(char *k, char *buf, size_t size);
 int kvsal_get_binary(char *k, char *buf, size_t *size);
 int kvsal_set_stat(char *k, struct stat *buf);
@@ -105,5 +107,7 @@ int kvsal2_fetch_list(void *ctx, char *pattern, kvsal_list_t *list);
 int kvsal_dispose_list(kvsal_list_t *list);
 int kvsal_init_list(kvsal_list_t *list);
 int kvsal_create_fs_ctx(unsigned long fs_id, void **fs_ctx);
+int kvsal_alloc_buf(uint64_t size, void **buf_desc, void **buf);
+void kvsal_free_buf(void **buf);
 
 #endif

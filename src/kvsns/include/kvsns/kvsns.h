@@ -159,6 +159,11 @@ typedef struct kvsns_str256 {
 	char    s_str[NAME_MAX];
 } kvsns_str256_t;
 
+typedef struct kvsns_buf {
+	void *b_desc;
+	void *b_data;
+} kvsns_buf_t;
+
 typedef kvsns_str256_t kvsns_name_t;
 
 

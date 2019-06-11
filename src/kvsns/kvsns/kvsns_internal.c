@@ -53,6 +53,34 @@ uint64_t _kvsns_get_dirent_key_len(const uint8_t namelen)
 	return klen;
 }
 
+int kvsns_ns_get_dirent_key_buf(uint8_t namelen, kvsns_buf_t *kbuf)
+{
+	int	rc;
+	uint64_t size;
+
+
+	size = _kvsns_get_dirent_key_len(namelen);
+	rc = kvsal_alloc_buf(size, &kbuf->b_desc, &kbuf->b_data);
+	if (rc != 0) {
+		log_err("Could not allocate key, rc=%d", rc);
+		goto out;
+	}
+out:
+	log_debug("size=%lu, kbuf->b_desc=%p kbuf->b_data=%p,rc=%d", size,
+		   kbuf->b_desc, kbuf->b_data, rc);
+	return rc;
+}
+
+void kvsns_ns_release_buf(void **buf)
+{
+	kvsal_free_buf(buf);
+}
+
+void kvsns_ns_dirent_put_key_buf(kvsns_buf_t *kbuf)
+{
+	kvsns_ns_release_buf(&kbuf->b_desc);
+}
+
 void _kvsns_name_copy(const char *name, uint8_t len, kvsns_name_t *k_name)
 {
 
@@ -65,11 +93,15 @@ void _kvsns_name_copy(const char *name, uint8_t len, kvsns_name_t *k_name)
 }
 
 int _kvsns_prepare_dirent_key(const kvsns_ino_t dino, uint8_t namelen,
-			      const char *name, kvsns_dentry_key_t *key)
+			      const char *name, kvsns_buf_t *kbuf)
 {
 	int rc;
+	kvsns_dentry_key_t *key;
 
-	KVSNS_DASSERT(key && name && (namelen > 0));
+	KVSNS_DASSERT(key && name && (namelen > 0) && kbuf);
+
+	key = kbuf->b_data;
+	KVSNS_DASSERT(key != NULL);
 
 	memset(key, 0, sizeof(kvsns_dentry_key_t));
 	key->d_ver = KVSNS_VER_0;
@@ -79,8 +111,8 @@ int _kvsns_prepare_dirent_key(const kvsns_ino_t dino, uint8_t namelen,
 	 _kvsns_name_copy(name, namelen, &key->d_name);
 	rc = _kvsns_get_dirent_key_len(namelen);
 
-	log_debug("inode=%llu name=%.*s rc=%d", key->d_inode, key->d_name.s_len,
-		  key->d_name.s_str, rc);
+	log_debug("key=%p, inode=%llu name=%.*s rc=%d", key, key->d_inode,
+		  key->d_name.s_len, key->d_name.s_str, rc);
 	return rc;
 }
 
@@ -230,6 +262,7 @@ static int kvsns_create_check_name(const char *name, size_t len)
 	return 0;
 }
 
+
 /* @todo : Replace void *ctx with kvsns_fs_ctx_t */
 int kvsns2_create_entry(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
 			char *name, char *lnk, mode_t mode,
@@ -244,7 +277,7 @@ int kvsns2_create_entry(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
 	size_t  vlen;
 	size_t	namelen;
 	struct  stat parent_stat;
-	kvsns_dentry_key_t d_key;
+	kvsns_buf_t kbuf;
 
 	/* @todo use KVSNS_DASSERT here */
 	if (!cred || !parent || !name || !new_entry)
@@ -271,21 +304,25 @@ int kvsns2_create_entry(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
 
 	RC_WRAP(kvsal_begin_transaction);
 
-	/* @todo: Alloc mero bufvecs and use it for key to avoid extra mem copy
-	RC_WRAP_LABEL(rc, aborted, kvsns_alloc_dirent_key, namelen, &d_key); */
+	/* @todo: Alloc mero bufvecs and use it for key to avoid extra memcpy */
+	RC_WRAP_LABEL(rc, aborted, kvsns_ns_get_dirent_key_buf, namelen,
+		      &kbuf);
 
 	/* Create dentry key and add it to parent dentries list. */
 	RC_WRAP_LABEL(rc, aborted, _kvsns_prepare_dirent_key, *parent, namelen,
-		      name, &d_key);
+		      name, &kbuf);
 	klen = rc;
-	log_debug("d_key size=%lu", klen);
+	log_debug("dirent_key_size=%lu", klen);
 	/* Get a new inode number for the new file and set it as val for
 	   dentry key */
 	RC_WRAP(kvsns2_next_inode, ctx, new_entry);
 
 	/* @todo: Release the inode in case any of the calls below fail.*/
-	RC_WRAP_LABEL(rc, aborted, kvsal2_set_bin, ctx, &d_key, klen, new_entry,
-		      sizeof new_entry);
+	RC_WRAP_LABEL(rc, aborted, kvsal3_set_bin, ctx, kbuf.b_desc, klen,
+		      new_entry, sizeof new_entry);
+
+	kvsns_ns_dirent_put_key_buf(&kbuf);
+
 
 	/* Set the parentdir of the new file */
 	RC_WRAP_LABEL(rc, aborted, prepare_key, k, KLEN, "%llu.parentdir.%llu",

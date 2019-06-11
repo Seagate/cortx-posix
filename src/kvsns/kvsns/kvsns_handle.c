@@ -301,8 +301,9 @@ int kvsns2_lookup(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
 	int rc;
 	size_t klen, namelen;
 
-	kvsns_dentry_key_t dkey;
+	kvsns_dentry_key_t *dkey;
 	kvsns_dentry_val_t dval;
+	kvsns_buf_t  kbuf;
 
 	if (!cred || !parent || !name || !ino)
 		return -EINVAL;
@@ -310,20 +311,22 @@ int kvsns2_lookup(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
 	RC_WRAP(kvsns2_access, ctx, cred, parent, KVSNS_ACCESS_READ);
 
 	namelen = strlen(name);
+	RC_WRAP_LABEL(rc, aborted, kvsns_ns_get_dirent_key_buf, namelen,
+		      &kbuf);
 	RC_WRAP_LABEL(rc, aborted, _kvsns_prepare_dirent_key, *parent, namelen,
-		      name, &dkey);
+		      name, &kbuf);
 	klen = rc;
-	RC_WRAP_LABEL(rc, aborted, kvsal2_get_bin, ctx, &dkey, klen,
+	dkey = kbuf.b_data;
+	RC_WRAP_LABEL(rc, aborted, kvsal2_get_bin, ctx, kbuf.b_desc, klen,
 		     (char *)&dval, sizeof dval);
 
 	*ino = (kvsns_ino_t)dval;
 
 aborted:
-	log_debug("%llu.dentries.%.*s = %llu rc=%d", *parent, dkey.d_name.s_len,
-		  dkey.d_name.s_str, *ino, rc);
+	log_debug("%llu.dentries.%.*s = %llu rc=%d", *parent,
+		  dkey->d_name.s_len, dkey->d_name.s_str, *ino, rc);
+	kvsns_ns_dirent_put_key_buf(kbuf);
 	return rc;
-
-
 }
 
 
