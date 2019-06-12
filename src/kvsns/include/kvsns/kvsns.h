@@ -164,7 +164,7 @@ typedef struct kvsns_str256 {
 	void *b_desc;
 	void *b_data;
 } kvsns_buf_t;
-*/:w
+*/
 
 typedef void *kvsns_buf_t;
 

@@ -47,7 +47,7 @@ void kvsns_ptr_to_buf(const void *ptr, void **buf)
 {
 	KVSNS_DASSERT(ptr != NULL);
 	KVSNS_DASSERT(buf != NULL);
-	
+
 	*buf = *ptr;
 	log_debug("&buf=%p, buf = %p", *buf, **buf);
 }
@@ -76,7 +76,7 @@ int kvsns_ns_get_dirent_key_buf(uint8_t namelen, kvsns_buf_t **kbuf)
 	}
 	log_debug("ptr=%p", ptr);
 	kvsns_ptr_to_buf(ptr, kbuf);
-		
+
 out:
 	log_debug("size=%lu, kbuf=%p ,rc=%d", size, kbuf, rc);
 	return rc;
