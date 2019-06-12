@@ -303,7 +303,7 @@ int kvsns2_lookup(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
 
 	kvsns_dentry_key_t *dkey;
 	kvsns_dentry_val_t dval;
-	kvsns_buf_t  kbuf;
+	kvsns_buf_t  *kbuf = NULL;
 
 	if (!cred || !parent || !name || !ino)
 		return -EINVAL;
@@ -314,10 +314,9 @@ int kvsns2_lookup(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
 	RC_WRAP_LABEL(rc, aborted, kvsns_ns_get_dirent_key_buf, namelen,
 		      &kbuf);
 	RC_WRAP_LABEL(rc, aborted, _kvsns_prepare_dirent_key, *parent, namelen,
-		      name, &kbuf);
+		      name, kbuf);
 	klen = rc;
-	dkey = kbuf.b_data;
-	RC_WRAP_LABEL(rc, aborted, kvsal2_get_bin, ctx, kbuf.b_desc, klen,
+	RC_WRAP_LABEL(rc, aborted, kvsal2_get_bin, ctx, kbuf, klen,
 		     (char *)&dval, sizeof dval);
 
 	*ino = (kvsns_ino_t)dval;

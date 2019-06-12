@@ -403,14 +403,25 @@ out:
 	return rc;
 }
 
+void m0kvs_buf_to_vec(const void *buf, void **vec)
+{
+	KVSNS_DASSERT(ov_buf != NULL)
+	*vec = container_of(buf, struct m0_bufvec, ov_buf);
+	log_debug("struct bufvec=%p", vec);
+}
+
 int m0kvs3_get(void *ctx, void *k, size_t klen,
 	       void *v, size_t *vlen)
 {
 	struct m0_bufvec	 val;
+	struct m0_bufvec	 *key = NULL;
 	int rc;
 
 	if (!my_init_done)
 		m0kvs_reinit();
+
+	m0kvs_buf_to_vec(k, &key);
+	KVSNS_DASSERT(key != NULL);
 
 	rc = m0_bufvec_empty_alloc(&val, 1);
 	if (rc < 0)
@@ -418,7 +429,7 @@ int m0kvs3_get(void *ctx, void *k, size_t klen,
 
 	memset(v, 0, *vlen);
 
-	rc = m0_op2_kvs(ctx, M0_CLOVIS_IC_GET, k, &val);
+	rc = m0_op2_kvs(ctx, M0_CLOVIS_IC_GET, key, &val);
 	if (rc)
 		goto cleanup;
 
@@ -490,12 +501,15 @@ int m0kvs3_set(void *ctx, void *k, size_t klen,
 	       const void *v, size_t vlen)
 {
 	struct m0_bufvec	 val;
+	struct m0_bufvec	 *key;
 	int rc;
 
 	/* @todo: This might kill the performance. Find a cleaner way to do check. */
 	if (!my_init_done)
 		m0kvs_reinit();
 
+	m0kvs_buf_to_vec(k, &key);
+	KVSNS_DASSERT(key != NULL);
 
 	rc = m0_bufvec_alloc(&val, 1, vlen);
 	if (rc != 0) {
@@ -504,7 +518,7 @@ int m0kvs3_set(void *ctx, void *k, size_t klen,
 
 	memcpy(val.ov_buf[0], v, vlen);
 
-	rc = m0_op2_kvs(ctx, M0_CLOVIS_IC_PUT, k, &val);
+	rc = m0_op2_kvs(ctx, M0_CLOVIS_IC_PUT, key, &val);
 
 cleanup:
 	m0_bufvec_free(&val);
@@ -1451,7 +1465,8 @@ ssize_t m0store_get_bsize(struct m0_uint128 id)
 			m0_clovis_layout_id(clovis_instance));
 }
 
-int m0kvs_buf_alloc(uint64_t size, void **buf_desc, void **buf)
+
+int m0kvs_buf_alloc(uint64_t size, void **buf)
 {
 	struct m0_bufvec *vec = NULL;
 	int rc;
@@ -1469,8 +1484,7 @@ int m0kvs_buf_alloc(uint64_t size, void **buf_desc, void **buf)
 		goto cleanup;
 	}
 
-	*buf_desc = vec;
-	*buf = vec->ov_buf[0];
+	*buf = &vec->ov_buf;
 	goto out;
 
 cleanup:
@@ -1484,10 +1498,12 @@ out:
 void m0kvs_buf_free(void **ptr)
 {
 	struct m0_bufvec *vec;
+	void *buf;
 	KVSNS_DASSERT(ptr != NULL);
 	KVSNS_DASSERT(*ptr != NULL);
 
-	vec = *ptr;
+	buf = *ptr;
+	m0_kvs_bufvec_to_vec(buf, vec);
 	m0_bufvec_free(vec);
 	m0_free(vec);
 }

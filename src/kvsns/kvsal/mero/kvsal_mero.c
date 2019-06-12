@@ -429,9 +429,9 @@ int kvsal_create_fs_ctx(unsigned long fs_id, void **fs_ctx)
 	return 0;
 }
 
-int kvsal_alloc_buf(uint64_t size, void **buf_desc, void **buf)
+int kvsal_alloc_buf(uint64_t size, void **buf)
 {
-	return m0kvs_buf_alloc(size, buf_desc, buf);
+	return m0kvs_buf_alloc(size, buf);
 }
 
 void kvsal_free_buf(void **buf)
