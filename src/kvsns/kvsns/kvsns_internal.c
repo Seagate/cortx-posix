@@ -114,6 +114,14 @@ struct kvsns_dentry_key {
 		.name = __name,				\
 }
 
+#define DENTRY_KEY_PTR_INIT(key, ino, fname)	\
+{							\
+		key->pino = (*ino),			\
+		key->md.type = KVSNS_KEY_TYPE_DIRENT,	\
+		key->md.version = KVSNS_VERSION_0,	\
+		key->name = *fname;			\
+}
+
 /** Dynamic size of a dentry key, i.e. the amount of bytest to be stored in
  * the KVS storage.
  */
@@ -135,6 +143,14 @@ struct kvsns_parentdir_key {
 	kvsns_key_md_t md;
 	kvsns_ino_t pino;
 } __attribute__((packed));
+
+#define PARENTDIR_KEY_PTR_INIT(pkey, __ino, __pino)	\
+{							\
+		pkey->ino = *__ino,			\
+		pkey->md.type = KVSNS_KEY_TYPE_DIRENT,	\
+		pkey->md.version = KVSNS_VERSION_0,	\
+		pkey->pino = *__pino;			\
+}
 
 #define PARENTDIR_KEY_INIT(__ino, __pino)		\
 {							\
@@ -162,6 +178,9 @@ struct kvsns_inode_attr_key {
 			.version = KVSNS_VERSION_0,	\
 		},					\
 }
+#define KVSNS_ALLOC_ARR(arr, nr) ((arr) = malloc((nr) * sizeof ((arr)[0])))
+#define KVSNS_ALLOC_PTR(ptr) KVSNS_ALLOC_ARR(ptr, 1)
+#define KVSNS_FREE_PTR(ptr) free(ptr)
 
 static int kvsns_ns_get_inode_attr(kvsns_fs_ctx_t ctx,
 				   const kvsns_ino_t *ino,
@@ -834,26 +853,39 @@ out:
 
 /******************************************************************************/
 int kvsns_tree_attach(kvsns_fs_ctx_t fs_ctx,
-		      const kvsns_ino_t *parent_ino,
-		      const kvsns_ino_t *ino,
-		      const kvsns_name_t *node_name)
+		      kvsns_ino_t *parent_ino,
+		      kvsns_ino_t *ino,
+		      kvsns_name_t *node_name)
 {
 	int rc;
-	const struct kvsns_dentry_key dentry_key =
-		DENTRY_KEY_INIT(*parent_ino, *node_name);
-	const struct kvsns_parentdir_key parent_key =
-		PARENTDIR_KEY_INIT(*ino, *parent_ino);
-	const kvsns_ino_t dentry_value = *ino;
+	struct kvsns_dentry_key *dentry_key;
+	struct kvsns_parentdir_key *parent_key;
+
+	KVSNS_ALLOC_PTR(dentry_key);
+	if (dentry_key == NULL) {
+		rc = -ENOMEM;
+		log_err("dentry_key alloc failed!");
+		goto out;
+	}
+	DENTRY_KEY_PTR_INIT(dentry_key, parent_ino, node_name);
+	kvsns_ino_t dentry_value = *ino;
 	uint64_t parent_value;
 
-	// Add detntry
-	RC_WRAP_LABEL(rc, out, kvsal2_set_bin, fs_ctx,
-		      &dentry_key, kvsns_dentry_key_dsize(&dentry_key),
+	// Add dentry
+	RC_WRAP_LABEL(rc, free_dentrykey, kvsal3_set_bin, fs_ctx,
+		      dentry_key, kvsns_dentry_key_dsize(dentry_key),
 		      &dentry_value, sizeof(dentry_value));
 
+	KVSNS_ALLOC_PTR(parent_key);
+	if (parent_key == NULL) {
+		rc = -ENOMEM;
+		log_err("parent_key alloc_failed!");
+		goto free_dentrykey;
+	}
+
 	// Update parent link count
-	rc = kvsal2_get_bin(fs_ctx,
-			    &parent_key, sizeof(parent_key),
+	rc = kvsal3_get_bin(fs_ctx,
+			    parent_key, sizeof(parent_key),
 			    &parent_value, sizeof(parent_value));
 	if (rc == -ENOENT) {
 		parent_value = 0;
@@ -862,17 +894,22 @@ int kvsns_tree_attach(kvsns_fs_ctx_t fs_ctx,
 
 	if (rc < 0) {
 		log_err("Failed to get parent key for %llu/%llu", *parent_ino, *ino);
-		goto out;
+		goto free_parentkey;
 	}
 	parent_value++;
-	RC_WRAP_LABEL(rc, out, kvsal2_set_bin, fs_ctx,
-		      &parent_key, sizeof(parent_key),
+	RC_WRAP_LABEL(rc, out, kvsal3_set_bin, fs_ctx,
+		      parent_key, sizeof(parent_key),
 		      &parent_value, sizeof(parent_value));
 
 	// Update stats
-	RC_WRAP_LABEL(rc, out, kvsns2_update_stat, fs_ctx, parent_ino,
+	RC_WRAP_LABEL(rc, free_parentkey, kvsns2_update_stat, fs_ctx, parent_ino,
 		      STAT_CTIME_SET|STAT_INCR_LINK);
 
+free_parentkey:
+	   KVSNS_FREE_PTR(parent_key);
+
+free_dentrykey:
+	   KVSNS_FREE_PTR(dentry_key);
 out:
 	log_debug("tree_attach(%p,pino=%llu,ino=%llu,n=%.*s) = %d",
 		  fs_ctx, *parent_ino, *ino, node_name->s_len, node_name->s_str, rc);
@@ -939,25 +976,32 @@ int kvsns_tree_lookup(kvsns_fs_ctx_t fs_ctx,
 		      const kvsns_name_t *name,
 		      kvsns_ino_t *ino)
 {
-	const struct kvsns_dentry_key key = DENTRY_KEY_INIT(*parent_ino, *name);
+	struct kvsns_dentry_key *dkey = NULL;
 	kvsns_ino_t value = 0;
 	int rc;
 
 	KVSNS_DASSERT(parent_ino && name);
+	KVSNS_ALLOC_PTR(dkey);
+	if (dkey == NULL) {
+		log_err("dentry key alloc failed!");
+		rc = -ENOMEM;
+		goto out;
+	}
+	DENTRY_KEY_PTR_INIT(dkey, parent_ino, name);
 
-	RC_WRAP_LABEL(rc, out, kvsal2_get_bin, fs_ctx,
-		      &key, kvsns_dentry_key_dsize(&key),
+	RC_WRAP_LABEL(rc, cleanup, kvsal3_get_bin, fs_ctx,
+		      dkey, kvsns_dentry_key_dsize(dkey),
 		      &value, sizeof(value));
 
 	if (ino) {
 		*ino = value;
 	}
+cleanup:
+	KVSNS_FREE_PTR(dkey);
 
 out:
-	log_debug("GET %llu.dentries.%.*s (%d) = %llu, rc=%d",
-		  *parent_ino, key.name.s_len, key.name.s_str,
-		  (int) kvsns_dentry_key_dsize(&key),
-		  value, rc);
+	log_debug("GET %llu.dentries.%.*s=%llu, rc=%d",
+		  *parent_ino, name->s_len, name->s_str, value, rc);
 	return rc;
 }
 
