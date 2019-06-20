@@ -119,9 +119,9 @@ int kvsns_tree_detach(kvsns_fs_ctx_t fs_ctx,
  * @return 0 if successful, otherwise -errno.
  */
 int kvsns_tree_attach(kvsns_fs_ctx_t ctx,
-		      kvsns_ino_t *parent_ino,
-		      kvsns_ino_t *ino,
-		      kvsns_name_t *node_name);
+		      const kvsns_ino_t *parent_ino,
+		      const kvsns_ino_t *ino,
+		      const kvsns_name_t *node_name);
 
 
 /******************************************************************************/
