@@ -179,8 +179,8 @@ struct kvsns_inode_attr_key {
 		},					\
 }
 #define KVSNS_ALLOC_ARR(arr, nr) ((arr) = malloc((nr) * sizeof ((arr)[0])))
-#define KVSNS_ALLOC_PTR(ptr) KVSNS_ALLOC_ARR(ptr, 1)
-#define KVSNS_FREE_PTR(ptr) free(ptr)
+#define KVSNS_ALLOC(ptr) KVSNS_ALLOC_ARR(ptr, 1)
+#define KVSNS_FREE(ptr) free(ptr)
 
 static int kvsns_ns_get_inode_attr(kvsns_fs_ctx_t ctx,
 				   const kvsns_ino_t *ino,
@@ -853,63 +853,76 @@ out:
 
 /******************************************************************************/
 int kvsns_tree_attach(kvsns_fs_ctx_t fs_ctx,
-		      kvsns_ino_t *parent_ino,
-		      kvsns_ino_t *ino,
-		      kvsns_name_t *node_name)
+		      const kvsns_ino_t *parent_ino,
+		      const kvsns_ino_t *ino,
+		      const kvsns_name_t *node_name)
 {
 	int rc;
 	struct kvsns_dentry_key *dentry_key;
 	struct kvsns_parentdir_key *parent_key;
 
-	KVSNS_ALLOC_PTR(dentry_key);
+	KVSNS_ALLOC(dentry_key);
 	if (dentry_key == NULL) {
 		rc = -ENOMEM;
 		log_err("dentry_key alloc failed!");
 		goto out;
 	}
+	/* @todo rename this to DENTRY_KEY_INIT once all the instances of
+	 * DENTRY_KEY_INIT are replaced with DENTRY_KEY_PTR_INIT */
+
 	DENTRY_KEY_PTR_INIT(dentry_key, parent_ino, node_name);
 	kvsns_ino_t dentry_value = *ino;
 	uint64_t parent_value;
+	uint64_t val_size = sizeof parent_value;
+	uint64_t *parent_val_ptr = NULL;
 
 	// Add dentry
 	RC_WRAP_LABEL(rc, free_dentrykey, kvsal3_set_bin, fs_ctx,
 		      dentry_key, kvsns_dentry_key_dsize(dentry_key),
 		      &dentry_value, sizeof(dentry_value));
 
-	KVSNS_ALLOC_PTR(parent_key);
+	KVSNS_ALLOC(parent_key);
 	if (parent_key == NULL) {
 		rc = -ENOMEM;
 		log_err("parent_key alloc_failed!");
 		goto free_dentrykey;
 	}
 
+	/* @todo rename this to PARENT_KEY_INIT once all the instances of
+	 * PARENT_KEY_INIT are replaced with PARENT_DIR_KEY_PTR_INIT */
+	PARENTDIR_KEY_PTR_INIT(parent_key, ino, parent_ino);
 	// Update parent link count
 	rc = kvsal3_get_bin(fs_ctx,
 			    parent_key, sizeof(parent_key),
-			    &parent_value, sizeof(parent_value));
+			    (void **)&parent_val_ptr, &val_size);
 	if (rc == -ENOENT) {
 		parent_value = 0;
 		rc = 0;
 	}
 
 	if (rc < 0) {
-		log_err("Failed to get parent key for %llu/%llu", *parent_ino, *ino);
+		log_err("Failed to get parent key for %llu/%llu", *parent_ino,
+			 *ino);
 		goto free_parentkey;
 	}
+
+	if (parent_val_ptr != NULL)
+		parent_value = *parent_val_ptr;
+
 	parent_value++;
 	RC_WRAP_LABEL(rc, out, kvsal3_set_bin, fs_ctx,
 		      parent_key, sizeof(parent_key),
-		      &parent_value, sizeof(parent_value));
+		      (void **)&parent_value, sizeof(parent_value));
 
 	// Update stats
 	RC_WRAP_LABEL(rc, free_parentkey, kvsns2_update_stat, fs_ctx, parent_ino,
 		      STAT_CTIME_SET|STAT_INCR_LINK);
 
 free_parentkey:
-	   KVSNS_FREE_PTR(parent_key);
+	   KVSNS_FREE(parent_key);
 
 free_dentrykey:
-	   KVSNS_FREE_PTR(dentry_key);
+	   KVSNS_FREE(dentry_key);
 out:
 	log_debug("tree_attach(%p,pino=%llu,ino=%llu,n=%.*s) = %d",
 		  fs_ctx, *parent_ino, *ino, node_name->s_len, node_name->s_str, rc);
@@ -979,9 +992,11 @@ int kvsns_tree_lookup(kvsns_fs_ctx_t fs_ctx,
 	struct kvsns_dentry_key *dkey = NULL;
 	kvsns_ino_t value = 0;
 	int rc;
+	uint64_t val_size = sizeof value;
+	uint64_t *val_ptr = NULL;
 
 	KVSNS_DASSERT(parent_ino && name);
-	KVSNS_ALLOC_PTR(dkey);
+	KVSNS_ALLOC(dkey);
 	if (dkey == NULL) {
 		log_err("dentry key alloc failed!");
 		rc = -ENOMEM;
@@ -991,13 +1006,15 @@ int kvsns_tree_lookup(kvsns_fs_ctx_t fs_ctx,
 
 	RC_WRAP_LABEL(rc, cleanup, kvsal3_get_bin, fs_ctx,
 		      dkey, kvsns_dentry_key_dsize(dkey),
-		      &value, sizeof(value));
+		      (void **)&val_ptr, &val_size);
 
 	if (ino) {
-		*ino = value;
+		KVSNS_DASSERT(val_ptr != NULL);
+		*ino = *val_ptr;
+		value = *ino;
 	}
 cleanup:
-	KVSNS_FREE_PTR(dkey);
+	KVSNS_FREE(dkey);
 
 out:
 	log_debug("GET %llu.dentries.%.*s=%llu, rc=%d",

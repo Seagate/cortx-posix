@@ -79,7 +79,7 @@ fsal_status_t kvsfs_open(struct fsal_obj_handle *obj_hdl,
 	myself->u.file.openflags = openflags;
 
 	/* save the stat */
-	rc = kvsns_getattr(&cred, &myself->handle->kvsfs_handle,
+	rc = kvsns2_getattr(fs_ctx, &cred, &myself->handle->kvsfs_handle,
 			   &myself->u.file.saved_stat);
 
 errout:

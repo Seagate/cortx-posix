@@ -133,9 +133,9 @@ int kvsal2_get_bin(void *ctx, const void *k, size_t klen, void *v, size_t vlen)
 	return m0kvs2_get(ctx, k, klen, v, &vlen);
 }
 
-int kvsal3_get_bin(void *ctx, void *k, size_t klen, void *v, size_t vlen)
+int kvsal3_get_bin(void *ctx, void *k, size_t klen, void **v, size_t *vlen)
 {
-	return m0kvs3_get(ctx, k, klen, v, &vlen);
+	return m0kvs3_get(ctx, k, klen, v, vlen);
 }
 
 int kvsal_set_stat(char *k, struct stat *buf)

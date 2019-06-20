@@ -58,7 +58,7 @@ int m0kvs_get(char *k, size_t klen,
 	      char *v, size_t *vlen);
 int m0kvs2_get(void *ctx, const void *k, size_t klen,
 	        void *v, size_t *vlen);
-int m0kvs3_get(void *ctx, void *k, size_t klen, void *v, size_t *vlen);
+int m0kvs3_get(void *ctx, void *k, size_t klen, void **v, size_t *vlen);
 int m0kvs_del(char *k, size_t klen);
 int m0kvs2_del(void *ctx, char *k, size_t klen);
 void m0_iter_kvs(char *k);
