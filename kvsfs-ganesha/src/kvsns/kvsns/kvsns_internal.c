@@ -114,6 +114,8 @@ struct kvsns_dentry_key {
 		.name = __name,				\
 }
 
+/* @todo rename this to PARENT_KEY_INIT once all the instances of
+ * PARENT_KEY_INIT are replaced with PARENT_DIR_KEY_PTR_INIT */
 #define DENTRY_KEY_PTR_INIT(key, ino, fname)	\
 {							\
 		key->pino = (*ino),			\
@@ -864,7 +866,9 @@ int kvsns_tree_attach(kvsns_fs_ctx_t fs_ctx,
 	KVSNS_ALLOC(dentry_key);
 	if (dentry_key == NULL) {
 		rc = -ENOMEM;
-		log_err("dentry_key alloc failed!");
+		log_err("dentry_key alloc failed, %p, pino=%llu, ino=%llu, n=%.*s",
+			 fs_ctx, *parent_ino, *ino, node_name->s_len,
+			 node_name->s_str);
 		goto out;
 	}
 	/* @todo rename this to DENTRY_KEY_INIT once all the instances of
@@ -892,8 +896,7 @@ int kvsns_tree_attach(kvsns_fs_ctx_t fs_ctx,
 	 * PARENT_KEY_INIT are replaced with PARENT_DIR_KEY_PTR_INIT */
 	PARENTDIR_KEY_PTR_INIT(parent_key, ino, parent_ino);
 	// Update parent link count
-	rc = kvsal3_get_bin(fs_ctx,
-			    parent_key, sizeof(parent_key),
+	rc = kvsal3_get_bin(fs_ctx, parent_key, sizeof(parent_key),
 			    (void **)&parent_val_ptr, &val_size);
 	if (rc == -ENOENT) {
 		parent_value = 0;
@@ -910,7 +913,7 @@ int kvsns_tree_attach(kvsns_fs_ctx_t fs_ctx,
 		parent_value = *parent_val_ptr;
 
 	parent_value++;
-	RC_WRAP_LABEL(rc, out, kvsal3_set_bin, fs_ctx,
+	RC_WRAP_LABEL(rc, free_parentkey, kvsal3_set_bin, fs_ctx,
 		      parent_key, sizeof(parent_key),
 		      (void **)&parent_value, sizeof(parent_value));
 
@@ -919,10 +922,11 @@ int kvsns_tree_attach(kvsns_fs_ctx_t fs_ctx,
 		      STAT_CTIME_SET|STAT_INCR_LINK);
 
 free_parentkey:
-	   KVSNS_FREE(parent_key);
+	KVSNS_FREE(parent_key);
 
 free_dentrykey:
-	   KVSNS_FREE(dentry_key);
+	KVSNS_FREE(dentry_key);
+
 out:
 	log_debug("tree_attach(%p,pino=%llu,ino=%llu,n=%.*s) = %d",
 		  fs_ctx, *parent_ino, *ino, node_name->s_len, node_name->s_str, rc);
