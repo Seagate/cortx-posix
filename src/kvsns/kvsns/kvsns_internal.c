@@ -880,7 +880,7 @@ int kvsns_tree_attach(kvsns_fs_ctx_t fs_ctx,
 	DENTRY_KEY_PTR_INIT(dentry_key, parent_ino, node_name);
 	kvsns_ino_t dentry_value = *ino;
 	uint64_t parent_value;
-	uint64_t val_size = sizeof parent_value;
+	uint64_t val_size = 0;
 	uint64_t *parent_val_ptr = NULL;
 
 	// Add dentry
@@ -1001,7 +1001,7 @@ int kvsns_tree_lookup(kvsns_fs_ctx_t fs_ctx,
 	struct kvsns_dentry_key *dkey = NULL;
 	kvsns_ino_t value = 0;
 	int rc;
-	uint64_t val_size = sizeof value;
+	uint64_t val_size = 0;
 	uint64_t *val_ptr = NULL;
 
 	KVSNS_DASSERT(parent_ino && name);
