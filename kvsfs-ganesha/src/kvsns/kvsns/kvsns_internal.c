@@ -114,8 +114,8 @@ struct kvsns_dentry_key {
 		.name = __name,				\
 }
 
-/* @todo rename this to PARENT_KEY_INIT once all the instances of
- * PARENT_KEY_INIT are replaced with PARENT_DIR_KEY_PTR_INIT */
+/* @todo rename this to DENTRY_KEY_INIT once all the instances of
+ * DENTRY_KEY_INIT are replaced with DENTRY_KEY_PTR_INIT */
 #define DENTRY_KEY_PTR_INIT(key, ino, fname)	\
 {							\
 		key->pino = (*ino),			\
@@ -145,6 +145,9 @@ struct kvsns_parentdir_key {
 	kvsns_key_md_t md;
 	kvsns_ino_t pino;
 } __attribute__((packed));
+
+/* @todo rename this to PARENTDIR_KEY_INIT once all the instances of
+ * PARENTDIR_KEY_INIT are replaced with PARENTDIR_KEY_PTR_INIT */
 
 #define PARENTDIR_KEY_PTR_INIT(pkey, __ino, __pino)	\
 {							\
@@ -888,7 +891,9 @@ int kvsns_tree_attach(kvsns_fs_ctx_t fs_ctx,
 	KVSNS_ALLOC(parent_key);
 	if (parent_key == NULL) {
 		rc = -ENOMEM;
-		log_err("parent_key alloc_failed!");
+		log_err("parent_key alloc failed, %p, pino=%llu, ino=%llu, n=%.*s",
+			 fs_ctx, *parent_ino, *ino, node_name->s_len,
+			 node_name->s_str);
 		goto free_dentrykey;
 	}
 
@@ -915,7 +920,7 @@ int kvsns_tree_attach(kvsns_fs_ctx_t fs_ctx,
 	parent_value++;
 	RC_WRAP_LABEL(rc, free_parentkey, kvsal3_set_bin, fs_ctx,
 		      parent_key, sizeof(parent_key),
-		      (void **)&parent_value, sizeof(parent_value));
+		      (void *)&parent_value, sizeof(parent_value));
 
 	// Update stats
 	RC_WRAP_LABEL(rc, free_parentkey, kvsns2_update_stat, fs_ctx, parent_ino,
@@ -1002,7 +1007,9 @@ int kvsns_tree_lookup(kvsns_fs_ctx_t fs_ctx,
 	KVSNS_DASSERT(parent_ino && name);
 	KVSNS_ALLOC(dkey);
 	if (dkey == NULL) {
-		log_err("dentry key alloc failed!");
+		log_err("dentry key alloc failed, %p, pino=%llu, ino=%llu, n=%.*s",
+			 fs_ctx, *parent_ino, *ino, name->s_len,
+			 name->s_str);
 		rc = -ENOMEM;
 		goto out;
 	}
