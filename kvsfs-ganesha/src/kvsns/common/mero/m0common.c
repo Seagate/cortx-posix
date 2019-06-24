@@ -436,14 +436,13 @@ int m0kvs3_get(void *ctx, void *k, size_t klen,
 	       void **v, size_t *vlen)
 {
 	m0_bcount_t k_len = klen;
-	m0_bcount_t v_len = 0;
 	struct m0_bufvec key, val;
 	int rc;
 
 	KVSNS_DASSERT(my_init_done);
 
 	key = M0_BUFVEC_INIT_BUF(&k, &k_len);
-	val = M0_BUFVEC_INIT_BUF(v, &v_len);
+	val = M0_BUFVEC_INIT_BUF(v, vlen);
 
 	rc = m0_op2_kvs(ctx, M0_CLOVIS_IC_GET, &key, &val);
 	if (rc != 0)
