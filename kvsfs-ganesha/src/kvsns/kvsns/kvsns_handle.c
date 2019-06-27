@@ -283,14 +283,16 @@ int kvsns2_getattr(kvsns_fs_ctx_t ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
 		   struct stat *bufstat)
 {
 	int rc;
+	struct stat *stat = NULL;
 
 	KVSNS_DASSERT(cred != NULL);
-	KVSNS_DASSERT(bufstat != NULL);
 	KVSNS_DASSERT(ino != NULL);
 
-	rc = kvsns2_get_stat(ctx, ino, bufstat);
+	rc = kvsns2_get_stat(ctx, ino, &stat);
 
-	log_debug("rc=%d", rc);
+	memcpy(bufstat, stat, sizeof(struct stat));
+	log_debug("ino=%d rc=%d", (int)bufstat->st_ino, rc);
+	kvsal_free(stat);
 	return rc;
 }
 
@@ -401,12 +403,12 @@ int kvsns2_setattr(kvsns_fs_ctx_t ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
 
 	/* @todo : Truncate is not implemented for for kvsns2 yet. */
 	if (statflag & STAT_SIZE_SET)
-		RC_WRAP(extstore_truncate, ino, setstat->st_size, true,
-			&bufstat);
+		RC_WRAP_LABEL(rc, out, extstore_truncate, ino, setstat->st_size, true,
+			      &bufstat);
 
 	if (statflag & STAT_SIZE_ATTACH)
-		RC_WRAP(extstore_truncate, ino, setstat->st_size, false,
-			&bufstat);
+		RC_WRAP_LABEL(rc, out, extstore_truncate, ino, setstat->st_size, false,
+			       &bufstat);
 
 	if (statflag & STAT_ATIME_SET) {
 		bufstat.st_atim.tv_sec = setstat->st_atim.tv_sec;
@@ -615,8 +617,8 @@ int kvsns2_unlink(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *dir, char *name)
 	char v[VLEN];
 	kvsns_ino_t ino = 0LL;
 	kvsns_ino_t parent[KVSAL_ARRAY_SIZE];
-	struct stat ino_stat;
-	struct stat dir_stat;
+	struct stat *ino_stat = NULL;
+	struct stat *dir_stat = NULL;
 	size_t klen;
 	size_t vlen;
 	int size;
@@ -636,18 +638,16 @@ int kvsns2_unlink(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *dir, char *name)
 	log_trace("ENTER: name=%s dir=%p", name, dir);
 
 	memset(parent, 0, KVSAL_ARRAY_SIZE*sizeof(kvsns_ino_t));
-	memset(&ino_stat, 0, sizeof(ino_stat));
-	memset(&dir_stat, 0, sizeof(dir_stat));
 
 	RC_WRAP(kvsns2_access, ctx, cred, dir, KVSNS_ACCESS_WRITE);
 
 	RC_WRAP(kvsns2_lookup, ctx, cred, dir, name, &ino);
 
-	RC_WRAP(kvsns2_get_stat, ctx, dir, &dir_stat);
-	RC_WRAP(kvsns2_get_stat, ctx, &ino, &ino_stat);
+	RC_WRAP_LABEL(rc, dirfree, kvsns2_get_stat, ctx, dir, &dir_stat);
+	RC_WRAP_LABEL(rc, errfree, kvsns2_get_stat, ctx, &ino, &ino_stat);
 
 	/* Check if the file is opened */
-	RC_WRAP_LABEL(rc, aborted, prepare_key, k, KLEN, "%llu.openowner.*", ino);
+	RC_WRAP_LABEL(rc, errfree, prepare_key, k, KLEN, "%llu.openowner.*", ino);
 	rc = kvsal2_exists(ctx, k, KLEN);
 	if ((rc != 0) && (rc != -ENOENT))
 		goto aborted;
@@ -656,22 +656,22 @@ int kvsns2_unlink(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *dir, char *name)
 
 	RC_WRAP(kvsal_begin_transaction);
 
-	RC_WRAP_LABEL(rc, aborted, kvsns_tree_detach, ctx, dir, &ino, &k_name);
+	RC_WRAP_LABEL(rc, errfree, kvsns_tree_detach, ctx, dir, &ino, &k_name);
 
-	size = ino_stat.st_nlink;
+	size = ino_stat->st_nlink;
 
 	if (size == 1) {
-		RC_WRAP_LABEL(rc, aborted, kvsns2_del_stat, ctx, &ino);
+		RC_WRAP_LABEL(rc, errfree, kvsns2_del_stat, ctx, &ino);
 
 		if (opened) {
 			/* File is opened, the final close will delete it */
 			log_debug("File is opened by other thread/process.");
-			RC_WRAP_LABEL(rc, aborted, prepare_key, k, KLEN,
+			RC_WRAP_LABEL(rc, errfree, prepare_key, k, KLEN,
 				      "%llu.opened_and_deleted", ino);
 			klen = rc;
-			RC_WRAP_LABEL(rc, aborted, prepare_key, v, VLEN, "1");
+			RC_WRAP_LABEL(rc, errfree, prepare_key, v, VLEN, "1");
 			vlen = rc;
-			RC_WRAP_LABEL(rc, aborted, kvsal2_set_char, ctx, k,
+			RC_WRAP_LABEL(rc, errfree, kvsal2_set_char, ctx, k,
 				      klen, v, vlen);
 		}
 		/* @todo: Remove all associated xattrs */
@@ -679,15 +679,15 @@ int kvsns2_unlink(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *dir, char *name)
 
 	/* if object is a link, delete the link content as well */
 	/* @todo: Untested. Revisit this during implementation of symlinks. */
-	if ((ino_stat.st_mode & S_IFLNK) == S_IFLNK) {
-		RC_WRAP_LABEL(rc, aborted, prepare_key, k, KLEN, "%llu.link",
+	if ((ino_stat->st_mode & S_IFLNK) == S_IFLNK) {
+		RC_WRAP_LABEL(rc, errfree, prepare_key, k, KLEN, "%llu.link",
 			      ino);
-		RC_WRAP_LABEL(rc, aborted, kvsal2_del, ctx, k, KLEN);
+		RC_WRAP_LABEL(rc, errfree, kvsal2_del, ctx, k, KLEN);
 	}
 
-	RC_WRAP_LABEL(rc, aborted, kvsns_amend_stat, &dir_stat,
+	RC_WRAP_LABEL(rc, errfree, kvsns_amend_stat, dir_stat,
 		      STAT_MTIME_SET|STAT_CTIME_SET);
-	RC_WRAP_LABEL(rc, aborted, kvsns2_set_stat, ctx, dir, &dir_stat);
+	RC_WRAP_LABEL(rc, errfree, kvsns2_set_stat, ctx, dir, dir_stat);
 
 	RC_WRAP(kvsal_end_transaction);
 
@@ -697,6 +697,10 @@ int kvsns2_unlink(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *dir, char *name)
 		RC_WRAP(extstore2_del, ctx, &ino, &kfid);
 	}
 
+errfree:
+	kvsal_free(dir_stat);
+dirfree:
+	kvsal_free(ino_stat);
 aborted:
 	kvsal_discard_transaction();
 	log_trace("EXIT rc=%d", rc);
@@ -713,8 +717,8 @@ int kvsns_rename(kvsns_fs_ctx_t fs_ctx, kvsns_cred_t *cred,
 	bool is_dst_non_empty_dir = false;
 	kvsns_ino_t sino;
 	kvsns_ino_t dino;
-	struct stat sstat;
-	struct stat dstat;
+	struct stat *sstat = NULL;
+	struct stat *dstat = NULL;
 	kvsns_name_t k_sname;
 	kvsns_name_t k_dname;
 
@@ -749,23 +753,23 @@ int kvsns_rename(kvsns_fs_ctx_t fs_ctx, kvsns_cred_t *cred,
 	overwrite_dst = (rc != -ENOENT);
 
 	if (overwrite_dst) {
-		RC_WRAP_LABEL(rc, out, kvsns2_get_stat, fs_ctx, &sino, &sstat);
-		RC_WRAP_LABEL(rc, out, kvsns2_get_stat, fs_ctx, &dino, &dstat);
-		if (S_ISDIR(sstat.st_mode) != S_ISDIR(dstat.st_mode)) {
+		RC_WRAP_LABEL(rc, sstatfree, kvsns2_get_stat, fs_ctx, &sino, &sstat);
+		RC_WRAP_LABEL(rc, errfree, kvsns2_get_stat, fs_ctx, &dino, &dstat);
+		if (S_ISDIR(sstat->st_mode) != S_ISDIR(dstat->st_mode)) {
 			log_warn("Incompatible source and destination %d,%d.",
-				 (int) sstat.st_mode, (int) dstat.st_mode);
+				 (int) sstat->st_mode, (int) dstat->st_mode);
 			rc = -ENOTDIR;
-			goto out;
+			goto errfree;
 		}
-		if (S_ISDIR(dstat.st_mode)) {
-			RC_WRAP_LABEL(rc, out, kvsns_tree_has_children, fs_ctx,
+		if (S_ISDIR(dstat->st_mode)) {
+			RC_WRAP_LABEL(rc, errfree, kvsns_tree_has_children, fs_ctx,
 				      &dino, &is_dst_non_empty_dir);
 		}
 		if (is_dst_non_empty_dir) {
 			log_warn("Destination is not empty (%llu:%s)",
 				 dino, dname);
 			rc = -EEXIST;
-			goto out;
+			goto errfree;
 		}
 
 		/* NOTE: We don't have transactions, so that let's just unlink()
@@ -777,29 +781,33 @@ int kvsns_rename(kvsns_fs_ctx_t fs_ctx, kvsns_cred_t *cred,
 		 * something goes wrong between end_transaction() and
 		 * extstore_del().
 		 */
-		if (S_ISDIR(dstat.st_mode)) {
+		if (S_ISDIR(dstat->st_mode)) {
 			/* @todo: replace with rmdir when it is implemented */
-			RC_WRAP_LABEL(rc, out, kvsns_tree_detach, fs_ctx,
+			RC_WRAP_LABEL(rc, errfree, kvsns_tree_detach, fs_ctx,
 				      dino_dir, &dino, &k_dname);
 		} else {
-			RC_WRAP_LABEL(rc, out, kvsns2_unlink, fs_ctx, cred,
+			RC_WRAP_LABEL(rc, errfree, kvsns2_unlink, fs_ctx, cred,
 				      dino_dir, dname);
 		}
 	}
 
 	if (rename_inplace) {
 		/* a shortcut for renaming only a dentry
-		 * without re-linking of the inodes.
+		 * witherrfree re-linking of the inodes.
 		 */
-		RC_WRAP_LABEL(rc, out, kvsns_tree_rename_link, fs_ctx,
+		RC_WRAP_LABEL(rc, errfree, kvsns_tree_rename_link, fs_ctx,
 			      sino_dir, &sino, &k_sname, &k_dname);
 	} else {
-		RC_WRAP_LABEL(rc, out, kvsns_tree_detach, fs_ctx, sino_dir,
+		RC_WRAP_LABEL(rc, errfree, kvsns_tree_detach, fs_ctx, sino_dir,
 			      &sino, &k_sname);
-		RC_WRAP_LABEL(rc, out, kvsns_tree_attach, fs_ctx, dino_dir,
+		RC_WRAP_LABEL(rc, errfree, kvsns_tree_attach, fs_ctx, dino_dir,
 			      &sino, &k_dname);
 	}
 
+errfree:
+	kvsal_free(dstat);
+sstatfree:
+	kvsal_free(sstat);
 out:
 	return rc;
 }
