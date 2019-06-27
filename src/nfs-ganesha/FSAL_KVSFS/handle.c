@@ -781,8 +781,6 @@ static fsal_status_t kvsfs_getattrs(struct fsal_obj_handle *obj_hdl)
 	if ((retval == ENOENT)
 	    && (myself->u.file.openflags != FSAL_O_CLOSED)
 	    && (S_ISREG(myself->u.file.saved_stat.st_mode))) {
-		memcpy(&stat, &myself->u.file.saved_stat,
-		       sizeof(struct stat));
 		retval = 0;	/* remove the error */
 		goto ok_file_opened_and_deleted;
 	}

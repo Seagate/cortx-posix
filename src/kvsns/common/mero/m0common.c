@@ -439,7 +439,11 @@ int m0kvs3_get(void *ctx, void *k, size_t klen,
 	struct m0_bufvec key, val;
 	int rc;
 
-	KVSNS_DASSERT(my_init_done);
+	// @todo: Assert is called when NFS Ganesha is run.
+	// Once issue is debugged uncomment the KVSNS_DASSERT call.
+	if (!my_init_done)
+		m0kvs_reinit();
+	//KVSNS_DASSERT(my_init_done);
 
 	key = M0_BUFVEC_INIT_BUF(&k, &k_len);
 	val = M0_BUFVEC_INIT_BUF(v, vlen);

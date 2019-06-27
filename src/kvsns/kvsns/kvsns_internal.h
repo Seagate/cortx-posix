@@ -79,9 +79,9 @@ int kvsns2_create_entry(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
 /******************************************************************************/
 /* Inode Attributes API */
 int kvsns2_get_stat(kvsns_fs_ctx_t ctx, const kvsns_ino_t *ino,
-		       struct stat *bufstat);
+		       struct stat **bufstat);
 int kvsns2_set_stat(kvsns_fs_ctx_t ctx, const kvsns_ino_t *ino,
-		       const struct stat *bufstat);
+		       struct stat *bufstat);
 int kvsns2_del_stat(kvsns_fs_ctx_t ctx, const kvsns_ino_t *ino);
 int kvsns2_update_stat(kvsns_fs_ctx_t ctx, const kvsns_ino_t *ini, int flags);
 
