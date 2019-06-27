@@ -113,6 +113,9 @@ int kvsal_dispose_list(kvsal_list_t *list);
 int kvsal_init_list(kvsal_list_t *list);
 int kvsal_get_list_size(char *pattern);
 int kvsal2_get_list_size(void *ctx, char *pattern, size_t size);
+int kvsal_create_fs_ctx(unsigned long fs_id, void **fs_ctx);
+int kvsal_alloc(void **ptr, uint64_t size);
+void kvsal_free(void *ptr);
 
 /******************************************************************************/
 /* Key iterator API */

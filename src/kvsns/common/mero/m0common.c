@@ -1687,3 +1687,12 @@ ssize_t m0store_get_bsize(struct m0_uint128 id)
 			m0_clovis_layout_id(clovis_instance));
 }
 
+void *m0kvs_alloc(uint64_t size)
+{
+	return m0_alloc(size);
+}
+
+void m0kvs_free(void *ptr)
+{
+	return m0_free(ptr);
+}

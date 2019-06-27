@@ -462,3 +462,18 @@ size_t kvsal_iter_get_value(struct kvsal_iter *iter, void **buf)
 	return m0_key_iter_get_value(iter, buf);
 }
 
+int kvsal_alloc(void **ptr, uint64_t size)
+{
+	int rc = 0;
+
+	*ptr = m0kvs_alloc(size);
+	if (ptr == NULL)
+		rc = -ENOMEM;
+
+	return rc;
+}
+
+void kvsal_free(void *ptr)
+{
+	return m0kvs_free(ptr);
+}
