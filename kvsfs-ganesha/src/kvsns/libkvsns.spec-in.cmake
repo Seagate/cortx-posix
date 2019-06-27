@@ -96,11 +96,14 @@ install -m 644 include/kvsns/extstore.h  %{buildroot}%{_includedir}/kvsns
 install -m 644 kvsal/libkvsal.so %{buildroot}%{_libdir}
 install -m 644 extstore/libextstore.so %{buildroot}%{_libdir}
 install -m 644 kvsns/libkvsns.so %{buildroot}%{_libdir}
+install -m 644 common/mero/libm0common.so %{buildroot}%{_libdir}
 install -m 644 libkvsns.pc  %{buildroot}%{_libdir}/pkgconfig
-install -m 755 kvsns_shell/kvsns_busybox %{buildroot}%{_bindir}
-install -m 755 kvsns_shell/kvsns_cp %{buildroot}%{_bindir}
-install -m 755 kvsns_attach/kvsns_attach %{buildroot}%{_bindir}
+install -m 755 kvsns_shell/kvsns_ns %{buildroot}%{_bindir}
 install -m 644 kvsns.ini %{buildroot}%{_sysconfdir}/kvsns.d
+ln -s -f %{_bindir}/kvsns_ns %{_bindir}/kvsns_init
+ln -s -f %{_bindir}/kvsns_ns %{_bindir}/kvsns_create
+ln -s -f %{_bindir}/kvsns_ns %{_bindir}/kvsns_getattr
+ln -s -f %{_bindir}/kvsns_ns %{_bindir}/kvsns_setattr
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -110,6 +113,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/libkvsal.so*
 %{_libdir}/libextstore.so*
 %{_libdir}/libkvsns.so*
+%{_libdir}/libm0common.so*
 %config(noreplace) %{_sysconfdir}/kvsns.d/kvsns.ini
 
 %files devel
@@ -121,9 +125,7 @@ rm -rf $RPM_BUILD_ROOT
 
 %files utils
 %defattr(-,root,root)
-%{_bindir}/kvsns_busybox
-%{_bindir}/kvsns_cp
-%{_bindir}/kvsns_attach
+%{_bindir}/kvsns_ns
 
 %changelog
 * Thu Jun 13 2017 Philippe DENIEL <philippe.deniel@cea.fr> 1.2.0
