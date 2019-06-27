@@ -72,6 +72,8 @@ int m0store_create_object(struct m0_uint128 id);
 int m0store_delete_object(struct m0_uint128 id);
 int m0_ufid_get(struct m0_uint128 *ufid);
 int m0_fid_to_string(struct m0_uint128 *fid, char *fid_s);
+void *m0kvs_alloc(uint64_t size);
+void m0kvs_free(void *ptr);
 
 /******************************************************************************/
 /* Key Iterator */
