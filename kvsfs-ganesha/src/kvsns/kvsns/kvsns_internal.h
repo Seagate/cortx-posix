@@ -44,10 +44,15 @@
 /******************************************************************************/
 /* Public data types */
 
+/** A string object which has a C string (up to 255 characters)
+ * and its length.
+ */
 struct kvsns_str256 {
+	/** The length of the C string. */
 	uint8_t s_len;
-	char    s_str[NAME_MAX];
-};
+	/** A buffer which contains a null-terminated C string. */
+	char    s_str[NAME_MAX + 1];
+} __attribute__((packed));
 
 /** Name of an object in a file tree. */
 typedef struct kvsns_str256 kvsns_name_t;
@@ -152,6 +157,13 @@ int kvsns_tree_lookup(kvsns_fs_ctx_t fs_ctx,
 		      const kvsns_ino_t *parent_ino,
 		      const kvsns_name_t *name,
 		      kvsns_ino_t *ino);
+
+/******************************************************************************/
+/** Walk over children (dentries) if an inode (directory). */
+int kvsns_tree_iter_children(kvsns_fs_ctx_t fs_ctx,
+			     const kvsns_ino_t *ino,
+			     kvsns_readdir_cb_t cb,
+			     void *cb_ctx);
 
 /******************************************************************************/
 #endif

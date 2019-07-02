@@ -105,6 +105,10 @@
 #define KVSNS_ACCESS_DELETE_ENTITY \
 	(KVSNS_ACCESS_WRITE | KVSNS_ACCESS_EXEC)
 
+/** Access level required to list objecs in a directory (READDIR). */
+#define KVSNS_ACCESS_LIST_DIR \
+	(KVSNS_ACCESS_EXEC)
+
 #define KVSNS_NULL_FS_CTX NULL
 #define KVSNS_FS_ID_DEFAULT 0
 
@@ -532,43 +536,22 @@ int kvsns2_setattr(kvsns_fs_ctx_t ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
  */
 int kvsns_fsstat(kvsns_fsstat_t *stat);
 
-/**
- * Open a directory to be accessed by kvsns_readdir
- *
- * @param cred - pointer to user's credentials
- * @param dir - pointer to directory's inode
- * @param ddir - [OUT] returned handle to opened directory
- *
- * @return 0 if successful, a negative "-errno" value in case of failure
- */
-int kvsns_opendir(kvsns_cred_t *cred, kvsns_ino_t *dir, kvsns_dir_t *ddir);
 
-/**
- * Open a directory to be accessed by kvsns_readdir
- *
- * @param ctx - filesystem context pointer
- * @param cred - pointer to user's credentials
- * @param dir - pointer to directory's inode
- * @param ddir - [OUT] returned handle to opened directory
- *
- * @return 0 if successful, a negative "-errno" value in case of failure
+/** A callback to be used in kvsns_readddir.
+ * @retval true continue iteration.
+ * @retval false stop iteration.
  */
-int kvsns2_opendir(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *dir, kvsns_dir_t *ddir);
+typedef bool (*kvsns_readdir_cb_t)(void *ctx, const char *name,
+			    const kvsns_ino_t *ino);
 
-/**
- * Reads the content of a directory
- *
- * @param cred - pointer to user's credentials
- * @param dir - handle (return by kvsns_opendir) to the directory to be read
- * @param offset - offset position fo reading
- * @param dirent - [OUT] array of kvsns_dentry for reading
- * @param size - [INOUT] as input, allocated size of dirent arry, as output
- * read size.
- *
- * @return 0 if successful, a negative "-errno" value in case of failure
+/** Walk over a directory "dir_ino" and call cb(cb_ctx, entry_name, entry_ino)
+ * for each dentry.
  */
-int kvsns_readdir(kvsns_cred_t *cred, kvsns_dir_t *dir, off_t offset,
-		 kvsns_dentry_t *dirent, int *size);
+int kvsns_readdir(kvsns_fs_ctx_t fs_ctx,
+		  const kvsns_cred_t *cred,
+		  const kvsns_ino_t *dir_ino,
+		  kvsns_readdir_cb_t cb,
+		  void *cb_ctx);
 
 /**
  * Closes a directory opened by kvsns_opendir

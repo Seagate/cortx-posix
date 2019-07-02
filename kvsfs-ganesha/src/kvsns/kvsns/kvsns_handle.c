@@ -182,93 +182,25 @@ aborted:
 	return rc;
 }
 
-int kvsns_opendir(kvsns_cred_t *cred, kvsns_ino_t *dir, kvsns_dir_t *ddir)
+int kvsns_readdir(kvsns_fs_ctx_t fs_ctx,
+		  const kvsns_cred_t *cred,
+		  const kvsns_ino_t *dir_ino,
+		  kvsns_readdir_cb_t cb,
+		  void *cb_ctx)
 {
-	char pattern[KLEN];
-	if (!cred || ! dir || !ddir)
-		return -EINVAL;
-
-	snprintf(pattern, KLEN, "%llu.dentries.*", *dir);
-
-	ddir->ino = *dir;
-	return kvsal_fetch_list(pattern , &ddir->list);
-}
-
-int kvsns2_opendir(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *dir, kvsns_dir_t *ddir)
-{
-	char pattern[KLEN];
-	if (!cred || ! dir || !ddir)
-		return -EINVAL;
-
-	snprintf(pattern, KLEN, "%llu.dentries.*", *dir);
-
-	ddir->ino = *dir;
-	return kvsal2_fetch_list(ctx, pattern , &ddir->list);
-}
-
-int kvsns_closedir(kvsns_dir_t *dir)
-{
-	if (!dir)
-		return -EINVAL;
-
-	return kvsal_dispose_list(&dir->list);
-}
-
-int kvsns2_closedir(void *ctx, kvsns_dir_t *dir)
-{
-	KVSNS_DASSERT(dir != NULL);
-
-	return kvsal_dispose_list(&dir->list);
-}
-
-int kvsns_readdir(kvsns_cred_t *cred, kvsns_dir_t *dir, off_t offset,
-		  kvsns_dentry_t *dirent, int *size)
-{
-	char pattern[KLEN];
-	char v[VLEN];
-	kvsal_item_t *items;
-	int i;
-	kvsns_ino_t ino = 0LL;
 	int rc;
-	unsigned long long lino;
 
-	if (!cred || !dir || !dirent || !size)
-		return -EINVAL;
+	RC_WRAP_LABEL(rc, out, kvsns2_access, fs_ctx, (kvsns_cred_t *) cred,
+		      (kvsns_ino_t *) dir_ino,
+		      KVSNS_ACCESS_LIST_DIR);
 
-	RC_WRAP(kvsns_access, cred, &dir->ino, KVSNS_ACCESS_READ);
+	RC_WRAP_LABEL(rc, out, kvsns_tree_iter_children, fs_ctx, dir_ino,
+		      cb, cb_ctx);
 
-	items = (kvsal_item_t *)malloc(*size*sizeof(kvsal_item_t));
-	if (items == NULL)
-		return -ENOMEM;
-	memset(items, 0, *size*sizeof(kvsal_item_t));
+	RC_WRAP_LABEL(rc, out, kvsns2_update_stat, fs_ctx, dir_ino,
+		      STAT_ATIME_SET);
 
-	memcpy(&lino, dir, sizeof(lino)); /* violent cast */
-	snprintf(pattern, KLEN, "%llu.dentries.*", lino);
-	rc = kvsal_get_list(&dir->list, (int)offset, size, items);
-	RC_WRAP_LABEL(rc, errout,
-		      kvsal_get_list, &dir->list, (int)offset, size, items);
-
-	for (i = 0; i < *size ; i++) {
-		sscanf(items[i].str, "%llu.dentries.%s\n",
-		       &ino, dirent[i].name);
-
-		RC_WRAP_LABEL(rc, errout, kvsal_get_char, items[i].str, v);
-
-		sscanf(v, "%llu", &dirent[i].inode);
-
-		RC_WRAP_LABEL(rc, errout, kvsns_getattr, cred, &dirent[i].inode,
-			 &dirent[i].stats);
-	}
-
-	RC_WRAP_LABEL(rc, errout, kvsns_update_stat, &dir->ino, STAT_ATIME_SET);
-
-	free(items);
-	return 0;
-
-errout:
-	if (items)
-		free(items);
-
+out:
 	return rc;
 }
 
