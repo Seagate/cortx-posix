@@ -155,6 +155,45 @@ out:
 	return rc;
 }
 
+struct readdir_ctx {
+	int index;
+};
+
+static bool readdir_cb(void *ctx, const char *name, const kvsns_ino_t *ino)
+{
+	struct readdir_ctx *readdir_ctx = ctx;
+
+	printf("READDIR:\t\"%d\" \"%s\" \"%llu\"\n",
+	       readdir_ctx->index, name, *ino);
+
+	readdir_ctx->index++;
+
+	return true;
+}
+
+static int kvsns_readdir_cmd(kvsns_fs_ctx_t fs_ctx, const kvsns_cred_t *cred,
+			const char *s_ino)
+{
+	int rc;
+	kvsns_ino_t ino;
+	struct readdir_ctx readdir_ctx[1] = {{
+		.index = 0,
+	}};
+
+	rc = kvsns_str2ino(s_ino, &ino);
+	if (rc != 0) {
+		fprintf(stderr, "Cannot parse <s_ino>");
+		goto out;
+	}
+
+	printf("READDIR_BEGIN: (%llu) INDEX -> NAME -> INODE \n", ino);
+	rc = kvsns_readdir(fs_ctx, cred, &ino, readdir_cb, readdir_ctx);
+	printf("READDIR_END: %llu\n", ino);
+
+out:
+	return rc;
+}
+
 int main(int argc, char *argv[])
 {
 	int rc;
@@ -481,6 +520,24 @@ int main(int argc, char *argv[])
 			printf("==> Renamed failed %llu/%s/%s to %llu/%s/%s, rc = %d \n",
 			       current_inode, argv[1], argv[2],
 			       current_inode, argv[3], argv[4], rc);
+	} else if (!strcmp(exec_name, "kvsns_readdir")) {
+		if (argc != 2) {
+			fprintf(stderr, "kvsns_readdir <ino>\n");
+			exit(1);
+		}
+		rc = kvsns_create_fs_ctx(fs_id, &fs_ctx);
+		if (rc != 0) {
+			fprintf(stderr, "Failed to prepare env for readdir\n");
+			exit(1);
+		}
+		rc = kvsns_readdir_cmd(fs_ctx, &cred, argv[1]);
+		if (rc == 0) {
+			printf("==> READDIR ok for %llu/%s\n",
+			       current_inode, argv[1]);
+			return rc;
+		} else
+			printf("==> READDIR failed %llu/%s, rc = %d \n",
+			       current_inode, argv[1], rc);
 	} else
 		fprintf(stderr, "%s does not exists\n", exec_name);
 	printf("######## OK ########\n");

@@ -114,6 +114,8 @@ struct kvsns_dentry_key {
 		.name = __name,				\
 }
 
+#define DENTRY_KEY_PREFIX_INIT(__pino) DENTRY_KEY_INIT(__pino, {})
+
 /* @todo rename this to DENTRY_KEY_INIT once all the instances of
  * DENTRY_KEY_INIT are replaced with DENTRY_KEY_PTR_INIT */
 #define DENTRY_KEY_PTR_INIT(key, ino, fname)	\
@@ -124,16 +126,24 @@ struct kvsns_dentry_key {
 		key->name = *fname;			\
 }
 
-/** Dynamic size of a dentry key, i.e. the amount of bytest to be stored in
- * the KVS storage.
- */
-static inline size_t kvsns_dentry_key_dsize(const struct kvsns_dentry_key *key) {
-	return (sizeof(*key) - sizeof(key->name.s_str)) + key->name.s_len;
-}
 /** Pattern size of a dentry key, i.e. the size of a dentry prefix. */
 static const size_t kvsns_dentry_key_psize =
 	sizeof(struct kvsns_dentry_key) - sizeof(kvsns_name_t);
 
+/** Dynamic size of a kname object. */
+static inline size_t kvsns_name_dsize(const kvsns_name_t *kname)
+{
+	/* sizeof (len field) + actual len + size of null-terminator */
+	return sizeof(kname->s_len) + kname->s_len + sizeof('\0');
+}
+
+
+/** Dynamic size of a dentry key, i.e. the amount of bytest to be stored in
+ * the KVS storage.
+ */
+static inline size_t kvsns_dentry_key_dsize(const struct kvsns_dentry_key *key) {
+	return kvsns_dentry_key_psize + kvsns_name_dsize(&key->name);
+}
 
 /* Key for child -> parent mapping.
  * Version 1: key = (parent, child), value = link_count, where
@@ -152,7 +162,7 @@ struct kvsns_parentdir_key {
 #define PARENTDIR_KEY_PTR_INIT(pkey, __ino, __pino)	\
 {							\
 		pkey->ino = *__ino,			\
-		pkey->md.type = KVSNS_KEY_TYPE_DIRENT,	\
+		pkey->md.type = KVSNS_KEY_TYPE_PARENT,	\
 		pkey->md.version = KVSNS_VERSION_0,	\
 		pkey->pino = *__pino;			\
 }
@@ -202,13 +212,33 @@ static int kvsns_ns_del_inode_attr(kvsns_fs_ctx_t ctx,
 				   kvsns_key_type_t type);
 
 /******************************************************************************/
+/** Check if a kvsns_name_t object has a valid C string in the buffer and
+ * the len of the C string matches the len field.
+ */
+static inline bool kvsns_name_invariant(const kvsns_name_t *kname)
+{
+	/* Find null-terminator and check len */
+	bool result = (memchr(kname->s_str, '\0', sizeof(kname->s_str)) != NULL)
+		&& (strlen(kname->s_str) == kname->s_len);
+
+	if (!result) {
+		log_debug("Invalid kvsns_name: (%*.s), (%d), (%d)",
+			  (int) sizeof(kname->s_str), kname->s_str,
+			  (int) strnlen(kname->s_str, sizeof(kname->s_str)),
+			  (int) kname->s_len);
+	}
+
+	return result;
+}
+
+/******************************************************************************/
 int kvsns_name_from_cstr(const char *name, kvsns_name_t *kname)
 {
 	int rc;
 
 	rc = strlen(name);
 
-	if (rc > sizeof(kname->s_str)) {
+	if (kvsns_unlikely(rc > sizeof(kname->s_str) - 1)) {
 		log_err("Name '%s' is too long", name);
 		rc = -EINVAL;
 		goto out;
@@ -218,8 +248,18 @@ int kvsns_name_from_cstr(const char *name, kvsns_name_t *kname)
 	memcpy(kname->s_str, name, rc);
 	kname->s_len = rc;
 
+	KVSNS_DASSERT(kvsns_name_invariant(kname));
+
 out:
 	return rc;
+}
+
+/******************************************************************************/
+/** Get pointer to a const C-string owned by kvsns_name string. */
+static inline const char *kvsns_name_as_cstr(const kvsns_name_t *kname)
+{
+	KVSNS_DASSERT(kvsns_name_invariant(kname));
+	return kname->s_str;
 }
 
 /******************************************************************************/
@@ -901,7 +941,7 @@ int kvsns_tree_attach(kvsns_fs_ctx_t fs_ctx,
 	 * PARENT_KEY_INIT are replaced with PARENT_DIR_KEY_PTR_INIT */
 	PARENTDIR_KEY_PTR_INIT(parent_key, ino, parent_ino);
 	// Update parent link count
-	rc = kvsal3_get_bin(fs_ctx, parent_key, sizeof(parent_key),
+	rc = kvsal3_get_bin(fs_ctx, parent_key, sizeof(*parent_key),
 			    (void **)&parent_val_ptr, &val_size);
 	if (rc == -ENOENT) {
 		parent_value = 0;
@@ -919,7 +959,7 @@ int kvsns_tree_attach(kvsns_fs_ctx_t fs_ctx,
 
 	parent_value++;
 	RC_WRAP_LABEL(rc, free_parentkey, kvsal3_set_bin, fs_ctx,
-		      parent_key, sizeof(parent_key),
+		      parent_key, sizeof(*parent_key),
 		      (void *)&parent_value, sizeof(parent_value));
 
 	// Update stats
@@ -980,15 +1020,32 @@ int kvsns_tree_has_children(kvsns_fs_ctx_t fs_ctx,
 			    const kvsns_ino_t *ino,
 			    bool *has_children)
 {
-	int rc;
-	const struct kvsns_dentry_key key = DENTRY_KEY_INIT(*ino, {});
+	int rc = 0;
+	bool result;
+	const struct kvsns_dentry_key key = DENTRY_KEY_PREFIX_INIT(*ino);
+	struct kvsal_prefix_iter iter = {
+		.base.ctx = fs_ctx,
+		.prefix = &key,
+		.prefix_len = kvsns_dentry_key_psize,
+	};
 
-	RC_WRAP_LABEL(rc, out, kvsal_key_prefix_exists, fs_ctx,
-		      &key, kvsns_dentry_key_psize, has_children);
+	result = kvsal_prefix_iter_find(&iter);
+
+	/* Check if we got an unexpected error from KVS */
+	if (iter.base.inner_rc != 0 && iter.base.inner_rc != -ENOENT) {
+		rc = iter.base.inner_rc;
+		goto out;
+	}
+
+	if (result) {
+		kvsal_prefix_iter_fini(&iter);
+	}
+
+	*has_children = result;
 
 out:
-	log_debug("%llu has at least %d children, rc=%d",
-		  *ino, (int) *has_children, rc);
+	log_debug("%llu %s children, rc=%d",
+		  *ino, *has_children ? "has" : " doesn't have", rc);
 	return rc;
 }
 
@@ -1030,6 +1087,64 @@ cleanup:
 out:
 	log_debug("GET %llu.dentries.%.*s=%llu, rc=%d",
 		  *parent_ino, name->s_len, name->s_str, value, rc);
+	return rc;
+}
+
+/******************************************************************************/
+int kvsns_tree_iter_children(kvsns_fs_ctx_t fs_ctx,
+			     const kvsns_ino_t *ino,
+			     kvsns_readdir_cb_t cb,
+			     void *cb_ctx)
+{
+	const struct kvsns_dentry_key prefix = DENTRY_KEY_PREFIX_INIT(*ino);
+	int rc;
+	size_t len;
+	bool need_next = true;
+	bool has_next = true;
+	struct kvsal_prefix_iter iter = {
+		.base.ctx = fs_ctx,
+		.prefix = &prefix,
+		.prefix_len = kvsns_dentry_key_psize,
+	};
+	const struct kvsns_dentry_key *key = NULL;
+	const kvsns_ino_t *value = NULL;
+	const char *dentry_name_str;
+
+	if (!kvsal_prefix_iter_find(&iter)) {
+		rc = iter.base.inner_rc;
+		goto out;
+	}
+
+	while (need_next && has_next) {
+		len = kvsal_iter_get_key(&iter.base, (void**) &key);
+		KVSNS_DASSERT(len > kvsns_dentry_key_psize);
+		KVSNS_DASSERT(len < sizeof(struct kvsns_dentry_key));
+		KVSNS_DASSERT(key);
+
+		len = kvsal_iter_get_value(&iter.base, (void **) &value);
+		KVSNS_DASSERT(len == sizeof(*value));
+		KVSNS_DASSERT(value);
+
+		KVSNS_DASSERT(key->name.s_len != 0);
+		dentry_name_str = kvsns_name_as_cstr(&key->name);
+
+		log_debug("NEXT %s = %llu", dentry_name_str, *value);
+		need_next = cb(cb_ctx, dentry_name_str, value);
+		has_next = kvsal_prefix_iter_next(&iter);
+
+		log_debug("NEXT_STEP (%d,%d,%d)",
+			  (int) need_next, (int) has_next, iter.base.inner_rc);
+	}
+
+	/* Check if iteration was interrupted by an internal KVS error */
+	if (need_next && !has_next) {
+		rc = iter.base.inner_rc == -ENOENT ? 0 : iter.base.inner_rc;
+	} else {
+		rc = 0;
+	}
+
+out:
+	kvsal_prefix_iter_fini(&iter);
 	return rc;
 }
 

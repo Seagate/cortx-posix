@@ -38,6 +38,15 @@ TGROUP_RENAME=(
 )
 
 ################################################################################
+TGROUP_READDIR=(
+    test_kvsns_readdir_root_dir
+    test_kvsns_readdir_sub_dir
+    test_kvsns_readdir_file_and_dir
+    test_kvsns_readdir_empty_dir
+    test_kvsns_readdir_multiple_files
+)
+
+################################################################################
 # Currently only *file_create* tests pass, because they call "delete" which
 # needs to be implemented with modified binary keys and vals.
 # Hence the rest of the tests are "disabled"
@@ -54,5 +63,6 @@ TEST_LIST=(
     ${TGROUP_FILE_CREATE[@]}
     ${TGROUP_MKDIR[@]}
     ${TGROUP_RENAME[@]}
+    ${TGROUP_READDIR[@]}
 )
 

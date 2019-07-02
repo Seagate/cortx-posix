@@ -14,10 +14,22 @@ log_debug() {
     echo "DEBUG: $*" >> $TRACE_LOG
 }
 
+log_error() {
+    echo "ERROR: $*" >> $TRACE_LOG
+}
+
 ## Trace for binary executables
 log_exec_bin() {
     log_debug "exec >>> ($*)"
     $@ >> $TRACE_LOG 2>&1
+    local rc=$?
+    log_debug "exec <<< ($rc)"
+    return $rc
+}
+
+log_exec_bin_grab_stdout() {
+    log_debug "exec >>> ($*)"
+    $@ 2>> $TRACE_LOG
     local rc=$?
     log_debug "exec <<< ($rc)"
     return $rc
@@ -189,6 +201,24 @@ kvsns_mkdir_cmd() {
     local DNAME=$2
     local BIN=$KVSNS_SHELL_DIR/kvsns2_mkdir
     local CMD="$BIN $PARENT_INO $DNAME"
+
+    log_exec_bin "$CMD"
+}
+
+# Execute readdir and get list of filenames
+kvsns_readdir_getlist_cmd() {
+    local PARENT=$1
+    local BIN=$KVSNS_SHELL_DIR/kvsns_readdir
+    local CMD="$BIN $PARENT"
+    local CMD_PATTERN="READDIR"
+
+    log_exec_bin_grab_stdout "$CMD" | awk '/READDIR:/ { print $3; }'
+}
+
+kvsns_readdir_cmd() {
+    local PARENT=$1
+    local BIN=$KVSNS_SHELL_DIR/kvsns_readdir
+    local CMD="$BIN $PARENT"
 
     log_exec_bin "$CMD"
 }

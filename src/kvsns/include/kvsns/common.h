@@ -50,4 +50,12 @@
 #endif
 
 
+#ifndef kvsns_likely
+#define kvsns_likely(__cond)   __builtin_expect(!!(__cond), 1)
+#endif
+
+#ifndef kvsns_unlikely
+#define kvsns_unlikely(__cond) __builtin_expect(!!(__cond), 0)
+#endif
+
 #endif // _COMMON_H

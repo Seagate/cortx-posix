@@ -503,7 +503,77 @@ static fsal_status_t kvsfs_linkfile(struct fsal_obj_handle *obj_hdl,
 	return fsalstat(fsal_error, -retval);
 }
 
-#define MAX_ENTRIES 256
+/** State (context) for kvsfs_readdir_cb.
+ * The callback is called when the current postion ("where") >= the start
+ * position ("whence").
+ * eof and dir_continue flags are cleared when iteractions were iterrupted
+ * by the user (nfs-ganesha).
+ * */
+struct kvsfs_readdir_cb_ctx {
+	/** READDIR starts from offset specified by "whence". */
+	const fsal_cookie_t whence;
+	/** nfs-ganesha callback which is called for each dir entry. */
+	const fsal_readdir_cb fsal_cb;
+	/** Current offset (index of "where" we are right now). */
+	fsal_cookie_t where;
+	/** Context for the nfs-ganesha callback. */
+	void *fsal_cb_ctx;
+	/** The flag is set to False when nfs-ganesha requested termination
+	 * of readdir procedure.
+	 */
+	bool dir_continue;
+	/** THe flag is set to False when readdir was terminated and didn't
+	 * reach the last dir entry.
+	 */
+	bool eof;
+};
+
+/** A callback to be called for each READDIR entry.
+ * @param[in, out] ctx Callback state (context).
+ * @param[in] name Name of the dentry.
+ * @param[in] ino Inode of the dentry.
+ * @retval true if more entries are requested.
+ * @retval false if iterations must be interrupted.
+ * @see populate_dirent in nfs-ganesha.
+ * NOTE: "ino" is unused but it is reserved for futher migrations
+ * to the recent nfs-ganesha. It will allow us to avoid lookup() call and
+ * directly call getattr().
+*/
+static bool kvsfs_readdir_cb(void *ctx, const char *name,
+			     const kvsns_ino_t *ino)
+{
+	struct kvsfs_readdir_cb_ctx *cb_ctx = ctx;
+
+	assert(cb_ctx != NULL);
+	assert(name != NULL);
+	assert(ino != NULL);
+
+	/* A small state machine for dir_continue and eof logic:
+	 * even if cb_ctx->fsal_cb returned false, we still have to
+	 * check if it was the last dir entry.
+	 * TODO:PERF: Add "unlikely" wrapper here.
+	 */
+	if (!cb_ctx->dir_continue) {
+		cb_ctx->eof = false;
+		return false;
+	}
+
+	/* nfs-ganesha never uses a by-offset-readdir call but we have to
+	 * support such kind of logic.
+	 * TODO:PERF: Add "unlikely" wrapper here.
+	 */
+	if (cb_ctx->where < cb_ctx->whence) {
+		return true;
+	}
+
+	cb_ctx->dir_continue =
+		cb_ctx->fsal_cb(name, cb_ctx->fsal_cb_ctx, cb_ctx->where);
+
+	cb_ctx->where++;
+
+	return true;
+}
+
 /**
  * read_dirents
  * read the directory and call through the callback function for
@@ -519,61 +589,60 @@ static fsal_status_t kvsfs_readdir(struct fsal_obj_handle *dir_hdl,
 				  fsal_cookie_t *whence, void *dir_state,
 				  fsal_readdir_cb cb, bool *eof)
 {
-	struct kvsfs_fsal_obj_handle *myself;
-	int retval = 0;
-	off_t seekloc = 0;
+	struct kvsfs_fsal_obj_handle *obj;
 	kvsns_cred_t cred;
-	kvsns_dentry_t dirents[MAX_ENTRIES];
-	unsigned int index = 0;
-	int size = 0;
-	kvsns_dir_t ddir;
+	struct kvsfs_readdir_cb_ctx readdir_ctx = {
+		.whence = whence ? *whence : 0,
+		.where = 0,
+		.fsal_cb = cb,
+		.fsal_cb_ctx = dir_state,
+		.eof = true,
+		.dir_continue = true,
+	};
+	kvsns_fs_ctx_t fs_ctx;
+	int rc;
 
-	if (whence != NULL)
-		seekloc = (off_t) *whence;
-	myself =
-		container_of(dir_hdl, struct kvsfs_fsal_obj_handle, obj_handle);
+	obj = container_of(dir_hdl, struct kvsfs_fsal_obj_handle, obj_handle);
 
 	cred.uid = op_ctx->creds->caller_uid;
 	cred.gid = op_ctx->creds->caller_gid;
 
-	retval = kvsns_opendir(&cred, &myself->handle->kvsfs_handle,
-			       &ddir);
-	if (retval < 0)
+	rc = kvsfs_obj_to_kvsns_ctx(dir_hdl, &fs_ctx);
+	if (rc < 0)
 		goto out;
 
-	/* Open the directory */
-	do {
-		size = MAX_ENTRIES;
-		retval = kvsns_readdir(&cred, &ddir, seekloc,
-				       dirents, &size);
-		if (retval)
-			goto out;
-		for (index = 0; index < MAX_ENTRIES; index++) {
-			/* If psz_filename is NULL,
-			 * that's the end of the list */
-			if (dirents[index].name[0] == '\0') {
-				*eof = true;
-				goto done;
-			}
+	/* NOTE:PERF:
+	 *	The current version of nfs-ganesha calls fsal_readdir()
+	 *	to update its internal inode cache. It fills the cache,
+	 *	and only after that returns a response to the client.
+	 *	Also, it calls lookup() and getattr() for each entry.
+	 *	Moreover, nfs-ganesha never uses whernce != 0.
+	 *	Considering the above statements, there is no need to
+	 *	use the previous opendir/readdir-by-offset/closedir
+	 *	approach -- we can freely just walk over the whole directory.
+	 */
+	/* NOTE: nfs-ganesha migration.
+	 *	The recent version of nfs-ganesha has a mdcache FSAL instead
+	 *	of the inode cache. It looks like the MD FSAL is able to update
+	 *	only parts (chunks) of readdir contents depending on
+	 *	the state of L1 LRU and L2 MRU caches.
+	 *	Moreover, the new version supports a whence-as-name export
+	 *	option which allows to use filenames as offsets (see RGW FSAL).
+	 *	Therefore, the readdir kvsnsn interface can be extened
+	 *	to support a start dir entry name as an option.
+	 *	Also, the new version will requite readdir_cb to call
+	 *	getattr().
+	 */
+	rc = kvsns_readdir(fs_ctx, &cred, &obj->handle->kvsfs_handle,
+			   kvsfs_readdir_cb, &readdir_ctx);
 
-			/* callback to cache inode */
-			if (!cb(dirents[index].name,
-				dir_state,
-				(fsal_cookie_t) index))
-				goto done;
-		}
-
-		seekloc += MAX_ENTRIES;
-	} while (size != 0);
-
- done:
-	retval = kvsns_closedir(&ddir);
-	if (retval < 0)
+	if (rc < 0)
 		goto out;
 
-	return fsalstat(ERR_FSAL_NO_ERROR, 0);
+	*eof = readdir_ctx.eof;
+
  out:
-	return fsalstat(posix2fsal_error(-retval), -retval);
+	return fsalstat(posix2fsal_error(-rc), -rc);
 }
 
 /** Rename (re-link) an object in a filesystem.

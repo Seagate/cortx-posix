@@ -148,13 +148,6 @@ int kvsal_set_stat(char *k, struct stat *buf)
 			  (char *)buf, sizeof(struct stat));
 }
 
-int kvsal2_set_stat(void *ctx, char *k, size_t klen, struct stat *buf)
-{
-        log_debug("stat=%s len=%d", k, (int)klen);
-	return m0kvs2_set(ctx ,k, klen,
-			  (char *)buf, sizeof(struct stat));
-}
-
 int kvsal_get_stat(char *k, struct stat *buf)
 {
 	size_t klen;
@@ -163,14 +156,6 @@ int kvsal_get_stat(char *k, struct stat *buf)
 	klen = strnlen(k, KLEN)+1;
 	return m0kvs_get(k, klen,
 			  (char *)buf, &vlen);
-}
-
-int kvsal2_get_stat(void *ctx, char *k, size_t klen, struct stat *buf)
-{
-	size_t vlen = sizeof(struct stat);
-
-	return m0kvs2_get(ctx, k, klen,
-			 (char *)buf, &vlen);
 }
 
 int kvsal_set_binary(char *k, char *buf, size_t size)
@@ -440,8 +425,40 @@ int kvsal_create_fs_ctx(unsigned long fs_id, void **fs_ctx)
 	return 0;
 }
 
-int kvsal_key_prefix_exists(void *ctx, const void *key, size_t klen,
-			    bool *result)
+static bool kvsal_prefix_iter_has_prefix(struct kvsal_prefix_iter *iter)
 {
-	return m0_key_prefix_exists(ctx, key, klen, result);
+	void *key;
+	size_t key_len;
+
+	key_len = kvsal_iter_get_key(&iter->base, &key);
+	KVSNS_DASSERT(key_len >= iter->prefix_len);
+	return memcmp(iter->prefix, key, iter->prefix_len) == 0;
 }
+
+bool kvsal_prefix_iter_find(struct kvsal_prefix_iter *iter)
+{
+	return m0_key_iter_find(&iter->base, iter->prefix, iter->prefix_len) &&
+		kvsal_prefix_iter_has_prefix(iter);
+}
+
+bool kvsal_prefix_iter_next(struct kvsal_prefix_iter *iter)
+{
+	return m0_key_iter_next(&iter->base) &&
+		kvsal_prefix_iter_has_prefix(iter);
+}
+
+void kvsal_prefix_iter_fini(struct kvsal_prefix_iter *iter)
+{
+	m0_key_iter_fini(&iter->base);
+}
+
+size_t kvsal_iter_get_key(struct kvsal_iter *iter, void **buf)
+{
+	return m0_key_iter_get_key(iter, buf);
+}
+
+size_t kvsal_iter_get_value(struct kvsal_iter *iter, void **buf)
+{
+	return m0_key_iter_get_value(iter, buf);
+}
+
