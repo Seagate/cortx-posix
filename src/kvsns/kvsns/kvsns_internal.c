@@ -818,7 +818,7 @@ static int kvsns_ns_set_inode_attr(kvsns_fs_ctx_t ctx,
 
 	RC_WRAP_LABEL(rc, out, kvsal3_set_bin, ctx,
 		      key, sizeof(struct kvsns_inode_attr_key), buf, buf_size);
-	
+
 out:
 	kvsal_free(key);
 	log_trace("SET %llu.%s = (%d), rc=%d ctx=%p", *ino,
@@ -832,13 +832,20 @@ static int kvsns_ns_del_inode_attr(kvsns_fs_ctx_t ctx,
 				   kvsns_key_type_t type)
 {
 	int rc;
-	const struct kvsns_inode_attr_key key = INODE_ATTR_KEY_INIT(*ino, type);
+	struct kvsns_inode_attr_key *key;
 
 	KVSNS_DASSERT(ino);
+	RC_WRAP_LABEL(rc, out, kvsal_alloc, (void **)&key,
+		      sizeof (*key));
 
-	RC_WRAP_LABEL(rc, out, kvsal2_del_bin, ctx, &key, sizeof(key));
+	INODE_ATTR_KEY_PTR_INIT(key, ino, type);
+
+
+	RC_WRAP_LABEL(rc, out, kvsal2_del_bin, ctx, key,
+		      sizeof(struct kvsns_inode_attr_key));
 
 out:
+	kvsal_free(key);
 	log_trace("DEL %llu.%s, rc=%d", *ino,
 		  kvsns_key_type_to_str(type), rc);
 	return rc;
@@ -888,11 +895,12 @@ int kvsns_tree_detach(kvsns_fs_ctx_t fs_ctx,
 	struct kvsns_parentdir_key *parent_key = NULL;
 	uint64_t *parent_value = NULL;
 
+	// Remove dentry
 	RC_WRAP_LABEL(rc, out, kvsal_alloc, (void **)&dentry_key,
 		      sizeof (*dentry_key));
 
 	DENTRY_KEY_PTR_INIT(dentry_key, parent_ino, node_name);
-	// Remove dentry
+
 	RC_WRAP_LABEL(rc, free_dentrykey, kvsal2_del_bin, fs_ctx,
 		      dentry_key, kvsns_dentry_key_dsize(dentry_key));
 
@@ -1015,27 +1023,35 @@ int kvsns_tree_rename_link(kvsns_fs_ctx_t fs_ctx,
 			   const kvsns_name_t *new_name)
 {
 	int rc;
-	struct kvsns_dentry_key dentry_key =
-		DENTRY_KEY_INIT(*parent_ino, *old_name);
+	struct kvsns_dentry_key *dentry_key;
 	const kvsns_ino_t dentry_value = *ino;
+
+	RC_WRAP_LABEL(rc, out, kvsal_alloc, (void **)&dentry_key,
+		      sizeof (*dentry_key));
+
+	DENTRY_KEY_PTR_INIT(dentry_key, parent_ino, old_name);
 
 	// The caller must ensure that the entry exists prior renaming */
 	KVSNS_DASSERT(kvsns_tree_lookup(fs_ctx, parent_ino, old_name, NULL) == 0);
 
 	// Remove dentry
-	RC_WRAP_LABEL(rc, out, kvsal2_del_bin, fs_ctx,
-		      &dentry_key, kvsns_dentry_key_dsize(&dentry_key));
+	RC_WRAP_LABEL(rc, cleanup, kvsal2_del_bin, fs_ctx,
+		      dentry_key, kvsns_dentry_key_dsize(dentry_key));
 
-	dentry_key.name = *new_name;
+	dentry_key->name = *new_name;
 
-	// Add detntry
-	RC_WRAP_LABEL(rc, out, kvsal2_set_bin, fs_ctx,
-		      &dentry_key, kvsns_dentry_key_dsize(&dentry_key),
+	// Add dentry
+	RC_WRAP_LABEL(rc, cleanup, kvsal2_set_bin, fs_ctx,
+		      dentry_key, kvsns_dentry_key_dsize(dentry_key),
 		      &dentry_value, sizeof(dentry_value));
 
 	// Update ctime stat
-	RC_WRAP_LABEL(rc, out, kvsns2_update_stat, fs_ctx, parent_ino,
+	RC_WRAP_LABEL(rc, cleanup, kvsns2_update_stat, fs_ctx, parent_ino,
 		      STAT_CTIME_SET);
+
+cleanup:
+	kvsal_free(dentry_key);
+
 out:
 	log_debug("tree_rename(%p,pino=%llu,ino=%llu,o=%.*s,n=%.*s) = %d",
 		  fs_ctx, *parent_ino, *ino,
