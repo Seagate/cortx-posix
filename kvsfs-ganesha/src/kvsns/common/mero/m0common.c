@@ -527,24 +527,17 @@ int m0kvs2_set(void *ctx, const void *k, size_t klen,
 	return rc;
 }
 
-int m0kvs2_del(void *ctx, char *k, size_t klen)
+int m0kvs2_del(void *ctx, void *k, const size_t klen)
 {
-	struct m0_bufvec	 key;
+	struct m0_bufvec key;
+	m0_bcount_t k_len = klen;
 	int rc;
 
-	/* @todo: This might kill the performance. Find a cleaner way to do check. */
-	if (!my_init_done)
-		m0kvs_reinit();
+	KVSNS_DASSERT(my_init_done);
 
-	rc = buf2vec(k, klen, &key);
-	if (rc)
-		goto out;
+	key = M0_BUFVEC_INIT_BUF(&k, &k_len);
 
 	rc = m0_op2_kvs(ctx, M0_CLOVIS_IC_DEL, &key, NULL);
-
-out:
-	free_buf2vec(&key);
-	log_debug("key=%s rc=%d", k, rc);
 	return rc;
 }
 

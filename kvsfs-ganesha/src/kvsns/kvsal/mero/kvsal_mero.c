@@ -243,7 +243,7 @@ int kvsal2_del(void *ctx, char *k, size_t klen)
 
 int kvsal2_del_bin(void *ctx, const void *key, size_t klen)
 {
-	return m0kvs2_del(ctx, (char *) key, klen);
+	return m0kvs2_del(ctx, (void *)key, klen);
 }
 
 bool get_list_cb_size(char *k, void *arg)
