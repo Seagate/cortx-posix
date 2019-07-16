@@ -538,6 +538,53 @@ int main(int argc, char *argv[])
 		} else
 			printf("==> READDIR failed %llu/%s, rc = %d \n",
 			       current_inode, argv[1], rc);
+	} else if (!strcmp(exec_name, "kvsns_ln")) {
+		if (argc != 3) {
+			fprintf(stderr, "ln <newdir> <content>\n");
+			exit(1);
+		}
+		rc = kvsns_create_fs_ctx(fs_id, &fs_ctx);
+		if (rc != 0) {
+			fprintf(stderr, "Failed to prepare env for symlink\n");
+			exit(1);
+		}
+		rc = kvsns2_symlink(fs_ctx, &cred, &current_inode, argv[1],
+				    argv[2], &ino);
+		if (rc == 0) {
+			printf("==> %llu/%s created = %llu\n",
+				current_inode, argv[1], ino);
+			return 0;
+		} else
+			printf("Failed rc=%d !\n", rc);
+	} else if (!strcmp(exec_name, "kvsns_readlink")) {
+		char link_content[MAXPATHLEN];
+		size_t size = MAXPATHLEN;
+
+		if (argc != 2) {
+			fprintf(stderr, "readlink <link>\n");
+			exit(1);
+		}
+
+		rc = kvsns_create_fs_ctx(fs_id, &fs_ctx);
+		if (rc != 0) {
+			fprintf(stderr, "Failed to prepare env for readlink\n");
+			exit(1);
+		}
+		rc = kvsns2_lookup(fs_ctx, &cred, &current_inode, argv[1], &ino);
+		if (rc != 0) {
+			printf("==> %llun not accessible = %llu : rc=%d\n",
+				current_inode, ino, rc);
+			return 0;
+		}
+
+		rc = kvsns2_readlink(fs_ctx, &cred, &ino,
+				    link_content, &size);
+		if (rc == 0) {
+			printf("==> %llu/%s %llu content = %s\n",
+				current_inode, argv[1], ino, link_content);
+			return 0;
+		} else
+			printf("Failed rc=%d !\n", rc);
 	} else
 		fprintf(stderr, "%s does not exists\n", exec_name);
 	printf("######## OK ########\n");

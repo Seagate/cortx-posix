@@ -127,6 +127,52 @@ int kvsns_readlink(kvsns_cred_t *cred, kvsns_ino_t *lnk,
 	return 0;
 }
 
+int kvsns2_symlink(kvsns_fs_ctx_t fs_ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
+		   char *name, char *content, kvsns_ino_t *newlnk)
+{
+	int rc;
+
+	log_trace("ENTER: name=%s", name);
+	KVSNS_DASSERT(cred && parent && name && content && newlnk);
+
+	RC_WRAP_LABEL(rc, out, kvsns2_access, fs_ctx, cred, parent, KVSNS_ACCESS_WRITE);
+
+	RC_WRAP_LABEL(rc, out, kvsns2_create_entry, fs_ctx, cred, parent, name, content,
+		      0, newlnk, KVSNS_SYMLINK);
+
+	RC_WRAP_LABEL(rc, out, kvsns2_update_stat, fs_ctx, parent, STAT_MTIME_SET|STAT_CTIME_SET);
+
+out:
+	log_trace("name=%s content=%s rc=%d", name, content, rc);
+	return rc;
+}
+
+int kvsns2_readlink(kvsns_fs_ctx_t fs_ctx, kvsns_cred_t *cred, kvsns_ino_t *lnk,
+		    char *content, size_t *size)
+{
+	int rc;
+	void *lnk_content_buf = NULL;
+	size_t content_size;
+
+	log_trace("ENTER: lnk=%llu", *lnk);
+	KVSNS_DASSERT(cred && lnk);
+
+	RC_WRAP_LABEL(rc, errfree, kvsns_get_link, fs_ctx, lnk, &lnk_content_buf, &content_size);
+
+	// TODO: 4K memory was allocated for the content as caller does not know the 
+	// size of the content. If we want to malloc exact size instead of 4K
+	// the APIs needs to be changed. Please refer EOS-259 for the details.
+
+	// This is the only memcpy which copies data to NFA Ganesha buffer
+	memcpy(content, lnk_content_buf, content_size);
+	RC_WRAP_LABEL(rc, errfree, kvsns2_update_stat, fs_ctx, lnk, STAT_ATIME_SET);
+
+errfree:
+	kvsal_free(lnk_content_buf);
+	log_trace("EXIT: lnk=%llu content=%s rc=%d", *lnk, content, rc);
+	return rc;
+}
+
 int kvsns_rmdir(kvsns_cred_t *cred, kvsns_ino_t *parent, char *name)
 {
 	int rc;
@@ -679,11 +725,8 @@ int kvsns2_unlink(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *dir, char *name)
 
 	/* if object is a link, delete the link content as well */
 	/* @todo: Untested. Revisit this during implementation of symlinks. */
-	if ((ino_stat->st_mode & S_IFLNK) == S_IFLNK) {
-		RC_WRAP_LABEL(rc, errfree, prepare_key, k, KLEN, "%llu.link",
-			      ino);
-		RC_WRAP_LABEL(rc, errfree, kvsal2_del, ctx, k, KLEN);
-	}
+	if ((ino_stat->st_mode & S_IFLNK) == S_IFLNK)
+		RC_WRAP_LABEL(rc, errfree, kvsns_del_link, ctx, &ino);
 
 	RC_WRAP_LABEL(rc, errfree, kvsns_amend_stat, dir_stat,
 		      STAT_MTIME_SET|STAT_CTIME_SET);
@@ -692,7 +735,7 @@ int kvsns2_unlink(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *dir, char *name)
 	RC_WRAP(kvsal_end_transaction);
 
 	/* Call to object store : do not mix with metadata transaction */
-	if (!opened) {
+	if (!opened && (ino_stat->st_mode & S_IFLNK) != S_IFLNK) {
 		RC_WRAP(extstore_ino_to_fid, ctx, ino, &kfid);
 		RC_WRAP(extstore2_del, ctx, &ino, &kfid);
 	}

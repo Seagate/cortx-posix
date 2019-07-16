@@ -84,6 +84,11 @@ int kvsns2_set_stat(kvsns_fs_ctx_t ctx, const kvsns_ino_t *ino,
 		       struct stat *bufstat);
 int kvsns2_del_stat(kvsns_fs_ctx_t ctx, const kvsns_ino_t *ino);
 int kvsns2_update_stat(kvsns_fs_ctx_t ctx, const kvsns_ino_t *ini, int flags);
+int kvsns_get_link(kvsns_fs_ctx_t ctx, const kvsns_ino_t *ino,
+		   void **buf, size_t *buf_size);
+int kvsns_set_link(kvsns_fs_ctx_t ctx, const kvsns_ino_t *ino,
+		   void *buf, size_t buf_size);
+int kvsns_del_link(kvsns_fs_ctx_t ctx, const kvsns_ino_t *ino);
 
 /* deprecated API */
 int kvsns_get_stat(kvsns_ino_t *ino, struct stat *bufstat);
