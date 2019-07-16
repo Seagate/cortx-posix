@@ -330,6 +330,35 @@ int kvsns_readlink(kvsns_cred_t *cred, kvsns_ino_t *link,
 		 char *content, size_t *size);
 
 /**
+ * Creates a symbolic link
+ *
+ * @param fs_ctx - A context associated with the filesystem.
+ * @param cred - pointer to user's credentials
+ * @param parent - pointer to parent directory's inode.
+ * @param name - name of the directory to be created
+ * @param content - the content of the symbolic link to be created
+ * @paran newlnk - [OUT] if successfuly, will point to newly created inode
+ *
+ * @return 0 if successful, a negative "-errno" value in case of failure
+ */
+int kvsns2_symlink(kvsns_fs_ctx_t ctx, kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
+		   char *content, kvsns_ino_t *newlnk);
+
+/**
+ * Reads the content of a symbolic link
+ *
+ * @param fs_ctx - A context associated with the filesystem.
+ * @param cred - pointer to user's credentials
+ * @param link - pointer to the symlink's inode
+ * @param content - [OUT] buffer containing the read content.
+ * @param size - [OUT] size read by this call
+ *
+ * @return 0 if successful, a negative "-errno" value in case of failure
+ */
+int kvsns2_readlink(kvsns_fs_ctx_t ctx, kvsns_cred_t *cred, kvsns_ino_t *link,
+		    char *content, size_t *size);
+
+/**
  * Removes a directory. It won't be deleted if not empty.
  *
  * @param cred - pointer to user's credentials

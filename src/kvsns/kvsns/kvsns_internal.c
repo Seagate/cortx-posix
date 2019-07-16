@@ -62,6 +62,7 @@ typedef enum kvsns_key_type {
 	KVSNS_KEY_TYPE_DIRENT = 1,
 	KVSNS_KEY_TYPE_PARENT,
 	KVSNS_KEY_TYPE_STAT,
+	KVSNS_KEY_TYPE_SYMLINK,
 	KVSNS_KEY_TYPE_INVALID,
 	KVSNS_KEY_TYPES = KVSNS_KEY_TYPE_INVALID,
 } kvsns_key_type_t;
@@ -75,6 +76,8 @@ static inline const char *kvsns_key_type_to_str(kvsns_key_type_t ktype)
 		return "parentdir";
 	case KVSNS_KEY_TYPE_STAT:
 		return "stat";
+	case KVSNS_KEY_TYPE_SYMLINK:
+		return "link";
 	case KVSNS_KEY_TYPE_INVALID:
 		return "<invalid>";
 	}
@@ -206,7 +209,7 @@ struct kvsns_inode_attr_key {
 static int kvsns_ns_get_inode_attr(kvsns_fs_ctx_t ctx,
 				   const kvsns_ino_t *ino,
 				   kvsns_key_type_t type,
-				   void **buf, size_t buf_size);
+				   void **buf, size_t *buf_size);
 
 static int kvsns_ns_set_inode_attr(kvsns_fs_ctx_t ctx,
 				   const kvsns_ino_t *ino,
@@ -474,10 +477,10 @@ int kvsns2_create_entry(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
 	RC_WRAP(kvsal_begin_transaction);
 
 	/* @todo: Alloc mero bufvecs and use it for key to avoid extra mem copy
-	RC_WRAP_LABEL(rc, aborted, kvsns_alloc_dirent_key, namelen, &d_key); */
+	RC_WRAP_LABEL(rc, errfree, kvsns_alloc_dirent_key, namelen, &d_key); */
 
 	(void) kvsns_name_from_cstr(name, &k_name);
-	RC_WRAP_LABEL(rc, aborted, kvsns_tree_attach, ctx, parent, new_entry, &k_name);
+	RC_WRAP_LABEL(rc, errfree, kvsns_tree_attach, ctx, parent, new_entry, &k_name);
 
 	/* Set the stats of the new file */
 	memset(&bufstat, 0, sizeof(struct stat));
@@ -487,7 +490,7 @@ int kvsns2_create_entry(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
 
 	if (gettimeofday(&t, NULL) != 0) {
 		rc = -1;
-		goto aborted;
+		goto errfree;
 	}
 
 	bufstat.st_atim.tv_sec = t.tv_sec;
@@ -517,19 +520,23 @@ int kvsns2_create_entry(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
 
 	default:
 		rc = -EINVAL;
-		goto aborted;
+		goto errfree;
 	}
-	RC_WRAP_LABEL(rc, aborted, kvsns2_set_stat, ctx, new_entry, &bufstat);
-	RC_WRAP_LABEL(rc, aborted, kvsns_amend_stat, parent_stat,
+	RC_WRAP_LABEL(rc, errfree, kvsns2_set_stat, ctx, new_entry, &bufstat);
+
+	if (type == KVSNS_SYMLINK) {
+        	RC_WRAP_LABEL(rc, errfree, kvsns_set_link, ctx, new_entry, (void *)lnk, strlen(lnk));
+	}
+
+	RC_WRAP_LABEL(rc, errfree, kvsns_amend_stat, parent_stat,
 		      STAT_CTIME_SET|STAT_MTIME_SET);
-	RC_WRAP_LABEL(rc, aborted, kvsns2_set_stat, ctx, parent, parent_stat);
+	RC_WRAP_LABEL(rc, errfree, kvsns2_set_stat, ctx, parent, parent_stat);
 
 	RC_WRAP(kvsal_end_transaction);
 	return 0;
 
 errfree:
 	kvsal_free(parent_stat);
-aborted:
 	log_trace("Exit rc=%d", rc);
 	kvsal_discard_transaction();
 	return rc;
@@ -724,8 +731,13 @@ int kvsns_get_stat(kvsns_ino_t *ino, struct stat *bufstat)
 int kvsns2_get_stat(kvsns_fs_ctx_t ctx, const kvsns_ino_t *ino,
 		    struct stat **bufstat)
 {
-	return kvsns_ns_get_inode_attr(ctx, ino, KVSNS_KEY_TYPE_STAT,
-				       (void **)bufstat, 0);
+	int rc;
+	size_t buf_size = 0;
+	RC_WRAP_LABEL(rc, out, kvsns_ns_get_inode_attr, ctx, ino, KVSNS_KEY_TYPE_STAT,
+		      (void **)bufstat, &buf_size);
+out:
+	KVSNS_DASSERT(rc != 0 || buf_size == sizeof(struct stat));
+	return rc;
 }
 
 int kvsns2_set_stat(kvsns_fs_ctx_t ctx, const kvsns_ino_t *ino,
@@ -738,6 +750,30 @@ int kvsns2_set_stat(kvsns_fs_ctx_t ctx, const kvsns_ino_t *ino,
 int kvsns2_del_stat(kvsns_fs_ctx_t ctx, const kvsns_ino_t *ino)
 {
 	return kvsns_ns_del_inode_attr(ctx, ino, KVSNS_KEY_TYPE_STAT);
+}
+
+int kvsns_get_link(kvsns_fs_ctx_t ctx, const kvsns_ino_t *ino,
+		   void **buf, size_t *buf_size)
+{
+	int rc;
+	*buf_size = 0;
+	RC_WRAP_LABEL(rc, out, kvsns_ns_get_inode_attr, ctx, ino, KVSNS_KEY_TYPE_SYMLINK,
+		      buf, buf_size);
+	KVSNS_DASSERT(*buf_size < INT_MAX);
+out:
+	return rc;
+}
+
+int kvsns_set_link(kvsns_fs_ctx_t ctx, const kvsns_ino_t *ino,
+		   void *buf, size_t buf_size)
+{
+	return kvsns_ns_set_inode_attr(ctx, ino, KVSNS_KEY_TYPE_SYMLINK,
+				       buf, buf_size);
+}
+
+int kvsns_del_link(kvsns_fs_ctx_t ctx, const kvsns_ino_t *ino)
+{
+	return kvsns_ns_del_inode_attr(ctx, ino, KVSNS_KEY_TYPE_SYMLINK);
 }
 
 int kvsns_lookup_path(kvsns_cred_t *cred, kvsns_ino_t *parent, char *path,
@@ -780,7 +816,7 @@ int kvsns_lookup_path(kvsns_cred_t *cred, kvsns_ino_t *parent, char *path,
 static int kvsns_ns_get_inode_attr(kvsns_fs_ctx_t ctx,
 				   const kvsns_ino_t *ino,
 				   kvsns_key_type_t type,
-				   void **buf, size_t buf_size)
+				   void **buf, size_t *buf_size)
 {
 	int rc = 0;
 	struct kvsns_inode_attr_key *key = NULL;
@@ -793,11 +829,11 @@ static int kvsns_ns_get_inode_attr(kvsns_fs_ctx_t ctx,
 	KVSNS_DASSERT(ino);
 
 	RC_WRAP_LABEL(rc, out, kvsal3_get_bin, ctx,
-		      key, sizeof(struct kvsns_inode_attr_key), buf, &buf_size);
+		      key, sizeof(struct kvsns_inode_attr_key), buf, buf_size);
 out:
 	kvsal_free(key);
 	log_trace("GET %llu.%s = (%d), rc=%d ctx=%p", *ino,
-		  kvsns_key_type_to_str(type), (int) buf_size, rc, ctx);
+		  kvsns_key_type_to_str(type), (int) *buf_size, rc, ctx);
 	return rc;
 }
 
@@ -843,7 +879,6 @@ static int kvsns_ns_del_inode_attr(kvsns_fs_ctx_t ctx,
 
 	RC_WRAP_LABEL(rc, out, kvsal2_del_bin, ctx, key,
 		      sizeof(struct kvsns_inode_attr_key));
-
 out:
 	kvsal_free(key);
 	log_trace("DEL %llu.%s, rc=%d", *ino,

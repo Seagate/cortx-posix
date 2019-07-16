@@ -1,3 +1,6 @@
+#!/bin/bash
+
+
 ################################################################################
 TGROUP_FILE_CREATE=(
 	test_file_create
@@ -47,6 +50,13 @@ TGROUP_READDIR=(
 )
 
 ################################################################################
+TGROUP_SYMLINK=(
+	test_symlink_create
+	test_symlink_create_longname
+	test_symlink_create_no_content
+)
+
+################################################################################
 # Currently only *file_create* tests pass, because they call "delete" which
 # needs to be implemented with modified binary keys and vals.
 # Hence the rest of the tests are "disabled"
@@ -64,5 +74,6 @@ TEST_LIST=(
     ${TGROUP_MKDIR[@]}
     ${TGROUP_RENAME[@]}
     ${TGROUP_READDIR[@]}
+    ${TGROUP_SYMLINK[@]}
 )
 
