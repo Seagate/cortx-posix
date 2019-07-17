@@ -85,50 +85,8 @@ int kvsns_mkdir(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
 				   mode, newdir, KVSNS_DIR);
 }
 
-int kvsns_symlink(kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
-		  char *content, kvsns_ino_t *newlnk)
-{
-	struct stat parent_stat;
-
-	if (!cred || !parent || !name || !content || !newlnk)
-		return -EINVAL;
-
-	RC_WRAP(kvsns_access, cred, parent, KVSNS_ACCESS_WRITE);
-	RC_WRAP(kvsns_get_stat, parent, &parent_stat);
-
-	RC_WRAP(kvsns_create_entry, cred, parent, name, content,
-		0, newlnk, KVSNS_SYMLINK);
-
-	RC_WRAP(kvsns_update_stat, parent, STAT_MTIME_SET|STAT_CTIME_SET);
-
-	return 0;
-}
-
-int kvsns_readlink(kvsns_cred_t *cred, kvsns_ino_t *lnk,
-		  char *content, size_t *size)
-{
-	char k[KLEN];
-	char v[KLEN];
-
-	/* No access check, a symlink's content is always readable */
-	if (!cred || !lnk || !content || !size)
-		return -EINVAL;
-
-	memset(k, 0, KLEN);
-	memset(v, 0, VLEN);
-	snprintf(k, KLEN, "%llu.link", *lnk);
-	RC_WRAP(kvsal_get_char, k, v);
-
-	strncpy(content, v, *size);
-	*size = strnlen(v, VLEN);
-
-	RC_WRAP(kvsns_update_stat, lnk, STAT_ATIME_SET);
-
-	return 0;
-}
-
-int kvsns2_symlink(kvsns_fs_ctx_t fs_ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
-		   char *name, char *content, kvsns_ino_t *newlnk)
+int kvsns_symlink(kvsns_fs_ctx_t fs_ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
+		  char *name, char *content, kvsns_ino_t *newlnk)
 {
 	int rc;
 
@@ -147,8 +105,8 @@ out:
 	return rc;
 }
 
-int kvsns2_readlink(kvsns_fs_ctx_t fs_ctx, kvsns_cred_t *cred, kvsns_ino_t *lnk,
-		    char *content, size_t *size)
+int kvsns_readlink(kvsns_fs_ctx_t fs_ctx, kvsns_cred_t *cred, kvsns_ino_t *lnk,
+		   char *content, size_t *size)
 {
 	int rc;
 	void *lnk_content_buf = NULL;
@@ -334,11 +292,11 @@ int kvsns2_getattr(kvsns_fs_ctx_t ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
 	KVSNS_DASSERT(cred != NULL);
 	KVSNS_DASSERT(ino != NULL);
 
-	rc = kvsns2_get_stat(ctx, ino, &stat);
-
+	RC_WRAP_LABEL(rc, out, kvsns2_get_stat, ctx, ino, &stat);
 	memcpy(bufstat, stat, sizeof(struct stat));
-	log_debug("ino=%d rc=%d", (int)bufstat->st_ino, rc);
 	kvsal_free(stat);
+out:
+	log_debug("ino=%d rc=%d", (int)bufstat->st_ino, rc);
 	return rc;
 }
 

@@ -393,6 +393,7 @@ static fsal_status_t kvsfs_makesymlink(struct fsal_obj_handle *dir_hdl,
 	kvsns_cred_t cred;
 	kvsns_ino_t object;
 	struct stat stat;
+	kvsns_fs_ctx_t fs_ctx = KVSNS_NULL_FS_CTX;
 
 	struct kvsfs_file_handle fh;
 
@@ -409,12 +410,20 @@ static fsal_status_t kvsfs_makesymlink(struct fsal_obj_handle *dir_hdl,
 	cred.uid = attrib->owner;
 	cred.gid = attrib->group;
 
-	retval = kvsns_symlink(&cred, &myself->handle->kvsfs_handle,
+	retval = kvsfs_obj_to_kvsns_ctx(dir_hdl, &fs_ctx);
+	if (retval != 0) {
+		LogCrit(COMPONENT_FSAL,
+			"Unable to get fs ctx, obj_hdl=%p retval=%d",
+		        dir_hdl,retval);
+		goto err;
+	}
+
+	retval = kvsns_symlink(fs_ctx, &cred, &myself->handle->kvsfs_handle,
 			       (char *)name, (char *)link_path, &object);
 	if (retval)
 		goto err;
 
-	retval = kvsns_getattr(&cred, &object, &stat);
+	retval = kvsns2_getattr(fs_ctx, &cred, &object, &stat);
 	if (retval)
 		goto err;
 
@@ -443,6 +452,7 @@ static fsal_status_t kvsfs_readsymlink(struct fsal_obj_handle *obj_hdl,
 	int retlink = 0;
 	fsal_errors_t fsal_error = ERR_FSAL_NO_ERROR;
 	kvsns_cred_t cred;
+	kvsns_fs_ctx_t fs_ctx = KVSNS_NULL_FS_CTX;
 
 	if (obj_hdl->type != SYMBOLIC_LINK) {
 		fsal_error = ERR_FSAL_FAULT;
@@ -454,6 +464,14 @@ static fsal_status_t kvsfs_readsymlink(struct fsal_obj_handle *obj_hdl,
 	cred.uid = op_ctx->creds->caller_uid;
 	cred.gid = op_ctx->creds->caller_gid;
 
+	retval = kvsfs_obj_to_kvsns_ctx(obj_hdl, &fs_ctx);
+	if (retval != 0) {
+		LogCrit(COMPONENT_FSAL,
+			"Unable to get fs ctx, obj_hdl=%p retval=%d",
+		        obj_hdl,retval);
+		goto out;
+	}
+
 	/* The link length should be cached in the file handle */
 
 	link_content->len =
@@ -461,7 +479,7 @@ static fsal_status_t kvsfs_readsymlink(struct fsal_obj_handle *obj_hdl,
 					   1) : fsal_default_linksize;
 	link_content->addr = gsh_malloc(link_content->len);
 
-	retlink = kvsns_readlink(&cred, &myself->handle->kvsfs_handle,
+	retlink = kvsns_readlink(fs_ctx, &cred, &myself->handle->kvsfs_handle,
 				 link_content->addr, &link_content->len);
 
 	if (retlink) {
@@ -1074,8 +1092,8 @@ static void kvsfs_handle_to_key(struct fsal_obj_handle *obj_hdl,
  */
 
 fsal_status_t kvsfs_create_handle(struct fsal_export *exp_hdl,
-				 struct gsh_buffdesc *hdl_desc,
-				 struct fsal_obj_handle **handle)
+				  struct gsh_buffdesc *hdl_desc,
+				  struct fsal_obj_handle **handle)
 {
 	struct kvsfs_fsal_obj_handle *hdl;
 	struct kvsfs_file_handle fh;
@@ -1086,6 +1104,7 @@ fsal_status_t kvsfs_create_handle(struct fsal_export *exp_hdl,
 	kvsns_cred_t cred;
 	int retval;
 	size_t size;
+	kvsns_fs_ctx_t fs_ctx = KVSNS_NULL_FS_CTX;
 
 	*handle = NULL;		/* poison it first */
 	if (hdl_desc->len > sizeof(struct kvsfs_file_handle))
@@ -1093,17 +1112,30 @@ fsal_status_t kvsfs_create_handle(struct fsal_export *exp_hdl,
 
 	memcpy(&fh, hdl_desc->addr, hdl_desc->len);  /* struct aligned copy */
 
+	/* TODO: Add a separate function to get fs_ctx from exp_hdl, i.e.:
+	 * int kvsfs_fsal_export_to_fs_ctx(struct fsal_export *exp,
+	 *				   kvsns_fs_ctx_t *pfs_ctx)
+	 * and use it here.
+	 */
+	retval = kvsfs_obj_to_kvsns_ctx(NULL, &fs_ctx);
+	if (retval != 0) {
+		LogCrit(COMPONENT_FSAL,
+			"Unable to get fs_ctx for export root: (%p), rc=%d",
+			exp_hdl, retval);
+		return fsalstat(posix2fsal_error(-retval), -retval);
+	}
+
 	cred.uid = op_ctx->creds->caller_uid;
 	cred.gid = op_ctx->creds->caller_gid;
 
-	retval = kvsns_getattr(&cred, &fh.kvsfs_handle, &stat);
+	retval = kvsns2_getattr(fs_ctx, &cred, &fh.kvsfs_handle, &stat);
 	if (retval)
 		return fsalstat(posix2fsal_error(-retval), -retval);
 
 	link_content = NULL;
 	if (S_ISLNK(stat.st_mode)) {
 		size = PATH_MAX;
-		retval = kvsns_readlink(&cred, &fh.kvsfs_handle,
+		retval = kvsns_readlink(fs_ctx, &cred, &fh.kvsfs_handle,
 					link_buff, &size);
 		if (retval)
 			return fsalstat(posix2fsal_error(-retval), -retval);
