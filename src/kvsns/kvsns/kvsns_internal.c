@@ -736,7 +736,9 @@ int kvsns2_get_stat(kvsns_fs_ctx_t ctx, const kvsns_ino_t *ino,
 	RC_WRAP_LABEL(rc, out, kvsns_ns_get_inode_attr, ctx, ino, KVSNS_KEY_TYPE_STAT,
 		      (void **)bufstat, &buf_size);
 out:
-	KVSNS_DASSERT(rc != 0 || buf_size == sizeof(struct stat));
+	if (rc == 0) {
+	    KVSNS_DASSERT(buf_size == sizeof(struct stat));
+	}
 	return rc;
 }
 

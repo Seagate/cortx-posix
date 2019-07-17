@@ -548,7 +548,7 @@ int main(int argc, char *argv[])
 			fprintf(stderr, "Failed to prepare env for symlink\n");
 			exit(1);
 		}
-		rc = kvsns2_symlink(fs_ctx, &cred, &current_inode, argv[1],
+		rc = kvsns_symlink(fs_ctx, &cred, &current_inode, argv[1],
 				    argv[2], &ino);
 		if (rc == 0) {
 			printf("==> %llu/%s created = %llu\n",
@@ -577,7 +577,7 @@ int main(int argc, char *argv[])
 			return 0;
 		}
 
-		rc = kvsns2_readlink(fs_ctx, &cred, &ino,
+		rc = kvsns_readlink(fs_ctx, &cred, &ino,
 				    link_content, &size);
 		if (rc == 0) {
 			printf("==> %llu/%s %llu content = %s\n",
