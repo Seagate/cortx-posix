@@ -57,6 +57,14 @@ TGROUP_SYMLINK=(
 )
 
 ################################################################################
+TGROUP_HARDLINK=(
+	test_hardlink_create
+	test_hardlink_create_longname
+	test_hardlink_delete_original
+	test_hardlink_delete_link
+)
+
+################################################################################
 # Currently only *file_create* tests pass, because they call "delete" which
 # needs to be implemented with modified binary keys and vals.
 # Hence the rest of the tests are "disabled"
@@ -75,5 +83,6 @@ TEST_LIST=(
     ${TGROUP_RENAME[@]}
     ${TGROUP_READDIR[@]}
     ${TGROUP_SYMLINK[@]}
+    ${TGROUP_HARDLINK[@]}
 )
 

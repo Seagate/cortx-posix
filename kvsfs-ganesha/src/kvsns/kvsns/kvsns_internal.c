@@ -966,7 +966,8 @@ int kvsns_tree_detach(kvsns_fs_ctx_t fs_ctx,
 	kvsal_free(parent_value);
 	// Update stats
 	RC_WRAP_LABEL(rc, free_parent_key, kvsns2_update_stat, fs_ctx,
-		      parent_ino, STAT_CTIME_SET|STAT_INCR_LINK);
+		      parent_ino, STAT_CTIME_SET|STAT_MTIME_SET);
+
 free_parent_key:
 	kvsal_free(parent_key);
 
@@ -1038,7 +1039,7 @@ int kvsns_tree_attach(kvsns_fs_ctx_t fs_ctx,
 
 	// Update stats
 	RC_WRAP_LABEL(rc, free_parentkey, kvsns2_update_stat, fs_ctx, parent_ino,
-		      STAT_CTIME_SET|STAT_INCR_LINK);
+		      STAT_CTIME_SET|STAT_MTIME_SET);
 
 free_parentkey:
 	kvsal_free(parent_key);
