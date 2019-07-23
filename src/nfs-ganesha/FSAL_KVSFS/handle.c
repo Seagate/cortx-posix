@@ -503,6 +503,7 @@ static fsal_status_t kvsfs_linkfile(struct fsal_obj_handle *obj_hdl,
 	int retval = 0;
 	fsal_errors_t fsal_error = ERR_FSAL_NO_ERROR;
 	kvsns_cred_t cred;
+	kvsns_fs_ctx_t fs_ctx = KVSNS_NULL_FS_CTX;
 
 	myself = container_of(obj_hdl, struct kvsfs_fsal_obj_handle,
 			      obj_handle);
@@ -513,8 +514,18 @@ static fsal_status_t kvsfs_linkfile(struct fsal_obj_handle *obj_hdl,
 	cred.uid = op_ctx->creds->caller_uid;
 	cred.gid = op_ctx->creds->caller_gid;
 
-	retval = kvsns_link(&cred, &myself->handle->kvsfs_handle,
+	retval = kvsfs_obj_to_kvsns_ctx(destdir_hdl, &fs_ctx);
+	if (retval != 0) {
+		LogCrit(COMPONENT_FSAL,
+			"Unable to get fs ctx, obj_hdl=%p retval=%d",
+		        destdir_hdl,retval);
+		goto out;
+	}
+
+	retval = kvsns_link(fs_ctx, &cred, &myself->handle->kvsfs_handle,
 			    &destdir->handle->kvsfs_handle, (char *)name);
+
+out:
 	if (retval)
 		fsal_error = posix2fsal_error(-retval);
 

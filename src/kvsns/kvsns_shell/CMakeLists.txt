@@ -24,16 +24,10 @@ add_custom_command(TARGET links
 		   COMMAND ${CMAKE_COMMAND} -E create_symlink kvsns_busybox ns_creat
 		   COMMAND ${CMAKE_COMMAND} -E remove ns_cd
 		   COMMAND ${CMAKE_COMMAND} -E create_symlink kvsns_busybox ns_cd
-		   COMMAND ${CMAKE_COMMAND} -E remove ns_ln
-		   COMMAND ${CMAKE_COMMAND} -E create_symlink kvsns_busybox ns_ln
-		   COMMAND ${CMAKE_COMMAND} -E remove ns_link
-		   COMMAND ${CMAKE_COMMAND} -E create_symlink kvsns_busybox ns_link
 		   COMMAND ${CMAKE_COMMAND} -E remove ns_rm
 		   COMMAND ${CMAKE_COMMAND} -E create_symlink kvsns_busybox ns_rm
 		   COMMAND ${CMAKE_COMMAND} -E remove ns_rename
 		   COMMAND ${CMAKE_COMMAND} -E create_symlink kvsns_busybox ns_rename
-		   COMMAND ${CMAKE_COMMAND} -E remove ns_readlink
-		   COMMAND ${CMAKE_COMMAND} -E create_symlink kvsns_busybox ns_readlink
 		   COMMAND ${CMAKE_COMMAND} -E remove ns_getattr
 		   COMMAND ${CMAKE_COMMAND} -E create_symlink kvsns_busybox ns_getattr
 		   COMMAND ${CMAKE_COMMAND} -E remove ns_getxattr
@@ -84,6 +78,8 @@ add_custom_command(TARGET links
 		   COMMAND ${CMAKE_COMMAND} -E create_symlink kvsns_ns kvsns_ln
 		   COMMAND ${CMAKE_COMMAND} -E remove kvsns_readlink
 		   COMMAND ${CMAKE_COMMAND} -E create_symlink kvsns_ns kvsns_readlink
+		   COMMAND ${CMAKE_COMMAND} -E remove kvsns_link
+		   COMMAND ${CMAKE_COMMAND} -E create_symlink kvsns_ns kvsns_link
 
 		   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 		   VERBATIM)

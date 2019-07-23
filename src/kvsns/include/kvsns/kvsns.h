@@ -373,6 +373,7 @@ int kvsns2_unlink(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *ino, char *name);
  *
  * @note: this call will failed if not performed on a file.
  *
+ * @param fs_ctx - A context associated with the filesystem.
  * @param cred - pointer to user's credentials
  * @param ino - pointer to current inode.
  * @param dino - pointer to destination directory's inode
@@ -380,8 +381,8 @@ int kvsns2_unlink(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *ino, char *name);
  *
  * @return 0 if successful, a negative "-errno" value in case of failure
  */
-int kvsns_link(kvsns_cred_t *cred, kvsns_ino_t *ino, kvsns_ino_t *dino,
-	    char *dname);
+int kvsns_link(kvsns_fs_ctx_t fs_ctx, kvsns_cred_t *cred, kvsns_ino_t *ino, kvsns_ino_t *dino,
+	       char *dname);
 
 /**
  * Renames an entry in a filesystem.

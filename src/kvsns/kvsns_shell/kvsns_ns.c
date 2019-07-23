@@ -585,6 +585,52 @@ int main(int argc, char *argv[])
 			return 0;
 		} else
 			printf("Failed rc=%d !\n", rc);
+	} else if (!strcmp(exec_name, "kvsns_link")) {
+		kvsns_ino_t dino = 0LL;
+		kvsns_ino_t sino = 0LL;
+		char dname[MAXNAMLEN];
+
+		if (argc != 3 && argc != 4) {
+			printf("ns_link srcname newname (same dir)\n");
+			printf("ns_link srcname dstdir newname\n");
+			exit(1);
+		}
+
+		rc = kvsns_create_fs_ctx(fs_id, &fs_ctx);
+		if (rc != 0) {
+			fprintf(stderr, "Failed to prepare env for readlink\n");
+			exit(1);
+		}
+
+		rc = kvsns2_lookup(fs_ctx, &cred, &current_inode, argv[1], &sino);
+		if (rc != 0) {
+			fprintf(stderr, "%s/%s does not exist\n",
+				current_path, argv[1]);
+			exit(1);
+		}
+
+		if (argc == 3) {
+			dino = current_inode;
+			strncpy(dname, argv[2], MAXNAMLEN);
+		} else if (argc == 4) {
+		  rc = kvsns2_lookup(fs_ctx, &cred, &current_inode,
+				  argv[2], &dino);
+			if (rc != 0) {
+				fprintf(stderr, "%s/%s does not exist\n",
+					current_path, argv[1]);
+				exit(1);
+			}
+			strncpy(dname, argv[3], MAXNAMLEN);
+		}
+		printf("%s: sino=%llu dino=%llu dname=%s\n",
+			exec_name, sino, dino, dname);
+
+		rc = kvsns_link(fs_ctx, &cred, &sino, &dino, dname);
+		if (rc == 0)
+			printf("ns_link: %llu --> %llu/%s CREATED\n",
+				sino, dino, dname);
+		else
+			fprintf(stderr, "Failed : %d\n", rc);
 	} else
 		fprintf(stderr, "%s does not exists\n", exec_name);
 	printf("######## OK ########\n");

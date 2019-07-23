@@ -1,4 +1,4 @@
-/*
+ /*
  * vim:noexpandtab:shiftwidth=8:tabstop=8:
  *
  * Copyright (C) CEA, 2016
@@ -434,63 +434,35 @@ out:
 	return rc;
 }
 
-int kvsns_link(kvsns_cred_t *cred, kvsns_ino_t *ino,
+int kvsns_link(kvsns_fs_ctx_t fs_ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
 	       kvsns_ino_t *dino, char *dname)
 {
 	int rc;
-	char k[KLEN];
-	char v[VLEN];
 	kvsns_ino_t tmpino = 0LL;
-	struct stat dino_stat;
-	struct stat ino_stat;
+	kvsns_name_t k_name;
 
-	if (!cred || !ino || !dino || !dname)
-		return -EINVAL;
+	KVSNS_DASSERT(cred && ino && dname && dino);
 
-	RC_WRAP(kvsns_access, cred, dino, KVSNS_ACCESS_WRITE);
+	log_trace("ENTER: ino=%llu dino=%llu dname=%s", *ino, *dino, dname);
+	RC_WRAP(kvsal_begin_transaction);
+	RC_WRAP_LABEL(rc, aborted, kvsns2_access, fs_ctx, cred, dino, KVSNS_ACCESS_WRITE);
 
-	rc = kvsns_lookup(cred, dino, dname, &tmpino);
+	rc = kvsns2_lookup(fs_ctx, cred, dino, dname, &tmpino);
 	if (rc == 0)
 		return -EEXIST;
 
-	RC_WRAP(kvsns_get_stat, dino, &dino_stat);
-	RC_WRAP(kvsns_get_stat, ino, &ino_stat);
+	RC_WRAP_LABEL(rc, aborted, kvsns_name_from_cstr, dname, &k_name);
+	RC_WRAP_LABEL(rc, aborted, kvsns_tree_attach, fs_ctx, dino, ino, &k_name);
 
-
-	memset(k, 0, KLEN);
-	snprintf(k, KLEN, "%llu.parentdir", *ino);
-	RC_WRAP_LABEL(rc, aborted, kvsal_get_char, k, v);
-
-	memset(k, 0, KLEN);
-	snprintf(k, KLEN, "%llu|", *dino);
-	strcat(v, k);
-
-	RC_WRAP(kvsal_begin_transaction);
-
-	memset(k, 0, KLEN);
-	snprintf(k, KLEN, "%llu.parentdir", *ino);
-	RC_WRAP_LABEL(rc, aborted, kvsal_set_char, k, v);
-
-	memset(k, 0, KLEN);
-	snprintf(k, KLEN, "%llu.dentries.%s",
-		 *dino, dname);
-	snprintf(v, VLEN, "%llu", *ino);
-	RC_WRAP_LABEL(rc, aborted, kvsal_set_char, k, v);
-
-	RC_WRAP_LABEL(rc, aborted, kvsns_amend_stat, &ino_stat,
+	RC_WRAP_LABEL(rc, aborted, kvsns2_update_stat, fs_ctx, ino,
 		      STAT_CTIME_SET|STAT_INCR_LINK);
-	RC_WRAP_LABEL(rc, aborted, kvsns_set_stat, ino, &ino_stat);
 
-	RC_WRAP_LABEL(rc, aborted, kvsns_amend_stat, &dino_stat,
-		      STAT_CTIME_SET|STAT_MTIME_SET);
-	RC_WRAP_LABEL(rc, aborted, kvsns_set_stat, dino, &dino_stat);
-
+	log_trace("EXIT: rc=%d ino=%llu dino=%llu dname=%s", rc, *ino, *dino, dname);
 	RC_WRAP(kvsal_end_transaction);
-
-	return 0;
-
+	return rc;
 aborted:
 	kvsal_discard_transaction();
+	log_trace("EXIT: rc=%d ino=%llu dino=%llu dname=%s", rc, *ino, *dino, dname);
 	return rc;
 }
 
@@ -680,6 +652,10 @@ int kvsns2_unlink(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *dir, char *name)
 		}
 		/* @todo: Remove all associated xattrs */
 	}
+	else if (size >= 1) {
+	    ino_stat->st_nlink--;
+	    RC_WRAP_LABEL(rc, errfree, kvsns2_set_stat, ctx, &ino, ino_stat);
+	}
 
 	/* if object is a link, delete the link content as well */
 	/* @todo: Untested. Revisit this during implementation of symlinks. */
@@ -693,7 +669,7 @@ int kvsns2_unlink(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *dir, char *name)
 	RC_WRAP(kvsal_end_transaction);
 
 	/* Call to object store : do not mix with metadata transaction */
-	if (!opened && (ino_stat->st_mode & S_IFLNK) != S_IFLNK) {
+	if (!opened && (ino_stat->st_mode & S_IFLNK) != S_IFLNK && (size == 1)) {
 		RC_WRAP(extstore_ino_to_fid, ctx, ino, &kfid);
 		RC_WRAP(extstore2_del, ctx, &ino, &kfid);
 	}
