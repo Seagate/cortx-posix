@@ -131,6 +131,55 @@ errfree:
 	return rc;
 }
 
+/* @todo: Rename this to kvsns_rmdir after fixing rmdir call in kvsfs fsal. */
+int kvsns2_rmdir(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent, char *name)
+{
+	int rc;
+	kvsns_ino_t ino = 0LL;
+	bool is_non_empty_dir;
+	kvsns_name_t kname;
+
+	KVSNS_DASSERT(ctx && cred && parent && name);
+	KVSNS_DASSERT(strlen(name) <= NAME_MAX);
+
+	/* @TODO : this is currently just a placeholder, since transacations
+		   are not implemented yet. */
+	kvsal_begin_transaction();
+	RC_WRAP_LABEL(rc, aborted, kvsns2_access, ctx, cred, parent,
+		      KVSNS_ACCESS_WRITE);
+
+	RC_WRAP_LABEL(rc, aborted, kvsns2_lookup, ctx, cred, parent, name,
+		      &ino);
+
+	RC_WRAP_LABEL(rc, aborted, kvsns_tree_has_children, ctx,
+		      &ino, &is_non_empty_dir);
+
+	//Check if directory empty
+	if (is_non_empty_dir) {
+		 rc = -ENOTEMPTY;
+		 log_debug("ctx=%p ino=%llu name=%s not empty", ctx,
+			    ino, name);
+		 goto aborted;
+	}
+
+	// Delete the dentry, parentdir and stat keys, modify the stats
+	RC_WRAP_LABEL(rc, aborted, kvsns_name_from_cstr, name, &kname);
+
+	RC_WRAP_LABEL(rc, aborted, kvsns_tree_detach, ctx, parent,
+		      &ino, &kname);
+
+
+	/* @todo: Remove all associated xattr */
+	RC_WRAP(kvsns_remove_all_xattr, cred, &ino);
+
+
+aborted:
+	kvsal_end_transaction();
+	log_debug("EXIT ctx=%p ino=%llu name=%s rc=%d", ctx,
+		   ino, name, rc);
+	return rc;
+}
+
 int kvsns_rmdir(kvsns_cred_t *cred, kvsns_ino_t *parent, char *name)
 {
 	int rc;

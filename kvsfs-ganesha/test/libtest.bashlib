@@ -164,7 +164,6 @@ kvsns_create_cmd() {
     log_exec_bin "$CMD"
 }
 
-## FIXME: ignores $DIR argument
 kvsns_lookup_cmd() {
     local DIR=$1
     local FNAME=$2
@@ -172,6 +171,24 @@ kvsns_lookup_cmd() {
     local CMD="$BIN $FNAME"
 
     log_exec_bin "$CMD"
+}
+
+kvsns_lookup_dir_cmd() {
+    local DIR=$1
+    local FNAME=$2
+    local BIN=$KVSNS_SHELL_DIR/kvsns_lookup
+    local CMD="$BIN $DIR $FNAME"
+
+    log_exec_bin "$CMD"
+}
+
+kvsns_lookup_getino_cmd() {
+    local DIR=$1
+    local FNAME=$2
+    local BIN=$KVSNS_SHELL_DIR/kvsns_lookup
+    local CMD="$BIN $DIR $FNAME"
+
+    log_exec_bin_grab_stdout "$CMD" | awk '/LOOKUP:/ { print $4; }'
 }
 
 ## FIXME: ignores $DIR arguments and uses the root ino (2) instead
@@ -200,6 +217,15 @@ kvsns_mkdir_cmd() {
     local PARENT_INO=$1
     local DNAME=$2
     local BIN=$KVSNS_SHELL_DIR/kvsns2_mkdir
+    local CMD="$BIN $PARENT_INO $DNAME"
+
+    log_exec_bin "$CMD"
+}
+
+kvsns_rmdir_cmd() {
+    local PARENT_INO=$1
+    local DNAME=$2
+    local BIN=$KVSNS_SHELL_DIR/kvsns_rmdir
     local CMD="$BIN $PARENT_INO $DNAME"
 
     log_exec_bin "$CMD"

@@ -342,6 +342,17 @@ int kvsns_readlink(kvsns_fs_ctx_t ctx, kvsns_cred_t *cred, kvsns_ino_t *link,
  */
 int kvsns_rmdir(kvsns_cred_t *cred, kvsns_ino_t *parent, char *name);
 
+/**
+ * Removes a directory. It won't be deleted if not empty.
+ * @param ctx - A context associated with a filesystem
+ * @param cred - pointer to user's credentials
+ * @param parent - pointer to parent directory's inode.
+ * @param name - name of the directory to be remove.
+ *
+ * @return 0 if successful, a negative "-errno" value in case of failure
+ */
+int kvsns2_rmdir(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
+		 char *name);
 
 /**
  * Removes a file or a symbolic link.
