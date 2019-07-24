@@ -340,24 +340,43 @@ int main(int argc, char *argv[])
 
 
 	} else if (!strcmp(exec_name, "kvsns_lookup")) {
-		if (argc != 2) {
-			fprintf(stderr, "lookup  <filename>\n");
-			exit(1);
-		}
 
 		rc = kvsns_create_fs_ctx(fs_id, &fs_ctx);
 		if (rc != 0) {
 			printf("Unable to create index for fs_id:%lu,  rc=%d !\n", fs_id, rc);
 			exit(1);
 		}
-
-		rc = kvsns2_lookup(fs_ctx, &cred, &current_inode, argv[1], &ino);
-		if (rc == 0) {
-			printf("==> %llu/%s Found = %llu\n",
+		if (argc == 2) {
+			rc = kvsns2_lookup(fs_ctx, &cred, &current_inode, argv[1], &ino);
+			if (rc == 0) {
+				printf("LOOKUP: %llu/%s = %llu\n",
 				current_inode, argv[1], ino);
-			return rc;
-		} else
-			printf("==> %s Not found, rc: %d!\n", argv[1],rc);
+				return rc;
+			} else
+				printf("==> %llu/%s No such file or directory, rc=%d!\n",
+				       current_inode, argv[1],rc);
+		} else if (argc == 3) {
+			kvsns_ino_t pino;
+			rc = kvsns_str2ino(argv[1], &pino);
+			if (rc != 0) {
+				printf("Invalid inode.\n");
+				exit(1);
+			}
+			rc = kvsns2_lookup(fs_ctx, &cred, &pino, argv[2], &ino);
+			if (rc == 0) {
+				printf("LOOKUP: %llu/%s = %llu\n",
+				pino, argv[1], ino);
+				return rc;
+			} else
+				printf("==> %llu/%s No such file or directory, rc= %d!\n",
+				       pino, argv[1] ,rc);
+
+		}
+		else {
+			fprintf(stderr, "kvsns_lookup  <filename_in_root_dir> OR \n");
+			fprintf(stderr, "kvsns_lookup  <parent inode> <filename> \n");
+			exit(1);
+		}
 
 	} else if (!strcmp(exec_name, "kvsns_del")) {
 		if (argc != 2) {
@@ -495,11 +514,38 @@ int main(int argc, char *argv[])
 		}
 		rc = kvsns_mkdir(fs_ctx, &cred, &parent_ino, argv[2], 0755, &ino);
 		if (rc == 0) {
-			printf("==> Created dir %llu/%llu (%s) \n", parent_ino, ino, argv[2]);
+			printf("==> Created dir %llu/ (%s) \n", parent_ino, argv[2]);
 			return rc;
 		} else
 			printf("==> mkdir failed %llu/%s, rc: %d!\n",
 				current_inode, argv[1], rc);
+	} else if (!strcmp(exec_name, "kvsns_rmdir")) {
+		if (argc != 3) {
+			fprintf(stderr, "kvsns_rmdir <parent_ino> <dirname>\n");
+			exit(1);
+		}
+
+		rc = kvsns_create_fs_ctx(fs_id, &fs_ctx);
+		if (rc != 0) {
+			printf("Unable to create index for fs_id:%lu, rc=%d \n", fs_id, rc);
+			exit(1);
+		}
+
+		kvsns_ino_t parent_ino;
+		rc = kvsns_str2ino(argv[1], &parent_ino);
+		if (rc != 0) {
+			printf("Invalid inode.\n");
+			exit(1);
+		}
+		rc = kvsns2_rmdir(fs_ctx, &cred, &parent_ino, argv[2]);
+		if (rc == 0) {
+			printf("==> Deleted dir %llu/%llu (%s) \n", parent_ino,
+			       ino, argv[2]);
+			return rc;
+		} else
+			printf("==> rmdir failed %llu/ (%s), rc=%d!\n",
+			       parent_ino, argv[2], rc);
+
 	} else if (!strcmp(exec_name, "kvsns_rename")) {
 		if (argc != 5) {
 			fprintf(stderr, "kvsns_rename <sino> <src> <dino> <dst>\n");

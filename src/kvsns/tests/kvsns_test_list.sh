@@ -65,16 +65,20 @@ TGROUP_HARDLINK=(
 )
 
 ################################################################################
+TGROUP_RMDIR=(
+	test_kvsns_rmdir
+	test_kvsns_rmdir_dir_not_exist
+	test_kvsns_rmdir_embedded_dir
+	test_kvsns_rmdir_nonempty_dir
+)
+
+################################################################################
 # Currently only *file_create* tests pass, because they call "delete" which
 # needs to be implemented with modified binary keys and vals.
 # Hence the rest of the tests are "disabled"
 
 # @todo : Fix all the tests below and add more if required.
 
-TEST_LIST_DISABLED=(
-)
-
-################################################################################
 TEST_LIST=(
     ${TGROUP_CRED[@]}
     ${TGROUP_STAT[@]}
@@ -84,5 +88,10 @@ TEST_LIST=(
     ${TGROUP_READDIR[@]}
     ${TGROUP_SYMLINK[@]}
     ${TGROUP_HARDLINK[@]}
+    ${TGROUP_RMDIR[@]}
+)
+
+################################################################################
+TEST_LIST_DISABLED=(
 )
 
