@@ -43,6 +43,14 @@
 #include "kvsns_internal.h"
 #include "kvsns/log.h"
 
+/** Default mode for a symlink object.
+ * Here is a quote from `man 7 symlink`:
+ *        On Linux, the permissions of a symbolic link are not used in any
+ *        operations; the permissions are always 0777 (read, write, and execute
+ *        for all user categories), and can't be changed.
+ */
+#define KVSNS_SYMLINK_MODE 0777
+
 /*
  * @todo : In future, this would be an array of filesystem contexts indexed by
  * fs id. This array would be created and populated during kvsns start/init.
@@ -96,7 +104,7 @@ int kvsns_symlink(kvsns_fs_ctx_t fs_ctx, kvsns_cred_t *cred, kvsns_ino_t *parent
 	RC_WRAP_LABEL(rc, out, kvsns2_access, fs_ctx, cred, parent, KVSNS_ACCESS_WRITE);
 
 	RC_WRAP_LABEL(rc, out, kvsns2_create_entry, fs_ctx, cred, parent, name, content,
-		      0, newlnk, KVSNS_SYMLINK);
+		      KVSNS_SYMLINK_MODE, newlnk, KVSNS_SYMLINK);
 
 	RC_WRAP_LABEL(rc, out, kvsns2_update_stat, fs_ctx, parent, STAT_MTIME_SET|STAT_CTIME_SET);
 
@@ -708,8 +716,9 @@ int kvsns2_unlink(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *dir, char *name)
 
 	/* if object is a link, delete the link content as well */
 	/* @todo: Untested. Revisit this during implementation of symlinks. */
-	if ((ino_stat->st_mode & S_IFLNK) == S_IFLNK)
+	if (S_ISLNK(ino_stat->st_mode)) {
 		RC_WRAP_LABEL(rc, errfree, kvsns_del_link, ctx, &ino);
+	}
 
 	RC_WRAP_LABEL(rc, errfree, kvsns_amend_stat, dir_stat,
 		      STAT_MTIME_SET|STAT_CTIME_SET);
@@ -718,7 +727,13 @@ int kvsns2_unlink(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *dir, char *name)
 	RC_WRAP(kvsal_end_transaction);
 
 	/* Call to object store : do not mix with metadata transaction */
-	if (!opened && (ino_stat->st_mode & S_IFLNK) != S_IFLNK && (size == 1)) {
+
+	/* Delete a file from the extstore only if:
+	 *	it is not open
+	 *	it is not a symlink
+	 *	it has no more links in the fs tree
+	 */
+	if (!opened && !S_ISLNK(ino_stat->st_mode) && (size == 1)) {
 		RC_WRAP(extstore_ino_to_fid, ctx, ino, &kfid);
 		RC_WRAP(extstore2_del, ctx, &ino, &kfid);
 	}
@@ -808,9 +823,8 @@ int kvsns_rename(kvsns_fs_ctx_t fs_ctx, kvsns_cred_t *cred,
 		 * extstore_del().
 		 */
 		if (S_ISDIR(dstat->st_mode)) {
-			/* @todo: replace with rmdir when it is implemented */
-			RC_WRAP_LABEL(rc, errfree, kvsns_tree_detach, fs_ctx,
-				      dino_dir, &dino, &k_dname);
+			RC_WRAP_LABEL(rc, errfree, kvsns2_rmdir, fs_ctx, cred,
+				      dino_dir, dname);
 		} else {
 			RC_WRAP_LABEL(rc, errfree, kvsns2_unlink, fs_ctx, cred,
 				      dino_dir, dname);

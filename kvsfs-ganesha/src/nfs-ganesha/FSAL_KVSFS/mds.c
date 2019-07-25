@@ -23,6 +23,8 @@
  *
  */
 
+/* TODO:PORTING: pNFS support is disabled */
+#if 0
 #include "config.h"
 
 #include <assert.h>
@@ -484,3 +486,4 @@ handle_ops_pnfs(struct fsal_obj_ops *ops)
 	ops->layoutreturn = kvsfs_layoutreturn;
 	ops->layoutcommit = kvsfs_layoutcommit;
 }
+#endif

@@ -1,3 +1,95 @@
+#ifndef KVSFS_METHODS_H_
+#define KVSFS_METHODS_H_
+
+#include <fsal_api.h>
+#include <kvsns/kvsns.h>
+#include <gsh_list.h>
+#include <fsal_types.h>
+
+/******************************************************************************/
+/* Common helpers */
+
+static inline void kvsns_cred_from_op_ctx(kvsns_cred_t *out)
+{
+	assert(out);
+	assert(op_ctx);
+
+	out->uid = op_ctx->creds->caller_uid;
+	out->gid = op_ctx->creds->caller_gid;
+}
+
+#define KVSNS_CRED_INIT_FROM_OP {		\
+	.uid = op_ctx->creds->caller_uid,	\
+	.gid = op_ctx->creds->caller_gid,	\
+}
+
+/******************************************************************************/
+
+/* this needs to be refactored to put ipport inside sockaddr_in */
+struct kvsfs_pnfs_ds_parameter {
+	struct glist_head ds_list;
+	struct sockaddr_in ipaddr;
+	unsigned short ipport;
+	unsigned int id;
+};
+
+#define KVSFS_NB_DS 4
+struct kvsfs_exp_pnfs_parameter {
+	unsigned int stripe_unit;
+	bool pnfs_enabled;
+	unsigned int nb_ds;
+	struct kvsfs_pnfs_ds_parameter ds_array[KVSFS_NB_DS];
+};
+
+struct kvsfs_fsal_index_context;
+
+struct kvsfs_fsal_export {
+	/* base */
+	struct fsal_export export;
+
+	/** A filesystem in Open state */
+	struct kvsfs_fsal_index_context *index_context;
+
+	/** Root Inode of the filesystem associated with the export */
+	kvsns_ino_t root_inode;
+
+	/** Export config. */
+	char *kvsns_config;
+
+	bool pnfs_ds_enabled;
+	bool pnfs_mds_enabled;
+	struct kvsfs_exp_pnfs_parameter pnfs_param;
+};
+
+/** Get export's Root handle by path. */
+fsal_status_t kvsfs_lookup_path(struct fsal_export *exp_hdl,
+			       const char *path,
+			       struct fsal_obj_handle **handle,
+			       struct attrlist *attrs_out);
+
+/**Open a filesystem and get its descriptor. */
+int kvsfs_export_to_kvsns_ctx(struct fsal_export *exp_hdl,
+			      kvsns_fs_ctx_t *fs_ctx);
+
+/** Create a file handle within the expecified NFS export. */
+fsal_status_t kvsfs_create_handle(struct fsal_export *exp_hdl,
+				 struct gsh_buffdesc *hdl_desc,
+				 struct fsal_obj_handle **handle,
+				 struct attrlist *attrs_out);
+
+struct state_t *kvsfs_alloc_state(struct fsal_export *exp_hdl,
+				enum state_type state_type,
+				struct state_t *related_state);
+
+void kvsfs_free_state(struct fsal_export *exp_hdl, struct state_t *state);
+fsal_status_t kvsfs_extract_handle(struct fsal_export *exp_hdl,
+					 fsal_digesttype_t in_type,
+					 struct gsh_buffdesc *fh_desc,
+					 int flags);
+
+/******************************************************************************/
+
+#if 0
 /* KVSFS methods for handles
  */
 
@@ -10,74 +102,9 @@ fsal_status_t kvsfs_lookup_path(struct fsal_export *exp_hdl,
 			       const char *path,
 			       struct fsal_obj_handle **handle);
 
-fsal_status_t kvsfs_create_handle(struct fsal_export *exp_hdl,
-				 struct gsh_buffdesc *hdl_desc,
-				 struct fsal_obj_handle **handle);
-
-/* this needs to be refactored to put ipport inside sockaddr_in */
-struct kvsfs_pnfs_ds_parameter {
-	struct glist_head ds_list;
-	struct sockaddr_in ipaddr;
-	unsigned short ipport;
-	unsigned int id;
-};
-
-/* KVSFS FSAL module private storage
- */
-
-struct kvsfs_fsal_module {
-	struct fsal_module fsal;
-	struct fsal_staticfsinfo_t fs_info;
-};
-
 /*
  * KVSFS internal export
  */
-
-#define KVSFS_NB_DS 4
-struct kvsfs_exp_pnfs_parameter {
-	unsigned int stripe_unit;
-	bool pnfs_enabled;
-	unsigned int nb_ds;
-	struct kvsfs_pnfs_ds_parameter ds_array[KVSFS_NB_DS];
-};
-
-struct kvsfs_fsal_export {
-	struct fsal_export export;
-	kvsns_ino_t root_inode;
-	char *kvsns_config;
-	bool pnfs_ds_enabled;
-	bool pnfs_mds_enabled;
-	struct kvsfs_exp_pnfs_parameter pnfs_param;
-};
-
-/*
- * KVSFS internal object handle
- * handle is a pointer because
- *  a) the last element of file_handle is a char[] meaning variable len...
- *  b) we cannot depend on it *always* being last or being the only
- *     variable sized struct here...  a pointer is safer.
- * wrt locks, should this be a lock counter??
- */
-
-struct kvsfs_fsal_obj_handle {
-	struct fsal_obj_handle obj_handle;
-	struct attrlist attributes;
-	struct kvsfs_file_handle *handle;
-	union {
-		struct {
-			kvsns_ino_t inode;
-			fsal_openflags_t openflags;
-			struct stat saved_stat;
-			kvsns_file_open_t fd;
-			kvsns_cred_t cred;
-		} file;
-		struct {
-			unsigned char *link_content;
-			int link_size;
-		} symlink;
-	} u;
-};
 
 /* Helper Methods */
 int kvsfs_get_fsid(const struct fsal_obj_handle *hdl, kvsns_fsid_t *fs_id);
@@ -168,5 +195,5 @@ int external_unlink(struct fsal_obj_handle *dir_hdl,
 int external_truncate(struct fsal_obj_handle *obj_hdl,
 		      off_t filesize);
 
-
-
+#endif // 0
+#endif /* KVSFS_METHODS_H_ */

@@ -29,218 +29,18 @@
  * KVSFS FSAL export object
  */
 
-#include "config.h"
-
-#include <string.h>
-#include <sys/types.h>
-#include "gsh_list.h"
-#include "fsal.h"
+#include <stdint.h>
+#include <config_parsing.h>
+#include <fsal_types.h>
+#include <FSAL/fsal_config.h>
+#include <FSAL/fsal_commonlib.h>
 #include "fsal_internal.h"
-#include "fsal_convert.h"
-#include "FSAL/fsal_commonlib.h"
-#include "FSAL/fsal_config.h"
 #include "kvsfs_methods.h"
-#include "nfs_exports.h"
-#include "export_mgr.h"
-#include "pnfs_utils.h"
-
-
-struct fsal_staticfsinfo_t *kvsfs_staticinfo(struct fsal_module *hdl);
-
-/* export object methods
- */
-
-static void release(struct fsal_export *exp_hdl)
-{
-	struct kvsfs_fsal_export *myself;
-
-	myself = container_of(exp_hdl, struct kvsfs_fsal_export, export);
-
-	fsal_detach_export(exp_hdl->fsal, &exp_hdl->exports);
-	free_export_ops(exp_hdl);
-
-	gsh_free(myself);		/* elvis has left the building */
-}
-
-static fsal_status_t get_dynamic_info(struct fsal_export *exp_hdl,
-				      struct fsal_obj_handle *obj_hdl,
-				      fsal_dynamicfsinfo_t *infop)
-{
-	return fsalstat(ERR_FSAL_NO_ERROR, 0);
-}
-
-static bool fs_supports(struct fsal_export *exp_hdl,
-			fsal_fsinfo_options_t option)
-{
-	struct fsal_staticfsinfo_t *info;
-
-	info = kvsfs_staticinfo(exp_hdl->fsal);
-	return fsal_supports(info, option);
-}
-
-static uint64_t fs_maxfilesize(struct fsal_export *exp_hdl)
-{
-	struct fsal_staticfsinfo_t *info;
-
-	info = kvsfs_staticinfo(exp_hdl->fsal);
-	return fsal_maxfilesize(info);
-}
-
-static uint32_t fs_maxread(struct fsal_export *exp_hdl)
-{
-	struct fsal_staticfsinfo_t *info;
-
-	info = kvsfs_staticinfo(exp_hdl->fsal);
-	return fsal_maxread(info);
-}
-
-static uint32_t fs_maxwrite(struct fsal_export *exp_hdl)
-{
-	struct fsal_staticfsinfo_t *info;
-
-	info = kvsfs_staticinfo(exp_hdl->fsal);
-	return fsal_maxwrite(info);
-}
-
-static uint32_t fs_maxlink(struct fsal_export *exp_hdl)
-{
-	struct fsal_staticfsinfo_t *info;
-
-	info = kvsfs_staticinfo(exp_hdl->fsal);
-	return fsal_maxlink(info);
-}
-
-static uint32_t fs_maxnamelen(struct fsal_export *exp_hdl)
-{
-	struct fsal_staticfsinfo_t *info;
-
-	info = kvsfs_staticinfo(exp_hdl->fsal);
-	return fsal_maxnamelen(info);
-}
-
-static uint32_t fs_maxpathlen(struct fsal_export *exp_hdl)
-{
-	struct fsal_staticfsinfo_t *info;
-
-	info = kvsfs_staticinfo(exp_hdl->fsal);
-	return fsal_maxpathlen(info);
-}
-
-static struct timespec fs_lease_time(struct fsal_export *exp_hdl)
-{
-	struct fsal_staticfsinfo_t *info;
-
-	info = kvsfs_staticinfo(exp_hdl->fsal);
-	return fsal_lease_time(info);
-}
-
-static fsal_aclsupp_t fs_acl_support(struct fsal_export *exp_hdl)
-{
-	struct fsal_staticfsinfo_t *info;
-
-	info = kvsfs_staticinfo(exp_hdl->fsal);
-	return fsal_acl_support(info);
-}
-
-static attrmask_t fs_supported_attrs(struct fsal_export *exp_hdl)
-{
-	struct fsal_staticfsinfo_t *info;
-
-	info = kvsfs_staticinfo(exp_hdl->fsal);
-	return fsal_supported_attrs(info);
-}
-
-static uint32_t fs_umask(struct fsal_export *exp_hdl)
-{
-	struct fsal_staticfsinfo_t *info;
-
-	info = kvsfs_staticinfo(exp_hdl->fsal);
-	return fsal_umask(info);
-}
-
-static uint32_t fs_xattr_access_rights(struct fsal_export *exp_hdl)
-{
-	struct fsal_staticfsinfo_t *info;
-
-	info = kvsfs_staticinfo(exp_hdl->fsal);
-	return fsal_xattr_access_rights(info);
-}
-
-/* extract a file handle from a buffer.
- * do verification checks and flag any and all suspicious bits.
- * Return an updated fh_desc into whatever was passed.  The most
- * common behavior, done here is to just reset the length.  There
- * is the option to also adjust the start pointer.
- */
-
-static fsal_status_t kvsfs_extract_handle(struct fsal_export *exp_hdl,
-					 fsal_digesttype_t in_type,
-					 struct gsh_buffdesc *fh_desc,
-					 int flags)
-{
-	struct kvsfs_file_handle *hdl;
-	size_t fh_size;
-
-	/* sanity checks */
-	if (!fh_desc || !fh_desc->addr)
-		return fsalstat(ERR_FSAL_FAULT, 0);
-
-	hdl = (struct kvsfs_file_handle *)fh_desc->addr;
-	fh_size = kvsfs_sizeof_handle(hdl);
-	if (fh_desc->len != fh_size) {
-		LogMajor(COMPONENT_FSAL,
-			 "Size mismatch for handle.  should be %lu, got %u",
-			 (unsigned long int)fh_size,
-			 (unsigned int)fh_desc->len);
-		return fsalstat(ERR_FSAL_SERVERFAULT, 0);
-	}
-	fh_desc->len = fh_size;	/* pass back the actual size */
-	return fsalstat(ERR_FSAL_NO_ERROR, 0);
-
-}
-
-/* kvsfs_export_ops_init
- * overwrite vector entries with the methods that we support
- */
-
-void kvsfs_export_ops_init(struct export_ops *ops)
-{
-	ops->release = release;
-	ops->lookup_path = kvsfs_lookup_path;
-	ops->extract_handle = kvsfs_extract_handle;
-	ops->create_handle = kvsfs_create_handle;
-	ops->get_fs_dynamic_info = get_dynamic_info;
-	ops->fs_supports = fs_supports;
-	ops->fs_maxfilesize = fs_maxfilesize;
-	ops->fs_maxread = fs_maxread;
-	ops->fs_maxwrite = fs_maxwrite;
-	ops->fs_maxlink = fs_maxlink;
-	ops->fs_maxnamelen = fs_maxnamelen;
-	ops->fs_maxpathlen = fs_maxpathlen;
-	ops->fs_lease_time = fs_lease_time;
-	ops->fs_acl_support = fs_acl_support;
-	ops->fs_supported_attrs = fs_supported_attrs;
-	ops->fs_umask = fs_umask;
-	ops->fs_xattr_access_rights = fs_xattr_access_rights;
-}
-
-static int kvsfs_conf_pnfs_commit(void *node,
-				  void *link_mem,
-				  void *self_struct,
-				  struct config_error_type *err_type)
-{
-	/* struct lustre_pnfs_param *lpp = self_struct; */
-
-	/* Verifications/parameter checking to be added here */
-
-	return 0;
-}
-
 
 static struct config_item ds_array_params[] = {
 	CONF_MAND_IP_ADDR("DS_Addr", "127.0.0.1",
 			  kvsfs_pnfs_ds_parameter, ipaddr),
-	CONF_ITEM_INET_PORT("DS_Port", 1024, UINT16_MAX, 2049,
+	CONF_MAND_UI16("DS_Port", 1024, UINT16_MAX, 2049,
 		       kvsfs_pnfs_ds_parameter, ipport), /* default is nfs */
 	CONFIG_EOL
 };
@@ -273,6 +73,12 @@ static struct config_item pnfs_params[] = {
 
 };
 
+
+static int kvsfs_conf_pnfs_commit(void *node,
+				  void *link_mem,
+				  void *self_struct,
+				  struct config_error_type *err_type);
+
 static struct config_item export_params[] = {
 	CONF_ITEM_NOOP("name"),
 	CONF_ITEM_STR("kvsns_config", 0, MAXPATHLEN, NULL,
@@ -292,6 +98,9 @@ static struct config_block export_param = {
 	.blk_desc.u.blk.params = export_params,
 	.blk_desc.u.blk.commit = noop_conf_commit
 };
+
+
+static void kvsfs_export_ops_init(struct export_ops *ops);
 
 /* create_export
  * Create an export point and return a handle to it to be kept
@@ -347,6 +156,19 @@ fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
 					    fso_pnfs_mds_supported) &&
 					    myself->pnfs_param.pnfs_enabled;
 
+	kvsns_fs_ctx_t fs_ctx;
+
+	retval = kvsfs_export_to_kvsns_ctx(&myself->export, &fs_ctx);
+	if (retval != 0) {
+		LogCrit(COMPONENT_FSAL, "Unable to get fs_handle: %d", retval);
+		goto errout;
+	}
+
+	myself->index_context = fs_ctx;
+	myself->root_inode = KVSNS_ROOT_INODE;
+
+	/* TODO:PORTING: pNFS support */
+#if 0
 	if (myself->pnfs_ds_enabled) {
 		struct fsal_pnfs_ds *pds = NULL;
 
@@ -380,6 +202,7 @@ fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
 			op_ctx->export->fullpath);
 		export_ops_pnfs(&myself->export.exp_ops);
 	}
+#endif
 
 	return fsalstat(ERR_FSAL_NO_ERROR, 0);
 
@@ -393,3 +216,54 @@ errout:
 	return fsalstat(fsal_error, retval);
 
 }
+
+static int kvsfs_conf_pnfs_commit(void *node,
+				  void *link_mem,
+				  void *self_struct,
+				  struct config_error_type *err_type)
+{
+	/* struct lustre_pnfs_param *lpp = self_struct; */
+
+	/* Verifications/parameter checking to be added here */
+
+	return 0;
+}
+
+/* export object methods
+ */
+
+static void export_release(struct fsal_export *exp_hdl)
+{
+	struct kvsfs_fsal_export *myself;
+
+	myself = container_of(exp_hdl, struct kvsfs_fsal_export, export);
+
+	fsal_detach_export(exp_hdl->fsal, &exp_hdl->exports);
+	free_export_ops(exp_hdl);
+
+	gsh_free(myself);		/* elvis has left the building */
+}
+
+/* statvfs-like call */
+static fsal_status_t get_dynamic_info(struct fsal_export *exp_hdl,
+				      struct fsal_obj_handle *obj_hdl,
+				      fsal_dynamicfsinfo_t *infop)
+{
+	return fsalstat(ERR_FSAL_NO_ERROR, 0);
+}
+
+/* kvsfs_export_ops_init
+ * overwrite vector entries with the methods that we support
+ */
+
+void kvsfs_export_ops_init(struct export_ops *ops)
+{
+	ops->release = export_release;
+	ops->lookup_path = kvsfs_lookup_path;
+	ops->wire_to_host = kvsfs_extract_handle;
+	ops->create_handle = kvsfs_create_handle;
+	ops->get_fs_dynamic_info = get_dynamic_info;
+	ops->alloc_state = kvsfs_alloc_state;
+	ops->free_state = kvsfs_free_state;
+}
+

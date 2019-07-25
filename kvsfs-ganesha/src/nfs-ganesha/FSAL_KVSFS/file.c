@@ -29,6 +29,12 @@
  * File I/O methods for KVSFS module
  */
 
+/* These functions either non-implemented, deprecated or moved into
+ * handle.c module.
+ * TODO: This file must be deleted when IO opearartions are implemented.
+ */
+
+#if 0
 #include "config.h"
 
 #include <assert.h>
@@ -42,6 +48,56 @@
 #include "kvsfs_methods.h"
 #include <stdbool.h>
 
+/* create
+ * create a regular file and set its attributes
+ */
+
+static fsal_status_t kvsfs_create(struct fsal_obj_handle *dir_hdl,
+				 const char *name, struct attrlist *attrib,
+				 struct fsal_obj_handle **handle)
+{
+	struct kvsfs_fsal_obj_handle *myself, *hdl;
+	int retval = 0;
+	kvsns_cred_t cred;
+	kvsns_ino_t object;
+	struct stat stat;
+	kvsns_fs_ctx_t fs_ctx = KVSNS_NULL_FS_CTX;
+
+	*handle = NULL;		/* poison it */
+	if (!fsal_obj_handle_is(dir_hdl, DIRECTORY)) {
+		LogCrit(COMPONENT_FSAL,
+			"Parent handle is not a directory. hdl = 0x%p",
+			dir_hdl);
+		return fsalstat(ERR_FSAL_NOTDIR, 0);
+	}
+	myself = container_of(dir_hdl, struct kvsfs_fsal_obj_handle,
+			      obj_handle);
+
+	cred.uid = attrib->owner;
+	cred.gid = attrib->group;
+
+	retval = kvsfs_obj_to_kvsns_ctx(dir_hdl, &fs_ctx);
+	if (retval != 0) {
+		LogCrit(COMPONENT_FSAL, "Unable to get fs_handle: %d", retval);
+		goto fileerr;
+	}
+
+	retval = kvsns2_creat(fs_ctx, &cred, &myself->handle->kvsfs_handle,
+			      (char *)name, fsal2unix_mode(attrib->mode), &object);
+	if (retval)
+		goto fileerr;
+
+	retval = kvsns2_getattr(fs_ctx, &cred, &object, &stat);
+	if (retval)
+		goto fileerr;
+
+	construct_handle(op_ctx->fsal_export, &object, &stat, handle);
+
+	return fsalstat(ERR_FSAL_NO_ERROR, 0);
+
+ fileerr:
+	return fsalstat(posix2fsal_error(-retval), -retval);
+}
 /** kvsfs_open
  * called with appropriate locks taken at the cache inode level
  */
@@ -202,16 +258,6 @@ errout:
 	return fsalstat(ERR_FSAL_NO_ERROR, 0);
 }
 
-/* kvsfs_commit
- * Commit a file range to storage.
- * for right now, fsync will have to do.
- */
-
-fsal_status_t kvsfs_commit(struct fsal_obj_handle *obj_hdl,	/* sync */
-			  off_t offset, size_t len)
-{
-	return fsalstat(ERR_FSAL_NO_ERROR, 0);
-}
 
 /* kvsfs_close
  * Close the file if it is still open.
@@ -269,3 +315,5 @@ fsal_status_t kvsfs_lock_op(struct fsal_obj_handle *obj_hdl,
 {
 	return fsalstat(ERR_FSAL_NO_ERROR, 0);
 }
+
+#endif

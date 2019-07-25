@@ -23,6 +23,8 @@
  *
  */
 
+/* TODO:PORTING: pNFS support is disabled */
+#if 0
 /**
  * @file   ds.c
  *
@@ -306,3 +308,5 @@ void kvsfs_pnfs_ds_ops_init(struct fsal_pnfs_ds_ops *ops)
 	ops->make_ds_handle = make_ds_handle;
 	ops->fsal_dsh_ops = dsh_ops_init;
 }
+
+#endif

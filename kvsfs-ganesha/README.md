@@ -2,29 +2,19 @@
 Support for different file access protocols (like SAMBA, NFS etc.) to Seagate EOS. Currently we only support NFS Ganesha (Userspace NFS).
 
 ### Prerequisite
+
+Install mero:
 - Latest Mero rpms (`mero` and `mero-devel`) should be installed. Take the latest rpm from this [page](http://jenkins.mero.colo.seagate.com/share/bigstorage/releases/hermi/last_successful/mero/repo/)
 - `m0singlenode` service should be up and running before running nfs ganesha with mero/clovis
-* Install jemalloc (`yum install jemalloc`).
-- Specific version of NFS ganesha from phdaniels private branch and not from the public repo. Clone the NFS Ganesha [repo](https://github.com/phdeniel/nfs-ganesha.git). 
---  Check out `KVSNS` branch
--- Make a following change
-    ```diff
-    diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
-    index af9ee07..2e5d46b 100644
-    --- a/src/CMakeLists.txt
-    +++ b/src/CMakeLists.txt
-    @@ -1012,7 +1012,7 @@ if(USE_9P_RDMA)
-    link_directories (${MOOSHIKA_LIBRARY_DIRS})
-    endif(USE_9P_RDMA)
+* Clovis sample apps should be built and it's rc files should be present. Please refer to this [page](https://github.com/seagate-ssg/clovis-sample-apps) for instructions on clovis-sample-apps.
+NOTE/TODO: this requirement is here only because we don't have a script to generate kvsns.ini from a mero confxc file, and therefore we don't have a way to check if clvois is up and running.
+Using clovis-sample-apps is a workaround. Eventually, KVSNS will be able to generate its config file from a mero confxc file.
 
-    -set(NTIRPC_VERSION 1.4.0)
-    +set(NTIRPC_VERSION 1.4.3)
-    if (USE_SYSTEM_NTIRPC)
-    find_package(NTIRPC ${NTIRPC_VERSION} REQUIRED)
-    else (USE_SYSTEM_NTIRPC)
-    ```
-  -- Build and install the `nfs-ganesha`. Make sure `jemalloc` is used as the allocator (check `make edit_cache` in the build dir). Find the directions to compile [here.](https://github.com/nfs-ganesha/nfs-ganesha/wiki/Compiling)
-- Clovis sample apps should be built and it's rc files should be present. Please refer to this [page](https://github.com/seagate-ssg/clovis-sample-apps) for instructions on clovis-sample-apps.
+Install NFS Ganesha:
+* Install jemalloc (`yum install jemalloc`).
+* Get nfs-ganesha from the official [repo](https://github.com/nfs-ganesha/nfs-ganesha/).
+* Checkout the stable branch `V2.7-stable`.
+* Build and install the `nfs-ganesha`. Make sure `jemalloc` is used as the allocator (check `make edit_cache` in the build dir). Find the directions to compile [here](https://github.com/nfs-ganesha/nfs-ganesha/wiki/Compiling).
 
 ### Build
 For the following procedure *eos-fs* repository is assumed to be cloned at the path ` ~/eos-fs`
@@ -66,14 +56,14 @@ Built target rpm
 ```
 
 ### Install
-- Install the **libkvsns** and **libkvsns-devel** rpm.
-- Use `yum install` or `rpm` command on previously compiled RPMs
+
+Install kvsns and kvfsfs RPMS:
 
 ```sh
-$ sudo rpm -ivh /root/rpmbuild/RPMS/x86_64/libkvsns-1.0.1-f471744.el7.x86_64.rpm
-$ sudo rpm -ivh /root/rpmbuild/RPMS/x86_64/libkvsns-devel-1.0.1-f471744.el7.x86_64.rpm
-$ sudo rpm -ivh /root/rpmbuild/RPMS/x86_64/libfsalkvsfs-1.0.1-f471744.el7.x86_64.rpm
+sudo yum install $HOME/rpmbuild/RPMS/*/lib{kvsns,fsalkvsfs}*
 ```
+
+A hint: for periodic local updates you can use `jenkins/build_and_install.sh`.
 
 ### Configure
 - Edit `/etc/kvsns.d/kvsns.ini`
@@ -133,7 +123,7 @@ $ m0clovis -l 172.16.2.132@tcp:12345:44:301 \
 
 ```sh
 $ cd /tmp/kvsns_build/kvsns_shell
-$ ./ns_init
+$ ./kvsns_init
 ```
 - Test the namespace. Use links from `/tmp/kvsns_build/kvsns_shell` to manipulate the namespace
 
@@ -141,30 +131,27 @@ $ ./ns_init
 - Assuming you have built NFS-Ganesha from source. Edit `/etc/ganesha/ganesha.conf`
 
 ```
+# An example of KVSFS NFS Export
 EXPORT
 {
-    # Export Id (mandatory)
-    Export_Id = 77 ;
-    Path = "/";
-    FSAL {
-        name = KVSFS;
-        kvsns_config = /etc/kvsns.d/kvsns.ini;
-    }
-    Pseudo = /kvsns;
-    Protocols=  NFSV3, 4, 9p;
-    SecType = sys;
-    MaxRead = 32768;
-    MaxWrite = 32768;
-    Filesystem_id = 192.168;
-    Tag = temp;
-    client {
-        clients = *;
-        Squash=no_root_squash;
-        access_type=RW;
-        protocols = 3, 4, 9p;
-  }
+	Export_Id = 77;
+	Path = /;
+	Pseudo = /kvsns;
+	FSAL {
+		Name  = KVSFS;
+		kvsns_config = /etc/kvsns.d/kvsns.ini;
+	}
+	SecType = sys;
+	client {
+		clients = *;
+		Squash=no_root_squash;
+		access_type=RW;
+		protocols = 4;
+	}
+	Filesystem_id = 192.168;
 }
 
+# KVSFS Plugin path
 FSAL
 {
     KVSFS
@@ -173,20 +160,10 @@ FSAL
     }
 }
 
-FileSystem
-{
-    Link_support = TRUE;     # hardlink support
-    Symlink_support = TRUE;  # symlinks support
-    CanSetTime = TRUE;       # Is it possible to change file times
-}
 
 NFS_Core_Param
 {
     Nb_Worker = 1 ;
-    # NFS Port to be used
-    # Default value is 2049
-    NFS_Port = 2049 ;
-    Protocols = 3, 4, 9p;
     Manage_Gids_Expiration = 3600;
     Plugins_Dir = /usr/lib64/ganesha/ ;
 }
@@ -196,9 +173,10 @@ NFSv4
     # Domain Name
     DomainName = localdomain ;
 
-    # Lease_Lifetime = 10 ;
+    # Quick restart
     Graceless = YES;
 }
+
 ```
 
 - Start **nfs-ganesha**
