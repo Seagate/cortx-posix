@@ -25,47 +25,69 @@
  * -------------
  */
 
-/* main.c
- * Module core functions
- */
+/* Implementation of FSAL module functions for KVSNS library.  */
 
-#include "config.h"
-
-#include <libgen.h>		/* used for 'dirname' */
-#include <pthread.h>
-#include <string.h>
-#include <sys/types.h>
-#include "gsh_list.h"
-#include "fsal.h"
+#include <limits.h>
+#include <fsal_types.h>
+#include <FSAL/fsal_init.h>
 #include "fsal_internal.h"
-#include "kvsfs_methods.h"
-#include "FSAL/fsal_init.h"
 
-const char myname[] = "KVSFS";
+/* TODO:ACL: ATTR_ACL and ATTR4_SEC_LABEL are not supported yet. */
+#define KVSFS_SUPPORTED_ATTRIBUTES (ATTRS_POSIX)
 
-/* filesystem info for your filesystem */
-static struct fsal_staticfsinfo_t default_kvsfs_info = {
-	.maxfilesize = UINT64_MAX,		/* Max fiule size */
-	.maxlink = 1024,	/* max links for an object of your filesystem */
-	.maxnamelen = MAXNAMLEN,		/* max filename */
-	.maxpathlen = MAXPATHLEN,		/* min filename */
-	.no_trunc = true,			/* no_trunc */
-	.chown_restricted = true,		/* chown restricted */
-	.case_insensitive = false,		/* case insensitivity */
-	.case_preserving = true,		/* case preserving */
-	.lock_support = false,	/* lock support */
-	.lock_support_owner = false,		/* lock owners */
-	.lock_support_async_block = false,	/* async blocking locks */
-	.named_attr = true,			/* named attributes */
-	.unique_handles = true,		/* handles are unique and persistent */
-	.lease_time = {10, 0},	/* Duration of lease at FS in seconds */
-	.acl_support = FSAL_ACLSUPPORT_ALLOW,	/* ACL support */
-	.cansettime = true,
-	.homogenous = true,			/* homogenous */
-	.supported_attrs = KVSFS_SUPPORTED_ATTRIBUTES, /* supp attributes */
+/* TBD */
+#define KVSFS_LINK_MAX 1024
+
+const char module_name[] = "KVSFS";
+
+/* default parameters for KVSNS filesystem */
+static const struct fsal_staticfsinfo_t default_kvsfs_info = {
+	.maxfilesize	= INT64_MAX,		/*< maximum allowed filesize     */
+	.maxlink	= KVSFS_LINK_MAX,	/*< maximum hard links on a file */
+	.maxnamelen	= NAME_MAX,		/*< maximum name length */
+	.maxpathlen	= PATH_MAX,		/*< maximum path length */
+	.no_trunc	= true,			/*< is it errorneous when name>maxnamelen? */
+	.chown_restricted = true,		/*< is chown limited to super-user. */
+	.case_insensitive = false,		/*< case insensitive FS? */
+	.case_preserving = true,		/*< FS preserves case? */
+	.link_support	= true,			/*< FS supports hardlinks? */
+	.symlink_support = true,		/*< FS supports symlinks? */
+	.lock_support	= false,		/*< FS supports file locking? */ /* TODO */
+	.lock_support_async_block = false,	/*< FS supports blocking locks? */
+	.named_attr	= false,		/*< FS supports named attributes. */ /* TODO */
+	.unique_handles = true,			/*< Handles are unique and persistent. */
+	.acl_support	= FSAL_ACLSUPPORT_ALLOW,	/*< what type of ACLs are supported */ /* TODO */
+	.cansettime	= true,			/*< Is it possible to change file times using SETATTR. */
+	.homogenous	= true,	/*< Are supported attributes the same for all objects of this filesystem. */
+	.supported_attrs = KVSFS_SUPPORTED_ATTRIBUTES,	/*< If the FS is homogenous,
+							  this indicates the set of
+							  supported attributes. */
+	.maxread = FSAL_MAXIOSIZE,	/*< Max read size */
+	.maxwrite = FSAL_MAXIOSIZE,	/*< Max write size */
+	.umask = 0,		/*< This mask is applied to the mode of created
+				   objects */
+	.auth_exportpath_xdev = false,	/*< This flag indicates weither
+					   it is possible to cross junctions
+					   for resolving an NFS export path. */
+	.delegations = FSAL_OPTION_NO_DELEGATIONS,	/*< fsal supports delegations */ /* TODO */
+	.pnfs_mds = false,		/*< fsal supports file pnfs MDS */ /* TODO */
+	.pnfs_ds = false,		/*< fsal supports file pnfs DS */ /* TODO */
+	.fsal_trace = false,		/*< fsal trace supports */ /* TBD */
+	.fsal_grace = false,		/*< fsal will handle grace */ /* TBD */
 	.link_supports_permission_checks = true,
-	.pnfs_mds = true,
-	.pnfs_ds = true,
+	.rename_changes_key = false,	/*< Handle key is changed across rename */
+	.compute_readdir_cookie = false, /* NOTE: KVSNS is not able to produce a stable
+					    offset for given filename
+					    */
+	.whence_is_name = false,		/* READDIR uses filename instead of offset
+						TODO: update readdir implementation */
+	.readdir_plus = false,	/*< FSAL supports readdir_plus */
+	.expire_time_parent = -1, /*< Expiration time interval in
+				       seconds for parent handle.
+				       If FS gives information about parent
+				       change for a directory with an upcall,
+				       set this to -1. Else set it to some
+				       positive value. Defaults to -1. */ /* TODO: implement upcall */
 };
 
 static struct config_item kvsfs_params[] = {
@@ -83,8 +105,6 @@ static struct config_item kvsfs_params[] = {
 		       kvsfs_fsal_module, fs_info.umask),
 	CONF_ITEM_BOOL("auth_xdev_export", false,
 		       kvsfs_fsal_module, fs_info.auth_exportpath_xdev),
-	CONF_ITEM_MODE("xattr_access_rights", 0400,
-		       kvsfs_fsal_module, fs_info.xattr_access_rights),
 	CONFIG_EOL
 };
 
@@ -97,24 +117,7 @@ struct config_block kvsfs_param = {
 	.blk_desc.u.blk.commit = noop_conf_commit
 };
 
-/* private helper for export object
- */
-
-struct fsal_staticfsinfo_t *kvsfs_staticinfo(struct fsal_module *hdl)
-{
-	struct kvsfs_fsal_module *myself;
-
-	myself = container_of(hdl, struct kvsfs_fsal_module, fsal);
-	return &myself->fs_info;
-}
-
-/* Module methods
- */
-
-/* kvsfs_init_config
- * must be called with a reference taken (via lookup_fsal)
- */
-
+/* Init FSAL from config file */
 static fsal_status_t kvsfs_init_config(struct fsal_module *fsal_hdl,
 				     config_file_t config_struct,
 				     struct config_error_type *err_type)
@@ -122,66 +125,59 @@ static fsal_status_t kvsfs_init_config(struct fsal_module *fsal_hdl,
 	struct kvsfs_fsal_module *kvsfs_me =
 	    container_of(fsal_hdl, struct kvsfs_fsal_module, fsal);
 
-	kvsfs_me->fs_info = default_kvsfs_info;	/* copy the consts */
+	/* set default values */
+	kvsfs_me->fs_info = default_kvsfs_info;
+
+	/* load user values */
 	(void) load_config_from_parse(config_struct,
 				      &kvsfs_param,
-				      &kvsfs_me,
+				      kvsfs_me,
 				      true,
 				      err_type);
-	if (!config_error_is_harmless(err_type))
+
+	if (!config_error_is_harmless(err_type)) {
 		return fsalstat(ERR_FSAL_INVAL, 0);
-	display_fsinfo(&kvsfs_me->fs_info);
-	LogFullDebug(COMPONENT_FSAL,
-		     "Supported attributes constant = 0x%" PRIx64,
-		     (uint64_t) KVSFS_SUPPORTED_ATTRIBUTES);
-	LogFullDebug(COMPONENT_FSAL,
-		     "Supported attributes default = 0x%" PRIx64,
-		     default_kvsfs_info.supported_attrs);
-	LogDebug(COMPONENT_FSAL,
-		 "FSAL INIT: Supported attributes mask = 0x%" PRIx64,
-		 kvsfs_me->fs_info.supported_attrs);
-	
+	}
+
+	fsal_hdl->fs_info = kvsfs_me->fs_info;
+	/* print final values in the log */
+	display_fsinfo(fsal_hdl);
+
 	return fsalstat(ERR_FSAL_NO_ERROR, 0);
 }
 
-/* Internal KVSFS method linkage to export object
- */
-
-fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
-				void *parse_node,
-				struct config_error_type *err_type,
-				const struct fsal_up_vector *up_ops);
-
-/* Module initialization.
- * Called by dlopen() to register the module
- * keep a private pointer to me in myself
- */
-
-/* my module private storage
- */
-
-static struct kvsfs_fsal_module KVSFS;
+/* KVSFS singleton */
+struct kvsfs_fsal_module KVSFS;
 
 MODULE_INIT void kvsfs_load(void)
 {
 	int retval;
 	struct fsal_module *myself = &KVSFS.fsal;
 
-	retval = register_fsal(myself, myname,
+	retval = register_fsal(myself, module_name,
 			       FSAL_MAJOR_VERSION,
 			       FSAL_MINOR_VERSION,
 			       FSAL_ID_NO_PNFS);
 	if (retval != 0) {
-		fprintf(stderr, "KVSFS module failed to register\n");
+		LogCrit(COMPONENT_FSAL,
+			"KVSFS FSAL module failed to register iself.");
 		return;
 	}
 
+	/* Set up module operations */
 	myself->m_ops.create_export = kvsfs_create_export;
+
+	/* Set up module parameters */
 	myself->m_ops.init_config = kvsfs_init_config;
 
-	myself->m_ops.fsal_pnfs_ds_ops = kvsfs_pnfs_ds_ops_init;
-	myself->m_ops.getdeviceinfo = kvsfs_getdeviceinfo;
-	myself->m_ops.fs_da_addr_size = kvsfs_fs_da_addr_size;
+	/* Set up pNFS opterations */
+	/* myself->m_ops.fsal_pnfs_ds_ops = kvsfs_pnfs_ds_ops_init */;
+	/* myself->m_ops.getdeviceinfo = kvsfs_getdeviceinfo */;
+
+	/* Initialize fsal_obj_handle for FSAL */
+	kvsfs_handle_ops_init(&KVSFS.handle_ops);
+
+	LogDebug(COMPONENT_FSAL, "FSAL KVSFS initialized");
 }
 
 MODULE_FINI void kvsfs_unload(void)
@@ -190,7 +186,11 @@ MODULE_FINI void kvsfs_unload(void)
 
 	retval = unregister_fsal(&KVSFS.fsal);
 	if (retval != 0) {
-		fprintf(stderr, "KVSFS module failed to unregister");
+		LogCrit(COMPONENT_FSAL,
+			"KVSFS FSAL module failed to unregister iself.");
 		return;
 	}
+
+	LogDebug(COMPONENT_FSAL, "FSAL KVSFS deinitialized");
 }
+

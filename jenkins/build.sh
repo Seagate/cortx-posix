@@ -6,6 +6,7 @@ BASE_DIR=$(realpath $(dirname $0)/..)
 cd $BASE_DIR
 PROG_NAME=$(basename $0)
 DIST=$(realpath $BASE_DIR/dist)
+CMAKE_BUILD_DIR_ROOT=${CMAKE_BUILD_DIR_TOO:-/tmp}
 
 usage() {
 	echo "usage: $PROG_NAME [-p <ganesha src path>] [-v <version>] [-k {mero|redis}] [-e {mero|posix}]" 1>&2;
@@ -72,21 +73,22 @@ fi
 echo "Using [VERSION=${VERSION}] ..."
 echo "Using [GIT_VER=${GIT_VER}] ..."
 
-# Remove existing directory tree and create fresh one.
-\rm -rf $DIST/rpmbuild
-mkdir -p $DIST/rpmbuild/SOURCES
-
-# Remove temporary directory
-\rm -rf ${DIST}/eos-fs
+# TODO:
+# Package generation is not consitent:
+# 1. We have one extra cmake build for kvsns (one here for 'all' target and the second one in the %install section of the spec file).
+# 2. ksvfs package has 3 regular files instead of 1 regular file + 2 symlinks (lib.so -> lib.so.1 -> lib.so.1.0).
+# Idealy, we should use the RPM CPack generator instead of a combination of the TGZ generator and our custom commands.
 
 # Generate RPM for KVSNS
-mkdir -p /tmp/kvsns_build
-cd /tmp/kvsns_build
+CMAKE_BUILD_DIR_KVSNS="$CMAKE_BUILD_DIR_ROOT/kvsns_build"
+mkdir -p "$CMAKE_BUILD_DIR_KVSNS"
+cd "$CMAKE_BUILD_DIR_KVSNS"
 cmake -DUSE_KVS_MERO=${USE_KVS_MERO} -DUSE_MERO_STORE=${USE_MERO_STORE} -DUSE_KVS_REDIS=${USE_KVS_REDIS} -DUSE_POSIX_STORE=${USE_POSIX_STORE} -DRELEASE_VER:STRING=${GIT_VER} $BASE_DIR/src/kvsns/
 make all links rpm
 
 # Generate RPM for FSAL for KFSFS
-mkdir -p /tmp/fsal_build
-cd /tmp/fsal_build
-cmake -DGANESHASRC:PATH=${GANESHASRC} -DKVSNSINC:PATH=${BASE_DIR}/src/kvsns/include -DLIBKVSNS:PATH=/tmp/kvsns_build/kvsns -DRELEASE_VER:STRING=${GIT_VER} $BASE_DIR/src/nfs-ganesha/FSAL_KVSFS/
+CMAKE_BUILD_DIR_KVSFS="$CMAKE_BUILD_DIR_ROOT/kvsfs_build"
+mkdir -p "$CMAKE_BUILD_DIR_KVSFS"
+cd "$CMAKE_BUILD_DIR_KVSFS"
+cmake -DGANESHASRC:PATH=${GANESHASRC} -DKVSNSINC:PATH=${BASE_DIR}/src/kvsns/include -DLIBKVSNS:PATH=$CMAKE_BUILD_DIR_KVSNS/kvsns -DRELEASE_VER:STRING=${GIT_VER} $BASE_DIR/src/nfs-ganesha/FSAL_KVSFS/
 make all rpm

@@ -62,8 +62,9 @@ This package contains tools for libkvsns.
 %package utils
 Summary: Development file for the library libkvsns
 Group: Development/Libraries
-Requires: %{name} = %{version}-%{release} pkgconfig
-Requires: libkvsns @RPM_REQUIRES@
+Requires: %{name} = %{version}-%{release}
+Requires: libkvsns
+Requires: @RPM_REQUIRES@
 Provides: %{name}-utils = %{version}-%{release}
 
 %description utils
@@ -93,10 +94,10 @@ mkdir -p %{buildroot}%{_sysconfdir}/kvsns.d
 install -m 644 include/kvsns/kvsns.h  %{buildroot}%{_includedir}/kvsns
 install -m 644 include/kvsns/kvsal.h  %{buildroot}%{_includedir}/kvsns
 install -m 644 include/kvsns/extstore.h  %{buildroot}%{_includedir}/kvsns
-install -m 644 kvsal/libkvsal.so %{buildroot}%{_libdir}
-install -m 644 extstore/libextstore.so %{buildroot}%{_libdir}
-install -m 644 kvsns/libkvsns.so %{buildroot}%{_libdir}
-install -m 644 common/mero/libm0common.so %{buildroot}%{_libdir}
+install -m 744 kvsal/libkvsal.so %{buildroot}%{_libdir}
+install -m 744 extstore/libextstore.so %{buildroot}%{_libdir}
+install -m 744 kvsns/libkvsns.so %{buildroot}%{_libdir}
+install -m 744 common/mero/libm0common.so %{buildroot}%{_libdir}
 install -m 644 libkvsns.pc  %{buildroot}%{_libdir}/pkgconfig
 install -m 755 kvsns_shell/kvsns_ns %{buildroot}%{_bindir}
 install -m 644 kvsns.ini %{buildroot}%{_sysconfdir}/kvsns.d
@@ -132,7 +133,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_bindir}/kvsns_setattr
 
 %changelog
-* Thu Jun 13 2017 Philippe DENIEL <philippe.deniel@cea.fr> 1.2.0
+* Tue Jun 13 2017 Philippe DENIEL <philippe.deniel@cea.fr> 1.2.0
 - Add support for config file via libini_config
 
 * Fri Jun  2 2017 Philippe DENIEL <philippe.deniel@cea.fr> 1.1.3
