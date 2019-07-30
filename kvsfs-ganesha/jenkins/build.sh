@@ -17,10 +17,10 @@ usage() {
 	exit 1;
 }
 
-while getopts ":g:v:p:k:e:" o; do
+while getopts ":b:v:p:k:e:" o; do
 	case "${o}" in
-	g)
-		GIT_VER=${OPTARG}
+	b)
+		BUILD_VER=${OPTARG}
 		;;
 	v)
 		VERSION=${OPTARG}
@@ -48,7 +48,7 @@ while getopts ":g:v:p:k:e:" o; do
 	esac
 done
 
-[ -z "$GIT_VER" ] && GIT_VER=$(git rev-parse --short HEAD)
+[ -z "$BUILD_VER" ] && BUILD_VER=$(git rev-parse --short HEAD)
 [ -z "$VERSION" ] && VERSION=$(cat $BASE_DIR/VERSION)
 [ -z "$GANESHASRC" ] && usage && exit 1
 [ -z "$KVSTORE_OPT" ] && USE_KVS_MERO="ON"
@@ -71,7 +71,7 @@ elif [ "$KVSTORE_OPT" == "mero" ]; then
 fi
 
 echo "Using [VERSION=${VERSION}] ..."
-echo "Using [GIT_VER=${GIT_VER}] ..."
+echo "Using [BUILD_VER=${GIT_VER}] ..."
 
 # TODO:
 # Package generation is not consitent:
@@ -83,12 +83,12 @@ echo "Using [GIT_VER=${GIT_VER}] ..."
 CMAKE_BUILD_DIR_KVSNS="$CMAKE_BUILD_DIR_ROOT/kvsns_build"
 mkdir -p "$CMAKE_BUILD_DIR_KVSNS"
 cd "$CMAKE_BUILD_DIR_KVSNS"
-cmake -DUSE_KVS_MERO=${USE_KVS_MERO} -DUSE_MERO_STORE=${USE_MERO_STORE} -DUSE_KVS_REDIS=${USE_KVS_REDIS} -DUSE_POSIX_STORE=${USE_POSIX_STORE} -DRELEASE_VER:STRING=${GIT_VER} $BASE_DIR/src/kvsns/
+cmake -DUSE_KVS_MERO=${USE_KVS_MERO} -DUSE_MERO_STORE=${USE_MERO_STORE} -DUSE_KVS_REDIS=${USE_KVS_REDIS} -DUSE_POSIX_STORE=${USE_POSIX_STORE} -DBASE_VERSION:STRING=${VERSION} -DRELEASE_VER:STRING=${BUILD_VER} $BASE_DIR/src/kvsns/
 make all links rpm
 
 # Generate RPM for FSAL for KFSFS
 CMAKE_BUILD_DIR_KVSFS="$CMAKE_BUILD_DIR_ROOT/kvsfs_build"
 mkdir -p "$CMAKE_BUILD_DIR_KVSFS"
 cd "$CMAKE_BUILD_DIR_KVSFS"
-cmake -DGANESHASRC:PATH=${GANESHASRC} -DKVSNSINC:PATH=${BASE_DIR}/src/kvsns/include -DLIBKVSNS:PATH=$CMAKE_BUILD_DIR_KVSNS/kvsns -DRELEASE_VER:STRING=${GIT_VER} $BASE_DIR/src/nfs-ganesha/FSAL_KVSFS/
+cmake -DGANESHASRC:PATH=${GANESHASRC} -DKVSNSINC:PATH=${BASE_DIR}/src/kvsns/include -DLIBKVSNS:PATH=$CMAKE_BUILD_DIR_KVSNS/kvsns -DBASE_VERSION:STRING=${VERSION} -DRELEASE_VER:STRING=${BUILD_VER} $BASE_DIR/src/nfs-ganesha/FSAL_KVSFS/
 make all rpm
