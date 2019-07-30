@@ -44,6 +44,10 @@
 
 int main(int argc, char *argv[])
 {
+	/* Delete-on-close (a.k.a last reference principle) is not supported
+	 * at the kvsns layer (yet) */
+	return -1;
+#if 0
 	int rc;
 	kvsns_ino_t ino = 0LL;
 	kvsns_ino_t parent = 0LL;
@@ -131,5 +135,5 @@ int main(int argc, char *argv[])
 
 	printf("######## OK ########\n");
 	return 0;
-
+#endif
 }

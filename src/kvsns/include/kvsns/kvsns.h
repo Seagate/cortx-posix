@@ -147,11 +147,6 @@ typedef struct kvsns_file_open_ {
 	int flags;
 } kvsns_file_open_t;
 
-typedef struct kvsns_dir {
-	kvsns_ino_t ino;
-	kvsal_list_t list;
-} kvsns_dir_t;
-
 enum kvsns_type {
 	KVSNS_DIR = 1,
 	KVSNS_FILE = 2,
@@ -281,12 +276,24 @@ int kvsns2_access(kvsns_fs_ctx_t ctx, kvsns_cred_t *cred, kvsns_ino_t *ino, int 
  *
  * @return 0 if successful, a negative "-errno" value in case of failure
  */
-int kvsns_creat(kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
-		mode_t mode, kvsns_ino_t *newino);
+int kvsns_creat(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
+		char *name, mode_t mode, kvsns_ino_t *newfile);
 
-int kvsns2_creat(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
-		mode_t mode, kvsns_ino_t *newino);
 
+/* Atomic file creation.
+ * The functions create a new file, sets new attributes, gets them back
+ * to the caller. That's all must be done within a transaction because we
+ * cannot leave the file in the storage if we cannot set/get its stats.
+ * TODO: This operations is not atomic yet but will be eventually.
+ * @param[in] stat_in - New stats to be set.
+ * @param[in] stat_in_flags - Defines which stat values must be set.
+ * @param[out] stat_out - Final stat values of the created file.
+ * @param[out] newfile - The inode number of the created file.
+ */
+int kvsns_creat_ex(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
+		   char *name, mode_t mode, struct stat *stat_in,
+		   int stat_in_flags, kvsns_ino_t *newfile,
+		   struct stat *stat_out);
 /**
  * Creates a directory.
  *
@@ -568,25 +575,6 @@ int kvsns_readdir(kvsns_fs_ctx_t fs_ctx,
 		  void *cb_ctx);
 
 /**
- * Closes a directory opened by kvsns_opendir
- *
- * @param ddir - handles to opened directory
- *
- * @return 0 if successful, a negative "-errno" value in case of failure
- */
-int kvsns_closedir(kvsns_dir_t *ddir);
-
-/**
- * Closes a directory opened by kvsns_opendir
- *
- * @param ctx - filesystem context pointer
- * @param ddir - handles to opened directory
- *
- * @return 0 if successful, a negative "-errno" value in case of failure
- */
-int kvsns2_closedir(void *ctx, kvsns_dir_t *ddir);
-
-/**
  * Opens a file for reading and/or writing
  *
  * @note: this call use the same flags as LibC's open() call. You must know
@@ -688,6 +676,12 @@ int kvsns2_close(void *ctx, kvsns_file_open_t *fd);
  * @return 0 if successful, a negative "-errno" value in case of failure
  */
 int kvsns_close(kvsns_file_open_t *fd);
+
+/* A placeholder for preserving the openowner logic.
+ * It does nothing, just returns False.
+ */
+int kvsns_is_open(kvsns_fs_ctx_t *ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
+		  bool *is_open);
 
 /**
  * Writes data to an opened fd

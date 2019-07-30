@@ -680,12 +680,7 @@ int kvsns2_unlink(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *dir, char *name)
 	RC_WRAP_LABEL(rc, errfree, kvsns2_get_stat, ctx, &ino, &ino_stat);
 
 	/* Check if the file is opened */
-	RC_WRAP_LABEL(rc, errfree, prepare_key, k, KLEN, "%llu.openowner.*", ino);
-	rc = kvsal2_exists(ctx, k, KLEN);
-	if ((rc != 0) && (rc != -ENOENT))
-		goto aborted;
-
-	opened = (rc == -ENOENT) ? false : true;
+	RC_WRAP_LABEL(rc, errfree, kvsns_is_open, ctx, NULL, &ino, &opened);
 
 	RC_WRAP(kvsal_begin_transaction);
 
