@@ -43,72 +43,9 @@
 #include "kvsns_internal.h"
 #include "kvsns/log.h"
 
-static int kvsns_str2ownerlist(kvsns_open_owner_t *ownerlist, int *size,
-			        char *str)
-{
-	char *token;
-	char *rest = str;
-	int maxsize;
-	int pos;
 
-	if (!ownerlist || !str || !size)
-		return -EINVAL;
-
-	maxsize = *size;
-	pos = 0;
-
-	while((token = strtok_r(rest, "|", &rest))) {
-		sscanf(token, "%u.%u",
-		       &ownerlist[pos].pid,
-		       &ownerlist[pos].tid);
-		pos += 1;
-		if (pos == maxsize)
-			break;
-	}
-
-	*size = pos;
-
-	return 0;
-}
-
-static int kvsns_ownerlist2str(kvsns_open_owner_t *ownerlist, int size,
-			       char *str)
-{
-	int i;
-	char tmp[VLEN];
-
-	if (!ownerlist || !str)
-		return -EINVAL;
-
-	strcpy(str, "");
-
-	for (i = 0; i < size ; i++)
-		if (ownerlist[i].pid != 0LL) {
-			snprintf(tmp, VLEN, "%u.%u|",
-				 ownerlist[i].pid, ownerlist[i].tid);
-			strcat(str, tmp);
-		}
-
-	return 0;
-}
-
-
-int kvsns_creat(kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
-		mode_t mode, kvsns_ino_t *newfile)
-{
-	struct stat stat;
-
-	RC_WRAP(kvsns_access, cred, parent, KVSNS_ACCESS_WRITE);
-	RC_WRAP(kvsns_create_entry, cred, parent, name, NULL,
-				  mode, newfile, KVSNS_FILE);
-	RC_WRAP(kvsns_get_stat, newfile, &stat);
-	RC_WRAP(extstore_create, *newfile);
-
-	return 0;
-}
-
-int kvsns2_creat(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
-		 mode_t mode, kvsns_ino_t *newfile)
+int kvsns_creat(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
+		char *name, mode_t mode, kvsns_ino_t *newfile)
 {
 	kvsns_fid_t  kfid;
 
@@ -125,52 +62,46 @@ int kvsns2_creat(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
 	return 0;
 }
 
+int kvsns_creat_ex(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
+		   char *name, mode_t mode, struct stat *stat_in,
+		   int stat_in_flags, kvsns_ino_t *newfile,
+		   struct stat *stat_out)
+{
+	int rc;
+	kvsns_ino_t object = 0;
+
+	/* NOTE: The following operations must be done within a single
+	 * transaction.
+	 */
+
+	RC_WRAP(kvsal_begin_transaction);
+
+	RC_WRAP_LABEL(rc, out, kvsns_creat, ctx, cred, parent, name,
+		      mode, &object);
+	RC_WRAP_LABEL(rc, out, kvsns2_setattr, ctx, cred, &object, stat_in,
+		      stat_in_flags);
+	RC_WRAP_LABEL(rc, out, kvsns2_getattr, ctx, cred, &object, stat_out);
+
+	RC_WRAP(kvsal_end_transaction);
+
+	*newfile = object;
+	object = 0;
+
+out:
+	if (object != 0) {
+		/* We don't have transactions, so that let's just remove the
+		 * object.
+		 */
+		(void) kvsns2_unlink(ctx, cred, parent, name);
+		// kvsal_discard_transaction();
+	}
+	return rc;
+}
+
 int kvsns_open(kvsns_cred_t *cred, kvsns_ino_t *ino,
 	       int flags, mode_t mode, kvsns_file_open_t *fd)
 {
-	kvsns_open_owner_t me;
-	kvsns_open_owner_t owners[KVSAL_ARRAY_SIZE];
-	int size = KVSAL_ARRAY_SIZE;
-	char k[KLEN];
-	char v[VLEN];
-	int rc;
-
-	if (!cred || !ino || !fd)
-		return -EINVAL;
-
-	/** @todo Put here the access control base on flags and mode values */
-	me.pid = getpid();
-	me.tid = syscall(SYS_gettid);
-
-	/* Manage the list of open owners */
-	memset(k, 0, KLEN);
-	memset(v, 0, VLEN);
-	snprintf(k, KLEN, "%llu.openowner", *ino);
-	rc = kvsal_get_char(k, v);
-	if (rc == 0) {
-		RC_WRAP(kvsns_str2ownerlist, owners, &size, v);
-		if (size == KVSAL_ARRAY_SIZE)
-			return -EMLINK; /* Too many open files */
-		owners[size].pid = me.pid;
-		owners[size].tid = me.tid;
-		size += 1;
-		RC_WRAP(kvsns_ownerlist2str, owners, size, v);
-	} else if (rc == -ENOENT) {
-		/* Create the key => 1st fd created */
-		snprintf(v, VLEN, "%u.%u|", me.pid, me.tid);
-	} else
-		return rc;
-
-	RC_WRAP(kvsal_set_char, k, v);
-
-	/** @todo Do not forget store stuffs */
-	fd->ino = *ino;
-	fd->owner.pid = me.pid;
-	fd->owner.tid = me.tid;
-	fd->flags = flags;
-
-	/* In particular create a key per opened fd */
-
+	/* deprecated, see kvsns2_oepn for details */
 	return 0;
 }
 
@@ -210,6 +141,13 @@ out:
 	/* In particular create a key per opened fd */
 	log_trace("Exit rc=%d", rc);
 	return rc;
+}
+
+int kvsns_is_open(kvsns_fs_ctx_t *ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
+		  bool *is_open)
+{
+	*is_open = false;
+	return 0;
 }
 
 int kvsns_openat(kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
@@ -311,100 +249,8 @@ out:
 
 int kvsns_close(kvsns_file_open_t *fd)
 {
-	kvsns_open_owner_t owners[KVSAL_ARRAY_SIZE];
-	int size = KVSAL_ARRAY_SIZE;
-	char k[KLEN];
-	char v[VLEN];
-	int i;
-	int rc;
-	bool found = false;
-	bool opened_and_deleted;
-	bool delete_object = false;
-
-	if (!fd)
-		return -EINVAL;
-
-	memset(k, 0, KLEN);
-	memset(v, 0, VLEN);
-	snprintf(k, KLEN, "%llu.openowner", fd->ino);
-	rc = kvsal_get_char(k, v);
-	if (rc != 0) {
-		if (rc == -ENOENT)
-			return -EBADF; /* File not opened */
-		else
-			return rc;
-	}
-
-	/* Was the file deleted as it was opened ? */
-	/* The last close should perform actual data deletion */
-	memset(k, 0, KLEN);
-	snprintf(k, KLEN, "%llu.opened_and_deleted", fd->ino);
-	rc = kvsal_exists(k);
-	if ((rc != 0) && (rc != -ENOENT))
-		return rc;
-	opened_and_deleted = (rc == -ENOENT) ? false : true;
-
-	RC_WRAP(kvsns_str2ownerlist, owners, &size, v);
-
-	RC_WRAP(kvsal_begin_transaction);
-
-	if (size == 1) {
-		if (fd->owner.pid == owners[0].pid &&
-		    fd->owner.tid == owners[0].tid) {
-			memset(k, 0, KLEN);
-			snprintf(k, KLEN, "%llu.openowner", fd->ino);
-			RC_WRAP_LABEL(rc, aborted, kvsal_del, k);
-
-			/* Was the file deleted as it was opened ? */
-			if (opened_and_deleted) {
-				delete_object = true;
-				snprintf(k, KLEN, "%llu.opened_and_deleted",
-					 fd->ino);
-				RC_WRAP_LABEL(rc, aborted,
-					      kvsal_del, k);
-			}
-			RC_WRAP(kvsal_end_transaction);
-
-			if (delete_object)
-				RC_WRAP(extstore_del, &fd->ino);
-
-			return 0;
-		} else {
-			rc = -EBADF;
-			goto aborted;
-		}
-	} else {
-		found = false;
-		for (i = 0; i < size ; i++)
-			if (owners[i].pid == fd->owner.pid &&
-			    owners[i].tid == fd->owner.tid) {
-				owners[i].pid = 0; /* remove it from list */
-				found = true;
-				break;
-			}
-	}
-
-
-	if (!found) {
-		rc = -EBADF;
-		goto aborted;
-	}
-
-	RC_WRAP_LABEL(rc, aborted, kvsns_ownerlist2str, owners, size, v);
-
-	RC_WRAP_LABEL(rc, aborted, kvsal_set_char, k, v);
-
-	RC_WRAP(kvsal_end_transaction);
-
-	/* To be done outside of the previous transaction */
-	if (delete_object)
-		RC_WRAP(extstore_del, &fd->ino);
-
+	/* deprecated. See kvsns2_close for detais */
 	return 0;
-
-aborted:
-	kvsal_discard_transaction();
-	return rc;
 }
 
 ssize_t kvsns_write(kvsns_cred_t *cred, kvsns_file_open_t *fd,

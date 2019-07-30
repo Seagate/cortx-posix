@@ -81,7 +81,7 @@ int main(int argc, char *argv[])
 	}
 
 	parent = KVSNS_ROOT_INODE;
-	rc = kvsns2_creat(fs_ctx, &cred, &parent, "fichier", 0755, &ino);
+	rc = kvsns_creat(fs_ctx, &cred, &parent, "fichier", 0755, &ino);
 	if (rc != 0) {
 		if (rc == -EEXIST)
 			fprintf(stderr, "dirent exists\n");
@@ -91,12 +91,17 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	/* kvsns_open is not implemeted yet */
+#if 0
 	rc = kvsns2_open(fs_ctx, &cred, &ino, 0 /* to raise errors laters */,
 			 0755, &fd);
 	if (rc != 0) {
 		fprintf(stderr, "kvsns_open: err=%d\n", rc);
 		exit(1);
 	}
+#else
+	assert(0);
+#endif
 
 	strncpy(buff, "This is the content of the file", SIZE);
 	count = strnlen(buff, SIZE);
@@ -125,11 +130,13 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
+#if 0
 	rc = kvsns2_close(fs_ctx, &fd);
 	if (rc != 0) {
 		fprintf(stderr, "kvsns_close: err=%d\n", rc);
 		exit(1);
 	}
+#endif
 
 	printf("######## OK ########\n");
 	return 0;

@@ -296,7 +296,7 @@ int main(int argc, char *argv[])
 			exit (1);
 		}
 
-		rc = kvsns2_creat(fs_ctx, &cred, &current_inode, argv[1], 0755, &ino);
+		rc = kvsns_creat(fs_ctx, &cred, &current_inode, argv[1], 0755, &ino);
 		if (rc == 0) {
 			printf("==> %llu/%s created = %llu\n",
 				current_inode, argv[1], ino);
