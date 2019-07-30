@@ -177,8 +177,8 @@ int kvsns2_rmdir(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent, char *name)
 		      &ino, &kname);
 
 
-	/* @todo: Remove all associated xattr */
-	RC_WRAP(kvsns_remove_all_xattr, cred, &ino);
+	/* @todo: Remove all associated xattr
+	RC_WRAP(kvsns_remove_all_xattr, cred, &ino); */
 
 
 aborted:
