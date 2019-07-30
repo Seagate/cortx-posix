@@ -12,6 +12,8 @@ Using clovis-sample-apps is a workaround. Eventually, KVSNS will be able to gene
 
 Install NFS Ganesha:
 * Install jemalloc (`yum install jemalloc`).
+* Install je-malloc-devel (`yum install jemalloc-devel`)
+*
 * Get nfs-ganesha from the official [repo](https://github.com/nfs-ganesha/nfs-ganesha/).
 * Checkout the stable branch `V2.7-stable`.
 * Build and install the `nfs-ganesha`. Make sure `jemalloc` is used as the allocator (check `make edit_cache` in the build dir). Find the directions to compile [here](https://github.com/nfs-ganesha/nfs-ganesha/wiki/Compiling).
@@ -19,11 +21,15 @@ Install NFS Ganesha:
 ### Build
 For the following procedure *eos-fs* repository is assumed to be cloned at the path ` ~/eos-fs`
 
+
 - Go to `~/eos-fs`
 
 ```sh
  $ cd ~/eos-fs
 ```
+Note: An error of ini_config.h may occur
+- Install libini_config-devel  (`yum install libini_config-devel`) 
+
 - Run `build.sh` script to generate RPMs for **kvsns** and **fsalkvsfs**
 
 ```sh
