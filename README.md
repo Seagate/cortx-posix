@@ -17,7 +17,7 @@ Install NFS Ganesha:
 
 * Get nfs-ganesha from the official [repo](https://github.com/nfs-ganesha/nfs-ganesha/).
 * Checkout the stable branch `V2.7-stable`.Build and install the `nfs-ganesha`. 
-* 
+
 * If nfs-ganesha rpm is available directly install it. (`yum localinstall nfs-ganesha-vfs-2.7.6-0.1.el7.x86_64.rpm`)
 
 * Make sure `jemalloc` is used as the allocator (check `make edit_cache` in the build dir). Find the directions to compile [here](https://github.com/nfs-ganesha/nfs-ganesha/wiki/Compiling).
