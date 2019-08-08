@@ -14,7 +14,7 @@ Install NFS Ganesha:
 * Install jemalloc (`yum install jemalloc`).
 * Install jemalloc-devel (`yum install jemalloc-devel`)
 * Install libntirpc-1.7.4-0.1.el7.x86_64.rpm (`rpm -ivh libntirpc-1.7.4-0.1.el7.x86_64.rpm`)
-* 
+
 * Get nfs-ganesha from the official [repo](https://github.com/nfs-ganesha/nfs-ganesha/).
 * Checkout the stable branch `V2.7-stable`.Build and install the `nfs-ganesha`. 
 * 
