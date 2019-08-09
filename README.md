@@ -6,9 +6,6 @@ Support for different file access protocols (like SAMBA, NFS etc.) to Seagate EO
 Install mero:
 - Latest Mero rpms (`mero` and `mero-devel`) should be installed. Take the latest rpm from this [page](http://jenkins.mero.colo.seagate.com/share/bigstorage/releases/hermi/last_successful/mero/repo/)
 - `m0singlenode` service should be up and running before running nfs ganesha with mero/clovis
-* Clovis sample apps should be built and it's rc files should be present. Please refer to this [page](https://github.com/seagate-ssg/clovis-sample-apps) for instructions on clovis-sample-apps.
-NOTE/TODO: this requirement is here only because we don't have a script to generate kvsns.ini from a mero confxc file, and therefore we don't have a way to check if clvois is up and running.
-Using clovis-sample-apps is a workaround. Eventually, KVSNS will be able to generate its config file from a mero confxc file.
 
 Install NFS Ganesha:
 * Install jemalloc (`yum install jemalloc`).
@@ -66,7 +63,7 @@ sudo yum install $HOME/rpmbuild/RPMS/*/lib{kvsns,fsalkvsfs}*
 A hint: for periodic local updates you can use `jenkins/build_and_install.sh`.
 
 ### Configure
-- Edit `/etc/kvsns.d/kvsns.ini`
+- Edit `/etc/kvsns.d/kvsns.ini`. Create if it doesn't exist
 
 ```
 [mero]
@@ -77,24 +74,10 @@ proc_fid = <0x7200000000000000:0>
 index_dir = /tmp
 kvs_fid = <0x780000000000000b:1>
 ```
-- Update `local_addr`, `ha_addr`, `profile` and `proc_fid` in `/etc/kvsns.d/kvsns.ini` using **clovis-sample-apps** configuration. Use values for `index_dir` and `kvs_fid` as given above. Following commands will give you the values to be filled in
+- Update `local_addr`, `ha_addr`, `profile` and `proc_fid` in `/etc/kvsns.d/kvsns.ini` using the above sample configuration file Replace the `172.16.2.132` in the kvsns.ini by the  ip address of your local machine.
+- Use values for `index_dir` and `kvs_fid` as given above.
 
-```sh
-$ cd /path/to/clovis-sample-apps/
-$ cat .c0cprc/*
 
-#local address
-172.16.2.132@tcp:12345:44:301
-
-#ha address
-172.16.2.132@tcp:12345:45:1
-
-#profile id
-<0x7000000000000001:0>
-
-#process id
-<0x7200000000000000:0>
-```
 - Create the Index use by KVSNS and listed in kvsns.ini as `kvs_fid`
 
 ```sh
@@ -144,7 +127,7 @@ EXPORT
 	SecType = sys;
 	client {
 		clients = *;
-		Squash=no_root_squash;
+		Squash=root_squash;
 		access_type=RW;
 		protocols = 4;
 	}
