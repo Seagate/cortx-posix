@@ -127,12 +127,18 @@ int main(int argc, char *argv[])
 	if (kvsns_dest) {
 		rc = kvsns_lookup_path(&cred, &parent, dest, &ino);
 		if (rc == -2) {
+			/* This utility does not support the multi-index
+			 * KVSNS API */
+#if 0
 			rc = kvsns_creat(&cred, &parent, dest, 0644, &ino);
+#endif
 			exit_rc("Can't create dest file in KVSNS", rc);
 		} else
 			exit_rc("Can't lookup dest in KVSNS", rc);
 
+#if 0
 		rc = kvsns_open(&cred, &ino, O_WRONLY, 0644, &kfd);
+#endif
 	}
 	exit_rc("Can't open file in KVSNS", rc);
 
@@ -149,8 +155,9 @@ int main(int argc, char *argv[])
 	rc = close(fd);
 	exit_rc("Can't close POSIX fd, errno=%d", errno);
 
+#if 0
 	rc = kvsns_close(&kfd);
 	exit_rc("Can't close KVSNS fd, errno=%d", errno);
-
+#endif
 	return 0;
 }

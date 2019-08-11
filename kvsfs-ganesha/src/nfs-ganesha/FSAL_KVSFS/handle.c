@@ -797,6 +797,11 @@ static fsal_status_t kvsfs_getattrs(struct fsal_obj_handle *obj_hdl,
 
 	T_ENTER(">>> (%p)", obj_hdl);
 
+	if (attrs_out == NULL) {
+		retval = 0;
+		goto out;
+	}
+
 	myself =
 		container_of(obj_hdl, struct kvsfs_fsal_obj_handle, obj_handle);
 
@@ -806,9 +811,7 @@ static fsal_status_t kvsfs_getattrs(struct fsal_obj_handle *obj_hdl,
 		goto out;
 	}
 
-	if (attrs_out != NULL) {
-		posix2fsal_attributes_all(&stat, attrs_out);
-	}
+	posix2fsal_attributes_all(&stat, attrs_out);
 
 out:
 	fsal_error = posix2fsal_error(-retval);
@@ -859,8 +862,7 @@ out:
 /* FSAL.getattr */
 
 /* a jury-rigged convertor from NFS attrs into POSIX stats */
-static fsal_status_t kvsfs_setattr_attrlist2stat(struct fsal_obj_handle *obj_hdl,
-						 struct attrlist *attrs,
+static fsal_status_t kvsfs_setattr_attrlist2stat(struct attrlist *attrs,
 						 struct stat *stats_out,
 						 int *flags_out)
 {
@@ -870,15 +872,12 @@ static fsal_status_t kvsfs_setattr_attrlist2stat(struct fsal_obj_handle *obj_hdl
 	int flags = 0;
 
 	/* apply umask, if mode attribute is to be changed */
-	if (FSAL_TEST_MASK(attrs->valid_mask, ATTR_MODE))
+	if (FSAL_TEST_MASK(attrs->valid_mask, ATTR_MODE)) {
 		attrs->mode &= ~op_ctx->fsal_export->exp_ops.
 				fs_umask(op_ctx->fsal_export);
+	}
 
 	if (FSAL_TEST_MASK(attrs->valid_mask, ATTR_SIZE)) {
-		if (obj_hdl->type != REGULAR_FILE) {
-			fsal_error = ERR_FSAL_INVAL;
-			return fsalstat(fsal_error, retval);
-		}
 		flags |= STAT_SIZE_SET;
 		stats.st_size = attrs->filesize;
 	}
@@ -941,21 +940,20 @@ out:
  * TODO: Not implemented yet.
  */
 static fsal_status_t
-kvsfs_ftruncate(struct kvsfs_fsal_obj_handle *obj,
+kvsfs_ftruncate(struct fsal_obj_handle *obj,
 		struct state_t *state,
 		bool bypass,
-		struct stat *prev_stat,
 		struct stat *new_stat,
 		int new_stat_flags)
 {
 	(void) obj;
 	(void) state;
 	(void) bypass;
-	(void) prev_stat;
 	(void) new_stat;
 	(void) new_stat_flags;
 
 	T_ENTER0;
+	assert((new_stat_flags & STAT_SIZE_SET) != 0);
 	T_EXIT0(0);
 	return fsalstat(ERR_FSAL_NO_ERROR, 0);
 }
@@ -974,7 +972,7 @@ fsal_status_t kvsfs_setattrs(struct fsal_obj_handle *obj_hdl,
 
 	obj = container_of(obj_hdl, struct kvsfs_fsal_obj_handle, obj_handle);
 
-	result = kvsfs_setattr_attrlist2stat(obj_hdl, attrs, &stats, &flags);
+	result = kvsfs_setattr_attrlist2stat(attrs, &stats, &flags);
 	if (FSAL_IS_ERROR(result)) {
 		goto out;
 	}
@@ -988,8 +986,7 @@ fsal_status_t kvsfs_setattrs(struct fsal_obj_handle *obj_hdl,
 		}
 
 		/* Truncate is a special IO-related operation */
-		result = kvsfs_ftruncate(obj, state, bypass, NULL, &stats,
-					 flags);
+		result = kvsfs_ftruncate(obj_hdl, state, bypass, &stats, flags);
 	} else {
 		/* If the size does not need to be change, then
 		 * we can simply update the stats associated with the inode
@@ -1493,7 +1490,6 @@ void kvsfs_free_state(struct fsal_export *exp_hdl, struct state_t *state)
 static fsal_status_t kvsfs_open2_by_handle(struct fsal_obj_handle *obj_hdl,
 					   struct state_t *state,
 					   fsal_openflags_t openflags,
-					   struct attrlist *attrs_in,
 					   struct attrlist *attrs_out,
 					   bool *caller_perm_check)
 {
@@ -1523,8 +1519,9 @@ static fsal_status_t kvsfs_open2_by_handle(struct fsal_obj_handle *obj_hdl,
 		posix2fsal_attributes_all(&stat, attrs_out);
 	}
 
-	/* TODO:PORTING:
-	 * Figure out when exactly we should set/unset this argument.
+	/* kvsfs_file_state_open does not call test_access and
+	 * kvsns2_getattrs also does not check it. Therefore, let the caller
+	 * check access.
 	 */
 	if (caller_perm_check) {
 		*caller_perm_check = true;
@@ -1556,7 +1553,7 @@ static fsal_status_t kvsfs_open2_by_name(struct fsal_obj_handle *parent_obj_hdl,
 
 	assert(obj != NULL);
 
-	result = kvsfs_open2_by_handle(obj, state, openflags, attrs_in,
+	result = kvsfs_open2_by_handle(obj, state, openflags,
 				       attrs_out, caller_perm_check);
 	if (FSAL_IS_ERROR(result)) {
 		goto free_obj;
@@ -1574,62 +1571,135 @@ out:
 	return result;
 }
 
-static fsal_status_t kvsfs_create2(struct fsal_obj_handle *parent_obj_hdl,
-				   const char *name,
-				   struct fsal_obj_handle **new_obj_hdl,
-				   struct state_t *state,
-				   fsal_openflags_t openflags,
-				   enum fsal_create_mode createmode,
-				   struct attrlist *attrs_in,
-				   struct attrlist *attrs_out,
-				   bool *caller_perm_check)
+/** Implementation of OPEN4+UNCHECKED4 case when the file exists. */
+static fsal_status_t kvsfs_open_unchecked(struct fsal_obj_handle *obj_hdl,
+					  struct state_t *state,
+					  fsal_openflags_t openflags,
+					  struct attrlist *attrs_in,
+					  struct attrlist *attrs_out,
+					  bool *caller_perm_check)
 {
-	struct fsal_obj_handle *obj_hdl = NULL;
-	struct kvsfs_state_fd *state_fd =
-		container_of(state, struct kvsfs_state_fd, state);
-	struct kvsfs_file_state *fd = &state_fd->kvsfs_fd;
-	kvsns_cred_t cred = KVSNS_CRED_INIT_FROM_OP;
-	struct kvsfs_fsal_obj_handle *parent_obj =
-		container_of(parent_obj_hdl, struct kvsfs_fsal_obj_handle,
-			      obj_handle);
-	kvsns_fs_ctx_t fs_ctx = parent_obj->fs_ctx;
-	int rc;
-	kvsns_ino_t object;
-	fsal_status_t result;
-	struct stat stat;
-	mode_t unix_mode;
+	fsal_status_t result = fsalstat(ERR_FSAL_NO_ERROR, 0);
+	bool close_on_exit = false;
+	struct stat stat = {0};
+	int flags = 0;
 
+	T_ENTER(">>> (obj=%p, state=%p, attrs_in=%p, attrs_out=%p)",
+		obj_hdl, state, attrs_in, attrs_out);
+
+	assert(obj_hdl);
 	assert(attrs_in);
-	assert(createmode != FSAL_NO_CREATE);
-	assert(name);
+	assert(state);
+	assert(obj_hdl->type == REGULAR_FILE);
 
-	/* TODO:PORTING
-	 *   Check if `cred` should be extraced from attrs_in
-	 *	instead of using op_ctx.
-	 *   Check if we have enforce additional protections
-	 *	(or loose them) for different createmode4 values.
+	result = kvsfs_open2_by_handle(obj_hdl, state, openflags, attrs_out,
+				       caller_perm_check);
+	if (FSAL_IS_ERROR(result)) {
+		goto out;
+	}
+
+	close_on_exit = true;
+
+	/* TODO: When all OPEN4 cases are implemented,
+	 * this O_TRUNC processing might be integrated into open_by_handle.
 	 */
+	if ((openflags & FSAL_O_TRUNC) != 0) {
+		flags |= STAT_SIZE_SET;
+		stat.st_size = 0;
+		result = kvsfs_ftruncate(obj_hdl, state, false, &stat, flags);
+		if (FSAL_IS_ERROR(result)) {
+			goto out;
+		}
+		/* We don't need to change attrs_out->filesize here
+		 * because its is unset by Ganesha already.
+		 */
+	}
 
-	unix_mode = fsal2unix_mode(attrs_in->mode)
-		& ~op_ctx->fsal_export->exp_ops.fs_umask(op_ctx->fsal_export);
+	close_on_exit = false;
+out:
+	if (close_on_exit) {
+		(void) obj_hdl->obj_ops->close2(obj_hdl, state);
+	}
+	T_EXIT0(result.major);
+	return result;
+}
 
-	rc = kvsns2_creat(fs_ctx, &cred, &parent_obj->handle->kvsfs_handle,
-			  (char *) name, unix_mode, &object);
+
+
+/** Implementation of OPEN4+UNCHECKED4 case when the file does not exist. */
+static fsal_status_t
+kvsfs_create_unchecked(struct fsal_obj_handle *parent_obj_hdl, const char *name,
+		       struct state_t *state, struct fsal_obj_handle **pnew_obj,
+		       fsal_openflags_t openflags, struct attrlist *attrs_in,
+		       struct attrlist *attrs_out, bool *caller_perm_check)
+{
+	fsal_status_t result = fsalstat(ERR_FSAL_NO_ERROR, 0);
+	int rc;
+	struct kvsfs_fsal_obj_handle *parent_obj;
+	struct fsal_obj_handle *obj_hdl = NULL;
+	kvsns_cred_t cred = KVSNS_CRED_INIT_FROM_OP;
+	kvsns_ino_t object;
+	struct stat stat_in;
+	struct stat stat_out;
+	int flags;
+
+	T_ENTER(">>> (parent=%p, state=%p, name=%s, attrs_in=%p, attrs_out=%p)",
+		parent_obj_hdl, state, name, attrs_in, attrs_out);
+
+	/* Ganesha sets ATTR_MODE even if the client didn't set it */
+	assert(FSAL_TEST_MASK(attrs_in->valid_mask, ATTR_MODE));
+	assert(name != NULL);
+	assert(state && parent_obj_hdl);
+
+	/* create operations do not support the truncate flag */
+	assert((openflags & FSAL_O_TRUNC) == 0);
+
+	parent_obj = container_of(parent_obj_hdl,
+				  struct kvsfs_fsal_obj_handle, obj_handle);
+
+	result = kvsfs_setattr_attrlist2stat(attrs_in, &stat_in, &flags);
+	if (FSAL_IS_ERROR(result)) {
+		goto out;
+	}
+
+	rc = kvsns_creat_ex(parent_obj->fs_ctx, &cred,
+			    &parent_obj->handle->kvsfs_handle,
+			    (char *) name,
+			    stat_in.st_mode,
+			    &stat_in, flags,
+			    &object,
+			    &stat_out);
 	if (rc < 0) {
 		result = fsalstat(posix2fsal_error(-rc), -rc);
 		goto out;
 	}
 
-	result = kvsfs_open2_by_name(parent_obj_hdl,
-				     name,
-				     new_obj_hdl,
-				     state,
-				     openflags,
-				     attrs_in,
-				     attrs_out,
-				     caller_perm_check);
+	construct_handle(op_ctx->fsal_export, &object, &stat_out, &obj_hdl);
+
+	result = kvsfs_open2_by_handle(obj_hdl, state, openflags, NULL, NULL);
+	if (FSAL_IS_ERROR(result)) {
+		goto out;
+	}
+
+	if (attrs_out != NULL) {
+		posix2fsal_attributes_all(&stat_out, attrs_out);
+	}
+
+	*pnew_obj = obj_hdl;
+	obj_hdl = NULL;
+
+	/* We have already checked permissions in kvsns_create */
+	if (caller_perm_check) {
+		*caller_perm_check = false;
+	}
+
+	T_TRACE("Created: %p", *pnew_obj);
 
 out:
+	if (obj_hdl != NULL) {
+		obj_hdl->obj_ops->release(obj_hdl);
+	}
+	T_EXIT0(result.major);
 	return result;
 }
 
@@ -1680,7 +1750,7 @@ static fsal_status_t kvsfs_open2(struct fsal_obj_handle *obj_hdl,
 	if (createmode == FSAL_NO_CREATE) {
 		if (name == NULL) {
 			result = kvsfs_open2_by_handle(obj_hdl, state,
-						       openflags, attrs_in,
+						       openflags,
 						       attrs_out,
 						       caller_perm_check);
 		} else {
@@ -1700,24 +1770,41 @@ static fsal_status_t kvsfs_open2(struct fsal_obj_handle *obj_hdl,
 			}
 		}
 
-		/* TODO:TRUNCATE:
-		 * In this branch we can get a truncate call which we don't
-		 * support yet. Use an ordinary open_by_handle instead.
-		 */
-		if ((openflags & FSAL_O_TRUNC) &&
-		    (name == NULL) &&
-		    createmode == FSAL_UNCHECKED) {
-			assert(obj_hdl);
-			result = kvsfs_open2_by_handle(obj_hdl,
-					     state,
-					     openflags,
-					     attrs_in,
-					     attrs_out,
-					     caller_perm_check);
-		} else {
-			result = kvsfs_create2(obj_hdl, name, new_obj, state,
-					       openflags, createmode, attrs_in,
-					       attrs_out, caller_perm_check);
+		switch (createmode) {
+		case FSAL_UNCHECKED:
+			if (name != NULL) {
+				result = kvsfs_create_unchecked(obj_hdl,
+								name,
+								state,
+								new_obj,
+								openflags,
+								attrs_in,
+								attrs_out,
+								caller_perm_check);
+			} else {
+				result = kvsfs_open_unchecked(obj_hdl,
+							      state,
+							      openflags,
+							      attrs_in,
+							      attrs_out,
+							      caller_perm_check);
+			}
+			break;
+
+		case FSAL_GUARDED:
+		case FSAL_EXCLUSIVE:
+			/* We don't support it yet */
+			result = fsalstat(ERR_FSAL_NOTSUPP, ENOTSUP);
+			break;
+
+		case FSAL_NO_CREATE:
+			assert(0);
+			break;
+
+		case FSAL_EXCLUSIVE_41:
+		case FSAL_EXCLUSIVE_9P:
+			result = fsalstat(ERR_FSAL_NOTSUPP, ENOTSUP);
+			break;
 		}
 	}
 
