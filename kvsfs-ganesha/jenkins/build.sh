@@ -9,9 +9,10 @@ DIST=$(realpath $BASE_DIR/dist)
 CMAKE_BUILD_DIR_ROOT=${CMAKE_BUILD_DIR_TOO:-/tmp}
 
 usage() {
-	echo "usage: $PROG_NAME [-p <ganesha src path>] [-v <version>] [-k {mero|redis}] [-e {mero|posix}]" 1>&2;
+	echo "usage: $PROG_NAME [-p <ganesha src path>] [-v <version>] [-b <build>] [-k {mero|redis}] [-e {mero|posix}]" 1>&2;
 	echo "    -p    Path to NFS Ganesha source src dir, e.g. ~/nfs-gaensha/src" 1>&2;
 	echo "    -v    EOS FS Version" 1>&2;
+	echo "    -b    EOS FS Build Number" 1>&2;
 	echo "    -k    Use \"mero\" or \"redis\" for Key Value Store" 1>&2;
 	echo "    -e    Use \"mero\" or \"posix\" for Backend Store" 1>&2;
 	exit 1;
@@ -48,7 +49,8 @@ while getopts ":b:v:p:k:e:" o; do
 	esac
 done
 
-[ -z "$BUILD_VER" ] && BUILD_VER=$(git rev-parse --short HEAD)
+[ -z "$BUILD_VER" ] && BUILD_VER=$(git rev-parse --short HEAD) ||
+    BUILD_VER="${BUILD_VER}_$(git rev-parse --short HEAD)"
 [ -z "$VERSION" ] && VERSION=$(cat $BASE_DIR/VERSION)
 [ -z "$GANESHASRC" ] && usage && exit 1
 [ -z "$KVSTORE_OPT" ] && USE_KVS_MERO="ON"
@@ -71,7 +73,7 @@ elif [ "$KVSTORE_OPT" == "mero" ]; then
 fi
 
 echo "Using [VERSION=${VERSION}] ..."
-echo "Using [BUILD_VER=${GIT_VER}] ..."
+echo "Using [BUILD_VER=${BUILD_VER}] ..."
 
 # TODO:
 # Package generation is not consitent:

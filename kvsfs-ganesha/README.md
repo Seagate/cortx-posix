@@ -88,22 +88,6 @@ kvs_fid = <0x780000000000000b:1>
 - Update `local_addr`, `ha_addr`, `profile` and `proc_fid` in `/etc/kvsns.d/kvsns.ini` using the above sample configuration file Replace the `172.16.2.132` in the kvsns.ini by the  ip address of your local machine.
 - Use values for `index_dir` and `kvs_fid` as given above.
 
-```sh
-$ cd /path/to/clovis-sample-apps/
-$ cat .c0cprc/*
-
-#local address
-172.16.2.132@tcp:12345:44:301
-
-#ha address
-172.16.2.132@tcp:12345:45:1
-
-#profile id
-<0x7000000000000001:0>
-
-#process id
-<0x7200000000000000:0>
-```
 - Create the Index use by KVSNS and listed in kvsns.ini as `kvs_fid`
 
 ```sh
