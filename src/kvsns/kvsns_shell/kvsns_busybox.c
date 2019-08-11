@@ -120,18 +120,6 @@ int main(int argc, char *argv[])
 			fprintf(stderr, "kvsns_init_root: err=%d\n", rc);
 			exit(1);
 		}
-	} else if (!strcmp(exec_name, "ns_creat")) {
-		if (argc != 2) {
-			fprintf(stderr, "creat <newfile>\n");
-			exit(1);
-		}
-		rc = kvsns_creat(&cred, &current_inode, argv[1], 0755, &ino);
-		if (rc == 0) {
-			printf("==> %llu/%s created = %llu\n",
-				current_inode, argv[1], ino);
-			return 0;
-		} else
-			printf("Failed rc=%d !\n", rc);
 	} else if (!strcmp(exec_name, "ns_rmdir")) {
 		if (argc != 2) {
 			fprintf(stderr, "rmdir <newdir>\n");

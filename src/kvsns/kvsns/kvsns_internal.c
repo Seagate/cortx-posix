@@ -745,6 +745,13 @@ out:
 int kvsns2_set_stat(kvsns_fs_ctx_t ctx, const kvsns_ino_t *ino,
 		    struct stat *bufstat)
 {
+	assert(bufstat != NULL);
+
+	log_trace("set_stat(%llu), uid: %d, gid: %d, mode: %04o",
+		  (unsigned long long) *ino,
+		  bufstat->st_uid,
+		  bufstat->st_gid,
+		  bufstat->st_mode & 07777);
 	return kvsns_ns_set_inode_attr(ctx, ino, KVSNS_KEY_TYPE_STAT,
 				       bufstat, sizeof(*bufstat));
 }
