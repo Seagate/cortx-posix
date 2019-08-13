@@ -4,9 +4,6 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC -g")
 add_executable(kvsns_busybox kvsns_busybox.c)
 target_link_libraries(kvsns_busybox kvsns ${KVSAL_LIBRARY} ${STORE_LIBRARY})
 
-add_executable(kvsns_cp kvsns_cp.c)
-target_link_libraries(kvsns_cp kvsns)
-
 add_executable(kvsns_ns kvsns_ns.c)
 target_link_libraries(kvsns_ns kvsns ${KVSAL_LIBRARY} ${STORE_LIBRARY})
 

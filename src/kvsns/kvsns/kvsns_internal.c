@@ -275,15 +275,8 @@ static inline const char *kvsns_name_as_cstr(const kvsns_name_t *kname)
 
 int kvsns_next_inode(kvsns_ino_t *ino)
 {
-	int rc;
-	if (!ino)
-		return -EINVAL;
-
-	rc = kvsal_incr_counter("ino_counter", ino);
-	if (rc != 0)
-		return rc;
-
-	return 0;
+	assert(0);
+	return -EINVAL;
 }
 
 int kvsns2_next_inode(void *ctx, kvsns_ino_t *ino)
@@ -542,104 +535,6 @@ errfree:
 	return rc;
 }
 
-int kvsns_create_entry(kvsns_cred_t *cred, kvsns_ino_t *parent,
-		       char *name, char *lnk, mode_t mode,
-		       kvsns_ino_t *new_entry, enum kvsns_type type)
-{
-	int rc;
-	char k[KLEN];
-	char v[KLEN];
-	struct stat bufstat;
-	struct stat parent_stat;
-	struct timeval t;
-
-	if (!cred || !parent || !name || !new_entry)
-		return -EINVAL;
-
-	if ((type == KVSNS_SYMLINK) && (lnk == NULL))
-		return -EINVAL;
-
-	rc = kvsns_lookup(cred, parent, name, new_entry);
-	if (rc == 0)
-		return -EEXIST;
-
-	RC_WRAP(kvsns_next_inode, new_entry);
-	RC_WRAP(kvsns_get_stat, parent, &parent_stat);
-
-	RC_WRAP(kvsal_begin_transaction);
-
-	memset(k, 0, KLEN);
-	snprintf(k, KLEN, "%llu.dentries.%s",
-		 *parent, name);
-	snprintf(v, VLEN, "%llu", *new_entry);
-
-	RC_WRAP_LABEL(rc, aborted, kvsal_set_char, k, v);
-
-	memset(k, 0, KLEN);
-	snprintf(k, KLEN, "%llu.parentdir", *new_entry);
-	snprintf(v, VLEN, "%llu|", *parent);
-
-	RC_WRAP_LABEL(rc, aborted, kvsal_set_char, k, v);
-
-	/* Set stat */
-	memset(&bufstat, 0, sizeof(struct stat));
-	bufstat.st_uid = cred->uid; 
-	bufstat.st_gid = cred->gid;
-	bufstat.st_ino = *new_entry;
-
-	if (gettimeofday(&t, NULL) != 0)
-		return -1;
-
-	bufstat.st_atim.tv_sec = t.tv_sec;
-	bufstat.st_atim.tv_nsec = 1000 * t.tv_usec;
-
-	bufstat.st_mtim.tv_sec = bufstat.st_atim.tv_sec;
-	bufstat.st_mtim.tv_nsec = bufstat.st_atim.tv_nsec;
-
-	bufstat.st_ctim.tv_sec = bufstat.st_atim.tv_sec;
-	bufstat.st_ctim.tv_nsec = bufstat.st_atim.tv_nsec;
-
-	switch (type) {
-	case KVSNS_DIR:
-		bufstat.st_mode = S_IFDIR|mode;
-		bufstat.st_nlink = 2;
-		break;
-
-	case KVSNS_FILE:
-		bufstat.st_mode = S_IFREG|mode;
-		bufstat.st_nlink = 1;
-		break;
-
-	case KVSNS_SYMLINK:
-		bufstat.st_mode = S_IFLNK|mode;
-		bufstat.st_nlink = 1;
-		break;
-
-	default:
-		return -EINVAL;
-	}
-	memset(k, 0, KLEN);
-	snprintf(k, KLEN, "%llu.stat", *new_entry);
-	RC_WRAP_LABEL(rc, aborted, kvsal_set_stat, k, &bufstat);
-
-	if (type == KVSNS_SYMLINK) {
-		memset(k, 0, KLEN);
-		snprintf(k, KLEN, "%llu.link", *new_entry);
-		RC_WRAP_LABEL(rc, aborted, kvsal_set_char, k, lnk);
-	}
-
-	RC_WRAP_LABEL(rc, aborted, kvsns_amend_stat, &parent_stat,
-		      STAT_CTIME_SET|STAT_MTIME_SET);
-	RC_WRAP_LABEL(rc, aborted, kvsns_set_stat, parent, &parent_stat);
-
-	RC_WRAP(kvsal_end_transaction);
-	return 0;
-
-aborted:
-	kvsal_discard_transaction();
-	return rc;
-}
-
 /* Access routines */
 static int kvsns_access_check(kvsns_cred_t *cred, struct stat *stat, int flags)
 {
@@ -688,18 +583,6 @@ static int kvsns_access_check(kvsns_cred_t *cred, struct stat *stat, int flags)
 
 	/* Should not be reached */
 	return -EPERM;
-}
-
-int kvsns_access(kvsns_cred_t *cred, kvsns_ino_t *ino, int flags)
-{
-	struct stat stat;
-
-	if (!cred || !ino)
-		return -EINVAL;
-
-	RC_WRAP(kvsns_getattr, cred, ino, &stat);
-
-	return kvsns_access_check(cred, &stat, flags);
 }
 
 int kvsns2_access(kvsns_fs_ctx_t ctx, kvsns_cred_t *cred, kvsns_ino_t *ino, int flags)
@@ -783,42 +666,6 @@ int kvsns_set_link(kvsns_fs_ctx_t ctx, const kvsns_ino_t *ino,
 int kvsns_del_link(kvsns_fs_ctx_t ctx, const kvsns_ino_t *ino)
 {
 	return kvsns_ns_del_inode_attr(ctx, ino, KVSNS_KEY_TYPE_SYMLINK);
-}
-
-int kvsns_lookup_path(kvsns_cred_t *cred, kvsns_ino_t *parent, char *path,
-		       kvsns_ino_t *ino)
-{
-	char *saveptr;
-	char *str;
-	char *token;
-	kvsns_ino_t iter_ino = 0LL;
-	kvsns_ino_t *iter = NULL;
-	int j = 0;
-	int rc = 0;
-
-	memcpy(&iter_ino, parent, sizeof(kvsns_ino_t));
-	iter = &iter_ino;
-	for (j = 1, str = path; ; j++, str = NULL) {
-		memcpy(parent, ino, sizeof(kvsns_ino_t));
-		token = strtok_r(str, "/", &saveptr);
-		if (token == NULL)
-			break;
-
-		rc = kvsns_lookup(cred, iter, token, ino);
-		if (rc != 0) {
-			if (rc == -ENOENT)
-				break;
-			else
-				return rc;
-		}
-
-		iter = ino;
-	}
-
-	if (token != NULL) /* If non-existing file should be created */
-		strcpy(path, token);
-
-	return rc;
 }
 
 /******************************************************************************/

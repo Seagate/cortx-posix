@@ -65,55 +65,41 @@ int kvsal_fini(void);
 int kvsal_begin_transaction(void);
 int kvsal_end_transaction(void);
 int kvsal_discard_transaction(void);
-int kvsal_exists(char *k);
 int kvsal2_exists(void * ctx, char *k, size_t klen);
-int kvsal_set_char(char *k, char *v);
 int kvsal2_set_char(void *ctx, char *k, size_t klen, char *v, size_t vlen);
 int kvsal2_set_bin(void *ctx, const void *k, size_t klen, const void *v,
 		   size_t vlen);
-int kvsal_get_char(char *k, char *v);
 int kvsal2_get_char(void *ctx, char *k, size_t klen, char *v, size_t vlen);
 int kvsal2_get_bin(void *ctx, const void *k, size_t klen, void *v, size_t vlen);
 int kvsal3_get_bin(void *ctx, void *k, const size_t klen, void **v, size_t *vlen);
 int kvsal3_set_bin(void *ctx, void *k, const size_t klen, void *v,
 		   const size_t vlen);
+int kvsal2_del(void *ctx, char *k, size_t klen);
+int kvsal2_del_bin(void *ctx, const void *key, size_t klen);
+int kvsal2_incr_counter(void *ctx, char *k, unsigned long long *v);
+
+int kvsal_create_fs_ctx(unsigned long fs_id, void **fs_ctx);
+
+#if 1
+int kvsal_set_char(char *k, char *v);
+int kvsal_get_char(char *k, char *v);
 int kvsal_set_binary(char *k, char *buf, size_t size);
 int kvsal_get_binary(char *k, char *buf, size_t *size);
 int kvsal_set_stat(char *k, struct stat *buf);
 int kvsal_get_stat(char *k, struct stat *buf);
 int kvsal_del(char *k);
-int kvsal2_del(void *ctx, char *k, size_t klen);
-int kvsal2_del_bin(void *ctx, const void *key, size_t klen);
-int kvsal_incr_counter(char *k, unsigned long long *v);
-int kvsal2_incr_counter(void *ctx, char *k, unsigned long long *v);
-
-int kvsal_create_fs_ctx(unsigned long fs_id, void **fs_ctx);
+#endif
 
 /******************************************************************************/
-/* TODO: deprecated functions and types replaced by the key iter API,
- * but it is still used in various places of kvsns.
- * They must be removed eventually.
- */
-typedef struct kvsal_item {
-	int offset;
-	char str[KLEN];
-} kvsal_item_t;
-
-typedef struct kvsal_list {
-	char pattern[KLEN];
-	kvsal_item_t *content;
-	size_t size;
-} kvsal_list_t;
-int kvsal_get_list_pattern(char *pattern, int start, int *end,
-			   kvsal_item_t *items);
-int kvsal_get_list(kvsal_list_t *list, int start, int *end, kvsal_item_t *items);
-int kvsal_fetch_list(char *pattern, kvsal_list_t *list);
-int kvsal2_fetch_list(void *ctx, char *pattern, kvsal_list_t *list);
-int kvsal_dispose_list(kvsal_list_t *list);
-int kvsal_init_list(kvsal_list_t *list);
-int kvsal_get_list_size(char *pattern);
-int kvsal2_get_list_size(void *ctx, char *pattern, size_t size);
+/* Index Mgmt */
 int kvsal_create_fs_ctx(unsigned long fs_id, void **fs_ctx);
+
+/* TODO:Resource mgmt: Add kvsal_destroy_fs_ctx here */
+
+/* TODO:Multiple indexes: Add kvsal_index_open and kvsal_index_close here */
+
+/******************************************************************************/
+/* KV-records memory mgmt */
 int kvsal_alloc(void **ptr, uint64_t size);
 void kvsal_free(void *ptr);
 

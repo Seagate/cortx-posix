@@ -42,6 +42,7 @@ int kvsns_next_inode(kvsns_ino_t *ino);
 
 int main(int argc, char *argv[])
 {
+#ifdef KVSNS_ENABLE_NO_INDEX_API
 	int rc;
 	int i;
 	int end;
@@ -189,7 +190,7 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "kvsns_rmdir: err=%d\n", rc);
 		exit(1);
 	}
-
+#endif
 	printf("######## THE END : OK ########\n");
 	return 0;
 

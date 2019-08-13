@@ -55,34 +55,7 @@
  * @todo : In future, this would be an array of filesystem contexts indexed by
  * fs id. This array would be created and populated during kvsns start/init.
  */
-static kvsns_fs_ctx_t kvsns_fs_ctx = KVSNS_NULL_FS_CTX;
-
-int kvsns_fsstat(kvsns_fsstat_t *stat)
-{
-	char k[KLEN];
-	int rc;
-
-	if (!stat)
-		return -EINVAL;
-
-	memset(k, 0, KLEN);
-	snprintf(k, KLEN, "*.stat");
-	rc = kvsal_get_list_size(k);
-	if (rc < 0)
-		return rc;
-
-	stat->nb_inodes = rc;
-	return 0;
-}
-
-int kvsns_get_root(kvsns_ino_t *ino)
-{
-	if (!ino)
-		return -EINVAL;
-
-	*ino = KVSNS_ROOT_INODE;
-	return 0;
-}
+static kvsns_fs_ctx_t g_kvsns_fs_ctx = KVSNS_NULL_FS_CTX;
 
 int kvsns_mkdir(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
 		 mode_t mode, kvsns_ino_t *newdir)
@@ -188,61 +161,6 @@ aborted:
 	return rc;
 }
 
-int kvsns_rmdir(kvsns_cred_t *cred, kvsns_ino_t *parent, char *name)
-{
-	int rc;
-	char k[KLEN];
-	kvsns_ino_t ino = 0LL;
-	struct stat parent_stat;
-
-	if (!cred || !parent || !name)
-		return -EINVAL;
-
-	memset(&parent_stat, 0, sizeof(parent_stat));
-
-	RC_WRAP(kvsns_access, cred, parent, KVSNS_ACCESS_WRITE);
-
-	RC_WRAP(kvsns_lookup, cred, parent, name, &ino);
-
-	RC_WRAP(kvsns_get_stat, parent, &parent_stat);
-
-	memset(k, 0, KLEN);
-	snprintf(k, KLEN, "%llu.dentries.*", ino);
-	rc = kvsal_get_list_size(k);
-	if (rc > 0)
-		return -ENOTEMPTY;
-
-	RC_WRAP(kvsal_begin_transaction);
-
-	memset(k, 0, KLEN);
-	snprintf(k, KLEN, "%llu.dentries.%s",
-		 *parent, name);
-	RC_WRAP_LABEL(rc, aborted, kvsal_del, k);
-
-	memset(k, 0, KLEN);
-	snprintf(k, KLEN, "%llu.parentdir", ino);
-	RC_WRAP_LABEL(rc, aborted, kvsal_del, k);
-
-	memset(k, 0, KLEN);
-	snprintf(k, KLEN, "%llu.stat", ino);
-	RC_WRAP_LABEL(rc, aborted, kvsal_del, k);
-
-	RC_WRAP_LABEL(rc, aborted, kvsns_amend_stat, &parent_stat,
-		      STAT_CTIME_SET|STAT_MTIME_SET);
-	RC_WRAP_LABEL(rc, aborted, kvsns_set_stat, parent, &parent_stat);
-
-	RC_WRAP(kvsal_end_transaction);
-
-	/* Remove all associated xattr */
-	RC_WRAP(kvsns_remove_all_xattr, cred, &ino);
-
-	return 0;
-
-aborted:
-	kvsal_discard_transaction();
-	return rc;
-}
-
 int kvsns_readdir(kvsns_fs_ctx_t fs_ctx,
 		  const kvsns_cred_t *cred,
 		  const kvsns_ino_t *dir_ino,
@@ -263,28 +181,6 @@ int kvsns_readdir(kvsns_fs_ctx_t fs_ctx,
 
 out:
 	return rc;
-}
-
-int kvsns_lookup(kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
-		kvsns_ino_t *ino)
-{
-	char k[KLEN];
-	char v[VLEN];
-
-	if (!cred || !parent || !name || !ino)
-		return -EINVAL;
-
-	RC_WRAP(kvsns_access, cred, parent, KVSNS_ACCESS_READ);
-
-	memset(k, 0, KLEN);
-	snprintf(k, KLEN, "%llu.dentries.%s",
-		 *parent, name);
-	log_debug("%llu.dentries.%s", *parent, name);
-	RC_WRAP(kvsal_get_char, k, v);
-
-	sscanf(v, "%llu", ino);
-
-	return 0;
 }
 
 int kvsns2_lookup(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
@@ -308,36 +204,9 @@ out:
 
 int kvsns_lookupp(kvsns_cred_t *cred, kvsns_ino_t *dir, kvsns_ino_t *parent)
 {
-	char k[KLEN];
-	char v[VLEN];
-
-	if (!cred || !dir || !parent)
-		return -EINVAL;
-
-	RC_WRAP(kvsns_access, cred, dir, KVSNS_ACCESS_READ);
-
-	memset(k, 0, KLEN);
-	memset(v, 0, VLEN);
-	snprintf(k, KLEN, "%llu.parentdir",
-		 *dir);
-
-	RC_WRAP(kvsal_get_char, k, v);
-
-	sscanf(v, "%llu|", parent);
-
-	return 0;
-}
-
-int kvsns_getattr(kvsns_cred_t *cred, kvsns_ino_t *ino, struct stat *bufstat)
-{
-	char k[KLEN];
-
-	if (!cred || !ino || !bufstat)
-		return -EINVAL;
-
-	memset(k, 0, KLEN);
-	snprintf(k, KLEN, "%llu.stat", *ino);
-	return kvsal_get_stat(k, bufstat);
+	/* This call does not make much sence if we support harlinks */
+	/* TODO: revisit and purge it */
+	return -EINVAL;
 }
 
 int kvsns2_getattr(kvsns_fs_ctx_t ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
@@ -355,70 +224,6 @@ int kvsns2_getattr(kvsns_fs_ctx_t ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
 out:
 	log_debug("ino=%d rc=%d", (int)bufstat->st_ino, rc);
 	return rc;
-}
-
-int kvsns_setattr(kvsns_cred_t *cred, kvsns_ino_t *ino,
-		  struct stat *setstat, int statflag)
-{
-	char k[KLEN];
-	struct stat bufstat;
-	struct timeval t;
-	mode_t ifmt;
-
-	if (!cred || !ino || !setstat)
-		return -EINVAL;
-
-	if (statflag == 0)
-		return 0; /* Nothing to do */
-
-	if (gettimeofday(&t, NULL) != 0)
-		return -errno;
-
-	RC_WRAP(kvsns_access, cred, ino, KVSNS_ACCESS_WRITE);
-
-	memset(k, 0, KLEN);
-	snprintf(k, KLEN, "%llu.stat", *ino);
-	RC_WRAP(kvsal_get_stat, k, &bufstat);
-
-	/* ctime is to be updated if md are changed */
-	bufstat.st_ctim.tv_sec = t.tv_sec;
-	bufstat.st_ctim.tv_nsec = 1000 * t.tv_usec;
-
-	if (statflag & STAT_MODE_SET) {
-		ifmt = bufstat.st_mode & S_IFMT;
-		bufstat.st_mode = setstat->st_mode | ifmt;
-	}
-
-	if (statflag & STAT_UID_SET)
-		bufstat.st_uid = setstat->st_uid;
-
-	if (statflag & STAT_GID_SET)
-		bufstat.st_gid = setstat->st_gid;
-
-	if (statflag & STAT_SIZE_SET)
-		RC_WRAP(extstore_truncate, ino, setstat->st_size, true,
-			&bufstat);
-
-	if (statflag & STAT_SIZE_ATTACH)
-		RC_WRAP(extstore_truncate, ino, setstat->st_size, false,
-			&bufstat);
-
-	if (statflag & STAT_ATIME_SET) {
-		bufstat.st_atim.tv_sec = setstat->st_atim.tv_sec;
-		bufstat.st_atim.tv_nsec = setstat->st_atim.tv_nsec;
-	}
-
-	if (statflag & STAT_MTIME_SET) {
-		bufstat.st_mtim.tv_sec = setstat->st_mtim.tv_sec;
-		bufstat.st_mtim.tv_nsec = setstat->st_mtim.tv_nsec;
-	}
-
-	if (statflag & STAT_CTIME_SET) {
-		bufstat.st_ctim.tv_sec = setstat->st_ctim.tv_sec;
-		bufstat.st_ctim.tv_nsec = setstat->st_ctim.tv_nsec;
-	}
-
-	return kvsal_set_stat(k, &bufstat);
 }
 
 int kvsns2_setattr(kvsns_fs_ctx_t ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
@@ -523,137 +328,12 @@ aborted:
 	return rc;
 }
 
-int kvsns_unlink(kvsns_cred_t *cred, kvsns_ino_t *dir, char *name)
-{
-	int rc;
-	char k[KLEN];
-	char v[VLEN];
-	kvsns_ino_t ino = 0LL;
-	kvsns_ino_t parent[KVSAL_ARRAY_SIZE];
-	struct stat ino_stat;
-	struct stat dir_stat;
-	int size;
-	int i;
-	bool opened;
-	bool deleted;
-
-	opened = false;
-	deleted = false;
-
-	if (!cred || !dir || !name)
-		return -EINVAL;
-
-	memset(parent, 0, KVSAL_ARRAY_SIZE*sizeof(kvsns_ino_t));
-	memset(&ino_stat, 0, sizeof(ino_stat));
-	memset(&dir_stat, 0, sizeof(dir_stat));
-
-	RC_WRAP(kvsns_access, cred, dir, KVSNS_ACCESS_WRITE);
-
-	RC_WRAP(kvsns_lookup, cred, dir, name, &ino);
-
-	RC_WRAP(kvsns_get_stat, dir, &dir_stat);
-	RC_WRAP(kvsns_get_stat, &ino, &ino_stat);
-
-	memset(k, 0, KLEN);
-	snprintf(k, KLEN, "%llu.parentdir", ino);
-	RC_WRAP(kvsal_get_char, k, v);
-
-	size = KVSAL_ARRAY_SIZE;
-	RC_WRAP(kvsns_str2parentlist, parent, &size, v);
-
-	/* Check if file is opened */
-	memset(k, 0, KLEN);
-	snprintf(k, KLEN, "%llu.openowner", ino);
-	rc = kvsal_exists(k);
-	if ((rc != 0) && (rc != -ENOENT))
-		return rc;
-
-	opened = (rc == -ENOENT) ? false : true;
-
-	RC_WRAP(kvsal_begin_transaction);
-
-	if (size == 1) {
-		/* Last link, try to perform deletion */
-	memset(k, 0, KLEN);
-		snprintf(k, KLEN, "%llu.parentdir", ino);
-		RC_WRAP_LABEL(rc, aborted, kvsal_del, k);
-
-		memset(k, 0, KLEN);
-		snprintf(k, KLEN, "%llu.stat", ino);
-		RC_WRAP_LABEL(rc, aborted, kvsal_del, k);
-
-		if (opened) {
-			/* File is opened, deleted it at last close */
-			memset(k, 0, KLEN);
-			snprintf(k, KLEN, "%llu.opened_and_deleted", ino);
-			snprintf(v, VLEN, "1");
-			RC_WRAP_LABEL(rc, aborted, kvsal_set_char, k, v);
-		}
-
-		/* Remove all associated xattr */
-		deleted = true;
-	} else {
-		for (i = 0; i < size ; i++)
-			if (parent[i] == *dir) {
-				/* In this list mgmt, setting value 0
-				 * will make it ignored as str is rebuilt */
-				parent[i] = 0;
-				break;
-			}
-		memset(k, 0, KLEN);
-		snprintf(k, KLEN, "%llu.parentdir", ino);
-		RC_WRAP_LABEL(rc, aborted, kvsns_parentlist2str,
-			      parent, size, v);
-		RC_WRAP_LABEL(rc, aborted, kvsal_set_char, k, v);
-
-		RC_WRAP_LABEL(rc, aborted, kvsns_amend_stat, &ino_stat,
-			 STAT_CTIME_SET|STAT_DECR_LINK);
-		RC_WRAP_LABEL(rc, aborted, kvsns_set_stat, &ino, &ino_stat);
-	}
-
-
-	memset(k, 0, KLEN);
-	snprintf(k, KLEN, "%llu.dentries.%s",
-		 *dir, name);
-	RC_WRAP_LABEL(rc, aborted, kvsal_del, k);
-
-	/* if object is a link, delete the link content as well */
-	if (S_ISLNK(ino_stat.st_mode)) {
-		memset(k, 0, KLEN);
-		snprintf(k, KLEN, "%llu.link", ino);
-		RC_WRAP_LABEL(rc, aborted, kvsal_del, k);
-	}
-
-	RC_WRAP_LABEL(rc, aborted, kvsns_amend_stat, &dir_stat,
-		      STAT_MTIME_SET|STAT_CTIME_SET);
-	RC_WRAP_LABEL(rc, aborted, kvsns_set_stat, dir, &dir_stat);
-
-	RC_WRAP(kvsal_end_transaction);
-
-	/* Call to object store : do not mix with metadata transaction */
-	if (!opened)
-		RC_WRAP(extstore_del, &ino);
-
-	if (deleted)
-		RC_WRAP(kvsns_remove_all_xattr, cred, &ino);
-	return 0;
-
-aborted:
-	kvsal_discard_transaction();
-	return rc;
-}
-
 int kvsns2_unlink(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *dir, char *name)
 {
 	int rc;
-	char k[KLEN];
-	char v[VLEN];
 	kvsns_ino_t ino = 0LL;
-	kvsns_ino_t parent[KVSAL_ARRAY_SIZE];
 	struct stat *ino_stat = NULL;
 	struct stat *dir_stat = NULL;
-	size_t klen;
-	size_t vlen;
 	int size;
 	bool opened;
 	kvsns_fid_t kfid;
@@ -661,16 +341,11 @@ int kvsns2_unlink(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *dir, char *name)
 
 	opened = false;
 
-	if (!cred || !dir || !name) {
-		rc =  -EINVAL;
-		goto aborted;
-	}
+	assert(cred && dir && name);
 
 	RC_WRAP_LABEL(rc, aborted, kvsns_name_from_cstr, name, &k_name);
 
 	log_trace("ENTER: name=%s dir=%p", name, dir);
-
-	memset(parent, 0, KVSAL_ARRAY_SIZE*sizeof(kvsns_ino_t));
 
 	RC_WRAP(kvsns2_access, ctx, cred, dir, KVSNS_ACCESS_WRITE);
 
@@ -692,15 +367,7 @@ int kvsns2_unlink(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *dir, char *name)
 		RC_WRAP_LABEL(rc, errfree, kvsns2_del_stat, ctx, &ino);
 
 		if (opened) {
-			/* File is opened, the final close will delete it */
-			log_debug("File is opened by other thread/process.");
-			RC_WRAP_LABEL(rc, errfree, prepare_key, k, KLEN,
-				      "%llu.opened_and_deleted", ino);
-			klen = rc;
-			RC_WRAP_LABEL(rc, errfree, prepare_key, v, VLEN, "1");
-			vlen = rc;
-			RC_WRAP_LABEL(rc, errfree, kvsal2_set_char, ctx, k,
-				      klen, v, vlen);
+			/* TODO: Mark as opened_and_delteted */
 		}
 		/* @todo: Remove all associated xattrs */
 	}
@@ -847,44 +514,9 @@ out:
 	return rc;
 }
 
-
-int kvsns_mr_proper(void)
-{
-	int rc;
-	char pattern[KLEN];
-	kvsal_item_t items[KVSAL_ARRAY_SIZE];
-	int i;
-	int size;
-	kvsal_list_t list;
-
-	memset(pattern, 0, KLEN);
-	snprintf(pattern, KLEN, "*");
-
-	rc = kvsal_fetch_list(pattern, &list);
-	if (rc < 0)
-		return rc;
-
-	do {
-		size = KVSAL_ARRAY_SIZE;
-		rc = kvsal_get_list(&list, 0, &size, items);
-		if (rc < 0)
-			return rc;
-
-		for (i = 0; i < size ; i++)
-			RC_WRAP(kvsal_del, items[i].str);
-
-	} while (size > 0);
-
-	rc = kvsal_fetch_list(pattern, &list);
-	if (rc < 0)
-		return rc;
-
-	return 0;
-}
-
 int kvsns_fsid_to_ctx(kvsns_fsid_t fsid, kvsns_fs_ctx_t *fs_ctx)
 {
-	*fs_ctx = kvsns_fs_ctx;
+	*fs_ctx = g_kvsns_fs_ctx;
 	log_debug("fsid=%lu kvsns_fs_ctx=%p", fsid, *fs_ctx);
 	return 0;
 }
@@ -893,6 +525,6 @@ int kvsns_create_fs_ctx(kvsns_fsid_t fs_id, kvsns_fs_ctx_t *fs_ctx)
 {
 	RC_WRAP(kvsal_create_fs_ctx, fs_id, fs_ctx);
 
-	kvsns_fs_ctx = *fs_ctx;
+	g_kvsns_fs_ctx = *fs_ctx;
 	return 0;
 }

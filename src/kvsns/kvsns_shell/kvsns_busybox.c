@@ -120,143 +120,6 @@ int main(int argc, char *argv[])
 			fprintf(stderr, "kvsns_init_root: err=%d\n", rc);
 			exit(1);
 		}
-	} else if (!strcmp(exec_name, "ns_rmdir")) {
-		if (argc != 2) {
-			fprintf(stderr, "rmdir <newdir>\n");
-			exit(1);
-		}
-		rc = kvsns_rmdir(&cred, &current_inode, argv[1]);
-		if (rc == 0) {
-			printf("==> %llu/%s deleted = %llu\n",
-				current_inode, argv[1], ino);
-			return 0;
-		} else
-			printf("Failed rc=%d !\n", rc);
-	} else if (!strcmp(exec_name, "ns_cd")) {
-		if (argc != 2) {
-			fprintf(stderr, "cd <dir>\n");
-			exit(1);
-		}
-		if (!strcmp(argv[1], ".")) {
-			if (rc != 0) {
-				printf("%llu unaccessible rc=%d\n",
-					current_inode, rc);
-				return 0;
-			}
-			printf("exec=%s ino=%llu parent=%llu path=%s prev=%s\n",
-			exec_name, current_inode, parent_inode,
-			current_path, prev_path);
-
-			return 0;
-		} else if (!strcmp(argv[1], "..")) {
-			rc = kvsns_lookupp(&cred, &current_inode, &ino);
-			if (rc != 0) {
-				printf("%llun not accessible = %llu : rc=%d\n",
-					current_inode, ino, rc);
-				return 0;
-			}
-
-			strncpy(k, "KVSNS_PARENT_INODE", KLEN);
-			snprintf(v, VLEN, "%llu", current_inode);
-			parent_inode = current_inode;
-			kvsal_set_char(k, v);
-
-			strncpy(k, "KVSNS_INODE", KLEN);
-			snprintf(v, VLEN, "%llu", ino);
-			current_inode = ino;
-			kvsal_set_char(k, v);
-
-			strncpy(k, "KVSNS_PREV_PATH", KLEN);
-			strncpy(current_path, prev_path, MAXPATHLEN);
-			strncpy(v, prev_path, VLEN);
-			kvsal_set_char(k, v);
-
-			strncpy(k, "KVSNS_PATH", KLEN);
-			strncpy(v, current_path, VLEN);
-			kvsal_set_char(k, v);
-
-			printf("exec=%s ino=%llu parent=%llu path=%s prev=%s\n",
-				exec_name, current_inode, parent_inode,
-			current_path, prev_path);
-
-		} else {
-			rc = kvsns_lookup(&cred, &current_inode, argv[1], &ino);
-			if (rc != 0) {
-				printf("%llu/%s not accessible = %llu: rc=%d\n",
-					current_inode, argv[1], ino, rc);
-				return 0;
-			}
-			strncpy(k, "KVSNS_PARENT_INODE", KLEN);
-			snprintf(v, VLEN, "%llu", current_inode);
-			parent_inode = current_inode;
-			kvsal_set_char(k, v);
-
-			strncpy(k, "KVSNS_INODE", KLEN);
-			snprintf(v, VLEN, "%llu", ino);
-			current_inode = ino;
-			kvsal_set_char(k, v);
-
-			strncpy(k, "KVSNS_PREV_PATH", KLEN);
-			strncpy(prev_path, current_path, MAXPATHLEN);
-			strncpy(v, prev_path, VLEN);
-			kvsal_set_char(k, v);
-
-			strncpy(k, "KVSNS_PATH", KLEN);
-			snprintf(current_path, MAXPATHLEN, "%s/%s",
-				v, argv[1]);
-			strncpy(v, current_path, VLEN);
-			kvsal_set_char(k, v);
-
-			printf("exec=%s ino=%llu parent=%llu path=%s prev=%s\n",
-				exec_name, current_inode, parent_inode,
-			current_path, prev_path);
-
-			return 0;
-		}
-	} else if (!strcmp(exec_name, "ns_getattr")) {
-		struct stat buffstat;
-
-		if (argc != 2) {
-			fprintf(stderr, "getattr <name>\n");
-			exit(1);
-		}
-
-		if (!strcmp(argv[1], "."))
-			ino = current_inode;
-		else {
-			rc = kvsns_lookup(&cred, &current_inode, argv[1], &ino);
-			if (rc != 0)
-				return rc;
-		}
-
-		rc = kvsns_getattr(&cred, &ino, &buffstat);
-		if (rc == 0) {
-			printf(" inode: %ld\n", buffstat.st_ino);
-			printf(" mode: %o\n", buffstat.st_mode);
-			printf(" number of hard links: %d\n",
-			       (int)buffstat.st_nlink);
-			printf(" user ID of owner: %d\n", buffstat.st_uid);
-			printf(" group ID of owner: %d\n", buffstat.st_gid);
-			printf(" total size, in bytes: %ld\n",
-			       buffstat.st_size);
-			printf(" blocksize for filesystem I/O: %ld\n",
-				buffstat.st_blksize);
-			printf(" number of blocks allocated: %ld\n",
-				buffstat.st_blocks);
-			printf(" time of last access: %ld : %s",
-				buffstat.st_atime,
-				ctime(&buffstat.st_atime));
-			printf(" time of last modification: %ld : %s",
-				 buffstat.st_mtime,
-				 ctime(&buffstat.st_mtime));
-			printf(" time of last change: %ld : %s",
-				buffstat.st_ctime,
-				 ctime(&buffstat.st_ctime));
-
-			return 0;
-		} else
-			printf("Failed rc=%d !\n", rc);
-		return 0;
 	} else if (!strcmp(exec_name, "ns_truncate")) {
 		kvsns_ino_t fino = 0LL;
 		struct stat stat;
@@ -267,7 +130,8 @@ int main(int argc, char *argv[])
 			exit(1);
 		}
 
-		rc = kvsns_lookup(&cred, &current_inode, argv[1], &fino);
+		assert(0);
+		rc = kvsns2_lookup(NULL, &cred, &current_inode, argv[1], &fino);
 		if (rc != 0) {
 			fprintf(stderr, "%s/%s does not exist\n",
 				current_path, argv[1]);
@@ -276,7 +140,8 @@ int main(int argc, char *argv[])
 
 		stat.st_size = atoi(argv[2]);
 
-		rc = kvsns_setattr(&cred, &fino, &stat, STAT_SIZE_SET);
+		assert(0);
+		rc = kvsns2_setattr(NULL, &cred, &fino, &stat, STAT_SIZE_SET);
 		if (rc == 0)
 			printf("Truncate %llu/%s %d OK\n", current_inode,
 			       argv[1], atoi(argv[2]));
@@ -292,7 +157,8 @@ int main(int argc, char *argv[])
 		if (!strcmp(argv[1], "."))
 			ino = current_inode;
 		else {
-			rc = kvsns_lookup(&cred, &current_inode, argv[1], &ino);
+			assert(0);
+			rc = kvsns2_lookup(NULL, &cred, &current_inode, argv[1], &ino);
 			if (rc != 0)
 				return rc;
 		}
@@ -316,7 +182,8 @@ int main(int argc, char *argv[])
 		if (!strcmp(argv[1], "."))
 			ino = current_inode;
 		else {
-			rc = kvsns_lookup(&cred, &current_inode, argv[1], &ino);
+			assert(0);
+			rc = kvsns2_lookup(NULL, &cred, &current_inode, argv[1], &ino);
 			if (rc != 0)
 				return rc;
 		}
@@ -337,7 +204,8 @@ int main(int argc, char *argv[])
 		if (!strcmp(argv[1], "."))
 			ino = current_inode;
 		else {
-			rc = kvsns_lookup(&cred, &current_inode, argv[1], &ino);
+			assert(0);
+			rc = kvsns2_lookup(NULL, &cred, &current_inode, argv[1], &ino);
 			if (rc != 0)
 				return rc;
 		}
@@ -362,7 +230,8 @@ int main(int argc, char *argv[])
 		if (!strcmp(argv[1], "."))
 			ino = current_inode;
 		else {
-			rc = kvsns_lookup(&cred, &current_inode, argv[1], &ino);
+			assert(0);
+			rc = kvsns2_lookup(NULL, &cred, &current_inode, argv[1], &ino);
 			if (rc != 0)
 				return rc;
 		}
@@ -396,7 +265,8 @@ int main(int argc, char *argv[])
 		if (!strcmp(argv[1], "."))
 			ino = current_inode;
 		else {
-			rc = kvsns_lookup(&cred, &current_inode, argv[1], &ino);
+			assert(0);
+			rc = kvsns2_lookup(NULL, &cred, &current_inode, argv[1], &ino);
 			if (rc != 0)
 				return rc;
 		}
@@ -407,32 +277,6 @@ int main(int argc, char *argv[])
 			       argv[1], ino);
 		else
 			fprintf(stderr, "Failed !!!\n");
-
-	} else if (!strcmp(exec_name, "ns_rm")) {
-		if (argc != 2) {
-			fprintf(stderr, "unlink <newdir>\n");
-			exit(1);
-		}
-
-		rc = kvsns_unlink(&cred, &current_inode, argv[1]);
-		if (rc == 0)
-			printf("Unlink %llu/%s OK\n", current_inode, argv[1]);
-		else
-			fprintf(stderr, "Can't unlink %llu/%s rc=%d\n",
-				current_inode, argv[1], rc);
-	} else if (!strcmp(exec_name, "ns_fsstat")) {
-		kvsns_fsstat_t statfs;
-
-		rc = kvsns_fsstat(&statfs);
-		if (rc != 0) {
-			fprintf(stderr, "kvsns_statfs failed rc=%d\n", rc);
-			exit(1);
-		}
-		printf("FSSTAT: nb_inodes = %u\n",
-			(unsigned int)statfs.nb_inodes);
-	} else if (!strcmp(exec_name, "ns_mr_proper")) {
-		rc = kvsns_mr_proper();
-		printf("Mr Proper: rc=%d\n", rc);
 	} else
 		fprintf(stderr, "%s does not exists\n", exec_name);
 	printf("######## OK ########\n");

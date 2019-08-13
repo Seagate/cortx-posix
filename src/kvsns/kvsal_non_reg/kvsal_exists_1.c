@@ -34,7 +34,8 @@ int main(int argc, char *argv[])
 	}
 
 	strncpy(key, argv[1], KLEN);
-	rc = kvsal_exists(key);
+	/* TODO: call kvsns2_exists here */
+	rc = -1;
 	if (rc != 0) {
 		fprintf(stderr, "kvsal_exists: err=%d\n", rc);
 		exit(-rc);

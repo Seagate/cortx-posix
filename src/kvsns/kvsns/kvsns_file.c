@@ -98,13 +98,8 @@ out:
 	return rc;
 }
 
-int kvsns_open(kvsns_cred_t *cred, kvsns_ino_t *ino,
-	       int flags, mode_t mode, kvsns_file_open_t *fd)
-{
-	/* deprecated, see kvsns2_oepn for details */
-	return 0;
-}
 
+#ifdef KVSNS_ENABLE_KVS_OPEN
 int kvsns2_open(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
 		int flags, mode_t mode, kvsns_file_open_t *fd)
 {
@@ -146,35 +141,9 @@ out:
 int kvsns_is_open(kvsns_fs_ctx_t *ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
 		  bool *is_open)
 {
+	assert(0);
 	*is_open = false;
 	return 0;
-}
-
-int kvsns_openat(kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
-		 int flags, mode_t mode, kvsns_file_open_t *fd)
-{
-	kvsns_ino_t ino = 0LL;
-
-	if (!cred || !parent || !name || !fd)
-		return -EINVAL;
-
-	RC_WRAP(kvsns_lookup, cred, parent, name, &ino);
-
-	return kvsns_open(cred, &ino, flags, mode, fd);
-}
-
-int kvsns2_openat(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
-		  int flags, mode_t mode, kvsns_file_open_t *fd)
-{
-	kvsns_ino_t ino = 0LL;
-
-	if (!cred || !parent || !name || !fd)
-		return -EINVAL;
-
-	/* @todo: add context as a parameter in kvsns_lookup */
-	// RC_WRAP(kvsns_lookup, cred, parent, name, &ino);
-
-	return kvsns2_open(ctx, cred, &ino, flags, mode, fd);
 }
 
 int kvsns2_close(void *ctx, kvsns_file_open_t *fd)
@@ -245,49 +214,32 @@ out:
 	log_trace("EXIT rc=%d", rc);
 	return rc;
 }
-
-
-int kvsns_close(kvsns_file_open_t *fd)
+#else
+int kvsns2_open(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
+		int flags, mode_t mode, kvsns_file_open_t *fd)
 {
-	/* deprecated. See kvsns2_close for detais */
+	(void) ctx;
+	(void) cred;
+	(void) ino;
+	(void) flags;
+	(void) mode;
+	(void) fd;
 	return 0;
 }
 
-ssize_t kvsns_write(kvsns_cred_t *cred, kvsns_file_open_t *fd,
-		    void *buf, size_t count, off_t offset)
+int kvsns_is_open(kvsns_fs_ctx_t *ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
+		  bool *is_open)
 {
-	ssize_t write_amount;
-	bool stable;
-	char k[KLEN];
-	struct stat stat;
-	struct stat wstat;
-
-	memset(&wstat, 0, sizeof(wstat));
-
-	/** @todo use flags to check correct access */
-	write_amount = extstore_write(&fd->ino,
-				      offset,
-				      count,
-				      buf,
-				      &stable,
-				      &wstat);
-	if (write_amount < 0)
-		return write_amount;
-
-	RC_WRAP(kvsns_getattr, cred, &fd->ino, &stat);
-	if (wstat.st_size > stat.st_size) {
-		stat.st_size = wstat.st_size;
-		stat.st_blocks = wstat.st_blocks;
-	}
-	stat.st_mtim = wstat.st_mtim;
-	stat.st_ctim = wstat.st_ctim;
-
-	memset(k, 0, KLEN);
-	snprintf(k, KLEN, "%llu.stat", fd->ino);
-	RC_WRAP(kvsal_set_stat, k, &stat);
-
-	return write_amount;
+	is_open = false;
+	return 0;
 }
+
+int kvsns2_close(void *ctx, kvsns_file_open_t *fd)
+{
+	return 0;
+}
+#endif
+
 
 ssize_t kvsns2_write(void *ctx, kvsns_cred_t *cred, kvsns_file_open_t *fd,
 		     void *buf, size_t count, off_t offset)
@@ -328,33 +280,6 @@ out:
 	return rc;
 }
 
-ssize_t kvsns_read(kvsns_cred_t *cred, kvsns_file_open_t *fd,
-		   void *buf, size_t count, off_t offset)
-{
-	ssize_t read_amount;
-	bool eof;
-	struct stat stat;
-	char k[KLEN];
-
-	RC_WRAP(kvsns_getattr, cred, &fd->ino, &stat);
-
-	/** @todo use flags to check correct access */
-	read_amount = extstore_read(&fd->ino,
-				    offset,
-				    count,
-				    buf,
-				    &eof,
-				    &stat);
-	if (read_amount < 0)
-		return read_amount;
-
-	memset(k, 0, KLEN);
-	snprintf(k, KLEN, "%llu.stat", fd->ino);
-	RC_WRAP(kvsal_set_stat, k, &stat);
-
-	return read_amount;
-}
-
 ssize_t kvsns2_read(void *ctx, kvsns_cred_t *cred, kvsns_file_open_t *fd,
 		    void *buf, size_t count, off_t offset)
 {
@@ -382,16 +307,3 @@ out:
 	return rc;
 }
 
-int kvsns_attach(kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
-		 char *objid, int objid_len, struct stat *stat, int statflags,
-		  kvsns_ino_t *newfile)
-{
-	RC_WRAP(kvsns_access, cred, parent, KVSNS_ACCESS_WRITE);
-	RC_WRAP(kvsns_create_entry, cred, parent, name, NULL,
-				    stat->st_mode, newfile, KVSNS_FILE);
-	RC_WRAP(kvsns_setattr, cred, newfile, stat, statflags);
-	RC_WRAP(kvsns_getattr, cred, newfile, stat);
-	RC_WRAP(extstore_attach, newfile, objid, objid_len);
-
-	return 0;
-}

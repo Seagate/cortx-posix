@@ -42,124 +42,32 @@
 int kvsns_setxattr(kvsns_cred_t *cred, kvsns_ino_t *ino,
 		   char *name, char *value, size_t size, int flags)
 {
-	int rc;
-	char k[KLEN];
-
-	if (!cred || !ino || !name || !value)
-		return -EINVAL;
-
-	memset(k, 0, KLEN);
-	snprintf(k, KLEN, "%llu.xattr.%s", *ino, name);
-	if (flags == XATTR_CREATE) {
-		rc = kvsal_get_char(k, value);
-		if (rc == 0)
-			return -EEXIST;
-	}
-
-	return kvsal_set_binary(k, (char *)value, size);
+	/* Set or create (XATTR_CREATE) xattr by name (<inode>.xattr.name) */
+	return 0;
 }
 
 int kvsns_getxattr(kvsns_cred_t *cred, kvsns_ino_t *ino,
 		   char *name, char *value, size_t *size)
 {
-	char k[KLEN];
-
-	if (!cred || !ino || !name || !value)
-		return -EINVAL;
-
-	memset(k, 0, KLEN);
-	snprintf(k, KLEN, "%llu.xattr.%s", *ino, name);
-	RC_WRAP(kvsal_get_binary, k, value, size);
-
-	return 0;
+	/* Get <inode>.xattr.name */
+	return -ENOENT;
 }
 
 int kvsns_listxattr(kvsns_cred_t *cred, kvsns_ino_t *ino, int offset,
 		  kvsns_xattr_t *list, int *size)
 {
-	int rc;
-	char pattern[KLEN];
-	kvsal_item_t *items;
-	int i;
-	kvsal_list_t l;
-
-	if (!cred || !ino || !list || !size)
-		return -EINVAL;
-
-	memset(pattern, 0, KLEN);
-	snprintf(pattern, KLEN, "%llu.xattr.*", *ino);
-	items = (kvsal_item_t *)malloc(*size*sizeof(kvsal_item_t));
-	if (items == NULL)
-		return -ENOMEM;
-
-	rc = kvsal_fetch_list(pattern, &l);
-	RC_WRAP_LABEL(rc, errout, kvsal_fetch_list, pattern, &l);
-
-	RC_WRAP_LABEL(rc, errout,  kvsal_get_list, &l, offset, size, items);
-
-	RC_WRAP_LABEL(rc, errout, kvsal_dispose_list, &l);
-
-	for (i = 0; i < *size ; i++)
-		strncpy(list[i].name, items[i].str, MAXNAMLEN);
-
-	free(items);
-
-	return 0;
-
-errout:
-	if (items)
-		free(items);
-
-	return rc;
+	/* Get list of all (<inode>.xattr.*) */
+	return -ENOENT;
 }
 
 int kvsns_removexattr(kvsns_cred_t *cred, kvsns_ino_t *ino, char *name)
 {
-	char k[KLEN];
-
-	memset(k, 0, KLEN);
-	snprintf(k, KLEN, "%llu.xattr.%s", *ino, name);
-	RC_WRAP(kvsal_del, k);
-
+	/* TODO: Remove xattr by name (<inode>.xattr.name) */
 	return 0;
 }
 
 int kvsns_remove_all_xattr(kvsns_cred_t *cred, kvsns_ino_t *ino)
 {
-	int rc;
-	char pattern[KLEN];
-	kvsal_item_t items[KVSAL_ARRAY_SIZE];
-	int i;
-	int size;
-	kvsal_list_t list;
-
-	if (!cred || !ino)
-		return -EINVAL;
-
-	memset(pattern, 0, KLEN);
-	snprintf(pattern, KLEN, "%llu.xattr.*", *ino);
-
-	rc = kvsal_fetch_list(pattern, &list);
-	if (rc < 0) {
-		if (rc == -ENOENT) /* No xattr, return OK */
-			return 0;
-		return rc;
-	}
-
-	do {
-		size = KVSAL_ARRAY_SIZE;
-		rc = kvsal_get_list(&list, 0, &size, items);
-		if (rc < 0)
-			return rc;
-
-		for (i = 0; i < size ; i++)
-			RC_WRAP(kvsal_del, items[i].str);
-
-	} while (size > 0);
-
-	rc = kvsal_dispose_list(&list);
-	if (rc < 0)
-		return rc;
-
+	/* TODO: get all <inode>.xattr.* entries and remove them */
 	return 0;
 }

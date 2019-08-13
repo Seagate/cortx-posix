@@ -94,6 +94,23 @@
 #define KVSNS_ACCESS_WRITE	2
 #define KVSNS_ACCESS_EXEC	4
 
+/* If you see this define it means that this code is intentionaly left under ifdef
+ * as an example of open() implementaion if case if we need to support storing
+ * file states inside KVS. This code won't work if enabled, but this is
+ * a base for possible implementation of "non-volatile" open.
+ * The parts of code wrapped with this define
+ * can be removed only when KVSFS fully supports multi-client open4
+ * and all types of locks, and backup engine is implemented for KVSNS
+ * (or if the problem of server restart has been resolved in a different way).
+ * For code reviewers: I'd prefer to get rid of this code because we still
+ * have the history in the VCS and the open source version of this code.
+ * Please, let me know if you agree with that.
+ */
+// #define KVSNS_ENABLE_KVS_OPEN
+
+
+//#define KVSNS_ENABLE_NO_INDEX_API
+
 /** Access level required to create an object in a directory
  * (in other words, to link an inode into a directory).
  */
@@ -125,10 +142,6 @@ typedef struct kvsns_cred__ {
 	uid_t uid;
 	gid_t gid;
 } kvsns_cred_t;
-
-typedef struct kvsns_fsstat_ {
-	unsigned long nb_inodes;
-} kvsns_fsstat_t;
 
 typedef struct kvsns_dentry_ {
 	char name[NAME_MAX];
@@ -420,20 +433,6 @@ int kvsns_rename(kvsns_fs_ctx_t fs_ctx, kvsns_cred_t *cred,
  * Finds the inode of an entry whose parent and name are known. This is the
  * basic "lookup" operation every filesystem implements.
  *
- * @param cred - pointer to user's credentials
- * @param parent - pointer to parent directory's inode.
- * @param name - name of the entry to be found.
- * @paran myino - [OUT] points to the found ino if successful.
- *
- * @return 0 if successful, a negative "-errno" value in case of failure
- */
-int kvsns_lookup(kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
-		 kvsns_ino_t *myino);
-
-/**
- * Finds the inode of an entry whose parent and name are known. This is the
- * basic "lookup" operation every filesystem implements.
- *
  * @param ctx - Filesystem context
  * @param cred - pointer to user's credentials
  * @param parent - pointer to parent directory's inode.
@@ -468,21 +467,12 @@ int kvsns_lookupp(kvsns_cred_t *cred, kvsns_ino_t *where, kvsns_ino_t *parent);
  *
  * @return 0 if successful, a negative "-errno" value in case of failure
  */
-int kvsns_get_root(kvsns_ino_t *ino);
-
-/**
- * Gets attributes for a known inode.
- *
- * @note: the call is similar to stat() call in libc. It uses the structure
- * "struct stat" defined in the libC.
- *
- * @param cred - pointer to user's credentials
- * @param ino - pointer to current inode
- * @param buffstat - [OUT] points to inode's stats.
- *
- * @return 0 if successful, a negative "-errno" value in case of failure
- */
-int kvsns_getattr(kvsns_cred_t *cred, kvsns_ino_t *ino, struct stat *buffstat);
+static inline
+int kvsns_get_root(kvsns_ino_t *ino)
+{
+	*ino = KVSNS_ROOT_INODE;
+	return 0;
+}
 
 /**
  * Gets attributes for a known inode.
@@ -513,30 +503,6 @@ int kvsns2_getattr(kvsns_fs_ctx_t ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
  *  STAT_MTIME_SET: sets mtime
  *  STAT_CTIME_SET: set ctime
  *
- * @param cred - pointer to user's credentials
- * @param ino - pointer to current inode
- * @param setstat - a stat structure containing the new values
- * @param statflags - a bitmap that tells which attributes are to be set
- *
- * @return 0 if successful, a negative "-errno" value in case of failure
- */
-int kvsns_setattr(kvsns_cred_t *cred, kvsns_ino_t *ino, struct stat *setstat,
-		 int statflags);
-
-/**
- * Sets attributes for a known inode.
- *
- * This call uses a struct stat structure as input. This structure will
- * contain the values to be set. More than one can be set in a single call.
- * The parameter "statflags: indicates which fields are to be considered:
- *  STAT_MODE_SET: sets mode
- *  STAT_UID_SET: sets owner
- *  STAT_GID_SET: set group owner
- *  STAT_SIZE_SET: set size (aka truncate)
- *  STAT_ATIME_SET: sets atime
- *  STAT_MTIME_SET: sets mtime
- *  STAT_CTIME_SET: set ctime
- *
  * @param ctx - Filesystem context
  * @param cred - pointer to user's credentials
  * @param ino - pointer to current inode
@@ -548,15 +514,7 @@ int kvsns_setattr(kvsns_cred_t *cred, kvsns_ino_t *ino, struct stat *setstat,
 int kvsns2_setattr(kvsns_fs_ctx_t ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
 		   struct stat *setstat, int statflags);
 
-/**
- * Gets dynamic stats for the whole namespace
- *
- * @param stat - FS stats for the namespace
- *
- * @return 0 if successful, a negative "-errno" value in case of failure
- */
-int kvsns_fsstat(kvsns_fsstat_t *stat);
-
+/* TODO:Unknown features: Implement statvfs-like call here */
 
 /** A callback to be used in kvsns_readddir.
  * @retval true continue iteration.
@@ -583,26 +541,6 @@ int kvsns_readdir(kvsns_fs_ctx_t fs_ctx,
  *
  * @todo: mode parameter is unused. Remove it.
  *
- * @param cred - pointer to user's credentials
- * @param ino - file's inode
- * @param flags - open flags (see man 2 open)
- * @param mode - unused
- * @param fd - [OUT] handle to opened file.
- *
- * @return 0 if successful, a negative "-errno" value in case of failure
- */
-int kvsns_open(kvsns_cred_t *cred, kvsns_ino_t *ino,
-	    int flags, mode_t mode, kvsns_file_open_t *fd);
-
-/**
- * Opens a file for reading and/or writing
- *
- * @note: this call use the same flags as LibC's open() call. You must know
- * the inode to call this function so you can't use it for creating a file.
- * In this case, kvsns_create() is to be invoked.
- *
- * @todo: mode parameter is unused. Remove it.
- *
  * @param ctx - filesystem context pointer
  * @param cred - pointer to user's credentials
  * @param ino - file's inode
@@ -614,27 +552,6 @@ int kvsns_open(kvsns_cred_t *cred, kvsns_ino_t *ino,
  */
 int kvsns2_open(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
 		int flags, mode_t mode, kvsns_file_open_t *fd);
-
-/**
- * Opens a file by name and parent directory
- *
- * @note: this call use the same flags as LibC's openat() call. You must know
- * the inode to call this function so you can't use it for creating a file.
- * In this case, kvsns_create() is to be invoked.
- *
- * @todo: mode parameter is unused. Remove it.
- *
- * @param cred - pointer to user's credentials
- * @param parent - parent's inode
- * @param name- file's name
- * @param flags - open flags (see man 2 open)
- * @param mode - unused
- * @param fd - [OUT] handle to opened file.
- *
- * @return 0 if successful, a negative "-errno" value in case of failure
- */
-int kvsns_openat(kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
-		 int flags, mode_t mode, kvsns_file_open_t *fd);
 
 /**
  * Opens a file by name and parent directory
@@ -667,15 +584,6 @@ int kvsns2_openat(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent, char *name
  * @return 0 if successful, a negative "-errno" value in case of failure
  */
 int kvsns2_close(void *ctx, kvsns_file_open_t *fd);
-
-/**
- * Closes a file descriptor
- *
- * @param fd - handle to opened file
- *
- * @return 0 if successful, a negative "-errno" value in case of failure
- */
-int kvsns_close(kvsns_file_open_t *fd);
 
 /* A placeholder for preserving the openowner logic.
  * It does nothing, just returns False.
@@ -856,38 +764,6 @@ int kvsns_cp_from(kvsns_cred_t *cred, kvsns_file_open_t *kfd,
  */
 int kvsns_cp_to(kvsns_cred_t *cred, int fd_source,
 		kvsns_file_open_t *kfd, int iolen);
-
-/**
- *  High level API: do a "lookup by path" operation
- *
- * @param cred - pointer to user's credentials
- * @param parent - root of the lookup operation
- * @param path - path inside the kvsns, starting at inode parent
- * @param ino - found inode if lookup is successful
- *
- * @return 0 if successful, a negative "-errno" value in case of failure
- */
-int kvsns_lookup_path(kvsns_cred_t *cred, kvsns_ino_t *parent, char *path,
-		      kvsns_ino_t *ino);
-
-
-/**
- *  High level API: Attach an existing object to the KVSNS namespace
- *
- * @param cred - pointer to user's credentials
- * @param parent - directory where object is to be inserted
- * @param name - name of the entry to be created in parent directory
- * @param objid - a buffer that contains the objectid
- * @param objid_len - size in bytes of objid
- * @param stat - wanted stat for the entry
- * @param statflags - attrs to be set in new entry
- * @param newfile - inode for the newly created file
- *
- * @return 0 if successful, a negative "-errno" value in case of failure
- */
-int kvsns_attach(kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
-		 char *objid, int objid_len, struct stat *stat,
-		 int statflags, kvsns_ino_t *newfile);
 
 /**
  * High level API: Get a fs specific handle for the passed fs id.

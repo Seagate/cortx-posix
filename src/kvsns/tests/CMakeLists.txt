@@ -25,10 +25,6 @@ add_executable(kvsns_del_char kvsns_del_char.c)
 target_link_libraries(kvsns_del_char kvsns ${STORE_LIBRARY}
 		      ${KVSAL_LIBRARY})
 
-add_executable(kvsns_get_list kvsns_get_list.c)
-target_link_libraries(kvsns_get_list kvsns ${STORE_LIBRARY}
-		      ${KVSAL_LIBRARY})
-
 
 add_executable(kvsns_ino_incr kvsns_ino_incr.c)
 target_link_libraries(kvsns_ino_incr kvsns ${STORE_LIBRARY}

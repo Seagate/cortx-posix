@@ -43,6 +43,8 @@
 
 #define BUFFSIZE 40960
 
+
+#ifdef KVSNS_ENABLE_NO_INDEX_API
 int kvsns_cp_from(kvsns_cred_t *cred, kvsns_file_open_t *kfd,
 		  int fd_dest, int iolen)
 {
@@ -136,4 +138,4 @@ int kvsns_cp_to(kvsns_cred_t *cred, int fd_source,
 
 	return 0;
 }
-
+#endif

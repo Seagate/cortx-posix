@@ -351,11 +351,12 @@ int main(int argc, char **argv)
 
 	printf("path=%s base=%s dir=%s\n", path, basepath, dirpath);
 
-	rc = kvsns_lookup_path(&cred, &root_ino, dirpath, &parent_ino);
-	exit_rc("Can't lookup path in KVSNS", rc);
+	(void) parent_ino;
+	(void) ino;
+	(void) cred;
+	printf("KVSNS Attrach is not supported\n");
+	rc = -1;
 
-	rc = kvsns_attach(&cred, &parent_ino, basepath, objid,
-			  strnlen(objid, MAXPATHLEN)+1, &stat, statflags, &ino);
 	exit_rc("Can't attach object to path in KVSNS", rc);
 
 	if (verbose_flag)
