@@ -44,6 +44,7 @@
 #include <kvsns/kvsal.h>
 #include <kvsns/kvsns.h>
 
+#include <inttypes.h>
 #include "kvsns_internal.h"
 #include "kvsns/log.h"
 
@@ -63,6 +64,7 @@ typedef enum kvsns_key_type {
 	KVSNS_KEY_TYPE_PARENT,
 	KVSNS_KEY_TYPE_STAT,
 	KVSNS_KEY_TYPE_SYMLINK,
+	KVSNS_KEY_TYPE_INODE_KFID,
 	KVSNS_KEY_TYPE_INVALID,
 	KVSNS_KEY_TYPES = KVSNS_KEY_TYPE_INVALID,
 } kvsns_key_type_t;
@@ -78,6 +80,8 @@ static inline const char *kvsns_key_type_to_str(kvsns_key_type_t ktype)
 		return "stat";
 	case KVSNS_KEY_TYPE_SYMLINK:
 		return "link";
+	case KVSNS_KEY_TYPE_INODE_KFID:
+		return "oid";
 	case KVSNS_KEY_TYPE_INVALID:
 		return "<invalid>";
 	}
@@ -188,6 +192,7 @@ struct kvsns_inode_attr_key {
 	kvsns_key_md_t md;
 } __attribute__((packed));
 
+
 #define INODE_ATTR_KEY_INIT(__ino, __ktype)		\
 {							\
 		.ino = __ino,				\
@@ -219,6 +224,10 @@ static int kvsns_ns_set_inode_attr(kvsns_fs_ctx_t ctx,
 static int kvsns_ns_del_inode_attr(kvsns_fs_ctx_t ctx,
 				   const kvsns_ino_t *ino,
 				   kvsns_key_type_t type);
+
+typedef struct kvsns_inode_attr_key kvsns_inode_kfid_key_t;
+
+#define INODE_KFID_KEY_INIT INODE_ATTR_KEY_PTR_INIT
 
 /******************************************************************************/
 /** Check if a kvsns_name_t object has a valid C string in the buffer and
@@ -525,7 +534,8 @@ int kvsns2_create_entry(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
 	RC_WRAP_LABEL(rc, errfree, kvsns2_set_stat, ctx, new_entry, &bufstat);
 
 	if (type == KVSNS_SYMLINK) {
-        	RC_WRAP_LABEL(rc, errfree, kvsns_set_link, ctx, new_entry, (void *)lnk, strlen(lnk));
+		RC_WRAP_LABEL(rc, errfree, kvsns_set_link, ctx, new_entry,
+		(void *)lnk, strlen(lnk));
 	}
 
 	RC_WRAP_LABEL(rc, errfree, kvsns_amend_stat, parent_stat,
@@ -885,7 +895,6 @@ static int kvsns_ns_del_inode_attr(kvsns_fs_ctx_t ctx,
 
 	INODE_ATTR_KEY_PTR_INIT(key, ino, type);
 
-
 	RC_WRAP_LABEL(rc, out, kvsal2_del_bin, ctx, key,
 		      sizeof(struct kvsns_inode_attr_key));
 out:
@@ -894,6 +903,86 @@ out:
 		  kvsns_key_type_to_str(type), rc);
 	return rc;
 }
+
+int kvsns_set_ino_kfid(void *ctx, kvsns_ino_t *ino, kvsns_fid_t *kfid)
+{
+	int rc;
+	kvsns_inode_kfid_key_t *kfid_key = NULL;
+
+	RC_WRAP_LABEL(rc, out, kvsal_alloc, (void **)&kfid_key,
+		      sizeof(*kfid_key));
+
+	INODE_KFID_KEY_INIT(kfid_key, ino, KVSNS_KEY_TYPE_INODE_KFID);
+
+	RC_WRAP_LABEL(rc, free_key, kvsal3_set_bin, ctx, kfid_key,
+		      sizeof(kvsns_inode_kfid_key_t), kfid,
+		      sizeof(kvsns_fid_t));
+
+free_key:
+	kvsal_free(kfid_key);
+
+out:
+	log_trace("ctx=%p ino=%llu kfid=%" PRIx64 ":%" PRIx64 " rc=%d",
+		   ctx, *ino, kfid->f_hi, kfid->f_lo, rc);
+	return rc;
+}
+
+int kvsns_ino_to_kfid(void *ctx, kvsns_ino_t *ino, kvsns_fid_t *kfid)
+{
+	int rc;
+	kvsns_inode_kfid_key_t  *kfid_key = NULL;
+	uint64_t kfid_size=0;
+	kvsns_fid_t *kfid_val=NULL;
+
+	KVSNS_DASSERT(ino != NULL);
+	KVSNS_DASSERT(kfid != NULL);
+
+	memset(kfid, 0, sizeof(kvsns_fid_t));
+	RC_WRAP_LABEL(rc, out, kvsal_alloc, (void **)&kfid_key,
+		      sizeof(*kfid_key));
+
+	INODE_KFID_KEY_INIT(kfid_key, ino, KVSNS_KEY_TYPE_INODE_KFID);
+
+	RC_WRAP_LABEL(rc, free_key, kvsal3_get_bin, ctx, kfid_key,
+		      sizeof(kvsns_inode_kfid_key_t), (void **)&kfid_val,
+		      &kfid_size);
+
+	kfid->f_hi = kfid_val->f_hi;
+	kfid->f_lo = kfid_val->f_lo;
+	kvsal_free(kfid_val);
+
+free_key:
+	kvsal_free(kfid_key);
+
+out:
+	log_trace("ctx=%p, *ino=%llu kfid=%" PRIx64 ":%" PRIx64 " rc=%d, kfid_size=%" PRIu64 "",
+		   ctx, *ino, kfid->f_hi, kfid->f_lo, rc, kfid_size);
+	return rc;
+}
+
+int kvsns_del_kfid(void *ctx, kvsns_ino_t *ino)
+{
+	int rc;
+	kvsns_inode_kfid_key_t *kfid_key = NULL;
+
+	KVSNS_DASSERT(ino != NULL);
+
+	RC_WRAP_LABEL(rc, out, kvsal_alloc, (void **)&kfid_key,
+		      sizeof(*kfid_key));
+
+	INODE_KFID_KEY_INIT(kfid_key, ino, KVSNS_KEY_TYPE_INODE_KFID);
+
+	RC_WRAP_LABEL(rc, free_key, kvsal2_del_bin, ctx, kfid_key,
+		      sizeof(*kfid_key));
+
+free_key:
+	kvsal_free(kfid_key);
+
+out:
+	log_trace("ctx=%p, ino=%llu, rc=%d", ctx, *ino, rc);
+	return rc;
+}
+
 
 /******************************************************************************/
 

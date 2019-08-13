@@ -729,8 +729,9 @@ int kvsns2_unlink(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *dir, char *name)
 	 *	it has no more links in the fs tree
 	 */
 	if (!opened && !S_ISLNK(ino_stat->st_mode) && (size == 1)) {
-		RC_WRAP(extstore_ino_to_fid, ctx, ino, &kfid);
-		RC_WRAP(extstore2_del, ctx, &ino, &kfid);
+		RC_WRAP(kvsns_ino_to_kfid, ctx, &ino, &kfid);
+		RC_WRAP(extstore2_del, ctx, &kfid);
+		RC_WRAP(kvsns_del_kfid, ctx, &ino);
 	}
 
 errfree:

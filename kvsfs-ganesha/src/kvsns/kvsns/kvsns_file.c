@@ -49,15 +49,20 @@ int kvsns_creat(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
 {
 	kvsns_fid_t  kfid;
 
-	/*@todo Check write access to the directory */
 
 	log_trace("ENTER: parent=%p name=%s file=%p mode=0x%X",
 		  parent, name, newfile, mode);
+
 	RC_WRAP(kvsns2_access, ctx, cred, parent, KVSNS_ACCESS_WRITE);
+	/* Create tree entries, get new inode */
 	RC_WRAP(kvsns2_create_entry, ctx, cred, parent, name, NULL,
 		mode, newfile, KVSNS_FILE);
-	RC_WRAP(extstore_get_fid, *newfile, &kfid);
-	RC_WRAP(extstore2_create, ctx, *newfile, &kfid);
+	/* Get new unique extstore kfid */
+	RC_WRAP(extstore_get_new_kfid, *newfile, &kfid);
+	/* Set the ino-kfid key-val in kvs */
+	RC_WRAP(kvsns_set_ino_kfid, ctx, newfile, &kfid);
+	/* Create the backend object with passed kfid */
+	RC_WRAP(extstore2_create, ctx, &kfid);
 	log_trace("EXIT");
 	return 0;
 }
@@ -234,8 +239,9 @@ int kvsns2_close(void *ctx, kvsns_file_open_t *fd)
 	RC_WRAP(kvsal_end_transaction);
 
 	if (delete_object) {
-		RC_WRAP(extstore_get_fid, fd->ino, &kfid);
-		RC_WRAP(extstore2_del, ctx, &fd->ino, &kfid);
+		RC_WRAP(kvsns_ino_to_kfid, ctx, &fd->ino, &kfid);
+		RC_WRAP(extstore2_del, ctx, &kfid);
+		RC_WRAP(kvsns_del_kfid, ctx, &fd->ino);
 	}
 
 	return 0;
@@ -303,9 +309,9 @@ ssize_t kvsns2_write(void *ctx, kvsns_cred_t *cred, kvsns_file_open_t *fd,
 
 	memset(&wstat, 0, sizeof(wstat));
 
-	RC_WRAP_LABEL(rc, out, extstore_ino_to_fid, ctx, fd->ino, &kfid);
+	RC_WRAP_LABEL(rc, out, kvsns_ino_to_kfid, ctx, &fd->ino, &kfid);
 
-	/** @todo use flags to check correct access */
+	RC_WRAP(kvsns2_access, ctx, cred, &fd->ino, KVSNS_ACCESS_WRITE);
 	write_amount = extstore2_write(ctx, &kfid, offset, count,
 				       buf, &stable, &wstat);
 	if (write_amount < 0) {
@@ -366,9 +372,9 @@ ssize_t kvsns2_read(void *ctx, kvsns_cred_t *cred, kvsns_file_open_t *fd,
 
 	log_trace("ENTER: ino=%llu fd=%p count=%lu offset=%ld", fd->ino, fd, count, (long)offset);
 
-	RC_WRAP_LABEL(rc, out, extstore_ino_to_fid, ctx, fd->ino, &kfid);
+	RC_WRAP_LABEL(rc, out, kvsns_ino_to_kfid, ctx, &fd->ino, &kfid);
 	RC_WRAP(kvsns2_getattr, ctx, cred, &fd->ino, &stat);
-	/** @todo use flags to check correct access */
+	RC_WRAP(kvsns2_access, ctx, cred, &fd->ino, KVSNS_ACCESS_READ);
 	read_amount = extstore2_read(ctx, &kfid, offset, count,
 				     buf, &eof, &stat);
 	if (read_amount < 0) {
