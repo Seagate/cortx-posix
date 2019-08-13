@@ -1703,6 +1703,135 @@ out:
 	return result;
 }
 
+/** Implementation of OPEN4+EXCLUSIVE4 case when the file does not exist.
+ * At first NFS Ganesha checks if the file exists. If it doesn't then ganesha
+ * calls the fsal open2 callback. If it exists then ganesha checks the verifier
+ * in order to determine if it is a retransmission.
+ */
+static fsal_status_t
+kvsfs_create_exclusive40(struct fsal_obj_handle *parent_obj_hdl, const char *name,
+			 struct state_t *state, struct fsal_obj_handle **pnew_obj,
+			 fsal_openflags_t openflags, struct attrlist *attrs_in,
+			 struct attrlist *attrs_out, bool *caller_perm_check,
+			 fsal_verifier_t verifier)
+{
+	fsal_status_t result = fsalstat(ERR_FSAL_NO_ERROR, 0);
+	int rc;
+	struct kvsfs_fsal_obj_handle *parent_obj;
+	struct fsal_obj_handle *obj_hdl = NULL;
+	kvsns_cred_t cred = KVSNS_CRED_INIT_FROM_OP;
+	kvsns_ino_t object;
+	struct stat stat_in;
+	struct stat stat_out;
+	int flags;
+
+	/* attrs_in is not empty but only fattr.mode is set. */
+	assert(attrs_in);
+	/* but only mode is set by NFS Ganesha */
+	assert(attrs_in->valid_mask == ATTR_MODE);
+
+	assert(name);
+
+	/* Use ATIME and MTIME attrs as verifiers. */
+	set_common_verifier(attrs_in, verifier);
+
+	assert(FSAL_TEST_MASK(attrs_in->valid_mask, ATTR_ATIME));
+	assert(FSAL_TEST_MASK(attrs_in->valid_mask, ATTR_MTIME));
+	assert(FSAL_TEST_MASK(attrs_in->valid_mask, ATTR_MODE));
+
+	/* create operations do not support the truncate flag */
+	assert((openflags & FSAL_O_TRUNC) == 0);
+
+	result = kvsfs_setattr_attrlist2stat(attrs_in, &stat_in, &flags);
+	if (FSAL_IS_ERROR(result)) {
+		/* this function cannot fail if we are setting only
+		 * atime, mtime and mode.
+		 */
+		assert(0);
+		goto out;
+	}
+
+	parent_obj = container_of(parent_obj_hdl,
+				  struct kvsfs_fsal_obj_handle, obj_handle);
+
+	rc = kvsns_creat_ex(parent_obj->fs_ctx, &cred,
+			    &parent_obj->handle->kvsfs_handle,
+			    (char *) name,
+			    stat_in.st_mode,
+			    &stat_in, flags,
+			    &object,
+			    &stat_out);
+	if (rc < 0) {
+		result = fsalstat(posix2fsal_error(-rc), -rc);
+		goto out;
+	}
+
+	construct_handle(op_ctx->fsal_export, &object, &stat_out, &obj_hdl);
+
+	result = kvsfs_open2_by_handle(obj_hdl, state, openflags, NULL, NULL);
+	if (FSAL_IS_ERROR(result)) {
+		goto out;
+	}
+
+	*pnew_obj = obj_hdl;
+	obj_hdl = NULL;
+
+	if (attrs_out != NULL) {
+		posix2fsal_attributes_all(&stat_out, attrs_out);
+	}
+
+	/* We have already checked permissions in kvsns_creat_ex */
+	if (caller_perm_check) {
+		*caller_perm_check = false;
+	}
+
+	T_TRACE("Created: %p", *pnew_obj);
+
+out:
+	if (obj_hdl != NULL) {
+		obj_hdl->obj_ops->release(obj_hdl);
+	}
+	T_EXIT0(result.major);
+	return result;
+}
+
+/* Open a file which has been created with O_EXCL but was not opened. */
+static fsal_status_t
+kvsfs_open_exclusive40(struct fsal_obj_handle *obj_hdl,
+		       struct state_t *state,
+		       fsal_openflags_t openflags,
+		       struct attrlist *attrs_in,
+		       struct attrlist *attrs_out,
+		       bool *caller_perm_check)
+{
+	fsal_status_t result;
+
+	T_ENTER(">>> (obj=%p, st=%p, open=%d, pcheck=%p)",
+		obj_hdl, state, openflags, caller_perm_check);
+
+	assert(obj_hdl);
+
+	/* attrs_in is set */
+	assert(attrs_in);
+	/* but only fattr.mode is set by NFS Ganesha. And in an open call
+	 * we should ignore it. */
+	assert(attrs_in->valid_mask == ATTR_MODE);
+
+	/* Truncate is not allowed */
+	assert((openflags & FSAL_O_TRUNC) == 0);
+
+	/* let open_by_handle fill in the attrs and the perm check  flag */
+	result = kvsfs_open2_by_handle(obj_hdl, state, openflags, attrs_out,
+				       caller_perm_check);
+	if (FSAL_IS_ERROR(result)) {
+		goto out;
+	}
+
+out:
+	T_EXIT0(result.major);
+	return result;
+}
+
 static fsal_status_t kvsfs_open2(struct fsal_obj_handle *obj_hdl,
 				 struct state_t *state,
 				 fsal_openflags_t openflags,
@@ -1714,7 +1843,6 @@ static fsal_status_t kvsfs_open2(struct fsal_obj_handle *obj_hdl,
 				 struct attrlist *attrs_out,
 				 bool *caller_perm_check)
 {
-	struct attrlist verifier_attr = {0};
 	fsal_status_t result;
 
 	T_ENTER(">>> (obj=%p, st=%p, open=%d, create=%d,"
@@ -1730,10 +1858,6 @@ static fsal_status_t kvsfs_open2(struct fsal_obj_handle *obj_hdl,
 		(openflags & FSAL_O_TRUNC));
 
 	assert(obj_hdl);
-
-	/* TODO: Put a bunch of pre-conditions for cases like open_by_name,
-	 * open_by_handle, create, exclusive create, etc.
-	 * */
 
 	if (state == NULL) {
 		LogCrit(COMPONENT_FSAL,
@@ -1759,20 +1883,11 @@ static fsal_status_t kvsfs_open2(struct fsal_obj_handle *obj_hdl,
 						     attrs_in, attrs_out,
 						     caller_perm_check);
 		}
-		goto out;
 	} else {
-		/* Now fixup attrs for verifier if exclusive create */
-		if (createmode >= FSAL_EXCLUSIVE) {
-			if (attrs_in) {
-				set_common_verifier(attrs_in, verifier);
-			} else {
-				set_common_verifier(&verifier_attr, verifier);
-			}
-		}
-
 		switch (createmode) {
 		case FSAL_UNCHECKED:
 			if (name != NULL) {
+				T_TRACE("%s", "Create Unchecked4");
 				result = kvsfs_create_unchecked(obj_hdl,
 								name,
 								state,
@@ -1782,6 +1897,7 @@ static fsal_status_t kvsfs_open2(struct fsal_obj_handle *obj_hdl,
 								attrs_out,
 								caller_perm_check);
 			} else {
+				T_TRACE("%s", "Open Unchecked4");
 				result = kvsfs_open_unchecked(obj_hdl,
 							      state,
 							      openflags,
@@ -1790,17 +1906,69 @@ static fsal_status_t kvsfs_open2(struct fsal_obj_handle *obj_hdl,
 							      caller_perm_check);
 			}
 			break;
-
 		case FSAL_GUARDED:
-		case FSAL_EXCLUSIVE:
-			/* We don't support it yet */
-			result = fsalstat(ERR_FSAL_NOTSUPP, ENOTSUP);
+			/* NFS Ganesha has already checked object existence.
+			 * According to the RFC 4.0, the behavior in this case
+			 * is the same as with Unchecked4 create.
+			 */
+			/*
+			 * NOTE: Guarded4 is not used by the linux nfs client
+			 * unless it uses NFS4.1 pro (which is not supported
+			 * yet on our side).
+			 * Therefore, this code path can be checked only
+			 * by manually creating RPC requests or by
+			 * using NFS4.1 linux nfs client.
+			 * Moreover, Guarded4 is used by NFS4.1 only if
+			 * the corresponding 4.1 session is persistent
+			 * (see fs/nfs/nfs4proc.c, nfs4_open_prepare).
+			 */
+			T_TRACE("%s", "Create Guarded4");
+			result = kvsfs_create_unchecked(obj_hdl,
+							name,
+							state,
+							new_obj,
+							openflags,
+							attrs_in,
+							attrs_out,
+							caller_perm_check);
 			break;
-
+		case FSAL_EXCLUSIVE:
+			/* Handles NFS4.0 version of open(O_CREAT | O_EXCL).
+			 * Note: it is different from NFS4.1. O_EXCL.
+			 */
+			if (name == NULL) {
+				/* We end up here if Ganesha detects
+				 * that is was a re-transmit, i.e.
+				 * Ganesha has done lookup() and checked
+				 * the verifier and it matched.
+				 * At this point we should just open
+				 * the file.
+				 */
+				T_TRACE("%s", "Open Exclusive4");
+				result = kvsfs_open_exclusive40(obj_hdl,
+								state,
+								openflags,
+								attrs_in,
+								attrs_out,
+								caller_perm_check);
+			} else {
+				T_TRACE("%s", "Create Exclusive4");
+				/* A normal O_EXCL create operation */
+				result = kvsfs_create_exclusive40(obj_hdl,
+								  name,
+								  state,
+								  new_obj,
+								  openflags,
+								  attrs_in,
+								  attrs_out,
+								  caller_perm_check,
+								  verifier);
+			}
+			break;
 		case FSAL_NO_CREATE:
+			/* Impossible */
 			assert(0);
 			break;
-
 		case FSAL_EXCLUSIVE_41:
 		case FSAL_EXCLUSIVE_9P:
 			result = fsalstat(ERR_FSAL_NOTSUPP, ENOTSUP);
