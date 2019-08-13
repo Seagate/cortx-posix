@@ -141,7 +141,7 @@ int extstore_create(kvsns_ino_t object)
 	return 0;
 }
 
-int extstore_get_fid(kvsns_ino_t object, kvsns_fid_t *kfid)
+int extstore_get_new_kfid(kvsns_ino_t ino, kvsns_fid_t *kfid)
 {
 	return m0_ufid_get((struct m0_uint128 *)kfid);
 }
@@ -170,37 +170,20 @@ out:
 	return rc;
 }
 
-int extstore2_create(void *ctx, kvsns_ino_t object,
-		     kvsns_fid_t *kfid)
+int extstore2_create(void *ctx, kvsns_fid_t *kfid)
 {
-	char k[KLEN];
-	char v[VLEN];
-	size_t klen;
-	size_t vlen;
 	int rc;
 	struct m0_uint128 fid;
 
-	RC_WRAP_LABEL(rc, out, prepare_key, k, KLEN, "%llu.data", object);
-	klen = rc;
-
+	KVSNS_DASSERT(kfid != NULL);
 	m0_fid_copy((struct m0_uint128 *)kfid, &fid);
 
-	vlen = m0_fid_to_string(&fid, v);
-	if (vlen < 0) {
-		rc = vlen;
-		goto out;
-	}
-
-	rc = m0kvs2_set(ctx, k, klen, v, vlen);
-	if (rc != 0)
-		goto out;
-
-	rc = m0store_create_object(fid);
+	RC_WRAP_LABEL(rc, out, m0store_create_object, fid);
 	if (rc != 0)
 		goto out;
 
 out:
-	log_debug("ino=%llu fid=%s rc=%d", object, v, rc);
+	log_debug("ctx=%p fid = "U128X_F" rc=%d", ctx, U128_P(&fid), rc);
 	return rc;
 }
 
@@ -288,37 +271,31 @@ int extstore_del(kvsns_ino_t *ino)
 	return 0;
 }
 
-int extstore2_del(void *ctx, kvsns_ino_t *ino, kvsns_fid_t *kfid)
+int extstore2_del(void *ctx, kvsns_fid_t *kfid)
 {
-	char k[KLEN];
-	size_t klen = KLEN;
 	struct m0_uint128 fid;
 	int rc;
-	char fid_str[M0_FID_STR_LEN];
+
+	KVSNS_DASSERT(kfid != NULL);
 
 	m0_fid_copy((struct m0_uint128 *)kfid, &fid);
-	RC_WRAP_LABEL(rc, out, m0_fid_to_string, &fid, fid_str);
 
 	/* Delete the object from backend store */
 	rc = m0store_delete_object(fid);
 	if (rc) {
-		if (errno == ENOENT) {
+		if (rc == -ENOENT) {
 			rc = 0;
-			log_warn("Object for fid=%s does not exist rc=%d",
-				 fid_str, rc);
+			log_warn("Non-existing obj, ctx=%p fid= "U128X_F" rc=%d",
+				  ctx, U128_P(&fid), rc);
 			goto out;
 		}
-		log_err("Unable to delete object ino=%llu fid=%s rc=%d",
-			 *ino, fid_str, rc);
-		rc = -errno;
+		log_err("Unable to delete object, ctx=%p fid= "U128X_F" rc=%d",
+			 ctx, U128_P(&fid), rc);
 		goto out;
 	}
 
-	/* delete <inode>.data */
-	RC_WRAP_LABEL(rc, out, prepare_key, k, KLEN, "%llu.data", *ino);
-	klen = rc;
-	rc = m0kvs2_del(ctx, k, klen);
 out:
+	log_debug("EXIT: ctx=%p fid= "U128X_F" rc=%d", ctx, U128_P(&fid), rc);
 	return rc;
 }
 

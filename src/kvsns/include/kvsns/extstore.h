@@ -48,9 +48,7 @@
 
 int extstore_init(struct collection_item *cfg_items);
 int extstore_create(kvsns_ino_t object);
-int extstore2_create(void *ctx,
-		     kvsns_ino_t object,
-		     kvsns_fid_t *fid);
+int extstore2_create(void *ctx, kvsns_fid_t *fid);
 int extstore_read(kvsns_ino_t *ino,
 		  off_t offset,
 		  size_t buffer_size,
@@ -69,14 +67,13 @@ int extstore_write(kvsns_ino_t *ino,
 int extstore2_write(void *ctx, kvsns_fid_t *kfid, off_t offset, size_t buffer_size,
 		    void *buffer, bool *fsal_stable, struct stat *stat);
 int extstore_del(kvsns_ino_t *ino);
-int extstore2_del(void *ctx, kvsns_ino_t *ino, kvsns_fid_t *fid);
+int extstore2_del(void *ctx, kvsns_fid_t *fid);
 int extstore_truncate(kvsns_ino_t *ino,
 		      off_t filesize,
 		      bool on_obj_store,
 		      struct stat *stat);
 int extstore_attach(kvsns_ino_t *ino,
 		    char *objid, int objid_len);
-int extstore_get_fid(kvsns_ino_t object,
-		     kvsns_fid_t *fid);
+int extstore_get_new_kfid(kvsns_ino_t ino, kvsns_fid_t *kfid);
 int extstore_ino_to_fid(void *ctx, kvsns_ino_t object, kvsns_fid_t *fid);
 #endif

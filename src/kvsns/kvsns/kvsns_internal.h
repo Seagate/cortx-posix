@@ -171,4 +171,13 @@ int kvsns_tree_iter_children(kvsns_fs_ctx_t fs_ctx,
 			     void *cb_ctx);
 
 /******************************************************************************/
+/** Set the extstore object identifier (kfid) with kvsns inode as the key */
+int kvsns_set_ino_kfid(void *ctx, kvsns_ino_t *ino, kvsns_fid_t *kfid);
+
+/** Get the extstore object identifier for the passed kvsns inode */
+int kvsns_ino_to_kfid(void *ctx, kvsns_ino_t *ino, kvsns_fid_t *kfid);
+
+/** Delete the ino-kfid key-val pair from the kvs. Called during unlink/rm. */
+int kvsns_del_kfid(void *ctx, kvsns_ino_t *ino);
+
 #endif
