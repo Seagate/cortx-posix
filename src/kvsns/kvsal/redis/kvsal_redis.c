@@ -235,6 +235,28 @@ int kvsal_set_char(char *k, char *v)
 	return 0;
 }
 
+int kvsal2_set_char(void *ctx, char *k, size_t klen, char *v, size_t vlen)
+{
+	redisReply *reply;
+
+	if (!k || !v)
+		return -EINVAL;
+
+	if (!rediscontext)
+		if (kvsal_reinit() != 0)
+			return -1;
+
+	/* Set a key */
+	reply = redisCommand(rediscontext, "SET %s %s", k, v);
+	if (!reply)
+		return -1;
+
+	freeReplyObject(reply);
+
+	return 0;
+
+}
+
 int kvsal_get_char(char *k, char *v)
 {
 	redisReply *reply;
@@ -360,6 +382,105 @@ int kvsal_get_binary(char *k, char *buf, size_t *size)
 	return 0;
 }
 
+int kvsal3_set_bin(void *ctx, void *k, const size_t klen, void *v,
+		   const size_t vlen)
+{
+	redisReply *reply;
+
+	if (!k || !v)
+		return -EINVAL;
+
+	if (!rediscontext)
+		if (kvsal_reinit() != 0)
+			return -1;
+
+	/* Set a key */
+	reply = redisCommand(rediscontext, "SET %s %b", (char *) k, (char *) v, vlen);
+	if (!reply)
+		return -1;
+
+	return 0;
+}
+
+
+int kvsal2_set_bin(void *ctx, const void *k, size_t klen, const void *v,
+		   size_t vlen)
+{
+	redisReply *reply;
+
+	if (!k || !v)
+		return -EINVAL;
+
+	if (!rediscontext)
+		if (kvsal_reinit() != 0)
+			return -1;
+
+	/* Set a key */
+	reply = redisCommand(rediscontext, "SET %s %b", (char *) k, (char *) v, vlen);
+	if (!reply)
+		return -1;
+
+	return 0;
+}
+
+int kvsal2_get_bin(void *ctx, const void *k, size_t klen, void *v, size_t vlen)
+{
+	redisReply *reply;
+
+	if (!k || !v || !vlen)
+		return -EINVAL;
+
+	if (!rediscontext)
+		if (kvsal_reinit() != 0)
+			return -1;
+
+	reply = redisCommand(rediscontext, "GET %s", (char *) k);
+	if (!reply)
+		return -1;
+
+	if (reply->type != REDIS_REPLY_STRING)
+		return -1;
+
+	if (reply->len > vlen)
+		return -1;
+
+	memcpy((char *)v, reply->str, reply->len);
+	vlen = reply->len;
+
+	freeReplyObject(reply);
+
+
+	return 0;
+}
+
+int kvsal3_get_bin(void *ctx, void *k, const size_t klen, void **v,
+		  size_t *vlen)
+{
+	redisReply *reply;
+
+	if (!k || !v || !vlen)
+		return -EINVAL;
+
+	if (!rediscontext)
+		if (kvsal_reinit() != 0)
+			return -1;
+
+	reply = redisCommand(rediscontext, "GET %s", (char *) k);
+	if (!reply)
+		return -1;
+
+	if (reply->type != REDIS_REPLY_STRING)
+		return -1;
+
+	if (reply->len > *vlen)
+		return -1;
+
+	memcpy((char *)v, reply->str, reply->len);
+	*vlen = reply->len;
+
+	freeReplyObject(reply);
+	return 0;
+}
 int kvsal_incr_counter(char *k, unsigned long long *v)
 {
 	redisReply *reply;
@@ -397,6 +518,26 @@ int kvsal_del(char *k)
 		return -1;
 	freeReplyObject(reply);
 	return 0;
+}
+
+int kvsal2_del(void *ctx, char *k, size_t klen)
+{
+	redisReply *reply;
+
+	if (!k)
+		return -EINVAL;
+
+	if (!rediscontext)
+		if (kvsal_reinit() != 0)
+			return -1;
+
+	/* Try a GET and two INCR */
+	reply = redisCommand(rediscontext, "DEL %s", k);
+	if (!reply)
+		return -1;
+	freeReplyObject(reply);
+	return 0;
+
 }
 
 int kvsal_get_list_pattern(char *pattern, int start, int *size,
