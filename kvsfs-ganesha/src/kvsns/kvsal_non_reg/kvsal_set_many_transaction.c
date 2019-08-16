@@ -47,7 +47,7 @@ int main(int argc, char *argv[])
 	for (i = 0; i < howmany; i++) {
 		snprintf(key, KLEN, "%s%d", argv[1], i);
 		strncpy(val, argv[2], VLEN);
-		rc = kvsal_set_char(key, val);
+		rc = kvsal2_set_char(NULL,key,0, val,0);
 		if (rc != 0) {
 			fprintf(stderr, "kvsal_set_char: err=%d\n", rc);
 			exit(-rc);
