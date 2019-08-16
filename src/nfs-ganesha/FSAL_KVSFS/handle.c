@@ -1651,9 +1651,6 @@ kvsfs_create_unchecked(struct fsal_obj_handle *parent_obj_hdl, const char *name,
 	assert(name != NULL);
 	assert(state && parent_obj_hdl);
 
-	/* create operations do not support the truncate flag */
-	assert((openflags & FSAL_O_TRUNC) == 0);
-
 	parent_obj = container_of(parent_obj_hdl,
 				  struct kvsfs_fsal_obj_handle, obj_handle);
 
