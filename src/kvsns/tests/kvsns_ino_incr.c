@@ -64,14 +64,14 @@ int main(int argc, char *argv[])
 	snprintf(v, VLEN, "3");
 
 	/* KVS FUNCTIONS */
-	rc = kvsal_set_char(k, v);
+	rc = kvsal2_set_char(NULL, k,0, v, 0);
 	if (rc != 0) {
 		fprintf(stderr, "kvsns_set_char: err=%d\n", rc);
 		exit(1);
 	}
 
 	for (i = 0 ; i < 10 ; i++) {
-		rc = kvsal_incr_counter(k, &counter);
+		rc = kvsal2_incr_counter(NULL, k, &counter);
 		if (rc != 0) {
 			fprintf(stderr, "kvsns_incr_counter failed: rc=%d\n",
 				rc);

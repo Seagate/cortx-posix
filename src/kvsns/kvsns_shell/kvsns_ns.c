@@ -254,7 +254,7 @@ int main(int argc, char *argv[])
 		strncpy(k, "KVSNS_INODE", KLEN);
 		snprintf(v, VLEN, "%llu", KVSNS_ROOT_INODE);
 		current_inode = KVSNS_ROOT_INODE;
-		rc = kvsal_set_char(k, v);
+		rc = kvsal2_set_char(NULL, k,0, v,0);
 		if (rc != 0) {
 			fprintf(stderr, "kvsns_init_root: err=%d\n", rc);
 			exit(1);
@@ -263,7 +263,7 @@ int main(int argc, char *argv[])
 		strncpy(k, "KVSNS_PARENT_INODE", KLEN);
 		snprintf(v, VLEN, "%llu", KVSNS_ROOT_INODE);
 		parent_inode = KVSNS_ROOT_INODE;
-		rc = kvsal_set_char(k, v);
+		rc = kvsal2_set_char(NULL, k,0, v,0);
 		if (rc != 0) {
 			fprintf(stderr, "kvsns_init_root: err=%d\n", rc);
 			exit(1);
@@ -271,7 +271,7 @@ int main(int argc, char *argv[])
 
 		strncpy(k, "KVSNS_PATH", KLEN);
 		strncpy(v, "/", VLEN);
-		rc = kvsal_set_char(k, v);
+		rc = kvsal2_set_char(NULL, k,0, v,0);
 		if (rc != 0) {
 			fprintf(stderr, "kvsns_init_root: err=%d\n", rc);
 			exit(1);
@@ -279,7 +279,7 @@ int main(int argc, char *argv[])
 
 		strncpy(k, "KVSNS_PREV_PATH", KLEN);
 		strncpy(v, "/", VLEN);
-		rc = kvsal_set_char(k, v);
+		rc = kvsal2_set_char(NULL, k,0, v, 0);
 		if (rc != 0) {
 			fprintf(stderr, "kvsns_init_root: err=%d\n", rc);
 			exit(1);
