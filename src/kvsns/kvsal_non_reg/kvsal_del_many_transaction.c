@@ -45,7 +45,7 @@ int main(int argc, char *argv[])
 
 	for (i = 0; i < howmany; i++) {
 		snprintf(key, KLEN, "%s%d", argv[1], i);
-		rc = kvsal_del(key);
+		rc = kvsal2_del(NULL, key, 0);
 		if (rc != 0) {
 			fprintf(stderr, "kvsal_del: err=%d\n", rc);
 			exit(-rc);

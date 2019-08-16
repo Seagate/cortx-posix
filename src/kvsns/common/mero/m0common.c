@@ -953,7 +953,7 @@ int m0_pattern_kvs(char *k, char *pattern,
 		m0_clovis_op_launch(&op, 1);
 		rc = m0_clovis_op_wait(op, M0_BITS(M0_CLOVIS_OS_STABLE),
 				       M0_TIME_NEVER);
-		/* @todo : Why is op null after this call ??? */
+		/* @todo : Why is op NULL after this call ??? */
 
 		if (rc != 0) {
 			m0_bufvec_free(&keys);

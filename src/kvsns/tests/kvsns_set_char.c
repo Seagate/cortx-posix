@@ -55,7 +55,7 @@ int main(int argc, char *argv[])
 	}
 
 	/* KVS FUNCTIONS */
-	rc = kvsal_set_char(argv[1], argv[2]);
+	rc = kvsal2_set_char(NULL, argv[1],0, argv[2], 0);
 	if (rc != 0) {
 		fprintf(stderr, "kvsns_set_char: err=%d\n", rc);
 		exit(1);
