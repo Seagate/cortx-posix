@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
 
 	strncpy(key, argv[1], KLEN);
 	strncpy(val, argv[2], VLEN);
-	rc = kvsal2_set_char(NULL ,key,0, val, 0);
+	rc = kvsal_set_char(key, val);
 	if (rc != 0) {
 		fprintf(stderr, "kvsal_set_char: err=%d\n", rc);
 		exit(-rc);

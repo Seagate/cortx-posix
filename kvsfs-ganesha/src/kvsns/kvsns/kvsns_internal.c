@@ -279,7 +279,7 @@ int kvsns_next_inode(kvsns_ino_t *ino)
 	if (!ino)
 		return -EINVAL;
 
-	rc = kvsal2_incr_counter(NULL,"ino_counter", ino);
+	rc = kvsal_incr_counter("ino_counter", ino);
 	if (rc != 0)
 		return rc;
 

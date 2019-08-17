@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
 	}
 
 	snprintf(key, KLEN, "%s*", argv[1]);
-	rc = kvsal2_get_list_size(NULL, key, 0);
+	rc = kvsal_get_list_size(key);
 	if (rc < 0) {
 		fprintf(stderr, "kvsal_get_list_size: err=%d\n", rc);
 		exit(1);

@@ -78,23 +78,7 @@ int extstore_attach(kvsns_ino_t *ino, char *objid, int objid_len)
 	return -ENOTSUP;
 }
 
-int extstore_get_fid(kvsns_ino_t object, kvsns_fid_t *kfid)
-{
-	return 0;
-}
-
-int extstore_ino_to_fid(void *ctx, kvsns_ino_t object, kvsns_fid_t *kfid)
-{
-	return 0;
-}
-
 int extstore_create(kvsns_ino_t object)
-{
-	return 0;
-}
-
-int extstore2_create(void *ctx, kvsns_ino_t object,
-		     kvsns_fid_t *kfid)
 {
 	return 0;
 }
@@ -136,11 +120,6 @@ int extstore_del(kvsns_ino_t *ino)
 		return -errno;
 	}
 
-	return 0;
-}
-
-int extstore2_del(void *ctx, kvsns_ino_t *ino, kvsns_fid_t *kfid)
-{
 	return 0;
 }
 
@@ -186,13 +165,6 @@ int extstore_read(kvsns_ino_t *ino,
 		return -errno;
 
 	return read_bytes;
-}
-
-int extstore2_read(void *ctx, kvsns_fid_t *kfid, off_t offset,
-		   size_t buffer_size, void *buffer, bool *end_of_file,
-		   struct stat *stat)
-{
-	return 0;
 }
 
 int extstore_write(kvsns_ino_t *ino,
@@ -242,11 +214,6 @@ int extstore_write(kvsns_ino_t *ino,
 	return written_bytes;
 }
 
-int extstore2_write(void *ctx, kvsns_fid_t *kfid, off_t offset, size_t buffer_size,
-		    void *buffer, bool *fsal_stable, struct stat *stat)
-{
-	return 0;
-}
 
 int extstore_truncate(kvsns_ino_t *ino,
 		      off_t filesize,

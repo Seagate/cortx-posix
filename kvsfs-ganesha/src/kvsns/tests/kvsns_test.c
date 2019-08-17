@@ -70,7 +70,7 @@ int main(int argc, char *argv[])
 	}
 
 	/* KVS FUNCTIONS */
-	rc = kvsal2_set_char(NULL,"test",0, "value", 0);
+	rc = kvsal_set_char("test", "value");
 	if (rc != 0) {
 		fprintf(stderr, "kvsns_set_char: err=%d\n", rc);
 		exit(1);
@@ -83,20 +83,20 @@ int main(int argc, char *argv[])
 	}
 	printf("kvsal_get_char: val=%s\n", val);
 
-	rc = kvsal2_exists(NULL,"test",0);
+	rc = kvsal_exists("test");
 	printf("Check existing key rc=%d\n", rc);
 
-	rc = kvsal2_exists(NULL, "testfail", 0);
+	rc = kvsal_exists("testfail");
 	printf("Check non-existing key rc=%d\n", rc);
 
-	rc = kvsal2_del(NULL, "test", 0);
+	rc = kvsal_del("test");
 	if (rc != 0) {
 		fprintf(stderr, "kvsns_get_char: err=%d\n", rc);
 		exit(1);
 	}
 	printf("kvsal_get_char after del: %d\n", kvsal_get_char("test", val));
 
-	rc = kvsal2_get_list_size(NULL, "*", 0);
+	rc = kvsal_get_list_size("*");
 	if (rc < 0) {
 		fprintf(stderr, "kvsal_get_list_size: err=%d\n", rc);
 		exit(1);

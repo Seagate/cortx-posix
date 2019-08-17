@@ -49,7 +49,7 @@
 #include <sys/param.h>
 #include <sys/xattr.h>
 #include <ini_config.h>
-#include <assert.h>
+
 #include <kvsns/common.h>
 
 #define KVSAL_ARRAY_SIZE 100
