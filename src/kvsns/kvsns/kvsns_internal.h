@@ -50,7 +50,7 @@
 struct kvsns_str256 {
 	/** The length of the C string. */
 	uint8_t s_len;
-	/** A buffer which contains a NULL-terminated C string. */
+	/** A buffer which contains a null-terminated C string. */
 	char    s_str[NAME_MAX + 1];
 } __attribute__((packed));
 

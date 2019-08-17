@@ -61,7 +61,7 @@ int main(int argc, char *argv[])
 
 	/* KVS FUNCTIONS */
 	strncpy(k, argv[1], KLEN);
-	rc = kvsal2_del(NULL, k, 0);
+	rc = kvsal_del(k);
 	if (rc != 0) {
 		fprintf(stderr, "kvsns_del: err=%d\n", rc);
 		exit(1);

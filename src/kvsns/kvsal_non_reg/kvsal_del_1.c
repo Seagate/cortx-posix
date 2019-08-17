@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
 	}
 
 	strncpy(key, argv[1], KLEN);
-	rc = kvsal2_del(NULL, key, 0);
+	rc = kvsal_del(key);
 	if (rc != 0) {
 		fprintf(stderr, "kvsal_del: err=%d\n", rc);
 		exit(-rc);
