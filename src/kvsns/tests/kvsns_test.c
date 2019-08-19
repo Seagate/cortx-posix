@@ -83,10 +83,10 @@ int main(int argc, char *argv[])
 	}
 	printf("kvsal_get_char: val=%s\n", val);
 
-	rc = kvsal_exists("test");
+	rc = kvsal2_exists(NULL,"test", 0);
 	printf("Check existing key rc=%d\n", rc);
 
-	rc = kvsal_exists("testfail");
+	rc = kvsal2_exists(NULL,"testfail", 0);
 	printf("Check non-existing key rc=%d\n", rc);
 
 	rc = kvsal_del("test");
@@ -96,7 +96,7 @@ int main(int argc, char *argv[])
 	}
 	printf("kvsal_get_char after del: %d\n", kvsal_get_char("test", val));
 
-	rc = kvsal_get_list_size("*");
+	rc = kvsal2_get_list_size(NULL, "*", 0);
 	if (rc < 0) {
 		fprintf(stderr, "kvsal_get_list_size: err=%d\n", rc);
 		exit(1);
