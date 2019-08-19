@@ -71,7 +71,7 @@ int main(int argc, char *argv[])
 	}
 
 	for (i = 0 ; i < 10 ; i++) {
-		rc = kvsal_incr_counter(k, &counter);
+		rc = kvsal2_incr_counter(NULL, k, &counter);
 		if (rc != 0) {
 			fprintf(stderr, "kvsns_incr_counter failed: rc=%d\n",
 				rc);

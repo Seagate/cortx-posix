@@ -67,7 +67,7 @@ int kvsns_fsstat(kvsns_fsstat_t *stat)
 
 	memset(k, 0, KLEN);
 	snprintf(k, KLEN, "*.stat");
-	rc = kvsal_get_list_size(k);
+	rc = kvsal2_get_list_size(NULL, k, 0);
 	if (rc < 0)
 		return rc;
 
@@ -208,7 +208,8 @@ int kvsns_rmdir(kvsns_cred_t *cred, kvsns_ino_t *parent, char *name)
 
 	memset(k, 0, KLEN);
 	snprintf(k, KLEN, "%llu.dentries.*", ino);
-	rc = kvsal_get_list_size(k);
+
+	rc = kvsal2_get_list_size(NULL, k, 0);
 	if (rc > 0)
 		return -ENOTEMPTY;
 
@@ -564,7 +565,9 @@ int kvsns_unlink(kvsns_cred_t *cred, kvsns_ino_t *dir, char *name)
 	/* Check if file is opened */
 	memset(k, 0, KLEN);
 	snprintf(k, KLEN, "%llu.openowner", ino);
-	rc = kvsal_exists(k);
+
+	rc = kvsal2_exists(NULL, k, 0);
+
 	if ((rc != 0) && (rc != -ENOENT))
 		return rc;
 
@@ -596,6 +599,7 @@ int kvsns_unlink(kvsns_cred_t *cred, kvsns_ino_t *dir, char *name)
 		for (i = 0; i < size ; i++)
 			if (parent[i] == *dir) {
 				/* In this list mgmt, setting value 0
+
 				 * will make it ignored as str is rebuilt */
 				parent[i] = 0;
 				break;
