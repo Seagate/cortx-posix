@@ -27,10 +27,10 @@
  */
 
 /* TODOs in this module:
-	- TODO:SHARE_RESERVATION:
-		Functions such as open2/close2/status2/setattr2/read2/write2
-		which must check state of a FD and fsal_share state of
-		a FH. Also, FDs and FHs must be protected with locks.
+	- TODO:EOS-1479:
+		Special stateid handling.
+	- TODO:EOS-914:
+		Truncate op implementation.
 	- TODO:PERF:
 		Performance improvements.
 	- TODO:PORTING:
@@ -946,32 +946,12 @@ out:
 	return fsalstat(fsal_error, -retval);
 }
 
-/* Atomicaly modifies the size of a file and its stats.
- * The function opens a WRITE share reservation, checks it
- * and then updates the file size and its attibutes
- * witin a single transaction.
- * @see https://tools.ietf.org/html/rfc7530#section-16.32.
- * TODO: Not implemented yet.
- */
-static fsal_status_t
-kvsfs_ftruncate(struct fsal_obj_handle *obj,
-		struct state_t *state,
-		bool bypass,
-		struct stat *new_stat,
-		int new_stat_flags)
-{
-	(void) obj;
-	(void) state;
-	(void) bypass;
-	(void) new_stat;
-	(void) new_stat_flags;
+/* INTERNAL */
+static fsal_status_t kvsfs_ftruncate(struct fsal_obj_handle *obj,
+				     struct state_t *state, bool bypass,
+				     struct stat *new_stat, int new_stat_flags);
 
-	T_ENTER0;
-	assert((new_stat_flags & STAT_SIZE_SET) != 0);
-	T_EXIT0(0);
-	return fsalstat(ERR_FSAL_NO_ERROR, 0);
-}
-
+/* FSAL.setattrs2 */
 fsal_status_t kvsfs_setattrs(struct fsal_obj_handle *obj_hdl,
 			     bool bypass,
 			     struct state_t *state,
@@ -983,6 +963,9 @@ fsal_status_t kvsfs_setattrs(struct fsal_obj_handle *obj_hdl,
 	struct stat stats = { 0 };
 	int flags = 0;
 	kvsns_cred_t cred = KVSNS_CRED_INIT_FROM_OP;
+
+	T_ENTER(">>> (obj=%p, bypass=%d, state=%p, attrs=%p)", obj_hdl,
+		bypass, state, attrs);
 
 	obj = container_of(obj_hdl, struct kvsfs_fsal_obj_handle, obj_handle);
 
@@ -1012,6 +995,7 @@ fsal_status_t kvsfs_setattrs(struct fsal_obj_handle *obj_hdl,
 	}
 
 out:
+	T_EXIT0(result.major);
 	return result;
 }
 
@@ -1398,6 +1382,69 @@ out:
 	}
 
 	return status;
+}
+
+/******************************************************************************/
+/** Find a readable/writeable FD using a file state (including locking state)
+ * as a base.
+ * Sometimes an NFS Client may try to use a stateid associated with a state lock
+ * to read/write/setattr(truncate) a file. Such a stateid cannot be used
+ * directly in read/write calls. However, it is possible to use this state
+ * to identify the correponding open state which, in turn, can be used in
+ * IO operations.
+ * NFS Ganesha has similiar function ::fsal_find_fd which does the same
+ * thing but it has 13 arguments and handles all possible scenarious like
+ * NFSv3, share reservation checks, NFSv4 open, NFSv4 locks, NLM locks
+ * and so on. On contrary, kvsfs_find_fd handles only NFSv4 open and locked
+ * states. In future, we may have to add handling of bypass mode
+ * (special stateids, see EOS-1479).
+ * @param fsal_state A file state passed down from NFS Ganesha for IO callback.
+ * @param bypass Bypass share reservations flag.
+ * @param[out] fd Pointer to an FD to be filled.
+ * @return So far always returns OK.
+ */
+static fsal_status_t kvsfs_find_fd(struct state_t *fsal_state,
+				   bool bypass,
+				   fsal_openflags_t openflags,
+				   struct kvsfs_file_state **fd)
+{
+	fsal_status_t result = fsalstat(ERR_FSAL_NO_ERROR, 0);
+	struct kvsfs_state_fd *kvsfs_state;
+
+	T_TRACE(">>> (state=%p, bypass=%d, openflags=%d, fd=%p)",
+		fsal_state, (int) bypass, (int) openflags, fd);
+
+	assert(fd != NULL);
+
+	/* TODO:EOS-1479: We don't suppport special state ids yet. */
+	assert(bypass == false);
+	assert(fsal_state != NULL);
+
+	/* We don't have an open file for locking states,
+	 * therefore let's just reuse the associated open state.
+	 */
+	if (fsal_state->state_type == STATE_TYPE_LOCK) {
+		fsal_state = fsal_state->state_data.lock.openstate;
+		assert(fsal_state != NULL);
+	}
+
+	kvsfs_state = container_of(fsal_state, struct kvsfs_state_fd, state);
+
+	if (open_correct(kvsfs_state->kvsfs_fd.openflags, openflags)) {
+		*fd = &kvsfs_state->kvsfs_fd;
+		goto out;
+	}
+
+	/* if there is no suitable FD for this fsal_state then it is likely
+	 * has been caused by a state type which we cannot handle right now.
+	 * Let's just print some logs and then fail right here.
+	 */
+	LogCrit(COMPONENT_FSAL, "Unsupported state type: %d",
+		(int) fsal_state->state_type);
+	assert(0); /* Unreachable */
+
+out:
+	return result;
 }
 
 /******************************************************************************/
@@ -2044,20 +2091,73 @@ static fsal_openflags_t kvsfs_status2(struct fsal_obj_handle *obj_hdl,
 
 /******************************************************************************/
 /* FSAL.close2 */
+
+static inline const char *state_type2str(enum state_type state_type)
+{
+	switch(state_type) {
+	case STATE_TYPE_LOCK:
+		return "LOCK";
+	case STATE_TYPE_SHARE:
+		return "SHARE";
+	case STATE_TYPE_DELEG:
+		return "DELEG";
+	case STATE_TYPE_LAYOUT:
+		return "LAYOUT";
+	case STATE_TYPE_NLM_LOCK:
+		return "NLM_LOCK";
+	case STATE_TYPE_NLM_SHARE:
+		return "NLM_SHARE";
+	case STATE_TYPE_9P_FID:
+		return "9P_FID";
+	case STATE_TYPE_NONE:
+		return "NONE";
+	}
+
+	return "<unknown>";
+}
+
 static fsal_status_t kvsfs_close2(struct fsal_obj_handle *obj_hdl,
 				  struct state_t *state)
 {
 	struct kvsfs_state_fd *state_fd;
 	struct kvsfs_fsal_obj_handle *obj;
 
-	T_ENTER(">>> (obj=%p, state=%p)", obj_hdl, state);
-
 	assert(state != NULL);
+
+	T_ENTER(">>> (obj=%p, state=%p, type=%s)", obj_hdl, state,
+		state_type2str(state->state_type));
 
 	state_fd = container_of(state, struct kvsfs_state_fd, state);
 	obj = container_of(obj_hdl, struct kvsfs_fsal_obj_handle, obj_handle);
 
-	kvsfs_file_state_close(&state_fd->kvsfs_fd, obj);
+	switch(state->state_type) {
+	case STATE_TYPE_LOCK:
+		/* A lock state has an associated open state which will be
+		 * closed later.
+		 */
+		assert(kvsfs_file_state_invariant_closed(&state_fd->kvsfs_fd));
+		break;
+
+	case STATE_TYPE_SHARE:
+		/* This state type is an actual open file. Let's close it. */
+		assert(kvsfs_file_state_invariant_open(&state_fd->kvsfs_fd));
+		kvsfs_file_state_close(&state_fd->kvsfs_fd, obj);
+		break;
+
+	case STATE_TYPE_DELEG:
+	case STATE_TYPE_LAYOUT:
+		/* Unsupported (yet) state types. */
+		assert(0); // Non-implemented
+		break;
+
+	case STATE_TYPE_NLM_LOCK:
+	case STATE_TYPE_NLM_SHARE:
+	case STATE_TYPE_9P_FID:
+	case STATE_TYPE_NONE:
+		/* They will never be supported. */
+		assert(0); // Unreachable
+		break;
+	}
 
 	T_EXIT0(0);
 	return fsalstat(ERR_FSAL_NO_ERROR, 0);
@@ -2126,14 +2226,15 @@ static void kvsfs_read2(struct fsal_obj_handle *obj_hdl,
 	 * */
 	assert(read_arg->info == NULL);
 
-	(void) bypass;
-
 	T_ENTER(">>> (%p, %p, %llu)", obj_hdl, read_arg->state,
 		(unsigned long long) read_arg->offset);
 
 	obj = container_of(obj_hdl, struct kvsfs_fsal_obj_handle, obj_handle);
-	fd = &container_of(read_arg->state,
-			   struct kvsfs_state_fd, state)->kvsfs_fd;
+
+	result = kvsfs_find_fd(read_arg->state, bypass, FSAL_O_READ, &fd);
+	if (FSAL_IS_ERROR(result)) {
+		goto out;
+	}
 
 	for (i = 0; i < read_arg->iov_count; i++) {
 		buffer = read_arg->iov[i].iov_base;
@@ -2169,6 +2270,41 @@ static int kvsns_fsync(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *ino)
 	(void) cred;
 	(void) ino;
 	return 0;
+}
+
+/******************************************************************************/
+/* Atomicaly modifies the size of a file and its stats.
+ * @see https://tools.ietf.org/html/rfc7530#section-16.32.
+ * TODO:EOS-914: Not implemented yet.
+ */
+static fsal_status_t kvsfs_ftruncate(struct fsal_obj_handle *obj,
+				     struct state_t *state, bool bypass,
+				     struct stat *new_stat, int new_stat_flags)
+{
+	fsal_status_t result = fsalstat(ERR_FSAL_NO_ERROR, 0);
+	struct kvsfs_file_state *fd = NULL;
+
+	(void) obj;
+	(void) new_stat;
+	(void) new_stat_flags;
+
+	T_ENTER0;
+
+	assert((new_stat_flags & STAT_SIZE_SET) != 0);
+	assert(obj->type == REGULAR_FILE);
+
+	/* Check if there is an open state which has O_WRITE openflag
+	 * set.
+	 */
+	result = kvsfs_find_fd(state, bypass, FSAL_O_WRITE, &fd);
+	if (FSAL_IS_ERROR(result)) {
+		goto out;
+	}
+	assert(fd != NULL);
+
+out:
+	T_EXIT0(result.major);
+	return result;
 }
 
 /******************************************************************************/
@@ -2220,16 +2356,14 @@ static void kvsfs_write2(struct fsal_obj_handle *obj_hdl,
 	/* Since we don't support NFSv3, we cannot handle WRITE_PLUS */
 	assert(write_arg->info == NULL);
 
-	/* TODO:SHARE_RESERVATION:BYPASS */
-	/* TODO:SHARE_RESERVATION:STATE */
-	(void) bypass;
-
 	T_ENTER(">>> (%p, %p, %llu)", obj_hdl, write_arg->state,
 		(unsigned long long) write_arg->offset);
 
 	obj = container_of(obj_hdl, struct kvsfs_fsal_obj_handle, obj_handle);
-	fd = &container_of(write_arg->state,
-			   struct kvsfs_state_fd, state)->kvsfs_fd;
+	result = kvsfs_find_fd(write_arg->state, bypass, FSAL_O_WRITE, &fd);
+	if (FSAL_IS_ERROR(result)) {
+		goto out;
+	}
 
 	for (i = 0; i < write_arg->iov_count; i++) {
 		buffer = write_arg->iov[i].iov_base;
@@ -2320,11 +2454,14 @@ void kvsfs_handle_ops_init(struct fsal_obj_ops *ops)
 	ops->write2 = kvsfs_write2;
 	ops->commit2 = kvsfs_commit2;
 
-#if 0
-	/* TODO:PORTING: replaced by lock_op2 */
-	ops->lock_op2 = NULL /* kvsfs_lock_op */;
-#endif
-
+	/* ops->lock_op2 is not implemented because this FSAl relies on
+	 * NFS Ganesha byte-range lock handling.
+	 * However, we might add lock_op2 implementation (and enable it in
+	 * in the config) if we want to be able support locking of files
+	 * outside of NFS Ganesha or just to get additional logging
+	 * at the FSAL level.
+	 * See EOS-34 for details.
+	 */
 
 	/* TODO:PORTING: Disable xattrs support */
 #if 0
