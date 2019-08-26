@@ -72,6 +72,10 @@ int extstore_truncate(kvsns_ino_t *ino,
 		      off_t filesize,
 		      bool on_obj_store,
 		      struct stat *stat);
+int extstore2_truncate(void *ctx,
+		       kvsns_fid_t *fid,
+		       size_t old_size,
+		       size_t new_size);
 int extstore_attach(kvsns_ino_t *ino,
 		    char *objid, int objid_len);
 int extstore_get_new_kfid(kvsns_ino_t ino, kvsns_fid_t *kfid);

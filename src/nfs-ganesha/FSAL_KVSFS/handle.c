@@ -2278,21 +2278,21 @@ static int kvsns_fsync(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *ino)
  * @see https://tools.ietf.org/html/rfc7530#section-16.32.
  * TODO:EOS-914: Not implemented yet.
  */
-static fsal_status_t kvsfs_ftruncate(struct fsal_obj_handle *obj,
+static fsal_status_t kvsfs_ftruncate(struct fsal_obj_handle *obj_hdl,
 				     struct state_t *state, bool bypass,
 				     struct stat *new_stat, int new_stat_flags)
 {
+	int rc;
 	fsal_status_t result = fsalstat(ERR_FSAL_NO_ERROR, 0);
 	struct kvsfs_file_state *fd = NULL;
-
-	(void) obj;
-	(void) new_stat;
-	(void) new_stat_flags;
+	struct kvsfs_fsal_obj_handle *obj;
+	kvsns_cred_t cred = KVSNS_CRED_INIT_FROM_OP;
 
 	T_ENTER0;
 
+	assert(obj != NULL);
 	assert((new_stat_flags & STAT_SIZE_SET) != 0);
-	assert(obj->type == REGULAR_FILE);
+	assert(obj_hdl->type == REGULAR_FILE);
 
 	/* Check if there is an open state which has O_WRITE openflag
 	 * set.
@@ -2302,6 +2302,15 @@ static fsal_status_t kvsfs_ftruncate(struct fsal_obj_handle *obj,
 		goto out;
 	}
 	assert(fd != NULL);
+
+	obj = container_of(obj_hdl, struct kvsfs_fsal_obj_handle, obj_handle);
+
+	rc = kvsns_truncate(obj->fs_ctx, &cred, &fd->kvsns_fd.ino,
+			    new_stat, new_stat_flags);
+	if (rc != 0) {
+		result = fsalstat(posix2fsal_error(-rc), -rc);
+		goto out;
+	}
 
 out:
 	T_EXIT0(result.major);
