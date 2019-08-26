@@ -525,6 +525,19 @@ int kvsns2_getattr(kvsns_fs_ctx_t ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
 int kvsns_setattr(kvsns_cred_t *cred, kvsns_ino_t *ino, struct stat *setstat,
 		 int statflags);
 
+/** Change size of a file.
+ * Changes the size unmapping unused storage space in case of truncation.
+ * The function is able to apply a set of new stat values along with
+ * the new file size value.
+ * @param ctx - Filesystem context.
+ * @param ino - Inode of the file.
+ * @param new_stat - A set of stat values to be set.
+ * @param new_stat_flags - A set of flags which defines which stat values
+ *	  have to be updated. STAT_SIZE_SET is a required flag.
+ * @return 0 if successful, a negative "-errno" value in case of failure.
+ */
+int kvsns_truncate(kvsns_fs_ctx_t ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
+		   struct stat *new_stat, int new_stat_flags);
 /**
  * Sets attributes for a known inode.
  *
@@ -534,7 +547,7 @@ int kvsns_setattr(kvsns_cred_t *cred, kvsns_ino_t *ino, struct stat *setstat,
  *  STAT_MODE_SET: sets mode
  *  STAT_UID_SET: sets owner
  *  STAT_GID_SET: set group owner
- *  STAT_SIZE_SET: set size (aka truncate)
+ *  STAT_SIZE_SET: set size (aka truncate but without unmapping)
  *  STAT_ATIME_SET: sets atime
  *  STAT_MTIME_SET: sets mtime
  *  STAT_CTIME_SET: set ctime

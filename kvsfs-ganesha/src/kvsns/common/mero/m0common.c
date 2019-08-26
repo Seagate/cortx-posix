@@ -1051,38 +1051,54 @@ void open_entity(struct m0_clovis_entity *entity)
 	ops[0] = NULL;
 }
 
+static void m0_indexvec_fill_extents(struct m0_indexvec *extents,
+				    m0_bindex_t off,
+				    m0_bcount_t block_count,
+				    m0_bcount_t block_size)
+{
+	m0_bcount_t i;
+
+	for (i = 0; i < block_count; i++) {
+		extents->iv_index[i] = off;
+		extents->iv_vec.v_count[i] = block_size;
+		off += block_size;
+	}
+}
+
 static int init_ctx(struct clovis_io_ctx *ioctx, off_t off,
 		    int block_count, int block_size)
 {
 	int	     rc;
 	int	     i;
-	uint64_t	   last_index;
-
 	/* Allocate block_count * 4K data buffer. */
 	rc = m0_bufvec_alloc(&ioctx->data, block_count, block_size);
 	if (rc != 0)
-		return rc;
+		goto out_err;
 
 	/* Allocate bufvec and indexvec for write. */
 	rc = m0_bufvec_alloc(&ioctx->attr, block_count, 1);
 	if (rc != 0)
-		return rc;
+		goto out_free_data;
 
 	rc = m0_indexvec_alloc(&ioctx->ext, block_count);
 	if (rc != 0)
-		return rc;
+		goto out_free_attr;
 
-	last_index = off;
+	m0_indexvec_fill_extents(&ioctx->ext, off, block_count, block_size);
+
 	for (i = 0; i < block_count; i++) {
-		ioctx->ext.iv_index[i] = last_index;
-		ioctx->ext.iv_vec.v_count[i] = block_size;
-		last_index += block_size;
-
 		/* we don't want any attributes */
 		ioctx->attr.ov_vec.v_count[i] = 0;
 	}
 
 	return 0;
+
+out_free_attr:
+	m0_bufvec_free(&ioctx->attr);
+out_free_data:
+	m0_bufvec_free(&ioctx->data);
+out_err:
+	return rc;
 }
 
 int m0store_create_object(struct m0_uint128 id)
@@ -1676,6 +1692,191 @@ ssize_t m0store_do_io(struct m0_uint128 id, enum io_type iotype,
 #endif
 	free(tmpbuff);
 	return done;
+}
+
+/* FIXME:EOS-1820: Use Mero unmap from EOS-294. */
+#ifdef ENABLE_MERO_UNMAP
+static int m0_file_unmap_aligned(const struct m0_uint128 *fid,
+			  struct m0_indexvec *extents)
+{
+
+	int rc;
+	int op_rc;
+	struct m0_clovis_obj obj;
+	struct m0_clovis_op *ops[1] = {NULL};
+
+	if (!my_init_done)
+		m0kvs_reinit();
+
+	M0_SET0(&obj);
+	m0_clovis_obj_init(&obj, &clovis_uber_realm, fid,
+			   m0_clovis_layout_id(clovis_instance));
+
+	/* Put entity in open state */
+	open_entity(&obj.ob_entity);
+	assert(obj.ob_entity.en_sm.sm_state == M0_CLOVIS_ES_OPEN);
+
+	/* Create an UMMAP request */
+	m0_clovis_obj_op(&obj, M0_CLOVIS_OC_FREE,
+			 extents, NULL, NULL, 0, &ops[0]);
+
+	/* Launch the request*/
+	m0_clovis_op_launch(ops, 1);
+
+	/* Wait for completion */
+	rc = m0_clovis_op_wait(ops[0],
+			       M0_BITS(M0_CLOVIS_OS_FAILED,
+			       M0_CLOVIS_OS_STABLE),
+			       M0_TIME_NEVER);
+	op_rc = ops[0]->op_sm.sm_rc;
+
+	/* Finalize operation */
+	m0_clovis_op_fini(ops[0]);
+	m0_clovis_op_free(ops[0]);
+	/* Close entity */
+	m0_clovis_entity_fini(&obj.ob_entity);
+
+	if (rc != 0) {
+		log_err("Failed to wait for operation completion.");
+	} else if (op_rc != 0) {
+		log_err("Trunc operation has failed.");
+		rc = op_rc;
+	}
+
+	return rc;
+}
+#else
+static void m0_file_unmap_aligned_debug_print(const struct m0_uint128 *fid,
+					      struct m0_indexvec *extents)
+{
+	m0_bcount_t i;
+	m0_bcount_t block_count = extents->iv_vec.v_nr;
+	m0_bindex_t extnt_start;
+	m0_bcount_t extnt_len;
+
+	log_debug("UNMAP file (" U128X_F "), extents:", U128_P(fid));
+	if (block_count > UINT16_MAX) {
+		/* don't print if it is larger than 256MB */
+		log_debug("\t... many extents ...");
+	} else {
+		for (i = 0; i < block_count; i++) {
+			extnt_start = extents->iv_index[i];
+			extnt_len = extents->iv_vec.v_count[i];
+			log_debug("\tExtent: N=%d, off=%" PRIu64 ", len=%" PRIu64 ","
+				  "range=[%" PRIx64 ",%" PRIx64 "]",
+				  (int) (extnt_start / extnt_len),
+				  extnt_start, extnt_len,
+				  extnt_start, extnt_start + extnt_len);
+		}
+	}
+	log_debug("end_of_extents");
+}
+
+static int m0_file_unmap_aligned(const struct m0_uint128 *fid,
+				 struct m0_indexvec *extents)
+{
+	m0_file_unmap_aligned_debug_print(fid, extents);
+	return 0;
+}
+#endif
+
+static int m0_file_zero(const struct m0_uint128 *fid,
+			m0_bcount_t count,
+			m0_bindex_t offset,
+			m0_bcount_t bsize)
+{
+	void *buf = NULL;
+	int rc;
+
+	buf = calloc(1, count);
+	if (buf == NULL) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	rc = m0store_do_io(*fid, IO_WRITE, offset, count, bsize, buf);
+	free(buf);
+
+	if (rc == count) {
+		/* do not return positive int in case of success */
+		rc = 0;
+	}
+
+out:
+	return rc;
+}
+
+int m0_file_unmap(struct m0_uint128 fid, size_t count, off_t offset)
+{
+	int rc;
+	int bsize; /* Clovis block size */
+	size_t nblocks; /* n blocks to be deallocated */
+	size_t aligned_off; /* Rounded up offset */
+	struct m0_indexvec extents;
+
+	bsize = m0store_get_bsize(fid);
+
+	KVSNS_DASSERT(bsize > 0);
+	KVSNS_DASSERT(bsize % 2 == 0);
+
+	/* FIXME:EOS-1819: should we support count/offset  more than 7EB? */
+	KVSNS_DASSERT(count < INT64_MAX);
+	KVSNS_DASSERT(offset < INT64_MAX);
+	KVSNS_DASSERT(count > 0);
+
+	/* ajust to the very first byte of the nearest (from right) page */
+	aligned_off = m0_round_up(offset, bsize);
+	/* cut out the left unaligned part from the whole len,
+	 * round it up and then count the amount of blocks */
+	nblocks = m0_round_up((count + offset) - aligned_off, bsize) / bsize;
+
+	/* FIXME:EOS-1819: indexvec cannot handle more than uint32_max extents
+	 * at a time, and because of that we cannot handle files longer
+	 * than 15TB (for 4K block size).
+	 */
+	KVSNS_DASSERT(nblocks < UINT32_MAX);
+
+	if (m0_round_up(offset, bsize) == m0_round_up(offset + count, bsize)) {
+		log_debug("the range [%llu,%llu] is inside a single block %llu",
+			  (unsigned long long) offset,
+			  (unsigned long long) offset + count,
+			  (unsigned long long) aligned_off);
+		/* FIXME:EOS-1819: We should write zeros here because if
+		 * the client would like to punch a hole,
+		 * the hole must be read as zeros. */
+		rc = m0_file_zero(&fid, count, offset, bsize);
+		/* no need to do actual UNMAP */
+		goto out;
+	}
+
+	if (offset != aligned_off) {
+		KVSNS_DASSERT(offset < aligned_off);
+		log_debug("Non-freed range=[%llu, %llu]",
+			  (unsigned long long) offset,
+			  (unsigned long long) aligned_off);
+		/* FIXME: the same case: zero the range which won't be unmapped */
+		rc = m0_file_zero(&fid, aligned_off - offset, offset, bsize);
+		if (rc != 0) {
+			goto out;
+		}
+		/* now unmap the aligned pages */
+	}
+
+	/* FIXME:EOS-1819: reduce memory allocation for extents */
+	rc = m0_indexvec_alloc(&extents, nblocks);
+	if (rc != 0)
+		goto out;
+
+	log_debug("Generating extents: off=%llu, nblocks=%d, bs=%d",
+		  (unsigned long long) aligned_off,
+		  (int) nblocks,
+		  (int) bsize);
+	m0_indexvec_fill_extents(&extents, aligned_off, nblocks, bsize);
+	rc = m0_file_unmap_aligned(&fid, &extents);
+	m0_indexvec_free(&extents);
+
+out:
+	return rc;
 }
 
 ssize_t m0store_get_bsize(struct m0_uint128 id)

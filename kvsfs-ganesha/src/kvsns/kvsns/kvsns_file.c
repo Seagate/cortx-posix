@@ -334,6 +334,35 @@ out:
 	return rc;
 }
 
+int kvsns_truncate(kvsns_fs_ctx_t ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
+		   struct stat *new_stat, int new_stat_flags)
+{
+	int rc;
+	kvsns_fid_t kfid;
+	struct stat stat;
+	size_t old_size;
+	size_t new_size;
+
+	KVSNS_DASSERT(ino && new_stat);
+	KVSNS_DASSERT((new_stat_flags & STAT_SIZE_SET) != 0);
+
+	/* TODO:PERF: The caller can pass the current size */
+	RC_WRAP(kvsns2_getattr, ctx, cred, ino, &stat);
+	RC_WRAP_LABEL(rc, out, kvsns2_setattr, ctx, cred, ino, new_stat,
+		      new_stat_flags);
+
+	old_size = stat.st_size;
+	new_size = new_stat->st_size;
+
+	RC_WRAP_LABEL(rc, out, kvsns_ino_to_kfid, ctx, ino, &kfid);
+	RC_WRAP_LABEL(rc, out, extstore2_truncate, ctx, &kfid, old_size, new_size);
+
+out:
+	return rc;
+}
+
+
+
 ssize_t kvsns_read(kvsns_cred_t *cred, kvsns_file_open_t *fd,
 		   void *buf, size_t count, off_t offset)
 {

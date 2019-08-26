@@ -82,6 +82,8 @@ add_custom_command(TARGET links
 		   COMMAND ${CMAKE_COMMAND} -E create_symlink kvsns_ns kvsns_link
 		   COMMAND ${CMAKE_COMMAND} -E remove kvsns_rmdir
 		   COMMAND ${CMAKE_COMMAND} -E create_symlink kvsns_ns kvsns_rmdir
+		   COMMAND ${CMAKE_COMMAND} -E remove kvsns_trunc
+		   COMMAND ${CMAKE_COMMAND} -E create_symlink kvsns_ns kvsns_trunc
 
 		   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 		   VERBATIM)

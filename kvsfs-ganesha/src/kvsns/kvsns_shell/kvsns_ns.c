@@ -113,6 +113,27 @@ out:
 	return rc;
 }
 
+static int kvsns_str2size(const char *str, size_t *out)
+{
+	int rc;
+	kvsns_ino_t ino;
+	/* assuming ino is ull */
+	rc = kvsns_str2ino(str, &ino);
+	if (rc != 0) {
+		fprintf(stderr, "Failed to parse size.\n");
+		goto out;
+	}
+
+	if (ino > SIZE_MAX) {
+		rc = -EINVAL;
+		fprintf(stderr, "Size value is too long.\n");
+	}
+
+	*out = ino;
+out:
+	return rc;
+}
+
 static int kvsns_rename_pre(const kvsns_cred_t *pcred,
 			    uint64_t fs_id, kvsns_fs_ctx_t *fs_ctx)
 {
@@ -189,6 +210,43 @@ static int kvsns_readdir_cmd(kvsns_fs_ctx_t fs_ctx, const kvsns_cred_t *cred,
 	printf("READDIR_BEGIN: (%llu) INDEX -> NAME -> INODE \n", ino);
 	rc = kvsns_readdir(fs_ctx, cred, &ino, readdir_cb, readdir_ctx);
 	printf("READDIR_END: %llu\n", ino);
+
+out:
+	return rc;
+}
+
+static int kvsns_trunc_cmd(kvsns_fs_ctx_t fs_ctx, const kvsns_cred_t *cred,
+			const char *s_ino, const char *s_size)
+{
+	int rc;
+	kvsns_ino_t ino;
+	size_t new_size;
+	struct stat stat;
+
+	rc = kvsns_str2ino(s_ino, &ino);
+	if (rc != 0) {
+		fprintf(stderr, "Cannot parse <s_ino>\n");
+		goto out;
+	}
+
+	rc = kvsns_str2size(s_size, &new_size);
+	if (rc != 0) {
+		fprintf(stderr, "Cannot parse <s_size>\n");
+		goto out;
+	}
+
+	rc = kvsns2_getattr(fs_ctx, (kvsns_cred_t *) cred, &ino, &stat);
+	if (rc < 0) {
+		fprintf(stderr, "Cannot get stat\n");
+		goto out;
+	}
+
+	printf("Resize: %llu -> %llu\n", (unsigned long long) stat.st_size,
+	       (unsigned long long) new_size);
+	stat.st_size = new_size;
+
+	rc = kvsns_truncate(fs_ctx, (kvsns_cred_t *) cred, &ino, &stat,
+			    STAT_SIZE_SET);
 
 out:
 	return rc;
@@ -677,6 +735,24 @@ int main(int argc, char *argv[])
 				sino, dino, dname);
 		else
 			fprintf(stderr, "Failed : %d\n", rc);
+	} else if (!strcmp(exec_name, "kvsns_trunc")) {
+		if (argc != 3) {
+			fprintf(stderr, "kvsns_trunc <ino> <new_size>\n");
+			exit(1);
+		}
+		rc = kvsns_create_fs_ctx(fs_id, &fs_ctx);
+		if (rc != 0) {
+			fprintf(stderr, "Failed to prepare env for trunc\n");
+			exit(1);
+		}
+		rc = kvsns_trunc_cmd(fs_ctx, &cred, argv[1], argv[2]);
+		if (rc == 0) {
+			printf("==> TRUNC ok for %llu/%s\n",
+			       current_inode, argv[1]);
+			return rc;
+		} else
+			printf("==> TRUNC failed %llu/%s, %s, rc = %d \n",
+			       current_inode, argv[1], argv[2], rc);
 	} else
 		fprintf(stderr, "%s does not exists\n", exec_name);
 	printf("######## OK ########\n");

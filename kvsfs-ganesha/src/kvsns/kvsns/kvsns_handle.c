@@ -471,20 +471,21 @@ int kvsns2_setattr(kvsns_fs_ctx_t ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
 		bufstat.st_mode = setstat->st_mode | ifmt;
 	}
 
-	if (statflag & STAT_UID_SET)
+	if (statflag & STAT_UID_SET) {
 		bufstat.st_uid = setstat->st_uid;
+	}
 
-	if (statflag & STAT_GID_SET)
+	if (statflag & STAT_GID_SET) {
 		bufstat.st_gid = setstat->st_gid;
+	}
 
-	/* @todo : Truncate is not implemented for for kvsns2 yet. */
-	if (statflag & STAT_SIZE_SET)
-		RC_WRAP_LABEL(rc, out, extstore_truncate, ino, setstat->st_size, true,
-			      &bufstat);
+	if (statflag & STAT_SIZE_SET) {
+		bufstat.st_size = setstat->st_size;
+	}
 
-	if (statflag & STAT_SIZE_ATTACH)
-		RC_WRAP_LABEL(rc, out, extstore_truncate, ino, setstat->st_size, false,
-			       &bufstat);
+	if (statflag & STAT_SIZE_ATTACH) {
+		KVSNS_DASSERT(0); /* Unsupported */
+	}
 
 	if (statflag & STAT_ATIME_SET) {
 		bufstat.st_atim.tv_sec = setstat->st_atim.tv_sec;

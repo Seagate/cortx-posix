@@ -420,7 +420,7 @@ out:
 	return rc;
 }
 
-
+/* TODO:DEPRECATED: Can be safely removed when the caller code is removed. */
 int extstore_truncate(kvsns_ino_t *ino,
 		      off_t filesize,
 		      bool on_obj_store,
@@ -434,3 +434,51 @@ int extstore_truncate(kvsns_ino_t *ino,
 	return 0;
 }
 
+
+int extstore2_truncate(void *ctx,
+		       kvsns_fid_t *kfid,
+		       size_t old_size,
+		       size_t new_size)
+{
+	int rc = 0;
+	off_t offset;
+	size_t count;
+	struct m0_uint128 fid;
+
+	KVSNS_DASSERT(ctx && kfid);
+
+	if (old_size == new_size) {
+		log_debug("new size == old size == %llu",
+			  (unsigned long long) old_size);
+		rc = 0;
+		goto out;
+	}
+
+	if (old_size < new_size) {
+		log_debug("punching a hole in the file: %llu -> %llu",
+			  (unsigned long long) old_size,
+			  (unsigned long long) new_size);
+		rc = 0;
+		goto out;
+	}
+
+	KVSNS_DASSERT(old_size > new_size);
+
+	log_debug("TRUNC: fid=%" PRIx64 ":%" PRIx64 ", size %llu -> %llu",
+		  kfid->f_hi, kfid->f_lo,
+		  (unsigned long long) old_size,
+		  (unsigned long long) new_size);
+
+	count = old_size - new_size;
+	offset = new_size;
+	m0_fid_copy((struct m0_uint128 *)kfid, &fid);
+
+	rc = m0_file_unmap(fid, count, offset);
+	if (rc != 0) {
+		log_err("Failed to unmap count=%llu, offset=%llu",
+			(unsigned long long) count,
+			(unsigned long long) offset);
+	}
+out:
+	return rc;
+}
