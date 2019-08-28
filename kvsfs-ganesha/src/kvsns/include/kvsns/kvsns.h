@@ -331,8 +331,10 @@ int kvsns_symlink(kvsns_fs_ctx_t ctx, kvsns_cred_t *cred, kvsns_ino_t *parent, c
  * @param cred - pointer to user's credentials
  * @param link - pointer to the symlink's inode
  * @param content - [OUT] buffer containing the read content.
- * @param size - [OUT] size read by this call
- *
+ * @param size[in, out] - Content size. The caller must put the size of 'content'
+ *			  buffer. The function then fills in the actual size
+ *			  of the symlink content. If the buffer is too small,
+ *			  then the correponding error is returned.
  * @return 0 if successful, a negative "-errno" value in case of failure
  */
 int kvsns_readlink(kvsns_fs_ctx_t ctx, kvsns_cred_t *cred, kvsns_ino_t *link,

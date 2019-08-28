@@ -120,22 +120,28 @@ int kvsns_readlink(kvsns_fs_ctx_t fs_ctx, kvsns_cred_t *cred, kvsns_ino_t *lnk,
 	void *lnk_content_buf = NULL;
 	size_t content_size;
 
-	log_trace("ENTER: lnk=%llu", *lnk);
-	KVSNS_DASSERT(cred && lnk);
+	log_trace("ENTER: symlink_ino=%llu", *lnk);
+	KVSNS_DASSERT(cred && lnk && size);
+	KVSNS_DASSERT(*size != 0);
 
-	RC_WRAP_LABEL(rc, errfree, kvsns_get_link, fs_ctx, lnk, &lnk_content_buf, &content_size);
+	RC_WRAP_LABEL(rc, errfree, kvsns_get_link, fs_ctx, lnk,
+		      &lnk_content_buf, &content_size);
 
-	// TODO: 4K memory was allocated for the content as caller does not know the 
-	// size of the content. If we want to malloc exact size instead of 4K
-	// the APIs needs to be changed. Please refer EOS-259 for the details.
+	if (content_size > *size) {
+		rc = -ENOBUFS;
+		goto errfree;
+	}
 
-	// This is the only memcpy which copies data to NFA Ganesha buffer
 	memcpy(content, lnk_content_buf, content_size);
-	RC_WRAP_LABEL(rc, errfree, kvsns2_update_stat, fs_ctx, lnk, STAT_ATIME_SET);
+	*size = content_size;
+	RC_WRAP_LABEL(rc, errfree, kvsns2_update_stat, fs_ctx, lnk,
+		      STAT_ATIME_SET);
+	log_debug("Got link: content='%.*s'", (int) *size, content);
+	rc = 0;
 
 errfree:
 	kvsal_free(lnk_content_buf);
-	log_trace("EXIT: lnk=%llu content=%s rc=%d", *lnk, content, rc);
+	log_trace("EXIT: rc=%d", rc);
 	return rc;
 }
 

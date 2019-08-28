@@ -475,37 +475,51 @@ static fsal_status_t kvsfs_readsymlink(struct fsal_obj_handle *obj_hdl,
 {
 	struct kvsfs_fsal_obj_handle *myself = NULL;
 	int retval = 0;
-	int retlink = 0;
-	fsal_errors_t fsal_error = ERR_FSAL_NO_ERROR;
 	kvsns_cred_t cred = KVSNS_CRED_INIT_FROM_OP;
 
 	if (!fsal_obj_handle_is(obj_hdl, SYMBOLIC_LINK)) {
-		fsal_error = ERR_FSAL_FAULT;
+		retval = -EINVAL; /* See RFC7530, 16.25.5 */
 		goto out;
 	}
 
 	myself = container_of(obj_hdl, struct kvsfs_fsal_obj_handle,
 			      obj_handle);
 
+	/* TODO:PERF:
+	 * We are allocating a 4K buffer here. We should not allocate it every
+	 * time.
+	 * See additional details here: EOS-259.
+	 */
 	link_content->len = fsal_default_linksize;
 	link_content->addr = gsh_malloc(link_content->len);
 
-	retlink = kvsns_readlink(myself->fs_ctx, &cred,
-				 &myself->handle->kvsfs_handle,
-				 link_content->addr, &link_content->len);
+	retval = kvsns_readlink(myself->fs_ctx, &cred,
+				&myself->handle->kvsfs_handle,
+				link_content->addr, &link_content->len);
 
-	if (retlink < 0) {
-		fsal_error = posix2fsal_error(-retlink);
+	if (retval < 0) {
 		gsh_free(link_content->addr);
 		link_content->addr = NULL;
 		link_content->len = 0;
 		goto out;
 	}
 
-	link_content->len = strlen(link_content->addr) + 1;
+	/* NFS Ganesha requires the content buffer to be a NULL-terminated
+	 * string. Let's try to null-terminate it.
+	 * If the string len is 4K then we will just truncate it in the same
+	 * way as readlink(2) truncates the output buffer.
+	 */
+	if (link_content->len == fsal_default_linksize) {
+		/* truncate and append null */
+		((char *) link_content->addr)[link_content->len - 1] = '\0';
+	} else {
+		/* append null */
+		((char *) link_content->addr)[link_content->len] = '\0';
+		link_content->len++;
+	}
 
  out:
-	return fsalstat(fsal_error, -retval);
+	return fsalstat(posix2fsal_error(-retval), -retval);
 }
 
 /******************************************************************************/
