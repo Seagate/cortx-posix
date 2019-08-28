@@ -2205,10 +2205,9 @@ static void kvsfs_read2(struct fsal_obj_handle *obj_hdl,
 {
 	struct kvsfs_fsal_obj_handle *obj;
 	struct kvsfs_file_state *fd;
-	uint64_t offset = read_arg->offset;
+	uint64_t offset;
 	kvsns_cred_t cred = KVSNS_CRED_INIT_FROM_OP;
 	fsal_status_t result;
-	int i;
 	ssize_t nb_read;
 	void *buffer;
 	size_t buffer_size;
@@ -2226,8 +2225,15 @@ static void kvsfs_read2(struct fsal_obj_handle *obj_hdl,
 	 * */
 	assert(read_arg->info == NULL);
 
-	T_ENTER(">>> (%p, %p, %llu)", obj_hdl, read_arg->state,
-		(unsigned long long) read_arg->offset);
+	T_ENTER(">>> (%p, %p)", obj_hdl, read_arg->state);
+
+	T_TRACE("READ: off=%llu, cnt=%llu, len=%llu",
+		(unsigned long long) read_arg->offset,
+		(unsigned long long) read_arg->iov_count,
+		(unsigned long long) read_arg->iov[0].iov_len);
+
+	/* NFS Ganesha uses only a single buffer so far. */
+	assert(read_arg->iov_count == 1);
 
 	obj = container_of(obj_hdl, struct kvsfs_fsal_obj_handle, obj_handle);
 
@@ -2236,23 +2242,18 @@ static void kvsfs_read2(struct fsal_obj_handle *obj_hdl,
 		goto out;
 	}
 
-	for (i = 0; i < read_arg->iov_count; i++) {
-		buffer = read_arg->iov[i].iov_base;
-		buffer_size = read_arg->iov[i].iov_len;
+	buffer = read_arg->iov[0].iov_base;
+	buffer_size = read_arg->iov[0].iov_len;
+	offset = read_arg->offset;
 
-		/* TODO:PERF: Scatter-gather IO.
-		 * Add kvsns_readv and use it here.
-		 */
-		nb_read = kvsns2_read(obj->fs_ctx, &cred, &fd->kvsns_fd,
-				     buffer, buffer_size, offset);
-		if (nb_read < 0) {
-			result = fsalstat(posix2fsal_error(-nb_read), -nb_read);
-			goto out;
-		}
-
-		read_arg->io_amount += nb_read;
-		offset += nb_read;
+	nb_read = kvsns2_read(obj->fs_ctx, &cred, &fd->kvsns_fd,
+			     buffer, buffer_size, offset);
+	if (nb_read < 0) {
+		result = fsalstat(posix2fsal_error(-nb_read), -nb_read);
+		goto out;
 	}
+
+	read_arg->io_amount = nb_read;
 
 	read_arg->end_of_file = (read_arg->io_amount == 0);
 
@@ -2338,14 +2339,21 @@ static void kvsfs_write2(struct fsal_obj_handle *obj_hdl,
 {
 	struct kvsfs_fsal_obj_handle *obj;
 	struct kvsfs_file_state *fd;
-	uint64_t offset = write_arg->offset;
+	uint64_t offset;
 	kvsns_cred_t cred = KVSNS_CRED_INIT_FROM_OP;
 	fsal_status_t result;
-	int i;
 	ssize_t nb_write;
 	void *buffer;
 	size_t buffer_size;
 	int rc;
+
+	/* TODO: A temporary solution for keeping metadata (stat) consistent.
+	 * The lock allows us to serialize all WRITE requests ensuring
+	 * that stat is always updated in accordance with the amount
+	 * of written data.
+	 * See EOS-1424 for details.
+	 */
+	PTHREAD_RWLOCK_wrlock(&obj_hdl->obj_lock);
 
 	/* We support only NFSv4 clients. kvsfs_open2 won't allow
 	 * an NFSv3 client to open file, therefore we won't end up here
@@ -2356,8 +2364,21 @@ static void kvsfs_write2(struct fsal_obj_handle *obj_hdl,
 	/* Since we don't support NFSv3, we cannot handle WRITE_PLUS */
 	assert(write_arg->info == NULL);
 
-	T_ENTER(">>> (%p, %p, %llu)", obj_hdl, write_arg->state,
-		(unsigned long long) write_arg->offset);
+	T_ENTER(">>> (%p, %p)", obj_hdl, write_arg->state);
+	T_TRACE("WRITE: stable=%d, off=%llu, cnt=%llu, len=%llu",
+		(int) write_arg->fsal_stable,
+		(unsigned long long) write_arg->offset,
+		(unsigned long long) write_arg->iov_count,
+		(unsigned long long) write_arg->iov[0].iov_len);
+
+	/* So far, NFS Ganesha always sends only a single buffer in a FSAL.
+	 * We can use this information for keeping write2 implementation
+	 * simple, i.e. there is no need to implement pwritev-like call
+	 * at the kvsns layer.
+	 * The following pre-condition helps us to make sure that
+	 * NFS Ganesha still uses the same scheme.
+	 */
+	assert(write_arg->iov_count == 1);
 
 	obj = container_of(obj_hdl, struct kvsfs_fsal_obj_handle, obj_handle);
 	result = kvsfs_find_fd(write_arg->state, bypass, FSAL_O_WRITE, &fd);
@@ -2365,28 +2386,18 @@ static void kvsfs_write2(struct fsal_obj_handle *obj_hdl,
 		goto out;
 	}
 
-	for (i = 0; i < write_arg->iov_count; i++) {
-		buffer = write_arg->iov[i].iov_base;
-		buffer_size = write_arg->iov[i].iov_len;
+	buffer = write_arg->iov[0].iov_base;
+	buffer_size = write_arg->iov[0].iov_len;
+	offset = write_arg->offset;
 
-		/* TODO:PERF: Scatter-gather IO.
-		 * Add kvsns_writev and use it here.
-		 */
-		nb_write = kvsns2_write(obj->fs_ctx, &cred, &fd->kvsns_fd,
-				     buffer, buffer_size, offset);
-		if (nb_write < 0) {
-			result = fsalstat(posix2fsal_error(-nb_write), -nb_write);
-			goto out;
-		}
-
-		/* TODO: Check nb_write against buffer_size here
-		 * and try to write the rest of it.
-		 * Otherwise, we may lose data.
-		 */
-
-		write_arg->io_amount += nb_write;
-		offset += nb_write;
+	nb_write = kvsns2_write(obj->fs_ctx, &cred, &fd->kvsns_fd,
+			     buffer, buffer_size, offset);
+	if (nb_write < 0) {
+		result = fsalstat(posix2fsal_error(-nb_write), -nb_write);
+		goto out;
 	}
+
+	write_arg->io_amount = nb_write;
 
 	if (write_arg->fsal_stable) {
 		nb_write = kvsns_fsync(obj->fs_ctx, &cred,
@@ -2402,6 +2413,7 @@ static void kvsfs_write2(struct fsal_obj_handle *obj_hdl,
 	result = fsalstat(ERR_FSAL_NO_ERROR, 0);
 out:
 	T_EXIT0(result.major);
+	PTHREAD_RWLOCK_unlock(&obj_hdl->obj_lock);
 	done_cb(obj_hdl, result, write_arg, caller_arg);
 }
 
@@ -2411,9 +2423,11 @@ out:
 static fsal_status_t kvsfs_commit2(struct fsal_obj_handle *obj_hdl,
 				   off_t offset, size_t len)
 {
+	T_ENTER0;
 	(void) obj_hdl;
 	(void) offset;
 	(void) len;
+	T_EXIT0(0);
 	return fsalstat(ERR_FSAL_NO_ERROR, 0);
 }
 
