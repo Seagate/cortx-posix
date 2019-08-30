@@ -541,8 +541,14 @@ int kvsns2_create_entry(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
 		(void *)lnk, strlen(lnk));
 	}
 
-	RC_WRAP_LABEL(rc, errfree, kvsns_amend_stat, parent_stat,
-		      STAT_CTIME_SET|STAT_MTIME_SET);
+	if (type == KVSNS_DIR) {
+		/* Child dir has a "hardlink" to the parent ("..") */
+		RC_WRAP_LABEL(rc, errfree, kvsns_amend_stat, parent_stat,
+			      STAT_CTIME_SET | STAT_MTIME_SET | STAT_INCR_LINK);
+	} else {
+		RC_WRAP_LABEL(rc, errfree, kvsns_amend_stat, parent_stat,
+			      STAT_CTIME_SET | STAT_MTIME_SET);
+	}
 	RC_WRAP_LABEL(rc, errfree, kvsns2_set_stat, ctx, parent, parent_stat);
 
 	RC_WRAP(kvsal_end_transaction);
@@ -1198,6 +1204,10 @@ out:
 }
 
 /******************************************************************************/
+/* TODO:PERF: Callers can use stat.nlink (usually it is available) instead
+ * of requesting an iteration over the dentries. This will allow us to eliminate
+ * the extra call to the KVS.
+ */
 int kvsns_tree_has_children(kvsns_fs_ctx_t fs_ctx,
 			    const kvsns_ino_t *ino,
 			    bool *has_children)
