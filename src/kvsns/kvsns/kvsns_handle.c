@@ -156,16 +156,13 @@ int kvsns2_rmdir(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent, char *name)
 	KVSNS_DASSERT(ctx && cred && parent && name);
 	KVSNS_DASSERT(strlen(name) <= NAME_MAX);
 
-	/* @TODO : this is currently just a placeholder, since transacations
-		   are not implemented yet. */
-	kvsal_begin_transaction();
-	RC_WRAP_LABEL(rc, aborted, kvsns2_access, ctx, cred, parent,
+	RC_WRAP_LABEL(rc, out, kvsns2_access, ctx, cred, parent,
 		      KVSNS_ACCESS_WRITE);
 
-	RC_WRAP_LABEL(rc, aborted, kvsns2_lookup, ctx, cred, parent, name,
+	RC_WRAP_LABEL(rc, out, kvsns2_lookup, ctx, cred, parent, name,
 		      &ino);
 
-	RC_WRAP_LABEL(rc, aborted, kvsns_tree_has_children, ctx,
+	RC_WRAP_LABEL(rc, out, kvsns_tree_has_children, ctx,
 		      &ino, &is_non_empty_dir);
 
 	//Check if directory empty
@@ -173,22 +170,33 @@ int kvsns2_rmdir(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent, char *name)
 		 rc = -ENOTEMPTY;
 		 log_debug("ctx=%p ino=%llu name=%s not empty", ctx,
 			    ino, name);
-		 goto aborted;
+		 goto out;
 	}
 
-	// Delete the dentry, parentdir and stat keys, modify the stats
-	RC_WRAP_LABEL(rc, aborted, kvsns_name_from_cstr, name, &kname);
+	RC_WRAP_LABEL(rc, out, kvsns_name_from_cstr, name, &kname);
 
+	RC_WRAP_LABEL(rc, out, kvsal_begin_transaction);
+	/* Detach the inode */
 	RC_WRAP_LABEL(rc, aborted, kvsns_tree_detach, ctx, parent,
 		      &ino, &kname);
 
+	/* Remove its stat */
+	RC_WRAP_LABEL(rc, aborted, kvsns2_del_stat, ctx, &ino);
 
-	/* @todo: Remove all associated xattr
-	RC_WRAP(kvsns_remove_all_xattr, cred, &ino); */
+	/* Child dir has a "hardlink" to the parent ("..") */
+	RC_WRAP_LABEL(rc, aborted, kvsns2_update_stat, ctx, parent,
+		      STAT_DECR_LINK);
 
+	/* TODO: Remove all xattrs when kvsns_remove_all_xattr is implemented */
+	RC_WRAP_LABEL(rc, out, kvsal_end_transaction);
 
 aborted:
-	kvsal_end_transaction();
+	if (rc < 0) {
+		/* FIXME: error code is overwritten */
+		RC_WRAP_LABEL(rc, out, kvsal_discard_transaction);
+	}
+
+out:
 	log_debug("EXIT ctx=%p ino=%llu name=%s rc=%d", ctx,
 		   ino, name, rc);
 	return rc;
