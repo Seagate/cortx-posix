@@ -227,8 +227,8 @@ int extstore_attach(kvsns_ino_t *ino, char *objid, int objid_len)
 int extstore_init(struct collection_item *cfg_items)
 {
 	/* Init m0store */
-	//return m0init(cfg_items);
-	return 0;
+	return m0init(cfg_items);
+//	return 0;
 }
 
 int extstore_del(kvsns_ino_t *ino)

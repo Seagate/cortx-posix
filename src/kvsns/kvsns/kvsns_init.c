@@ -60,6 +60,7 @@ int kvsns_start(const char *configpath)
 		free_ini_config_errors(errors);
 		return -rc;
 	}
+	RC_WRAP(extstore_init, cfg_items);
 
 	RC_WRAP(kvsal_init, cfg_items);
 
@@ -75,8 +76,6 @@ int kvsns_start(const char *configpath)
 	}
 	log_debug("kvsns init done for fs_id=%d, rc=%d, fs_ctx=%p",
 		   KVSNS_FS_ID_DEFAULT, rc, ctx);
-
-	RC_WRAP(extstore_init, cfg_items);
 
 	/** @todo : remove all existing opened FD (crash recovery) */
 	return 0;
