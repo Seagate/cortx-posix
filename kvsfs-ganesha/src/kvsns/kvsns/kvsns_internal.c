@@ -141,7 +141,10 @@ static const size_t kvsns_dentry_key_psize =
 static inline size_t kvsns_name_dsize(const kvsns_name_t *kname)
 {
 	/* sizeof (len field) + actual len + size of null-terminator */
-	return sizeof(kname->s_len) + kname->s_len + sizeof('\0');
+	size_t result = sizeof(kname->s_len) + kname->s_len + 1;
+	/* Dynamic size cannot be more than the max size of the structure */
+	KVSNS_DASSERT(result <= sizeof(*kname));
+	return result;
 }
 
 
@@ -1293,8 +1296,10 @@ int kvsns_tree_iter_children(kvsns_fs_ctx_t fs_ctx,
 
 	while (need_next && has_next) {
 		len = kvsal_iter_get_key(&iter.base, (void**) &key);
+		/* A dentry cannot be empty. */
 		KVSNS_DASSERT(len > kvsns_dentry_key_psize);
-		KVSNS_DASSERT(len < sizeof(struct kvsns_dentry_key));
+		/* The len is limited by the size of the dentry structure. */
+		KVSNS_DASSERT(len <= sizeof(struct kvsns_dentry_key));
 		KVSNS_DASSERT(key);
 
 		len = kvsal_iter_get_value(&iter.base, (void **) &value);

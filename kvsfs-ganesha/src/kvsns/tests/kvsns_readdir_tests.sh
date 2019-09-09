@@ -201,4 +201,27 @@ test_kvsns_readdir_multiple_files() {
 }
 
 ################################################################################
+# Description: List contents of a directory which has 255-bytes entry names
+# Strategy:
+#   Create a file with a 255 characters name in the root dir.
+#   Get list of entries of the root dir.
+# Expected behavior:
+#   The file is in the list.
+test_kvsns_readdir_root_dir_255file() {
+    # bash equivalent of print('a' * 255)
+    local file_name="$(printf 'a%.0s' {1..255})"
+    local parent_ino="$KVSNS_ROOT_INODE"
+    local parent="/"
+
+    kvsns_prepare_clean_index
+
+    test_setup kvsns_create_cmd $parent $file_name
+    test_setup kvsns_lookup_cmd $parent $file_name
+
+    test_verify_ok kvsns_readdir_cmd $parent_ino
+
+    test_verify_ok readdir_check_single_file $parent_ino $file_name
+
+    test_teardown kvsns_unlink_cmd $parent $file_name
+}
 

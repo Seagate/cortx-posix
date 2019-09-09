@@ -47,6 +47,7 @@ TGROUP_READDIR=(
     test_kvsns_readdir_file_and_dir
     test_kvsns_readdir_empty_dir
     test_kvsns_readdir_multiple_files
+    test_kvsns_readdir_root_dir_255file
 )
 
 ################################################################################
