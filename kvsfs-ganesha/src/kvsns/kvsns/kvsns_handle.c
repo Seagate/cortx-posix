@@ -481,6 +481,7 @@ int kvsns2_setattr(kvsns_fs_ctx_t ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
 
 	if (statflag & STAT_SIZE_SET) {
 		bufstat.st_size = setstat->st_size;
+		bufstat.st_blocks = setstat->st_blocks;
 	}
 
 	if (statflag & STAT_SIZE_ATTACH) {
