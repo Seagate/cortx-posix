@@ -1694,9 +1694,10 @@ ssize_t m0store_do_io(struct m0_uint128 id, enum io_type iotype,
 	return done;
 }
 
+#define ENABLE_MERO_UNMAP
 /* FIXME:EOS-1820: Use Mero unmap from EOS-294. */
 #ifdef ENABLE_MERO_UNMAP
-static int m0_file_unmap_aligned(const struct m0_uint128 *fid,
+static int m0_file_unmap_extents(const struct m0_uint128 *fid,
 			  struct m0_indexvec *extents)
 {
 
@@ -1772,7 +1773,7 @@ static void m0_file_unmap_aligned_debug_print(const struct m0_uint128 *fid,
 	log_debug("end_of_extents");
 }
 
-static int m0_file_unmap_aligned(const struct m0_uint128 *fid,
+static int m0_file_unmap_extents(const struct m0_uint128 *fid,
 				 struct m0_indexvec *extents)
 {
 	m0_file_unmap_aligned_debug_print(fid, extents);
@@ -1806,13 +1807,106 @@ out:
 	return rc;
 }
 
+/* TODO:KVSNS_TUNEABLE */
+/* Default value: 5120 4K pages or 20 1MB pages or 20MB of data */
+static uint64_t m0_kvsns_trunc_data_per_request = 20 * (1 << 20);
+
+/** Submits UNMAP requests to Clvois and waits until the data blocks
+ * are actually unmapped.
+ * TODO:EOS-1819:
+ * Mero is not able to handle large extents in the truncate operations,
+ * so that we are sending only small portions of extends per request.
+ * When Clovis Truncate is fixed and is able to free a large extent
+ * at a time, this code needs to be reworked.
+ */
+int m0_file_unmap_aligned(struct m0_uint128 fid,
+			  size_t nblocks,
+			  size_t offset,
+			  size_t bsize)
+{
+	int rc;
+	struct m0_indexvec extent;
+	size_t nrequests = 0;
+	size_t nblk_per_req = 0;
+	size_t ndata_per_req = 0;
+	size_t tail_size = 0;
+	size_t i;
+
+	KVSNS_DASSERT(bsize != 0);
+	KVSNS_DASSERT(bsize % 2 == 0);
+	KVSNS_DASSERT(offset % bsize == 0);
+	/* offset + nblocks * bsize == count, count <= SIZE_MAX */
+	KVSNS_DASSERT(SIZE_MAX / bsize >= (offset / bsize) + nblocks);
+
+	if (nblocks == 0) {
+		log_debug("Nothing to unmap.");
+		goto out;
+	}
+
+	ndata_per_req = lower(m0_kvsns_trunc_data_per_request, bsize);
+	nblk_per_req = ndata_per_req / bsize;
+	nrequests = nblocks / nblk_per_req;
+	tail_size = (nblocks * bsize) - (nrequests * ndata_per_req);
+
+	KVSNS_DASSERT(ergo(nblocks * bsize - offset < ndata_per_req,
+			   nrequests == 0));
+
+	rc = m0_indexvec_alloc(&extent, 1);
+	if (rc != 0) {
+		goto out;
+	}
+
+	/* Synchonously deallocate a batch of extents (ndata_per_req in each
+	 * extent) and then synchronously deallocate the tail
+	 * which is not aligned with the ndata_per_req value.
+	 */
+
+	for (i = 0; i < nrequests; i++) {
+		log_debug("De-allocating large extent[%d]: off=%llu, size=%d, "
+			  "done=%.02f%%",
+			  (int) i,
+			  (unsigned long long) offset,
+			  (int) ndata_per_req,
+			  (((float) offset) / (nblocks * bsize)) * 100);
+
+		extent.iv_index[0] = offset;
+		extent.iv_vec.v_count[0] = ndata_per_req;
+
+		rc = m0_file_unmap_extents(&fid, &extent);
+		if (rc != 0) {
+			log_err("Failed to unmap the extent: %llu, %llu.",
+				(unsigned long long) offset,
+				(unsigned long long) ndata_per_req);
+			goto out_free_extent;
+		}
+
+		offset += ndata_per_req;
+	}
+
+	if (tail_size) {
+		log_debug("De-allocating tail extent: off=%llu, size=%d",
+			  (unsigned long long) offset,
+			  (int) tail_size);
+		extent.iv_index[0] = offset;
+		extent.iv_vec.v_count[0] = tail_size;
+		rc = m0_file_unmap_extents(&fid, &extent);
+		if (rc != 0) {
+			goto out_free_extent;
+		}
+	}
+
+out_free_extent:
+	m0_indexvec_free(&extent);
+out:
+	return rc;
+}
+
 int m0_file_unmap(struct m0_uint128 fid, size_t count, off_t offset)
 {
 	int rc;
 	int bsize; /* Clovis block size */
 	size_t nblocks; /* n blocks to be deallocated */
 	size_t aligned_off; /* Rounded up offset */
-	struct m0_indexvec extents;
 
 	bsize = m0store_get_bsize(fid);
 
@@ -1822,7 +1916,7 @@ int m0_file_unmap(struct m0_uint128 fid, size_t count, off_t offset)
 	/* FIXME:EOS-1819: should we support count/offset  more than 7EB? */
 	KVSNS_DASSERT(count < INT64_MAX);
 	KVSNS_DASSERT(offset < INT64_MAX);
-	KVSNS_DASSERT(count > 0);
+	KVSNS_DASSERT(count != 0);
 
 	/* ajust to the very first byte of the nearest (from right) page */
 	aligned_off = m0_round_up(offset, bsize);
@@ -1830,25 +1924,25 @@ int m0_file_unmap(struct m0_uint128 fid, size_t count, off_t offset)
 	 * round it up and then count the amount of blocks */
 	nblocks = m0_round_up((count + offset) - aligned_off, bsize) / bsize;
 
-	/* FIXME:EOS-1819: indexvec cannot handle more than uint32_max extents
-	 * at a time, and because of that we cannot handle files longer
-	 * than 15TB (for 4K block size).
+	/* A special case where the caller wants to free a small range
+	 * which cannot be de-allocated.
 	 */
-	KVSNS_DASSERT(nblocks < UINT32_MAX);
-
 	if (m0_round_up(offset, bsize) == m0_round_up(offset + count, bsize)) {
 		log_debug("the range [%llu,%llu] is inside a single block %llu",
 			  (unsigned long long) offset,
 			  (unsigned long long) offset + count,
 			  (unsigned long long) aligned_off);
 		/* FIXME:EOS-1819: We should write zeros here because if
-		 * the client would like to punch a hole,
-		 * the hole must be read as zeros. */
+		 * the client would like to increase the file size back,
+		 * the extented space must be read as zeros. */
 		rc = m0_file_zero(&fid, count, offset, bsize);
 		/* no need to do actual UNMAP */
 		goto out;
 	}
 
+	/* A special case where the left edge is not aligned with the block
+	 * size. The unaligned space must be zeroed.
+	 */
 	if (offset != aligned_off) {
 		KVSNS_DASSERT(offset < aligned_off);
 		log_debug("Non-freed range=[%llu, %llu]",
@@ -1862,18 +1956,7 @@ int m0_file_unmap(struct m0_uint128 fid, size_t count, off_t offset)
 		/* now unmap the aligned pages */
 	}
 
-	/* FIXME:EOS-1819: reduce memory allocation for extents */
-	rc = m0_indexvec_alloc(&extents, nblocks);
-	if (rc != 0)
-		goto out;
-
-	log_debug("Generating extents: off=%llu, nblocks=%d, bs=%d",
-		  (unsigned long long) aligned_off,
-		  (int) nblocks,
-		  (int) bsize);
-	m0_indexvec_fill_extents(&extents, aligned_off, nblocks, bsize);
-	rc = m0_file_unmap_aligned(&fid, &extents);
-	m0_indexvec_free(&extents);
+	rc = m0_file_unmap_aligned(fid, nblocks, aligned_off, bsize);
 
 out:
 	return rc;

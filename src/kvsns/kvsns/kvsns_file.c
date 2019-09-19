@@ -347,12 +347,25 @@ int kvsns_truncate(kvsns_fs_ctx_t ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
 	KVSNS_DASSERT((new_stat_flags & STAT_SIZE_SET) != 0);
 
 	/* TODO:PERF: The caller can pass the current size */
-	RC_WRAP(kvsns2_getattr, ctx, cred, ino, &stat);
-	RC_WRAP_LABEL(rc, out, kvsns2_setattr, ctx, cred, ino, new_stat,
-		      new_stat_flags);
+	RC_WRAP_LABEL(rc, out, kvsns2_getattr, ctx, cred, ino, &stat);
 
 	old_size = stat.st_size;
 	new_size = new_stat->st_size;
+	new_stat->st_blocks = (new_size + DEV_BSIZE - 1) / DEV_BSIZE;
+
+	/* If the caller wants to set mtime explicitly then
+	 * mtime and ctime will be different. Othewise,
+	 * we should keep them synchronous with each other.
+	 */
+	if ((new_stat_flags & STAT_MTIME_SET) == 0) {
+		RC_WRAP_LABEL(rc, out, kvsns_amend_stat, new_stat,
+			      STAT_MTIME_SET | STAT_CTIME_SET);
+		new_stat_flags |= (STAT_MTIME_SET | STAT_CTIME_SET);
+	}
+
+	RC_WRAP_LABEL(rc, out, kvsns2_setattr, ctx, cred, ino, new_stat,
+		      new_stat_flags);
+
 
 	RC_WRAP_LABEL(rc, out, kvsns_ino_to_kfid, ctx, ino, &kfid);
 	RC_WRAP_LABEL(rc, out, extstore2_truncate, ctx, &kfid, old_size, new_size);
