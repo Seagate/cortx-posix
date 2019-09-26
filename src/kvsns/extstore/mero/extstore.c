@@ -79,7 +79,7 @@ static int update_stat(struct stat *stat, enum update_stat_how how,
 		stat->st_ctim = stat->st_mtim;
 		if (size > stat->st_size) {
 			stat->st_size = size;
-			stat->st_blocks = size / DEV_BSIZE;
+			stat->st_blocks = (size + DEV_BSIZE - 1) / DEV_BSIZE;
 		}
 		break;
 
