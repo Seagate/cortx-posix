@@ -5,7 +5,9 @@ Support for different file access protocols (like SAMBA, NFS etc.) to Seagate EO
 
 Install mero:
 - Latest Mero rpms (`mero` and `mero-devel`) should be installed. Take the latest rpm from this [page](http://jenkins.mero.colo.seagate.com/share/bigstorage/releases/hermi/last_successful/mero/repo/)
-- `m0singlenode` service should be up and running before running nfs ganesha with mero/clovis
+- `m0singlenode` service should be up and running before running nfs ganesha with mero/clovis. Start `m0singlenode` service by following the steps mentioned here:
+   https://docs.google.com/document/d/1J-W4HmgEAnqRQokgMzpIOUOw02MBLQ82Jc3C3GLYQIk/
+
 
 Install NFS Ganesha:
 * Install jemalloc (`yum install jemalloc`).
