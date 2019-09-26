@@ -29,7 +29,8 @@
 #include <json-c/json.h>
 #include <sys/time.h>	
 #include <unistd.h>
-#include <stdbool.h> 
+#include <stdbool.h>
+#include <pthread.h> 
 #include <sys/syscall.h>
 #define KLEN 256
 #define VLEN 256
@@ -56,21 +57,18 @@ struct kvsns_xattr{
 static struct m0_fid ifid;
 static struct m0_ufid_generator kvsns_ufid_generator;
 static struct m0_clovis_idx idx;
-struct m0_bufvec key[2];
-struct m0_bufvec val[2];
-struct m0_clovis_op *op_arr[2];
-//struct m0_clovis_op *mop;
+struct m0_bufvec key[100];
+struct m0_bufvec val[100];
+struct m0_clovis_op *op_arr[100];
 
-int *status;
-int status_count;
-
-//sem_t sem1;
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 int done = 0;
 
 static void callback(struct m0_clovis_op *op)
 {
-	printf("\n In callback and done %d", done);
-	printf("(Callback) The thread id is %u \n", (unsigned int) syscall( __NR_gettid ));
+	//printf("\n In callback and done %d", done);
+	//printf("(Callback) The thread id is %u \n", (unsigned int) syscall( __NR_gettid ));
 	/* Check rcs array even if op is succesful */
 	int rcs[1];
 	int rc = rcs[0];
@@ -81,9 +79,16 @@ static void callback(struct m0_clovis_op *op)
 	}
 
 out:
+	pthread_mutex_lock(&mutex);
+
 	done++;
-	//status_count++;
+	if (done == 100)
+		pthread_cond_signal(&cond);
+
+	pthread_mutex_unlock(&mutex);
+
 	//m0_semaphore_up(&sem);
+
 }
 
 static int  m0_op_kvs_async(enum m0_clovis_idx_opcode opcode, struct m0_bufvec *key, struct m0_bufvec *val, struct m0_clovis_op **op)
@@ -96,6 +101,7 @@ static int  m0_op_kvs_async(enum m0_clovis_idx_opcode opcode, struct m0_bufvec *
 	struct m0_clovis_idx     *index = NULL;
 	struct m0_clovis_op_ops   op_ops;
 
+	//printf("\nval to be fetched %d\n", val->ov_vec.v_count[0]);
 	index = &idx;
 	rc = m0_clovis_idx_op(index, opcode, key, val, rcs, M0_OIF_OVERWRITE, op);
 
@@ -110,7 +116,7 @@ static int  m0_op_kvs_async(enum m0_clovis_idx_opcode opcode, struct m0_bufvec *
 
 	m0_clovis_op_setup(*op, &op_ops, 0);
 
-	printf("Before launch thread id is %u \n", (unsigned int) syscall( __NR_gettid ));
+	//printf("Before launch thread id is %u \n", (unsigned int) syscall( __NR_gettid ));
 	m0_clovis_op_launch(op, 1);
 
 	return rc;
@@ -118,76 +124,70 @@ static int  m0_op_kvs_async(enum m0_clovis_idx_opcode opcode, struct m0_bufvec *
 
 static int setAttr()
 {
-	char *k1 = "mykey";
-	char *v1 = "myval";
-	char *k2 = "mykey2";
-	char *v2 = "myval2";
+	char *k1 = "1name_of_key";
+	char *v1 = malloc(sizeof(char)* VALINPUT);
 
-	struct kvsns_xattr *xkey1 = NULL;
-	struct kvsns_xattr *xkey2 = NULL;
-	size_t klen, vlen[2];
+	struct kvsns_xattr *xkey[100];
+	size_t klen, vlen;
 	int rc, i;
 
 	unsigned long long int ino2;
-	ino2 = atoll("12345");
 
-        xkey1 = calloc(1, sizeof(*xkey1));
-	xkey2 = calloc(1, sizeof(*xkey2));
+	memset(v1, '*', VALINPUT);
+	ino2 = atoll("123456");
 
-	XATTR_KEY_INIT(xkey1, ino2, k1);
-	XATTR_KEY_INIT(xkey2, ino2, k2);
+	char tmpkey[256];
+	struct timeval start1, end1;
+
+	gettimeofday(&start1, NULL);
 
 	klen = sizeof(struct kvsns_xattr);
-	vlen[0] = strlen(v1) + 1;
-	vlen[1] = strlen(v2) + 1;
+	vlen = strlen(v1) + 1;
 
-	status = malloc(sizeof(int) * 2);
-	for (i = 0; i < 2; i ++)
+	for (i = 0; i < 100; i ++)
 	{
-		rc = m0_bufvec_alloc(&key[i], 1, klen);
-		if (rc)
-		{
-			printf("\nerror(%d): m0_bufvec_alloc", rc);
-			goto out;
-		}
+		xkey[i] = calloc(1, sizeof( struct kvsns_xattr));
+                snprintf(tmpkey, 256, "%s_%d", k1, i);
+                XATTR_KEY_INIT(xkey[i], ino2, tmpkey);
 
-		rc = m0_bufvec_alloc(&val[i], 1, vlen[i]);
-		if (rc)
-		{
-			printf("\nerror(%d): m0_bufvec_alloc", rc);
-			goto out;
-		}
+		rc = m0_bufvec_alloc(&key[i], 1, klen);
+		if (rc != 0)
+			printf("error(%d): m0_bufvec_alloc", rc);
+
+		rc = m0_bufvec_alloc(&val[i], 1, vlen);
+		if (rc != 0)
+			printf("error(%d): m0_bufvec_alloc", rc);
+
+		memcpy(key[i].ov_buf[0], xkey[i], klen);
+
+		memcpy(val[i].ov_buf[0], v1, vlen);
+
+		m0_op_kvs_async(M0_CLOVIS_IC_PUT, &key[i], &val[i], &op_arr[i]);
 	}
 
-	memcpy(key[0].ov_buf[0], xkey1, klen);
-	memcpy(val[0].ov_buf[0], v1, vlen[0]);
-	memcpy(key[1].ov_buf[0], xkey2, klen);
-	memcpy(val[1].ov_buf[0], v2, vlen[1]);
-
-	for (i = 0; i < 2; i++)
+/*	for (i = 0; i < 100; i++)
 	{
 		m0_op_kvs_async(M0_CLOVIS_IC_PUT, &key[i], &val[i], &op_arr[i]);
 	//	m0_semaphore_down(&sem);
-		done--;
+	//	done--;
 	}
-	while (done != 0) sleep(1);
-
-	//m0_clovis_op_fini(mop);
-
-	m0_clovis_op_fini(op_arr[0]);
+*/
+	while (done < 100)
+	{
+		pthread_cond_wait( & cond, & mutex );
+	}
 
 	printf("\ncurrent thread main");
+	for (i = 0; i < 100; i++)
+	{ 
+		m0_clovis_op_fini(op_arr[i]);
+		free(xkey[i]);
+		m0_bufvec_free(&key[i]);
+		m0_bufvec_free(&val[i]);
+	}
+	gettimeofday(&end1, NULL);
+	timer(start1, end1, "stored 100 keys one at a time async");
 
-out:
-	free(xkey1);
-	free(xkey2);
-	m0_bufvec_free(&key[0]);
-        m0_bufvec_free(&val[0]);
-	m0_bufvec_free(&key[1]);
-        m0_bufvec_free(&val[1]);
-
-	//free(key);
-	//free(val);
 	return rc;
 }
 
@@ -225,18 +225,6 @@ int set_fid()
          return rc;
 }
 
-static int *rcs_alloc(int count)
-{
-        int  i;
-        int *rcs;
-
-        M0_ALLOC_ARR(rcs, count);
-        for (i = 0; i < count; i++)
-                /* Set to some value to assert that UT actually changed rc. */
-                rcs[i] = 0xdb;
-        return rcs;
-}
-
 void timer(struct timeval start1, struct timeval end1, char *msg)
 {
 	long mtime, secs, usecs;
@@ -246,19 +234,10 @@ void timer(struct timeval start1, struct timeval end1, char *msg)
  	printf("Elapsed time for %s: %ld millisecs\n", msg, mtime);
 
 }
-
+	
 /* main */
 int main(int argc, char **argv)
 {
-	char *key = malloc(sizeof(char)* 255);
-	char *val = malloc(sizeof(char)* VALINPUT);
-
-	char *ino;
-
-	int rc = 0;
-	struct timeval start1, end1;
-
-	int i;
 	/* check input */
 	if (argc != 4) {
 		fprintf(stderr,"Usage:\n");
@@ -273,14 +252,9 @@ int main(int argc, char **argv)
 	 * overwrite .cappzrc to a .[app]rc file.
 	 */
 	char str[256];
-	sprintf(str,".%src", basename(argv[0]));
+	sprintf(str, ".%src", basename(argv[0]));
 	c0appz_setrc(str);
 	c0appz_putrc();
-
-	/* set input */
-	memcpy(key, argv[1], strlen(argv[1]));
-	memset(val, '*', VALINPUT);
-	ino = argv[3];
 
 	/* initialize resources */
 	if (c0appz_init(0) != 0) {
@@ -294,28 +268,22 @@ int main(int argc, char **argv)
  	rc = set_fid();
 	if (rc != 0)
 		fprintf(stderr, "error in fid initialization");	
-	char tmpkey[256];
-	gettimeofday(&start1, NULL);
 	
 //	m0_semaphore_init(&sem, 0);
 
 	setAttr();
-
 //	m0_semaphore_fini(&sem);
-
 	printf("\n after setattr called\n");
-	gettimeofday(&end1, NULL);
-	timer(start1, end1, "stored 100 keys one at a time (nfs)");
 
-	/* free resources*/
+/* free resources*/
 	c0appz_free();
 
 	/* time out */
-	fprintf(stderr,"%4s","free");
+	fprintf(stderr, "%4s", "free");
 	c0appz_timeout(0);
 
 	/* success */
-	fprintf(stderr,"%s success\n",basename(argv[0]));
+	fprintf(stderr, "%s success\n", basename(argv[0]));
 	return 0;
 }
 
