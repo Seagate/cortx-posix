@@ -1,0 +1,238 @@
+#!/bin/bash
+
+# Variables
+lnet_port=301
+PROFILE='<0x7000000000000001:0>'
+PROC_FID='<0x7200000000000000:0>'
+INDEX_DIR=/tmp
+KVS_FID='<0x780000000000000b:1>'
+LOC_EXPORT_ID='@tcp:12345:44:'
+HA_EXPORT_ID='@tcp:12345:45:1'
+KVSNS_INI=/etc/kvsns.d/kvsns.ini
+KVSNS_INI_BAK=/etc/kvsns.d/kvsns.ini.bak
+GANESHA_CONF=/etc/ganesha/ganesha.conf
+GANESHA_CONF_BAK=/etc/ganesha/ganesha.conf.bak
+KVSNS_INIT=/usr/bin/kvsns_init
+NFS_INITIALIZED=/var/lib/nfs/nfs_initialized
+TMP_FILE=/tmp/nfs_tmp_file
+
+function die {
+	echo "Error: $1"
+	exit 1
+}
+
+function run {
+	if [ ! -z "$prompt" ]; then
+		echo -e "\n$ $*"
+		read a
+		[ "$a" = "c" -o "$a" = "C" ] && return 1
+		$*
+	else
+		echo -ne "\n$ $*"
+		$*
+	fi
+	[ $? -ne 0 ] && exit 1
+	return 0
+}
+
+function get_ip {
+	# Get ip address
+	ifconfig | grep broadcast | sed 's/  netmask.*//' > $TMP_FILE
+	sed -i 's/inet //g' $TMP_FILE
+	sed -i 's/^[ \t]*//' $TMP_FILE
+
+	echo $(cat $TMP_FILE)
+	rm -f $TMP_FILE
+}
+
+function clovis_init {
+	# Initialize Clovis
+	run m0clovis -l $ip_add$LOC_EXPORT_ID$lnet_port -h $ip_add$HA_EXPORT_ID -p $PROFILE -f $PROC_FID index create "$KVS_FID"
+	[ $? -ne 0 ] && die "Failed to Initialise Clovis"
+}
+
+function kvsns_init {
+	# Backup kvsns.ini file
+	[ ! -e $KVSNS_INI_BAK ] && run cp $KVSNS_INI $KVSNS_INI_BAK
+
+	# Modify kvsns.ini
+	tmp_var=$(sed -n '/mero/=' $KVSNS_INI)
+	[ $? -ne 0 ] && die "Failed to access kvsns.ini file"
+
+	run sed -i "$tmp_var,\$d" $KVSNS_INI
+	[ $? -ne 0 ] && die "Failed to edit kvsns.ini file"
+
+	cat >> $KVSNS_INI << EOM
+[mero]
+local_addr = $ip_add$LOC_EXPORT_ID$lnet_port
+ha_addr = $ip_add$HA_EXPORT_ID
+profile = $PROFILE
+proc_fid = $PROC_FID
+index_dir = $INDEX_DIR
+kvs_fid = $KVS_FID
+EOM
+	[ $? -ne 0 ] && die "Failed to configure kvsns.ini"
+
+	touch $NFS_INITIALIZED
+
+	# Initialize kvsns
+	run $KVSNS_INIT
+	[ $? -ne 0 ] && die "Failed to initialise kvsns"
+}
+
+function prepare_ganesha_conf {
+	# Backup ganesha.conf file
+	[ ! -e  $GANESHA_CONF_BAK ] && run cp $GANESHA_CONF $GANESHA_CONF_BAK
+
+	# Configure NFS-Ganesha
+	cat > $GANESHA_CONF << EOM
+# An example of KVSFS NFS Export
+EXPORT {
+
+	# Export Id (mandatory, each EXPORT must have a unique Export_Id)
+	Export_Id = 12345;
+
+	# Exported path (mandatory)
+	Path = /;
+
+	# Pseudo Path (required for NFSv4 or if mount_path_pseudo = true)
+	Pseudo = /kvsns;
+
+	# Exporting FSAL
+	FSAL {
+		Name  = KVSFS;
+		kvsns_config = $KVSNS_INI;
+	}
+
+	# Allowed security types for this export
+	SecType = sys;
+
+	Filesystem_id = 192.168;
+
+	client {
+		clients = *;
+
+		# Whether to squash various users.
+		Squash=no_root_squash;
+
+		# Access type for clients.  Default is None, so some access must be
+		# given. It can be here, in the EXPORT_DEFAULTS, or in a CLIENT block
+		access_type=RW;
+
+		# Restrict the protocols that may use this export.  This cannot allow
+		# access that is denied in NFS_CORE_PARAM.
+		protocols = 4;
+	}
+}
+
+# KVSFS Plugin path
+FSAL {
+	KVSFS {
+		FSAL_Shared_Library = /usr/lib64/ganesha/libfsalkvsfs.so.4.2.0 ;
+	}
+}
+
+NFS_Core_Param {
+	Nb_Worker = 1 ;
+	Manage_Gids_Expiration = 3600;
+	Plugins_Dir = /usr/lib64/ganesha/ ;
+}
+
+NFSv4 {
+	# Domain Name
+	DomainName = localdomain ;
+
+	# Quick restart
+	Graceless = YES;
+}
+EOM
+	[ $? -ne 0 ] && die "Failed to Configure NFS Ganesha"
+}
+
+function check_prerequisites {
+	lctl list_nids > /dev/null 2>&1 || die "Mero not active"
+	# Check mero
+	tmp_var=$(rpm --version mero)
+	[ -z "$tmp_var" ] && die "Mero RPMs not installed"
+
+	# Check mero status
+	tmp_var=$(systemctl is-active mero-kernel)
+	[[ "$tmp_var" -ne "active" ]] && die "Mero-kernel is inactive"
+
+	# Check mero services
+	tmp_var=$(pgrep m0)
+	[ -z "$tmp_var" ] && die "Mero services not activate"
+
+	# Check nfs-ganesha
+	tmp_var=$(rpm --version nfs-ganesha)
+	[ -z "$tmp_var" ] && die "NFS RPMs not installed "
+}
+
+function eos_nfs_init {
+	# Check if NFS is already initialized
+	[[ -e $NFS_INITIALIZED && -z "$force" ]] &&
+		[ "$(cat $NFS_INITIALIZED)" = "success" ] && die "NFS already initialzed"
+
+	# Cleanup before initialization
+	eos_nfs_cleanup
+
+	# Initialize  clovis
+	clovis_init
+
+	# Prepare kvsns_init
+	kvsns_init
+
+	# Prepare ganesha.conf
+	prepare_ganesha_conf
+
+	# Start NFS Ganesha Server
+	systemctl restart nfs-ganesha || die "Failed to start NFS-Ganesha"
+	#[ $? -ne 0 ] && die "Failed to start NFS-Ganesha"
+
+	echo success > cat $NFS_INITIALIZED
+	echo "NFS setup is complete"
+}
+
+function eos_nfs_cleanup {
+	# Getip address
+	ip_add=$(get_ip)
+
+	# Stop nfs-ganesha service if running
+	systemctl status nfs-ganesha > /dev/null && systemctl stop nfs-ganesha
+
+	# Drop index if previosly created
+	run m0clovis -l $ip_add$LOC_EXPORT_ID$lnet_port -h $ip_add$HA_EXPORT_ID -p $PROFILE -f $PROC_FID index drop "$KVS_FID"
+
+	rm -f $NFS_INITIALIZED
+	echo "NFS cleanup is complete"
+}
+
+function usage {
+	echo "usage: $0 {init|cleanup} [-h] [-f] [-p] [-l lnet_port]" && exit 1
+}
+
+# Main
+
+[ $(id -u) -ne 0 ] && die "Run this script as root user"
+
+cmd=$1; shift 1
+
+getopt --options "hfpl:" --name nfs_setup -- $*
+[[ $? -ne 0 ]] && usage
+
+while [ ! -z $1 ]; do
+	case "$1" in
+		-h ) usage;;
+		-f ) force=1;;
+		-p ) prompt=1;;
+		-l ) lnet_port=$2; shift 1;;
+		*  ) usage ;;
+	esac
+	shift 1
+done
+
+case $cmd in
+	init    ) check_prerequisites; eos_nfs_init;;
+	cleanup ) check_prerequisites; eos_nfs_cleanup;;
+	*       ) usage;;
+esac
