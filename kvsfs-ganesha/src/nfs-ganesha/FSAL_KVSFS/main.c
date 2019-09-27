@@ -69,7 +69,7 @@ static const struct fsal_staticfsinfo_t default_kvsfs_info = {
 	.auth_exportpath_xdev = false,	/*< This flag indicates weither
 					   it is possible to cross junctions
 					   for resolving an NFS export path. */
-	.delegations = FSAL_OPTION_NO_DELEGATIONS,	/*< fsal supports delegations */ /* TODO */
+	.delegations = FSAL_OPTION_FILE_DELEGATIONS,	/*< fsal supports delegations */ /* TODO */
 	.pnfs_mds = false,		/*< fsal supports file pnfs MDS */ /* TODO */
 	.pnfs_ds = false,		/*< fsal supports file pnfs DS */ /* TODO */
 	.fsal_trace = false,		/*< fsal trace supports */ /* TBD */

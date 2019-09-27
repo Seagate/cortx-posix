@@ -1411,10 +1411,14 @@ static fsal_status_t kvsfs_find_fd(struct state_t *fsal_state,
 	fsal_status_t result = fsalstat(ERR_FSAL_NO_ERROR, 0);
 	struct kvsfs_state_fd *kvsfs_state;
 
-	T_TRACE(">>> (state=%p, bypass=%d, openflags=%d, fd=%p)",
+	T_ENTER(">>> (state=%p, bypass=%d, openflags=%d, fd=%p)",
 		fsal_state, (int) bypass, (int) openflags, fd);
 
 	assert(fd != NULL);
+
+	assert(fsal_state->state_type == STATE_TYPE_LOCK ||
+	       fsal_state->state_type == STATE_TYPE_SHARE ||
+	       fsal_state->state_type == STATE_TYPE_DELEG);
 
 	/* TODO:EOS-1479: We don't suppport special state ids yet. */
 	assert(bypass == false);
@@ -1444,6 +1448,7 @@ static fsal_status_t kvsfs_find_fd(struct state_t *fsal_state,
 	assert(0); /* Unreachable */
 
 out:
+	T_EXIT0(result.major);
 	return result;
 }
 
@@ -1474,6 +1479,67 @@ void kvsfs_free_state(struct fsal_export *exp_hdl, struct state_t *state)
 	super = container_of(state, struct kvsfs_state_fd, state);
 
 	gsh_free(super);
+}
+
+/******************************************************************************/
+/* FSAL.lease_op2 */
+static fsal_status_t kvsfs_lease_op2(struct fsal_obj_handle *obj_hdl,
+				     struct state_t *state_hdl,
+				     void *owner,
+				     fsal_deleg_t deleg)
+{
+	fsal_status_t result = fsalstat(ERR_FSAL_NO_ERROR, 0);
+	struct kvsfs_state_fd *state;
+	struct kvsfs_fsal_obj_handle *obj;
+
+	T_ENTER(">>> (obj_hdl=%p, state=%p, owner=%p, deleg=%d)",
+		obj_hdl, state_hdl, owner, (int) deleg);
+
+	assert(obj_hdl);
+	assert(state_hdl);
+	assert(state_hdl->state_type == STATE_TYPE_DELEG);
+
+	state = container_of(state_hdl, struct kvsfs_state_fd, state);
+	obj = container_of(obj_hdl, struct kvsfs_fsal_obj_handle, obj_handle);
+
+	/* We are not working in clustered environment yet,
+	 * so that let's leave conflicts detection to NFS Ganesha.
+	 */
+
+	switch (deleg) {
+	case FSAL_DELEG_NONE:
+		T_TRACE("%s", "Releasing delegation");
+		assert(kvsfs_file_state_invariant_open(&state->kvsfs_fd));
+		result = kvsfs_file_state_close(&state->kvsfs_fd, obj);
+		break;
+
+	/* For Read and Write delegation we can simply "open" the file for
+	 * RD or WR mode and then in find_fd extract this FD from the
+	 * kvsfs state in the same way as it works with "Share" states,
+	 * thus avoiding the need to open anything inside READ/WRITE calls
+	 * when the client would like to read out or to flush data back
+	 * to the server.
+	 * FIXME: We don't know yet if it is possible to get a reopen-like
+	 * sequence of calls from NFS Ganesha (from the same client), so that
+	 * we assume that it will never happen and passing reopen=false
+	 * for the READ and WRITE open calls.
+	 */
+	case FSAL_DELEG_RD:
+		T_TRACE("%s", "Read delegation");
+		assert(kvsfs_file_state_invariant_closed(&state->kvsfs_fd));
+		result = kvsfs_file_state_open(&state->kvsfs_fd, FSAL_O_READ,
+					       obj, false);
+		break;
+	case FSAL_DELEG_WR:
+		T_TRACE("%s", "Write delegation");
+		assert(kvsfs_file_state_invariant_closed(&state->kvsfs_fd));
+		result = kvsfs_file_state_open(&state->kvsfs_fd, FSAL_O_WRITE,
+					       obj, false);
+		break;
+	}
+
+	T_EXIT0(result.major);
+	return result;
 }
 
 /******************************************************************************/
@@ -1971,7 +2037,7 @@ static fsal_status_t kvsfs_open2(struct fsal_obj_handle *obj_hdl,
 			 */
 			/*
 			 * NOTE: Guarded4 is not used by the linux nfs client
-			 * unless it uses NFS4.1 pro (which is not supported
+			 * unless it uses NFS4.1 proto (which is not supported
 			 * yet on our side).
 			 * Therefore, this code path can be checked only
 			 * by manually creating RPC requests or by
@@ -2119,6 +2185,7 @@ static inline const char *state_type2str(enum state_type state_type)
 static fsal_status_t kvsfs_close2(struct fsal_obj_handle *obj_hdl,
 				  struct state_t *state)
 {
+	fsal_status_t result = fsalstat(ERR_FSAL_NO_ERROR, 0);
 	struct kvsfs_state_fd *state_fd;
 	struct kvsfs_fsal_obj_handle *obj;
 
@@ -2141,10 +2208,14 @@ static fsal_status_t kvsfs_close2(struct fsal_obj_handle *obj_hdl,
 	case STATE_TYPE_SHARE:
 		/* This state type is an actual open file. Let's close it. */
 		assert(kvsfs_file_state_invariant_open(&state_fd->kvsfs_fd));
-		kvsfs_file_state_close(&state_fd->kvsfs_fd, obj);
+		result = kvsfs_file_state_close(&state_fd->kvsfs_fd, obj);
 		break;
 
 	case STATE_TYPE_DELEG:
+		T_TRACE("Closing Delegation state: %d, %d",
+			(int) state->state_data.deleg.sd_type,
+			(int) state->state_data.deleg.sd_state);
+		break;
 	case STATE_TYPE_LAYOUT:
 		/* Unsupported (yet) state types. */
 		assert(0); // Non-implemented
@@ -2159,8 +2230,8 @@ static fsal_status_t kvsfs_close2(struct fsal_obj_handle *obj_hdl,
 		break;
 	}
 
-	T_EXIT0(0);
-	return fsalstat(ERR_FSAL_NO_ERROR, 0);
+	T_EXIT0(result.major);
+	return result;
 }
 
 /******************************************************************************/
@@ -2285,12 +2356,12 @@ static fsal_status_t kvsfs_ftruncate(struct fsal_obj_handle *obj_hdl,
 	int rc;
 	fsal_status_t result = fsalstat(ERR_FSAL_NO_ERROR, 0);
 	struct kvsfs_file_state *fd = NULL;
-	struct kvsfs_fsal_obj_handle *obj;
+	struct kvsfs_fsal_obj_handle *obj = NULL;
 	kvsns_cred_t cred = KVSNS_CRED_INIT_FROM_OP;
 
 	T_ENTER0;
 
-	assert(obj != NULL);
+	assert(obj_hdl != NULL);
 	assert((new_stat_flags & STAT_SIZE_SET) != 0);
 	assert(obj_hdl->type == REGULAR_FILE);
 
@@ -2485,6 +2556,8 @@ void kvsfs_handle_ops_init(struct fsal_obj_ops *ops)
 	 * at the FSAL level.
 	 * See EOS-34 for details.
 	 */
+
+	ops->lease_op2 = kvsfs_lease_op2;
 
 	/* TODO:PORTING: Disable xattrs support */
 #if 0
