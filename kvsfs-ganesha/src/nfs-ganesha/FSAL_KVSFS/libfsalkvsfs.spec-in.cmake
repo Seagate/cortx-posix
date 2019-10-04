@@ -24,6 +24,10 @@ NFS-Ganesha FSAL for KVSNS
 cd %{_lib_path}
 mkdir -p %{buildroot}/usr/lib64/ganesha/
 install -m 644 libfsalkvsfs.so* %{buildroot}/usr/lib64/ganesha/
+mkdir -p %{buildroot}/usr/bin/
+mkdir -p %{buildroot}/usr/share/libfsalkvsfs/
+install -m 755 @NFS_SETUP_DIR@/nfs_setup.sh %{buildroot}/usr/share/libfsalkvsfs/
+ln -s /usr/share/libfsalkvsfs/nfs_setup.sh %{buildroot}/usr/bin/eos_nfs_setup
 
 %post
 /sbin/ldconfig
@@ -34,6 +38,8 @@ install -m 644 libfsalkvsfs.so* %{buildroot}/usr/lib64/ganesha/
 /usr/lib64/ganesha/libfsalkvsfs.so.4.2.0
 /usr/lib64/ganesha/libfsalkvsfs.so.4
 /usr/lib64/ganesha/libfsalkvsfs.so
+/usr/share/libfsalkvsfs/nfs_setup.sh
+/usr/bin/eos_nfs_setup
 
 %changelog
 * Mon Jan 25 2019 Ashay Shirwadkar <ashay.shirwadkar@seagate.com> - 1.0.0

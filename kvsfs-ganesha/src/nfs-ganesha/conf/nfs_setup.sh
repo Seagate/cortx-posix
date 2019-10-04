@@ -1,38 +1,36 @@
 #!/bin/bash
 
 # Variables
-lnet_port=301
 PROFILE='<0x7000000000000001:0>'
 PROC_FID='<0x7200000000000000:0>'
 INDEX_DIR=/tmp
 KVS_FID='<0x780000000000000b:1>'
-LOC_EXPORT_ID='@tcp:12345:44:'
+LOC_EXPORT_ID='@tcp:12345:44:301'
 HA_EXPORT_ID='@tcp:12345:45:1'
 KVSNS_INI=/etc/kvsns.d/kvsns.ini
-KVSNS_INI_BAK=/etc/kvsns.d/kvsns.ini.bak
+KVSNS_INI_BAK=${KVSNS_INI}.$$
 GANESHA_CONF=/etc/ganesha/ganesha.conf
-GANESHA_CONF_BAK=/etc/ganesha/ganesha.conf.bak
+GANESHA_CONF_BAK=${GANESHA_CONF}.$$
 KVSNS_INIT=/usr/bin/kvsns_init
 NFS_INITIALIZED=/var/lib/nfs/nfs_initialized
 TMP_FILE=/tmp/nfs_tmp_file
+NFS_SETUP_LOG=/var/log/nfs_setup.log
 
 function die {
-	echo "Error: $1"
+	log "error: $*"
+	echo "error: $*"
 	exit 1
 }
 
 function run {
-	if [ ! -z "$prompt" ]; then
-		echo -e "\n$ $*"
-		read a
-		[ "$a" = "c" -o "$a" = "C" ] && return 1
+	echo -ne "\n$ $*"
+	[ ! -z "$prompt" ] && read a &&[ "$a" = "c" -o "$a" = "C" ] && exit 1
 		$*
-	else
-		echo -ne "\n$ $*"
-		$*
-	fi
-	[ $? -ne 0 ] && exit 1
-	return 0
+	return $?
+}
+
+function log {
+	echo "$*" >> $NFS_SETUP_LOG
 }
 
 function get_ip {
@@ -46,12 +44,16 @@ function get_ip {
 }
 
 function clovis_init {
+	log "Initializing Clovis..."
+
 	# Initialize Clovis
-	run m0clovis -l $ip_add$LOC_EXPORT_ID$lnet_port -h $ip_add$HA_EXPORT_ID -p $PROFILE -f $PROC_FID index create "$KVS_FID"
+	run m0clovis -l $ip_add$LOC_EXPORT_ID -h $ip_add$HA_EXPORT_ID -p $PROFILE -f $PROC_FID index create "$KVS_FID"
 	[ $? -ne 0 ] && die "Failed to Initialise Clovis"
 }
 
 function kvsns_init {
+	log "Initializing KVSNS..."
+
 	# Backup kvsns.ini file
 	[ ! -e $KVSNS_INI_BAK ] && run cp $KVSNS_INI $KVSNS_INI_BAK
 
@@ -64,7 +66,7 @@ function kvsns_init {
 
 	cat >> $KVSNS_INI << EOM
 [mero]
-local_addr = $ip_add$LOC_EXPORT_ID$lnet_port
+local_addr = $ip_add$LOC_EXPORT_ID
 ha_addr = $ip_add$HA_EXPORT_ID
 profile = $PROFILE
 proc_fid = $PROC_FID
@@ -81,6 +83,8 @@ EOM
 }
 
 function prepare_ganesha_conf {
+	log "Preparing NFS Ganesha configuration..."
+
 	# Backup ganesha.conf file
 	[ ! -e  $GANESHA_CONF_BAK ] && run cp $GANESHA_CONF $GANESHA_CONF_BAK
 
@@ -190,7 +194,7 @@ function eos_nfs_init {
 	#[ $? -ne 0 ] && die "Failed to start NFS-Ganesha"
 
 	echo success > cat $NFS_INITIALIZED
-	echo "NFS setup is complete"
+	echo -e "\nNFS setup is complete"
 }
 
 function eos_nfs_cleanup {
@@ -201,23 +205,35 @@ function eos_nfs_cleanup {
 	systemctl status nfs-ganesha > /dev/null && systemctl stop nfs-ganesha
 
 	# Drop index if previosly created
-	run m0clovis -l $ip_add$LOC_EXPORT_ID$lnet_port -h $ip_add$HA_EXPORT_ID -p $PROFILE -f $PROC_FID index drop "$KVS_FID"
+	run m0clovis -l $ip_add$LOC_EXPORT_ID -h $ip_add$HA_EXPORT_ID -p $PROFILE -f $PROC_FID index drop "$KVS_FID"
 
 	rm -f $NFS_INITIALIZED
 	echo "NFS cleanup is complete"
 }
 
 function usage {
-	echo "usage: $0 {init|cleanup} [-h] [-f] [-p] [-l lnet_port]" && exit 1
+	cat <<EOF
+usage: $0 {init|cleanup} [-h] [-f] [-p] [-P <Profile>] [-F <Process FID>] [-k <KVS FID>] [-e <Local export>] [-E <HA export>]
+options:
+  -h help
+  -f force initialisation
+  -p prompt
+  -P Profile. Default is <0x7000000000000001:0>
+  -F Process FID. Default is <0x7200000000000000:0>
+  -k KVS FID. Default is <0x780000000000000b:1>
+  -e Local Export Suffix. Default is @tcp:12345:44:301
+  -E HA Export Suffix. Default is @tcp:12345:45:1
+EOF
+	exit 1
 }
 
 # Main
 
-[ $(id -u) -ne 0 ] && die "Run this script as root user"
+[ $(id -u) -ne 0 ] && die "Run this script with root privileges"
 
 cmd=$1; shift 1
 
-getopt --options "hfpl:" --name nfs_setup -- $*
+getopt --options "hfpP:F:k:e:E:" --name nfs_setup 
 [[ $? -ne 0 ]] && usage
 
 while [ ! -z $1 ]; do
@@ -225,8 +241,12 @@ while [ ! -z $1 ]; do
 		-h ) usage;;
 		-f ) force=1;;
 		-p ) prompt=1;;
-		-l ) lnet_port=$2; shift 1;;
-		*  ) usage ;;
+		-P ) PROFILE=$2; shift 1;;
+		-F ) PROC_FID=$2; shift 1;;
+		-k ) KVS_FID=$2; shift 1;;
+		-e ) LOC_EXPORT_ID=$2; shift 1;;
+		-E ) HA_EXPORT_ID=$2; shift 1;;
+		 * ) usage ;;
 	esac
 	shift 1
 done
