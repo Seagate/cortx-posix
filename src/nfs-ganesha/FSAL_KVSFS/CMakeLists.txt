@@ -9,6 +9,7 @@ set(LIBFSALKVSFS_PATCH_LEVEL 1)
 set(LIBFSALKVSFS_EXTRA_VERSION ${RELEASE_VER})
 
 set(LIBFSALKVSFS_BASE_VERSION ${BASE_VERSION})
+set(NFS_SETUP_DIR ${CMAKE_SOURCE_DIR}/../conf)
 
 ################################################################################
 # Required arguments
