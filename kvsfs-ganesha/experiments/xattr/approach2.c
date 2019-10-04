@@ -32,6 +32,8 @@
 #include <fnmatch.h>
 #define KLEN 256
 #define VLEN 256
+#define MAXVAL 70000
+#define VALINPUT 512 
 
 static struct m0_fid ifid;
 static struct m0_ufid_generator kvsns_ufid_generator;
@@ -45,18 +47,17 @@ static int m0_op_kvs(enum m0_clovis_idx_opcode opcode, struct m0_bufvec *key, st
 	
 	struct m0_clovis_idx *index = NULL;
 	index = &idx;
+
 	rc = m0_clovis_idx_op(index, opcode, key, val, rcs, M0_OIF_OVERWRITE, &op);
-        
 	if (rc)
 	{
                printf("\nerror(%d): m0_clovis_idx_op", rc); 
 	       return rc;
 	}
 	m0_clovis_op_launch(&op, 1);
-	
+
 	rc = m0_clovis_op_wait(op, M0_BITS(M0_CLOVIS_OS_STABLE),
 			       M0_TIME_NEVER);
-	
 	if (rc)
 	{
 		printf("\nerror(%d): m0_clovis_op_wait", rc);
@@ -86,40 +87,48 @@ int parse(char *v)
 	json_object_object_foreach(obj, key, val)
 	{
 		kval = json_object_to_json_string(val);
-	//	printf("\nkey %s", kval);
 	}
 	return 0;
 }
 
-
 int json_get(char *k, char *v)
 {
 	size_t klen;
-	size_t vlen = 256;
-	
-	struct m0_bufvec key;
-	struct m0_bufvec val;
+	size_t vlen;
+
+	struct m0_bufvec	 key;
+	struct m0_bufvec	 val;
 	int rc;
 
-	klen = strnlen(k, 256)+1;
-	
-	rc = m0_bufvec_alloc(&key, 1, klen) ?:
-	     m0_bufvec_empty_alloc(&val, 1);
+	klen = strnlen(k, KLEN)+1;
+
+	rc = m0_bufvec_alloc(&key, 1, klen);
+	if (rc)
+        {
+		printf("\nerror(%d): m0_bufvec_alloc", rc);
+		goto out;
+	}
+
+	rc = m0_bufvec_empty_alloc(&val, 1);
+	if (rc)
+        {
+		printf("\nerror(%d): m0_bufvec_empty_alloc", rc);
+		goto out;
+	}
 
 	memcpy(key.ov_buf[0], k, klen);
-	memset(v, 0, vlen);
 
 	rc = m0_op_kvs(M0_CLOVIS_IC_GET, &key, &val);
-	
 	if (rc)
 	{
 		printf("\nerror(%d): m0_op_kvs while json_get", rc);
 		goto out;
 	}
-	
+
 	vlen = (size_t)val.ov_vec.v_count[0];
+
 	memcpy(v, (char *)val.ov_buf[0], vlen);
-	parse(v);
+
 out:
 	m0_bufvec_free(&key);
 	m0_bufvec_free(&val);
@@ -134,46 +143,100 @@ int in_clovis(char *k, const char *v)
 	struct m0_bufvec key;
 	struct m0_bufvec val;
 
- 	klen = strnlen(k, 255)+1;
-	vlen = strlen(v);
-	rc = m0_bufvec_alloc(&key, 1, klen) ?:m0_bufvec_alloc(&val, 1, vlen);
+	klen = strnlen(k, 255) + 1;
+	vlen = strlen(v) + 1;
 
+	rc = m0_bufvec_alloc(&key, 1, klen);
 	if (rc)
         {
-		printf("\nerror(%d): m0_bufvec_alloc", rc);	
-         	goto out;
- 	}
-        memcpy(key.ov_buf[0], k, klen);
+		printf("\nerror(%d): m0_bufvec_alloc", rc);
+		goto out;
+	}
+
+	rc = m0_bufvec_alloc(&val, 1, vlen);
+	if (rc)
+        {
+		printf("\nerror(%d): m0_bufvec_alloc", rc);
+		goto out;
+	}
+
+	memcpy(key.ov_buf[0], k, klen);
         memcpy(val.ov_buf[0], v, vlen);
- 
+
         rc = m0_op_kvs(M0_CLOVIS_IC_PUT, &key, &val);
- out:
+  out:
         m0_bufvec_free(&key);
         m0_bufvec_free(&val);
         return rc;
 }
-
 
 int json_store(char *k, char *v, char *ino)
 {
 	struct json_object  *obj;
 	int rc = 0;
 	int i;
+	char tmpkey[256];
 
 	obj = json_object_new_object();
-	char tmpkey[256];
-	char tmpval[256];
-	for( i = 0; i < 100; i++)
+	for (i = 0; i < 100; i++)
 	{
 		snprintf(tmpkey, 256, "%s_%d", k, i);
-		snprintf(tmpval, 256, "%s_%d", v, i);
-		json_object_object_add(obj, tmpkey, json_object_new_string(tmpval));
+		json_object_object_add(obj, tmpkey, json_object_new_string(v));
+	}
+
+	const char *json_string = json_object_to_json_string(obj);
+	//printf("json string len %d\n",strlen(json_string)); 
+
+	rc = in_clovis(ino, json_string);
+	return rc;
+}
+
+int json_update(char *k, char *v, char *ino, int no_of_keys)
+{
+	struct json_object *obj;
+	int rc = 0, i;
+
+	const char *tmp = malloc( sizeof(char) * MAXVAL);
+	char tmpkey[256];
+
+	json_get(ino, tmp);
+
+	if (tmp != NULL)
+		obj = json_tokener_parse(tmp);
+
+	for (i = 0; i < no_of_keys; i++)
+	{
+		snprintf(tmpkey, 256, "%s_%d", k, i);
+		json_object_object_add(obj, k, json_object_new_string(v));
 	}
 
 	const char *json_string = json_object_to_json_string(obj);
 
-	rc = in_clovis(ino, json_string);
-	
+        rc = in_clovis(ino, json_string);
+
+	return rc;
+}
+
+int json_delete(char *k, char *ino)
+{
+	struct json_object *obj;
+	int rc = 0, i;
+	const char *tmp = malloc( sizeof(char) * MAXVAL);
+	char tmpkey[256];
+	json_get(ino, tmp);
+	if (tmp != NULL)
+		obj = json_tokener_parse(tmp);
+	else
+		return -ENOENT;
+	for (i = 0; i < 100; i++)
+	{
+		snprintf(tmpkey, 256, "%s_%d", k, i);
+		json_object_object_del(obj, tmpkey);
+	}
+	const char *json_string = json_object_to_json_string(obj);
+
+        rc = in_clovis(ino, json_string);
+
 	return rc;
 }
 
@@ -224,8 +287,8 @@ void timer(struct timeval start1, struct timeval end1, char *msg)
 /* main */
 int main(int argc, char **argv)
 {
-	char *key = (char *)malloc(sizeof(char) * 255);
-	char *val = (char *)malloc(sizeof(char) * 4096);
+	char *key = malloc(sizeof(char) * 255);
+	char *val = malloc(sizeof(char) * 4096);
 
 	char *ino;
 	
@@ -252,9 +315,10 @@ int main(int argc, char **argv)
 	c0appz_putrc();
 
 	/* set input */
-	key = argv[1];
-	val = argv[2];
+	memcpy(key, argv[1], strlen(argv[1]));
+	memset(val, '*', VALINPUT);
 	ino = argv[3];
+	
 	/* initialize resources */
 	if (c0appz_init(0) != 0) {
 		fprintf(stderr, "error! clovis initialization failed.\n");
@@ -283,11 +347,30 @@ int main(int argc, char **argv)
 
 	printf("Stored successfully json object in clovis");
 	
-	char val3[4096];
+	int no_of_keys;
+	printf("\n give no of keys to update in json\n");
+	scanf("%d", &no_of_keys);
+
+	memset(val, '#', VALINPUT);
+	gettimeofday(&start1, NULL);
+
+	rc = json_update(key, val, ino, no_of_keys);	
+	if (rc != 0)
+	{
+		fprintf(stderr, "error in updating json value");
+		c0appz_free();
+		return -3;
+	}
+
+	gettimeofday(&end1, NULL);
+	timer(start1, end1, "updated key in json");
+
+	char val3[MAXVAL];
 	printf("\n give ino for json value\n");
 	scanf("%s", ino);
 
 	gettimeofday(&start1, NULL);
+
 	rc = json_get(ino, val3);
 	if (rc != 0)
 	{
@@ -295,10 +378,30 @@ int main(int argc, char **argv)
 		c0appz_free();
 		return -3;
 	}
+
+	parse(val3);
 	//printf("json object retrieved %s", val3);
 
 	gettimeofday(&end1, NULL);
 	timer(start1, end1, "parsed 100 keys in json");
+	ino = NULL;
+	ino = malloc(256);
+	printf("\n give ino for json value\n");
+	scanf("%s", ino);
+
+
+	gettimeofday(&start1, NULL);
+
+	rc = json_delete(key, ino);
+	if (rc != 0)
+	{
+		fprintf(stderr, "error in deleting json value");
+		c0appz_free();
+		return -3;
+	}
+
+	gettimeofday(&end1, NULL);
+	timer(start1, end1, "deleted 100 keys and values in json");
 
 
 	/* free resources*/
