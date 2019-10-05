@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 2.6.3)
 cmake_policy(SET CMP0017 NEW)
 
+add_subdirectory(ns)
+
 add_executable(kvsns_test kvsns_test.c)
 target_link_libraries(kvsns_test kvsns ${STORE_LIBRARY}
 		      ${KVSAL_LIBRARY} )
