@@ -394,8 +394,7 @@ int kvsns_amend_stat(struct stat *stat, int flags)
 {
 	struct timeval t;
 
-	if (!stat)
-		return -EINVAL;
+	KVSNS_DASSERT(stat);
 
 	if (gettimeofday(&t, NULL) != 0)
 		return -errno;
@@ -415,15 +414,18 @@ int kvsns_amend_stat(struct stat *stat, int flags)
 		stat->st_ctim.tv_nsec = 1000 * t.tv_usec;
 	}
 
-	if (flags & STAT_INCR_LINK)
+	if (flags & STAT_INCR_LINK) {
 		stat->st_nlink += 1;
+	}
 
 	if (flags & STAT_DECR_LINK) {
-		if (stat->st_nlink == 1)
-			return -EINVAL;
+		if (stat->st_nlink == 0) {
+			return KVSNS_SET_ERROR(-EINVAL);
+		}
 
 		stat->st_nlink -= 1;
 	}
+
 	return 0;
 }
 
@@ -936,17 +938,16 @@ out:
 	return rc;
 }
 
-int kvsns_ino_to_kfid(void *ctx, kvsns_ino_t *ino, kvsns_fid_t *kfid)
+int kvsns_ino_to_kfid(void *ctx, const kvsns_ino_t *ino, kvsns_fid_t *kfid)
 {
 	int rc;
 	kvsns_inode_kfid_key_t  *kfid_key = NULL;
-	uint64_t kfid_size=0;
-	kvsns_fid_t *kfid_val=NULL;
+	uint64_t kfid_size = 0;
+	kvsns_fid_t *kfid_val = NULL;
 
 	KVSNS_DASSERT(ino != NULL);
 	KVSNS_DASSERT(kfid != NULL);
 
-	memset(kfid, 0, sizeof(kvsns_fid_t));
 	RC_WRAP_LABEL(rc, out, kvsal_alloc, (void **)&kfid_key,
 		      sizeof(*kfid_key));
 
@@ -956,8 +957,7 @@ int kvsns_ino_to_kfid(void *ctx, kvsns_ino_t *ino, kvsns_fid_t *kfid)
 		      sizeof(kvsns_inode_kfid_key_t), (void **)&kfid_val,
 		      &kfid_size);
 
-	kfid->f_hi = kfid_val->f_hi;
-	kfid->f_lo = kfid_val->f_lo;
+	*kfid = *kfid_val;
 	kvsal_free(kfid_val);
 
 free_key:
@@ -969,7 +969,7 @@ out:
 	return rc;
 }
 
-int kvsns_del_kfid(void *ctx, kvsns_ino_t *ino)
+int kvsns_del_kfid(void *ctx, const kvsns_ino_t *ino)
 {
 	int rc;
 	kvsns_inode_kfid_key_t *kfid_key = NULL;

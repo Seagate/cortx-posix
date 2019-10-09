@@ -414,7 +414,8 @@ int main(int argc, char *argv[])
 			exit(1);
 		}
 
-		rc = kvsns_unlink(&cred, &current_inode, argv[1]);
+		assert(0);
+		rc = -EINVAL;
 		if (rc == 0)
 			printf("Unlink %llu/%s OK\n", current_inode, argv[1]);
 		else
