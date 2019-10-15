@@ -29,8 +29,11 @@
 
 #include <limits.h>
 #include <fsal_types.h>
+#include <fsal_api.h>
 #include <FSAL/fsal_init.h>
-#include "fsal_internal.h"
+#include "kvsfs_export.h" /* create export */
+#include "kvsfs_handle.h" /* init handle ops */
+#include "kvsfs_internal.h" /* kvsfs_module type */
 
 /* TODO:ACL: ATTR_ACL and ATTR4_SEC_LABEL are not supported yet. */
 #define KVSFS_SUPPORTED_ATTRIBUTES (ATTRS_POSIX)

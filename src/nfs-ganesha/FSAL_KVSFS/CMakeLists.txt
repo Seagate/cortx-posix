@@ -75,11 +75,10 @@ if((NOT HAVE_KVSNS_LIB) OR (NOT HAVE_LIBKVSNS_H))
 endif((NOT HAVE_KVSNS_LIB) OR (NOT HAVE_LIBKVSNS_H))
 
 SET(fsalkvsfs_LIB_SRCS
-   fsal_internal.c
+   kvsfs_internal.c
    main.c
    export.c
    handle.c
-   file.c
    xattrs.c
    mds.c
    ds.c

@@ -39,7 +39,6 @@
 #include <mntent.h>
 #include <ctype.h>
 #include "gsh_list.h"
-#include "fsal_internal.h"
 #include "fsal_convert.h"
 #include "FSAL/fsal_config.h"
 #include "FSAL/fsal_commonlib.h"

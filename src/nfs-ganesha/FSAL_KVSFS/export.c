@@ -34,8 +34,66 @@
 #include <fsal_types.h>
 #include <FSAL/fsal_config.h>
 #include <FSAL/fsal_commonlib.h>
-#include "fsal_internal.h"
-#include "kvsfs_methods.h"
+#include "kvsfs_handle.h" /* FH operations */
+#include "kvsfs_internal.h" /* kvsfs_fsal_export */
+
+/******************************************************************************/
+/* this needs to be refactored to put ipport inside sockaddr_in */
+struct kvsfs_pnfs_ds_parameter {
+	struct glist_head ds_list;
+	struct sockaddr_in ipaddr;
+	unsigned short ipport;
+	unsigned int id;
+};
+
+#define KVSFS_NB_DS 4
+struct kvsfs_exp_pnfs_parameter {
+	unsigned int stripe_unit;
+	bool pnfs_enabled;
+	unsigned int nb_ds;
+	struct kvsfs_pnfs_ds_parameter ds_array[KVSFS_NB_DS];
+};
+
+struct kvsfs_fsal_export {
+	/* base */
+	struct fsal_export export;
+
+	/** A filesystem in Open state */
+	struct kvsfs_fsal_index_context *index_context;
+
+	/** Root Inode of the filesystem associated with the export */
+	struct kvsfs_file_handle rootfh;
+
+	/** Export config. */
+	char *kvsns_config;
+
+	bool pnfs_ds_enabled;
+	bool pnfs_mds_enabled;
+	struct kvsfs_exp_pnfs_parameter pnfs_param;
+};
+
+/******************************************************************************/
+void kvsfs_fsal_export_get_rootfh(struct fsal_export *exp,
+				   struct kvsfs_file_handle **inode)
+{
+	struct kvsfs_fsal_export *kvsfs_exp;
+	kvsfs_exp = container_of(exp, struct kvsfs_fsal_export, export);
+	*inode = &kvsfs_exp->rootfh;
+}
+
+/******************************************************************************/
+void kvsfs_fsal_export_get_index(struct fsal_export *exp,
+
+				 struct kvsfs_fsal_index_context **index)
+{
+	struct kvsfs_fsal_export *kvsfs_exp;
+	kvsfs_exp = container_of(exp, struct kvsfs_fsal_export, export);
+	*index = kvsfs_exp->index_context;
+}
+
+
+/******************************************************************************/
+
 
 static struct config_item ds_array_params[] = {
 	CONF_MAND_IP_ADDR("DS_Addr", "127.0.0.1",
@@ -156,7 +214,7 @@ fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
 					    fso_pnfs_mds_supported) &&
 					    myself->pnfs_param.pnfs_enabled;
 
-	kvsns_fs_ctx_t fs_ctx;
+	struct kvsfs_fsal_index_context *fs_ctx = NULL;
 
 	retval = kvsfs_export_to_kvsns_ctx(&myself->export, &fs_ctx);
 	if (retval != 0) {
@@ -165,7 +223,7 @@ fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
 	}
 
 	myself->index_context = fs_ctx;
-	myself->root_inode = KVSNS_ROOT_INODE;
+	myself->rootfh = (struct kvsfs_file_handle) { KVSNS_ROOT_INODE };
 
 	/* TODO:PORTING: pNFS support */
 #if 0
