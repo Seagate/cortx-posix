@@ -46,6 +46,11 @@ __thread redisContext *rediscontext = NULL;
 
 static struct collection_item *conf = NULL;
 
+struct redis_iter_priv
+{
+	struct redisReply *last_reply;
+};
+
 int kvsal_init(struct collection_item *cfg_items)
 {
 	redisReply *reply;
@@ -763,7 +768,7 @@ int kvsal_get_list(kvsal_list_t *list, int start, int *end,
 {
 	if (!list)
 		return -EINVAL;
-	
+
 	return kvsal_get_list_pattern(list->pattern, 
 				      start, 
 				      end,
@@ -772,25 +777,92 @@ int kvsal_get_list(kvsal_list_t *list, int start, int *end,
 
 size_t kvsal_iter_get_key(struct kvsal_iter *iter, void **buf)
 {
-	return 0;
+	struct redis_iter_priv *priv = (void *) iter->priv;
+
+	*buf = priv->last_reply->element[1]->element[0]->str;
+
+	return priv->last_reply->element[1]->element[0]->len;
+}
+
+size_t kvsal_iter_get_value(struct kvsal_iter *iter, void **buf)
+{
+	struct redis_iter_priv *priv = (void *) iter->priv;
+	redisReply *reply;
+	int length;
+
+	reply = redisCommand(rediscontext, "GET %b", priv->last_reply->element[1]->element[0]->str, priv->last_reply->element[1]->element[0]->len);
+	if (!reply || rediscontext->err ) {
+		return false;
+	}
+
+	*buf = malloc(sizeof(char) * reply->len);
+	if (buf == NULL)
+		return -EIO;
+
+	memcpy(*buf, reply->str, reply->len);
+	log_debug("value of inode %s and %zu", reply->str, reply->len);
+	length = reply->len;
+
+	freeReplyObject(reply);
+
+	return length;
+}
+
+static bool kvsal_prefix_iter_has_prefix(struct kvsal_prefix_iter *iter)
+{
+	void *key;
+	size_t key_len;
+
+	key_len = kvsal_iter_get_key(&iter->base, &key);
+	assert(key_len >= iter->prefix_len);
+
+	return memcmp(iter->prefix, key, iter->prefix_len) == 0;
 }
 
 bool kvsal_prefix_iter_find(struct kvsal_prefix_iter *iter)
 {
-	return 0;
+	redisReply *reply;
+	struct redis_iter_priv *priv = (void *) iter->base.priv;
+
+	char *cur = malloc(8);
+	cur = "0";
+	bool key_present = false;
+	do{
+		reply = redisCommand(rediscontext, "SCAN %s MATCH %b* COUNT 1", cur, iter->prefix, iter->prefix_len);
+		if (!reply || rediscontext->err ) {
+			return false;
+		}
+
+		cur =  reply->element[0]->str;
+
+		if (reply->element[1]->elements != 0)
+		{
+			key_present = true;
+			break;
+		}
+	}while (strcmp(cur, "0"));
+
+	if (!key_present)
+		return key_present;
+
+	priv->last_reply = reply;
+
+	/* release objects back to priv */
+	reply = NULL;
+
+	return kvsal_prefix_iter_has_prefix(iter);
 }
 
 int kvsal_alloc(void **ptr, uint64_t size)
 {
 	int rc = 0;
 
-       *ptr = malloc(size);
-       if (*ptr == NULL)
-               rc = -ENOMEM;
-	
-       log_debug("alloc rc:%d", rc);
+	*ptr = malloc(size);
+	if (*ptr == NULL)
+		rc = -ENOMEM;
+	log_debug("alloc rc:%d", rc);
 
-       return rc;
+	return rc;
 }
 
 void kvsal_free(void *ptr)
@@ -799,19 +871,47 @@ void kvsal_free(void *ptr)
 	log_debug("free done");
 }
 
-size_t kvsal_iter_get_value(struct kvsal_iter *iter, void **buf)
-{
-	return 0;
-}
-
 bool kvsal_prefix_iter_next(struct kvsal_prefix_iter *iter)
 {
-	return true;
+	redisReply *reply;
+	struct redis_iter_priv *priv = (void *) iter->base.priv;
+	bool can_get_next = false;
+	char *cur = malloc(8);
+
+	cur = priv->last_reply->element[0]->str;
+	if (strcmp(cur, "0") == 0)
+		return can_get_next;
+	do{
+		reply = redisCommand(rediscontext, "SCAN %s MATCH %b* COUNT 1", cur, iter->prefix, iter->prefix_len);
+		if (!reply || rediscontext->err ) {
+			return false;
+		}
+
+		cur =  reply->element[0]->str;
+		if (reply->element[1]->elements != 0)
+		{
+			can_get_next = true;
+			break;
+		}
+
+	}while (strcmp(cur, "0"));
+
+	if (!can_get_next)
+		return can_get_next;
+
+	priv->last_reply = reply;
+
+	/* release objects back to priv */
+	reply = NULL;
+
+	return kvsal_prefix_iter_has_prefix(iter);
 }
 
 void kvsal_prefix_iter_fini(struct kvsal_prefix_iter *iter)
 {
-	
+	struct redis_iter_priv *priv = (void *) iter->base.priv;
+
+	freeReplyObject(priv->last_reply);
 }
 
 int kvsal_create_fs_ctx(unsigned long fs_id, void **fs_ctx)
