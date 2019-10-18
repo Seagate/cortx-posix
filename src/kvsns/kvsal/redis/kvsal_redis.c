@@ -559,10 +559,9 @@ int kvsal3_get_bin(void *ctx, void *k, const size_t klen, void **v,
 	char *buf;
 
 	assert(k && v && vlen);
-
-	assert(rediscontext);
-	if (kvsal_reinit() != 0)
-		return -EIO;
+	if (!rediscontext)
+		if (kvsal_reinit() != 0)
+			return -1;
 
 	reply = redisCommand(rediscontext, "GET %b", (char *) k, klen);
 	if (!reply)
@@ -785,19 +784,19 @@ size_t kvsal_iter_get_key(struct kvsal_iter *iter, void **buf)
 	return priv->prev_scan->element[1]->element[0]->len;
 }
 
+/** Get pointer to value data.
+ *  @par5 am[out] buf View of value data owned by iter.
+ *  @return Size of value.
+ **/
+
 size_t kvsal_iter_get_value(struct kvsal_iter *iter, void **buf)
 {
 	struct redis_iter_priv *priv = (void *) iter->priv;
-	int length;
 
-	*buf = malloc(sizeof(char) * priv->prev_get->len);
-	memcpy(*buf, priv->prev_get->str,  priv->prev_get->len);
-
+	*buf = priv->prev_get->str;
 	log_debug("length of inode %zu", priv->prev_get->len);
 
-	length = priv->prev_get->len;
-
-	return length;
+	return priv->prev_get->len;
 }
 
 static bool kvsal_prefix_iter_has_prefix(struct kvsal_prefix_iter *iter)
