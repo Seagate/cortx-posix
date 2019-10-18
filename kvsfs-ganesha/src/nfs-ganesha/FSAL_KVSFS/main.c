@@ -31,12 +31,12 @@
 #include <fsal_types.h>
 #include <FSAL/fsal_init.h>
 #include "fsal_internal.h"
+#include <kvsns/kvsns.h> /* maxlink */
 
 /* TODO:ACL: ATTR_ACL and ATTR4_SEC_LABEL are not supported yet. */
 #define KVSFS_SUPPORTED_ATTRIBUTES (ATTRS_POSIX)
 
-/* TBD */
-#define KVSFS_LINK_MAX 1024
+#define KVSFS_LINK_MAX KVSNS_MAX_LINK
 
 const char module_name[] = "KVSFS";
 

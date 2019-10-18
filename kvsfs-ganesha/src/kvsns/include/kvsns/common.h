@@ -32,6 +32,68 @@
 	if (__rc < 0)        \
 		goto __label; })
 
+
+/* Set source of an error.
+ * Allows us to find the place where an errno return code has been set.
+ * This macro can be used in assignments and return statements:
+ *
+ * @code
+ *	if (!lookup(fd)) {
+ *		return RC_WRAP_SET(-ESTALE);
+ *	}
+ *
+ *	if (strlen(str) > 255) {
+ *		rc = RC_WRAP_SET(-EINVAL);
+ *		goto out;
+ *	}
+ *
+ * @endcode
+ *
+ * NOTE: This macro should not be used in a case where an error code has already
+ * been generated somewhere in KVSNS. However, it should be used if an error code
+ * has been generated outside of KVSNS (syscalls, KVS backend, etc):
+ *
+ * @code
+ *	int kvsal_get(void *data) {
+ *		rc = write(1, data, 1);
+ *		if (rc != 0) {
+ *			rc = -errno;
+ *			RC_WRAP_SET(rc) // Good! We should track syscalls
+ *			goto out;
+ *		}
+ *		rc = redis_get(data, 1);
+ *		if (rc != 0) {
+ *			RC_WRAP_SET(rc) // Good! We should track external
+ *					// components
+ *			goto out;
+ *		}
+ *	}
+ *	int kvsns_internal_lookup(fd) {
+ *		RC_WRAP_LABEL(rc, kvsal_get, fd.key); // OK
+ *		// ...
+ *		rc = kvsal_get(fd.key); // Bad! kvsal_get is an internal
+ *		if (rc != 0) {		// component. The origin of the error
+ *					// is inside this function but not
+ *					// the function itself.
+ *			RC_WRAP_SET(rc);
+ *			goto out;
+ *		}
+ *		// ...
+ *		rc = kvsal_get(fd.key); // Good! We overwrite the rc here with
+ *					// a new error code.
+ *		if (rc != 0 && rc == -EEXIST) {
+ *			rc = RC_WRAP_SET(-EINVAL);
+ *			goto out;
+ *		}
+ *		// ...
+ *	}
+ * @endcode
+ *
+ * TODO: log_trace is enabled by default. We might need  to add a switch here to
+ * turn it on/off.
+ */
+#define RC_WRAP_SET(__err) (log_trace("set_error: %d (%d)", __err, -__err), __err)
+
 /* Uncomment this define if you want to get detailed trace
  * of RC_WRAP_LABEL calls
  */

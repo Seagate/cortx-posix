@@ -5,9 +5,8 @@ add_executable(kvsns_test kvsns_test.c)
 target_link_libraries(kvsns_test kvsns ${STORE_LIBRARY}
 		      ${KVSAL_LIBRARY} )
 
-add_executable(kvsns_file_test_unlink_on_close kvsns_file_test_unlink_on_close.c)
-target_link_libraries(kvsns_file_test_unlink_on_close kvsns ${STORE_LIBRARY}
-		      ${KVSAL_LIBRARY})
+# NOTE: Delete-on-close test has been removed because
+# kvsns does not support open states.
 
 add_executable(kvsns_file_test_rw kvsns_file_test_rw.c)
 target_link_libraries(kvsns_file_test_rw kvsns ${STORE_LIBRARY}

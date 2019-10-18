@@ -97,7 +97,7 @@ out:
 		/* We don't have transactions, so that let's just remove the
 		 * object.
 		 */
-		(void) kvsns2_unlink(ctx, cred, parent, name);
+		(void) kvsns2_unlink(ctx, cred, parent, &object, name);
 		// kvsal_discard_transaction();
 	}
 	return rc;
@@ -106,7 +106,7 @@ out:
 int kvsns_open(kvsns_cred_t *cred, kvsns_ino_t *ino,
 	       int flags, mode_t mode, kvsns_file_open_t *fd)
 {
-	/* deprecated, see kvsns2_oepn for details */
+	/* deprecated, see kvsns2_open for details */
 	return 0;
 }
 
@@ -146,40 +146,6 @@ out:
 	/* In particular create a key per opened fd */
 	log_trace("Exit rc=%d", rc);
 	return rc;
-}
-
-int kvsns_is_open(kvsns_fs_ctx_t *ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
-		  bool *is_open)
-{
-	*is_open = false;
-	return 0;
-}
-
-int kvsns_openat(kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
-		 int flags, mode_t mode, kvsns_file_open_t *fd)
-{
-	kvsns_ino_t ino = 0LL;
-
-	if (!cred || !parent || !name || !fd)
-		return -EINVAL;
-
-	RC_WRAP(kvsns_lookup, cred, parent, name, &ino);
-
-	return kvsns_open(cred, &ino, flags, mode, fd);
-}
-
-int kvsns2_openat(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
-		  int flags, mode_t mode, kvsns_file_open_t *fd)
-{
-	kvsns_ino_t ino = 0LL;
-
-	if (!cred || !parent || !name || !fd)
-		return -EINVAL;
-
-	/* @todo: add context as a parameter in kvsns_lookup */
-	// RC_WRAP(kvsns_lookup, cred, parent, name, &ino);
-
-	return kvsns2_open(ctx, cred, &ino, flags, mode, fd);
 }
 
 int kvsns2_close(void *ctx, kvsns_file_open_t *fd)

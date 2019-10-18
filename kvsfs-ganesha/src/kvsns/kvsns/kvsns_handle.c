@@ -540,227 +540,101 @@ aborted:
 	return rc;
 }
 
-int kvsns_unlink(kvsns_cred_t *cred, kvsns_ino_t *dir, char *name)
+int kvsns_detach(kvsns_fs_ctx_t fs_ctx,
+		 const kvsns_cred_t *cred,
+		 const kvsns_ino_t *parent,
+		 const kvsns_ino_t *obj,
+		 const char *name)
 {
 	int rc;
-	char k[KLEN];
-	char v[VLEN];
-	kvsns_ino_t ino = 0LL;
-	kvsns_ino_t parent[KVSAL_ARRAY_SIZE];
-	struct stat ino_stat;
-	struct stat dir_stat;
-	int size;
-	int i;
-	bool opened;
-	bool deleted;
+	kvsns_name_t k_name;
 
-	opened = false;
-	deleted = false;
+	RC_WRAP_LABEL(rc, out, kvsns_name_from_cstr, name, &k_name);
+	RC_WRAP_LABEL(rc, out, kvsns2_access, fs_ctx, (kvsns_cred_t *) cred,
+		      (kvsns_ino_t *) parent, KVSNS_ACCESS_DELETE_ENTITY);
 
-	if (!cred || !dir || !name)
-		return -EINVAL;
+	kvsal_begin_transaction();
+	RC_WRAP_LABEL(rc, out, kvsns_tree_detach, fs_ctx, parent, obj, &k_name);
+	RC_WRAP_LABEL(rc, out, kvsns2_update_stat, fs_ctx, obj,
+		      STAT_CTIME_SET|STAT_DECR_LINK);
+	kvsal_end_transaction();
 
-	memset(parent, 0, KVSAL_ARRAY_SIZE*sizeof(kvsns_ino_t));
-	memset(&ino_stat, 0, sizeof(ino_stat));
-	memset(&dir_stat, 0, sizeof(dir_stat));
-
-	RC_WRAP(kvsns_access, cred, dir, KVSNS_ACCESS_WRITE);
-
-	RC_WRAP(kvsns_lookup, cred, dir, name, &ino);
-
-	RC_WRAP(kvsns_get_stat, dir, &dir_stat);
-	RC_WRAP(kvsns_get_stat, &ino, &ino_stat);
-
-	memset(k, 0, KLEN);
-	snprintf(k, KLEN, "%llu.parentdir", ino);
-	RC_WRAP(kvsal_get_char, k, v);
-
-	size = KVSAL_ARRAY_SIZE;
-	RC_WRAP(kvsns_str2parentlist, parent, &size, v);
-
-	/* Check if file is opened */
-	memset(k, 0, KLEN);
-	snprintf(k, KLEN, "%llu.openowner", ino);
-
-	rc = kvsal2_exists(NULL, k, 0);
-
-	if ((rc != 0) && (rc != -ENOENT))
-		return rc;
-
-	opened = (rc == -ENOENT) ? false : true;
-
-	RC_WRAP(kvsal_begin_transaction);
-
-	if (size == 1) {
-		/* Last link, try to perform deletion */
-	memset(k, 0, KLEN);
-		snprintf(k, KLEN, "%llu.parentdir", ino);
-		RC_WRAP_LABEL(rc, aborted, kvsal_del, k);
-
-		memset(k, 0, KLEN);
-		snprintf(k, KLEN, "%llu.stat", ino);
-		RC_WRAP_LABEL(rc, aborted, kvsal_del, k);
-
-		if (opened) {
-			/* File is opened, deleted it at last close */
-			memset(k, 0, KLEN);
-			snprintf(k, KLEN, "%llu.opened_and_deleted", ino);
-			snprintf(v, VLEN, "1");
-			RC_WRAP_LABEL(rc, aborted, kvsal_set_char, k, v);
-		}
-
-		/* Remove all associated xattr */
-		deleted = true;
-	} else {
-		for (i = 0; i < size ; i++)
-			if (parent[i] == *dir) {
-				/* In this list mgmt, setting value 0
-
-				 * will make it ignored as str is rebuilt */
-				parent[i] = 0;
-				break;
-			}
-		memset(k, 0, KLEN);
-		snprintf(k, KLEN, "%llu.parentdir", ino);
-		RC_WRAP_LABEL(rc, aborted, kvsns_parentlist2str,
-			      parent, size, v);
-		RC_WRAP_LABEL(rc, aborted, kvsal_set_char, k, v);
-
-		RC_WRAP_LABEL(rc, aborted, kvsns_amend_stat, &ino_stat,
-			 STAT_CTIME_SET|STAT_DECR_LINK);
-		RC_WRAP_LABEL(rc, aborted, kvsns_set_stat, &ino, &ino_stat);
+out:
+	if (rc != 0) {
+		kvsal_discard_transaction();
 	}
-
-
-	memset(k, 0, KLEN);
-	snprintf(k, KLEN, "%llu.dentries.%s",
-		 *dir, name);
-	RC_WRAP_LABEL(rc, aborted, kvsal_del, k);
-
-	/* if object is a link, delete the link content as well */
-	if (S_ISLNK(ino_stat.st_mode)) {
-		memset(k, 0, KLEN);
-		snprintf(k, KLEN, "%llu.link", ino);
-		RC_WRAP_LABEL(rc, aborted, kvsal_del, k);
-	}
-
-	RC_WRAP_LABEL(rc, aborted, kvsns_amend_stat, &dir_stat,
-		      STAT_MTIME_SET|STAT_CTIME_SET);
-	RC_WRAP_LABEL(rc, aborted, kvsns_set_stat, dir, &dir_stat);
-
-	RC_WRAP(kvsal_end_transaction);
-
-	/* Call to object store : do not mix with metadata transaction */
-	if (!opened)
-		RC_WRAP(extstore_del, &ino);
-
-	if (deleted)
-		RC_WRAP(kvsns_remove_all_xattr, cred, &ino);
-	return 0;
-
-aborted:
-	kvsal_discard_transaction();
 	return rc;
 }
 
-int kvsns2_unlink(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *dir, char *name)
+
+static inline bool kvsns_file_has_links(struct stat *stat)
+{
+	return stat->st_nlink > 0;
+}
+
+int kvsns_destroy_orphaned_file(kvsns_fs_ctx_t fs_ctx,
+				const kvsns_ino_t *ino)
+{
+
+	int rc;
+	struct stat *stat = NULL;
+	kvsns_fid_t kfid;
+
+	RC_WRAP_LABEL(rc, out, kvsns2_get_stat, fs_ctx, ino, &stat);
+
+	if (kvsns_file_has_links(stat)) {
+		rc = 0;
+		goto out;
+	}
+
+	kvsal_begin_transaction();
+	RC_WRAP_LABEL(rc, out, kvsns2_del_stat, fs_ctx, ino);
+	if (S_ISLNK(stat->st_mode)) {
+		RC_WRAP_LABEL(rc, out, kvsns_del_link, fs_ctx, ino);
+	} else if (S_ISREG(stat->st_mode)) {
+		RC_WRAP_LABEL(rc, out, kvsns_ino_to_kfid, fs_ctx, ino, &kfid);
+		RC_WRAP_LABEL(rc, out, extstore2_del, fs_ctx, &kfid);
+		RC_WRAP_LABEL(rc, out, kvsns_del_kfid, fs_ctx, ino);
+	} else {
+		/* Impossible: rmdir handles DIR; LNK and REG are handled by
+		 * this function, the other types cannot be created
+		 * at all.
+		 */
+		KVSNS_DASSERT(0);
+		log_err("Attempt to remove unsupported object type (%d)",
+			(int) stat->st_mode);
+	}
+	/* TODO: Delete File Xattrs here */
+	kvsal_end_transaction();
+
+out:
+	if (stat) {
+		kvsal_free(stat);
+	}
+
+	if (rc != 0) {
+		kvsal_discard_transaction();
+	}
+
+	return rc;
+}
+
+int kvsns2_unlink(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *dir,
+		  kvsns_ino_t *fino, char *name)
 {
 	int rc;
-	char k[KLEN];
-	char v[VLEN];
-	kvsns_ino_t ino = 0LL;
-	kvsns_ino_t parent[KVSAL_ARRAY_SIZE];
-	struct stat *ino_stat = NULL;
-	struct stat *dir_stat = NULL;
-	size_t klen;
-	size_t vlen;
-	int size;
-	bool opened;
-	kvsns_fid_t kfid;
-	kvsns_name_t k_name;
+	kvsns_ino_t ino;
 
-	opened = false;
-
-	if (!cred || !dir || !name) {
-		rc =  -EINVAL;
-		goto aborted;
+	if (kvsns_likely(fino != NULL)) {
+		ino = *fino;
+	} else {
+		RC_WRAP_LABEL(rc, out, kvsns2_lookup, ctx, cred, dir, name, &ino);
 	}
 
-	RC_WRAP_LABEL(rc, aborted, kvsns_name_from_cstr, name, &k_name);
+	RC_WRAP_LABEL(rc, out, kvsns_detach, ctx, cred, dir, &ino, name);
+	RC_WRAP_LABEL(rc, out, kvsns_destroy_orphaned_file, ctx, &ino);
 
-	log_trace("ENTER: name=%s dir=%p", name, dir);
-
-	memset(parent, 0, KVSAL_ARRAY_SIZE*sizeof(kvsns_ino_t));
-
-	RC_WRAP(kvsns2_access, ctx, cred, dir, KVSNS_ACCESS_WRITE);
-
-	RC_WRAP(kvsns2_lookup, ctx, cred, dir, name, &ino);
-
-	RC_WRAP_LABEL(rc, dirfree, kvsns2_get_stat, ctx, dir, &dir_stat);
-	RC_WRAP_LABEL(rc, errfree, kvsns2_get_stat, ctx, &ino, &ino_stat);
-
-	/* Check if the file is opened */
-	RC_WRAP_LABEL(rc, errfree, kvsns_is_open, ctx, NULL, &ino, &opened);
-
-	RC_WRAP(kvsal_begin_transaction);
-
-	RC_WRAP_LABEL(rc, errfree, kvsns_tree_detach, ctx, dir, &ino, &k_name);
-
-	size = ino_stat->st_nlink;
-
-	if (size == 1) {
-		RC_WRAP_LABEL(rc, errfree, kvsns2_del_stat, ctx, &ino);
-
-		if (opened) {
-			/* File is opened, the final close will delete it */
-			log_debug("File is opened by other thread/process.");
-			RC_WRAP_LABEL(rc, errfree, prepare_key, k, KLEN,
-				      "%llu.opened_and_deleted", ino);
-			klen = rc;
-			RC_WRAP_LABEL(rc, errfree, prepare_key, v, VLEN, "1");
-			vlen = rc;
-			RC_WRAP_LABEL(rc, errfree, kvsal2_set_char, ctx, k,
-				      klen, v, vlen);
-		}
-		/* @todo: Remove all associated xattrs */
-	}
-	else if (size >= 1) {
-	    ino_stat->st_nlink--;
-	    RC_WRAP_LABEL(rc, errfree, kvsns2_set_stat, ctx, &ino, ino_stat);
-	}
-
-	/* if object is a link, delete the link content as well */
-	/* @todo: Untested. Revisit this during implementation of symlinks. */
-	if (S_ISLNK(ino_stat->st_mode)) {
-		RC_WRAP_LABEL(rc, errfree, kvsns_del_link, ctx, &ino);
-	}
-
-	RC_WRAP_LABEL(rc, errfree, kvsns_amend_stat, dir_stat,
-		      STAT_MTIME_SET|STAT_CTIME_SET);
-	RC_WRAP_LABEL(rc, errfree, kvsns2_set_stat, ctx, dir, dir_stat);
-
-	RC_WRAP(kvsal_end_transaction);
-
-	/* Call to object store : do not mix with metadata transaction */
-
-	/* Delete a file from the extstore only if:
-	 *	it is not open
-	 *	it is not a symlink
-	 *	it has no more links in the fs tree
-	 */
-	if (!opened && !S_ISLNK(ino_stat->st_mode) && (size == 1)) {
-		RC_WRAP(kvsns_ino_to_kfid, ctx, &ino, &kfid);
-		RC_WRAP(extstore2_del, ctx, &kfid);
-		RC_WRAP(kvsns_del_kfid, ctx, &ino);
-	}
-
-errfree:
-	kvsal_free(dir_stat);
-dirfree:
-	kvsal_free(ino_stat);
-aborted:
-	kvsal_discard_transaction();
-	log_trace("EXIT rc=%d", rc);
+out:
 	return rc;
 }
 
@@ -842,8 +716,9 @@ int kvsns_rename(kvsns_fs_ctx_t fs_ctx, kvsns_cred_t *cred,
 			RC_WRAP_LABEL(rc, errfree, kvsns2_rmdir, fs_ctx, cred,
 				      dino_dir, dname);
 		} else {
+			/* TODO: Handle delete-on-close at the caller level */
 			RC_WRAP_LABEL(rc, errfree, kvsns2_unlink, fs_ctx, cred,
-				      dino_dir, dname);
+				      dino_dir, NULL, dname);
 		}
 	}
 

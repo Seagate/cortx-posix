@@ -448,7 +448,7 @@ int main(int argc, char *argv[])
 			exit(1);
 		}
 
-		rc = kvsns2_unlink(fs_ctx, &cred, &current_inode, argv[1]);
+		rc = kvsns2_unlink(fs_ctx, &cred, &current_inode, NULL, argv[1]);
 		if (rc == 0) {
 			printf("==> Deleted %llu/%s \n", current_inode, argv[1]);
 			return rc;
