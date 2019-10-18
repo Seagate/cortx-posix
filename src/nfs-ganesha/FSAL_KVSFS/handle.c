@@ -831,45 +831,6 @@ out:
 	fsal_error = posix2fsal_error(-retval);
 	T_EXIT0(-retval);
 	return fsalstat(fsal_error, -retval);
-
-#if 0
-	/* TODO:PORTING:
-	 * Since we don't support NFSv3, there is no sense to support
-	 * "stateless" NFSv3 file states (oxymoron).
-	 * NFS Ganesha and their state_t-related functions are
-	 * responsible for situations like the below case.
-	 */
-	/* An explanation is required here.
-	 * This is an exception management.
-	 * when a file is opened, then deleted without being closed,
-	 * FSAL_VFS can still getattr on it, because it uses fstat
-	 * on a cached FD. This is not possible
-	 * to do this with KVSFS, because you can't fstat on a vnode.
-	 * To handle this, stat are
-	 * cached as the file is opened and used here,
-	 * to emulate a successful fstat */
-	if ((retval == ENOENT)
-	    && (myself->u.file.openflags != FSAL_O_CLOSED)
-	    && (S_ISREG(myself->u.file.saved_stat.st_mode))) {
-		retval = 0;	/* remove the error */
-		goto ok_file_opened_and_deleted;
-	}
-
-	if (retval)
-		goto errout;
-
-	/* convert attributes */
- ok_file_opened_and_deleted:
-	posix2fsal_attributes(&stat, &myself->attributes);
-	goto out;
-
- errout:
-	if (retval == ENOENT)
-		fsal_error = ERR_FSAL_STALE;
-	else
-		fsal_error = posix2fsal_error(-retval);
- out:
-#endif
 }
 
 /******************************************************************************/
@@ -1000,48 +961,132 @@ out:
 }
 
 /******************************************************************************/
-/* FSAL.unlink - Unlink a file or a directory. */
-static fsal_status_t kvsfs_unlink(struct fsal_obj_handle *dir_hdl,
-				  struct fsal_obj_handle *obj_hdl,
-				  const char *name)
+static bool kvsfs_fh_is_open(struct kvsfs_fsal_obj_handle *obj)
 {
-	struct kvsfs_fsal_obj_handle *parent;
-	fsal_errors_t fsal_error = ERR_FSAL_NO_ERROR;
-	int rc = 0;
+	static const struct fsal_share empty_share = { 0};
+	return (memcmp(&empty_share, &obj->share, sizeof(empty_share)) != 0);
+}
+
+/* INTERNAL */
+static fsal_status_t kvsfs_unlink_reg(struct fsal_obj_handle *dir_hdl,
+				      struct fsal_obj_handle *obj_hdl,
+				      const char *name)
+{
 	kvsns_cred_t cred = KVSNS_CRED_INIT_FROM_OP;
-	kvsns_fs_ctx_t fs_ctx = KVSNS_NULL_FS_CTX;
+	struct kvsfs_fsal_obj_handle *parent;
+	struct kvsfs_fsal_obj_handle *obj;
+	int rc;
 
-	parent =
-		container_of(dir_hdl, struct kvsfs_fsal_obj_handle, obj_handle);
+	parent = container_of(dir_hdl, struct kvsfs_fsal_obj_handle, obj_handle);
+	obj = container_of(obj_hdl, struct kvsfs_fsal_obj_handle, obj_handle);
 
-	/* TODO:PERF:
-	 * Pass obj->handle->kvsfs_handle instead of 'name'
-	 * to avoid extra lookup() call in the KVSNS layer.
-	 */
-	if (fsal_obj_handle_is(obj_hdl, DIRECTORY)) {
-		rc = kvsns2_rmdir(parent->fs_ctx, &cred,
-				  &parent->handle->kvsfs_handle,
-				  (char *) name);
-	} else {
-		/* KVSNS is able to create a regular file or a symlink,
-		 * therefore it can unlink only these types of files
-		 */
-		assert(fsal_obj_handle_is(obj_hdl, REGULAR_FILE) ||
-		       fsal_obj_handle_is(obj_hdl, SYMBOLIC_LINK));
-		rc = kvsns2_unlink(parent->fs_ctx, &cred,
-				   &parent->handle->kvsfs_handle,
-				   (char *) name);
+	rc = kvsns_detach(parent->fs_ctx, &cred, &parent->handle->kvsfs_handle,
+			  &obj->handle->kvsfs_handle, name);
+	if (rc != 0) {
+		goto out;
 	}
 
+	/* FIXME: We might try to use rdlock here instead of wrlock because
+	 * we just need to avoid writing in obj->share. But we don't have have
+	 * atomic operations in KVSNS yet, so that let's just serialize access
+	 * to destroy_file by enforcing wrlock. */
+	PTHREAD_RWLOCK_wrlock(&obj->obj_handle.obj_lock);
+	if (kvsfs_fh_is_open(obj)) {
+		/* Postpone removal until close */
+		rc = 0;
+	} else {
+		/* No share states detected  -> Delete file object */
+		rc = kvsns_destroy_orphaned_file(parent->fs_ctx,
+						 &obj->handle->kvsfs_handle);
+	}
+	PTHREAD_RWLOCK_unlock(&obj->obj_handle.obj_lock);
+
+out:
+	if (rc != 0 ) {
+		LogCrit(COMPONENT_FSAL, "Failed to unlink reg file"
+			" %llu/%llu '%s'",
+			(unsigned long long) parent->handle->kvsfs_handle,
+			(unsigned long long) obj->handle->kvsfs_handle,
+			name);
+	}
+	return fsalstat(posix2fsal_error(-rc), -rc);
+}
+
+/* INTERNAL */
+static fsal_status_t kvsfs_rmsymlink(struct fsal_obj_handle *dir_hdl,
+				     struct fsal_obj_handle *obj_hdl,
+				     const char *name)
+{
+	kvsns_cred_t cred = KVSNS_CRED_INIT_FROM_OP;
+	struct kvsfs_fsal_obj_handle *parent;
+	struct kvsfs_fsal_obj_handle *obj;
+	int rc;
+
+	parent = container_of(dir_hdl, struct kvsfs_fsal_obj_handle, obj_handle);
+	obj = container_of(obj_hdl, struct kvsfs_fsal_obj_handle, obj_handle);
+
+	rc = kvsns2_unlink(parent->fs_ctx, &cred,
+			  &parent->handle->kvsfs_handle,
+			  &obj->handle->kvsfs_handle,
+			  (char *) name);
 	if (rc != 0) {
-		LogCrit(COMPONENT_FSAL, "Delete failed obj=%s, rc=%d",
+		LogCrit(COMPONENT_FSAL, "Failed to rmdir name=%s, rc=%d",
 			name, rc);
 		goto out;
 	}
 
 out:
-	fsal_error = posix2fsal_error(-rc);
-	return fsalstat(fsal_error, -rc);
+	return fsalstat(posix2fsal_error(-rc), -rc);
+}
+
+/* INTERNAL */
+static fsal_status_t kvsfs_rmdir(struct fsal_obj_handle *dir_hdl,
+				 struct fsal_obj_handle *obj_hdl,
+				 const char *name)
+{
+	kvsns_cred_t cred = KVSNS_CRED_INIT_FROM_OP;
+	struct kvsfs_fsal_obj_handle *parent;
+	int rc;
+
+	parent = container_of(dir_hdl, struct kvsfs_fsal_obj_handle, obj_handle);
+
+	/* TODO:PERF:
+	 * Look up has already been done by fsal_remove(),
+	 * so that we can freely pass `obj_hdl` into rmdir()
+	 * in order to avoid the extra lookup() call inside
+	 * rmdir().
+	 */
+
+	rc = kvsns2_rmdir(parent->fs_ctx, &cred,
+			  &parent->handle->kvsfs_handle,
+			  (char *) name);
+	if (rc != 0) {
+		LogCrit(COMPONENT_FSAL, "Failed to rmdir name=%s, rc=%d",
+			name, rc);
+		goto out;
+	}
+
+out:
+	return fsalstat(posix2fsal_error(-rc), -rc);
+}
+
+/* FSAL.unlink - Unlink a file or a directory. */
+static fsal_status_t kvsfs_remove(struct fsal_obj_handle *dir_hdl,
+				  struct fsal_obj_handle *obj_hdl,
+				  const char *name)
+{
+	struct kvsfs_fsal_obj_handle *parent;
+	fsal_status_t result;
+
+	if (fsal_obj_handle_is(obj_hdl, DIRECTORY)) {
+		result = kvsfs_rmdir(dir_hdl, obj_hdl, name);
+	} else if (fsal_obj_handle_is(obj_hdl, REGULAR_FILE)) {
+		result = kvsfs_unlink_reg(dir_hdl, obj_hdl, name);
+	} else if (fsal_obj_handle_is(obj_hdl, SYMBOLIC_LINK)) {
+		result = kvsfs_rmsymlink(dir_hdl, obj_hdl, name);
+	}
+
+	return result;
 }
 
 /******************************************************************************/
@@ -2182,6 +2227,52 @@ static inline const char *state_type2str(enum state_type state_type)
 	return "<unknown>";
 }
 
+static fsal_status_t kvsfs_delete_on_close(struct fsal_obj_handle *obj_hdl)
+{
+	fsal_status_t result;
+	struct kvsfs_state_fd *state_fd;
+	struct kvsfs_fsal_obj_handle *obj;
+	int rc;
+
+	T_ENTER("%p", obj_hdl);
+
+	PTHREAD_RWLOCK_wrlock(&obj_hdl->obj_lock);
+
+	if (!fsal_obj_handle_is(obj_hdl, REGULAR_FILE)) {
+		LogDebug(COMPONENT_FSAL, "Only a regular file can be closed");
+		rc = 0;
+		goto out;
+	}
+
+	obj = container_of(obj_hdl, struct kvsfs_fsal_obj_handle, obj_handle);
+
+	/* Check if there are any active SHARE states */
+	if (kvsfs_fh_is_open(obj)) {
+		T_TRACE("%s", "File is still open.");
+		rc = 0;
+		goto out;
+	}
+
+	/* TODO:PERF: Although this call checks st_nlink against zero,
+	 * we can cache this value in the FH in order to avoid getattr()
+	 * call inside this function.
+	 */
+	rc = kvsns_destroy_orphaned_file(obj->fs_ctx,
+					 &obj->handle->kvsfs_handle);
+	if (rc != 0) {
+		LogCrit(COMPONENT_FSAL,
+			"Failed to destroy file object %llu (%p)",
+			(unsigned long long) obj->handle->kvsfs_handle,
+			obj_hdl);
+		goto out;
+	}
+
+out:
+	PTHREAD_RWLOCK_unlock(&obj_hdl->obj_lock);
+	T_EXIT0(rc);
+	return fsalstat(posix2fsal_error(-rc), -rc);
+}
+
 static fsal_status_t kvsfs_close2(struct fsal_obj_handle *obj_hdl,
 				  struct state_t *state)
 {
@@ -2209,6 +2300,9 @@ static fsal_status_t kvsfs_close2(struct fsal_obj_handle *obj_hdl,
 		/* This state type is an actual open file. Let's close it. */
 		assert(kvsfs_file_state_invariant_open(&state_fd->kvsfs_fd));
 		result = kvsfs_file_state_close(&state_fd->kvsfs_fd, obj);
+		if (FSAL_IS_SUCCESS(result)) {
+			result = kvsfs_delete_on_close(obj_hdl);
+		}
 		break;
 
 	case STATE_TYPE_DELEG:
@@ -2530,7 +2624,7 @@ void kvsfs_handle_ops_init(struct fsal_obj_ops *ops)
 	ops->setattr2 = kvsfs_setattrs;
 	ops->link = kvsfs_linkfile;
 	ops->rename = kvsfs_rename;
-	ops->unlink = kvsfs_unlink;
+	ops->unlink = kvsfs_remove;
 
 	// Protocol
 	ops->handle_to_wire = kvsfs_handle_digest;

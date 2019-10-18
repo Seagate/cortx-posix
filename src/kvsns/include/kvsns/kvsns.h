@@ -112,6 +112,9 @@
 #define KVSNS_NULL_FS_CTX NULL
 #define KVSNS_FS_ID_DEFAULT 0
 
+/* Max number of hardlinks for an object. */
+#define KVSNS_MAX_LINK UINT32_MAX
+
 /* KVSAL related definitions and functions */
 /* TODO: replace with a struct */
 typedef unsigned long long int kvsns_ino_t;
@@ -365,28 +368,36 @@ int kvsns2_rmdir(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent,
 
 /**
  * Removes a file or a symbolic link.
+ * Destroys the link between 'dir' and 'fino' and removes
+ * the 'fino' object from the namespace if it has no links.
  *
- * @param cred - pointer to user's credentials
- * @param parent - pointer to parent directory's inode.
- * @param name - name of the entry to be remove.
+ * @param[in] fs_ctx - A context associated with the filesystem.
+ * @param[in] cred - User's credentials.
+ * @param[in] dir - Inode of the parent directory.
+ * @param[in, opt] fino - Inode of the object to be removed. If NULL is set
+ *			  then kvsns_unlink() will do an extra lookup() call.
+ * @param[in] name - Name of the entry to be removed.
+ * @return 0 if successfull, oterwise -errno.
  *
- * @return 0 if successful, a negative "-errno" value in case of failure
+ * @see ::kvsns_destroy_orphaned_file and ::kvsns_detach.
  */
-int kvsns_unlink(kvsns_cred_t *cred, kvsns_ino_t *ino, char *name);
+int kvsns2_unlink(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *dir,
+		  kvsns_ino_t *fino, char *name);
 
-/**
- * Creates a file's hardlink
- *
- * @note: this call will failed if not performed on a file.
- *
- * @param cred - pointer to user's credentials
- * @param ino - pointer to current inode.
- * @param dino - pointer to destination directory's inode
- * @param dname - name of the new entry in dino
- *
- * @return 0 if successful, a negative "-errno" value in case of failure
+/** Destroys a file or a symlink object if it has no links in the file system.
+ * NOTE: It does nothing if the object has one or more links.
  */
-int kvsns2_unlink(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *ino, char *name);
+int kvsns_destroy_orphaned_file(kvsns_fs_ctx_t fs_ctx,
+				const kvsns_ino_t *ino);
+
+/** Removes a link between the parent inode and a filesystem object
+ * linked into it with the dentry name.
+ */
+int kvsns_detach(kvsns_fs_ctx_t fs_ctx,
+		 const kvsns_cred_t *cred,
+		 const kvsns_ino_t *parent,
+		 const kvsns_ino_t *obj,
+		 const char *name);
 
 /**
  * Creates a file's hardlink
@@ -631,49 +642,6 @@ int kvsns2_open(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
 		int flags, mode_t mode, kvsns_file_open_t *fd);
 
 /**
- * Opens a file by name and parent directory
- *
- * @note: this call use the same flags as LibC's openat() call. You must know
- * the inode to call this function so you can't use it for creating a file.
- * In this case, kvsns_create() is to be invoked.
- *
- * @todo: mode parameter is unused. Remove it.
- *
- * @param cred - pointer to user's credentials
- * @param parent - parent's inode
- * @param name- file's name
- * @param flags - open flags (see man 2 open)
- * @param mode - unused
- * @param fd - [OUT] handle to opened file.
- *
- * @return 0 if successful, a negative "-errno" value in case of failure
- */
-int kvsns_openat(kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
-		 int flags, mode_t mode, kvsns_file_open_t *fd);
-
-/**
- * Opens a file by name and parent directory
- *
- * @note: this call use the same flags as LibC's openat() call. You must know
- * the inode to call this function so you can't use it for creating a file.
- * In this case, kvsns_create() is to be invoked.
- *
- * @todo: mode parameter is unused. Remove it.
- *
- * @param ctx - filesystem context pointer
- * @param cred - pointer to user's credentials
- * @param parent - parent's inode
- * @param name- file's name
- * @param flags - open flags (see man 2 open)
- * @param mode - unused
- * @param fd - [OUT] handle to opened file.
- *
- * @return 0 if successful, a negative "-errno" value in case of failure
- */
-int kvsns2_openat(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *parent, char *name,
-		  int flags, mode_t mode, kvsns_file_open_t *fd);
-
-/**
  * Closes a file descriptor
  *
  * @param ctx - filesystem context pointer
@@ -692,11 +660,6 @@ int kvsns2_close(void *ctx, kvsns_file_open_t *fd);
  */
 int kvsns_close(kvsns_file_open_t *fd);
 
-/* A placeholder for preserving the openowner logic.
- * It does nothing, just returns False.
- */
-int kvsns_is_open(kvsns_fs_ctx_t *ctx, kvsns_cred_t *cred, kvsns_ino_t *ino,
-		  bool *is_open);
 
 /**
  * Writes data to an opened fd
