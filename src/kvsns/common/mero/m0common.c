@@ -133,9 +133,8 @@ static int init_clovis(void)
 	int rc;
 	char  tmpfid[MAXNAMLEN];
 
-	rc = get_clovis_conf(conf);
-	if (rc != 0)
-		return rc;
+
+	assert(clovis_local_addr && clovis_ha_addr && clovis_prof && clovis_proc_fid);
 
 	/* Initialize Clovis configuration */
 	clovis_conf.cc_is_oostore	= true;
