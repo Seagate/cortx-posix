@@ -124,7 +124,7 @@ configure_file(
   "${PROJECT_SOURCE_DIR}/libfsalkvsfs.spec"
 )
 
-set(RPM_BUILD_OPTIONS " --define '_srcrpmdir ${CMAKE_CURRENT_BINARY_DIR}' --define '_lib_path ${CMAKE_BINARY_DIR}' ")
+set(RPM_BUILD_OPTIONS " --define '_srcrpmdir ${CMAKE_CURRENT_BINARY_DIR}' --define '_lib_path ${CMAKE_BINARY_DIR}' --define '_nfs_setup_dir ${CMAKE_SOURCE_DIR}/../conf' ")
 
 add_custom_target( rpm DEPENDS dist)
 add_custom_command(TARGET rpm
