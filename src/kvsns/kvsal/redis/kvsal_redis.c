@@ -799,7 +799,7 @@ size_t kvsal_iter_get_value(struct kvsal_iter *iter, void **buf)
 	return priv->prev_get->len;
 }
 
-static bool kvsal_prefix_iter_has_prefix(struct kvsal_prefix_iter *iter)
+static bool kvsal_internal_iter_has_prefix(struct kvsal_prefix_iter *iter)
 {
 	void *key;
 	size_t key_len;
@@ -848,7 +848,7 @@ bool kvsal_prefix_iter_find(struct kvsal_prefix_iter *iter)
 	/* release objects back to priv */
 	reply = NULL;
 
-	key_present = kvsal_prefix_iter_has_prefix(iter);
+	key_present = kvsal_internal_iter_has_prefix(iter);
 
 out:
 	if (reply)
@@ -915,7 +915,7 @@ bool kvsal_prefix_iter_next(struct kvsal_prefix_iter *iter)
 	/* release objects back to priv */
 	reply = NULL;
 
-	can_get_next = kvsal_prefix_iter_has_prefix(iter);
+	can_get_next = kvsal_internal_iter_has_prefix(iter);
 out:
 	if (reply)
 		freeReplyObject(reply);
