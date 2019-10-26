@@ -173,6 +173,7 @@ endif (USE_MERO_STORE OR USE_KVS_MERO)
 add_subdirectory(kvsns)
 
 add_subdirectory(tests)
+add_subdirectory(test)
 add_subdirectory(kvsns_shell)
 add_subdirectory(kvsns_attach)
 add_subdirectory(kvsal_non_reg)
