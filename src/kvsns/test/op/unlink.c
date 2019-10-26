@@ -79,7 +79,7 @@ int op_unlink(void *ctx, void *cred, int argc, char *argv[])
 	printf("Removing File  = [%s].\n", fname);
 
 	RC_LOG_NOTEQ(rc, STATUS_OK, error, kvsns2_unlink,
-			fs_ctx, user_cred, &dir_inode, fname);
+			fs_ctx, user_cred, &dir_inode, NULL, fname);
 
 	printf("Removed File  = [%s].\n", fname);
 
