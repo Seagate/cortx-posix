@@ -14,27 +14,13 @@ set(NFS_SETUP_DIR ${CMAKE_SOURCE_DIR}/../conf)
 ################################################################################
 # Required arguments
 
-if (USE_SRCROOT)
-	# Use: cmake <path-to-makefile> -DUSE_SRCROOT=1
-	# For local development (or as an example) with the following tree:
-	# $root/nfs-ganesha - NFS Ganesha repository
-	# $root/eos-fs - EOS FS repository
-	# <somedir>/build-kvsns - KVSNS build dir
-	# <somedir>/build-kvsfs - KVSFS build dir
-	set(SRCROOT ${CMAKE_SOURCE_DIR}/../../../..)
-	set(BUILD_ROOT ${CMAKE_BINARY_DIR}/..)
-
-	set(DEFAULT_GANESHASRC ${SRCROOT}/nfs-ganesha/src)
-	set(DEFAULT_KVSNSINC ${SRCROOT}/eos-fs/src/kvsns/include)
-	set(DEFAULT_LIBKVSNS ${BUILD_ROOT}/build-kvsns/kvsns)
-else(USER_SRCROOT)
-	set(SRCROOT "")
-	set(DEFAULT_GANESHASRC "")
-	set(DEFAULT_KVSNSINC "")
-	set(DEFAULT_LIBKVSNS "")
-endif(USE_SRCROOT)
+set(DEFAULT_GANESHASRC "")
+set(DEFAULT_GANESHABUILD "")
+set(DEFAULT_KVSNSINC "")
+set(DEFAULT_LIBKVSNS "")
 
 set(GANESHASRC ${DEFAULT_GANESHASRC} CACHE PATH "Path to NFS-Ganesha Source (nfs-ganesha/src)")
+set(GANESHABUILD ${DEFAULT_GANESHABUILD} CACHE PATH "Path to NFS-Ganesha Build (nfs-ganesha/build)")
 set(KVSNSINC ${DEFAULT_KVSNSINC} CACHE PATH "Path to folder with kvsns.h")
 set(LIBKVSNS ${DEFAULT_LIBKVSNS} CACHE PATH "Path to folder with libkvsns.so")
 set(FSAL_DESTINATION "/usr/lib64/ganesha" CACHE PATH "Target directory for FSAL")
@@ -43,24 +29,27 @@ set(FSAL_DESTINATION "/usr/lib64/ganesha" CACHE PATH "Target directory for FSAL"
 set(SYSTEM_LIBRARIES
 	"/usr/lib64/libjemalloc.so")
 
+include_directories(${CMAKE_SOURCE_DIR})
+include_directories(${GANESHASRC}/libntirpc)
+include_directories(${GANESHASRC}/libntirpc/ntirpc)
+include_directories(${GANESHABUILD}/include)
+include_directories(${KVSNSINC})
+include_directories(${GANESHASRC}/include)
+include_directories(${GANESHASRC}/include/FSAL)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -I${CMAKE_SOURCE_DIR}/include -I${KVSNSINC} -I${GANESHASRC}/libntirpc/ntirpc -I${GANESHASRC}/include -I${GANESHASRC}/FSAL ")
+
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wno-unused-variable")
-
-# TODO: Check if we need to explicitly add /usr/lib64 here
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -L/usr/lib64/ -L${LIBKVSNS}")
 
 # TODO: Wrap this with a check against build type
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g3")
 # set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fstack-protector-all")
 
 
-check_library_exists(
-  kvsns
-  kvsns_mkdir
-  ${LIBKVSNS}
-  HAVE_KVSNS_LIB
-  )
+check_library_exists(kvsns kvsns_mkdir ${LIBKVSNS} HAVE_KVSNS_LIB)
+
+# FIXME: it looks like this check does not work correctly --
+# it checks /usr/include files only ignoring "include_directories".
+# We might need to figure out something better.
 check_include_files("kvsns/kvsns.h" HAVE_LIBKVSNS_H)
 
 message(STATUS "HAVE_LIBKVSNS_H=${HAVE_LIBKVSNS_H} HAVE_KVSNS_LIB=${HAVE_KVSNS_LIB}")
@@ -124,7 +113,7 @@ configure_file(
   "${PROJECT_SOURCE_DIR}/libfsalkvsfs.spec"
 )
 
-set(RPM_BUILD_OPTIONS " --define '_srcrpmdir ${CMAKE_CURRENT_BINARY_DIR}' --define '_lib_path ${CMAKE_BINARY_DIR}' --define '_nfs_setup_dir ${CMAKE_SOURCE_DIR}/../conf' ")
+set(RPM_BUILD_OPTIONS " --define '_srcrpmdir ${CMAKE_CURRENT_BINARY_DIR}' --define '_lib_path ${CMAKE_BINARY_DIR}' --define '_nfs_setup_dir ${CMAKE_SOURCE_DIR}/conf' ")
 
 add_custom_target( rpm DEPENDS dist)
 add_custom_command(TARGET rpm
