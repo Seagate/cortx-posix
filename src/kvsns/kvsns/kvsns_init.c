@@ -43,6 +43,7 @@
 #include <kvsns/extstore.h>
 #include "kvsns_internal.h"
 #include "kvsns/log.h"
+#include <lib/trace.h>
 
 static struct collection_item *cfg_items;
 
@@ -74,6 +75,11 @@ int kvsns_start(const char *configpath)
 			KVSNS_FS_ID_DEFAULT, rc);
 		return rc;
 	}
+
+        m0_trace_set_immediate_mask("all");
+        m0_trace_set_print_context("full");
+        m0_trace_set_level("DEBUG");
+	M0_LOG(M0_DEBUG, "kvsns init Successful");
 	log_debug("kvsns init done for fs_id=%d, rc=%d, fs_ctx=%p",
 		   KVSNS_FS_ID_DEFAULT, rc, ctx);
 

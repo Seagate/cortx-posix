@@ -1,3 +1,10 @@
+set(MERO_CFLAGS "-D_REENTRANT -D_GNU_SOURCE -DM0_INTERNAL='' -DM0_EXTERN=extern ")
+set(MERO_CFLAGS "${MERO_CFLAGS} -Wall -Werror -Wno-attributes -Wno-unused-but-set-variable ")
+set(MERO_CFLAGS "${MERO_CFLAGS} -I/usr/include/mero ")
+
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${MERO_CFLAGS}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${MERO_CFLAGS}")
+
 if(USE_POSIX_STORE)
 	add_subdirectory(posix_store)
 endif(USE_POSIX_STORE)

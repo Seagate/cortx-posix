@@ -45,6 +45,7 @@ set(SYSTEM_LIBRARIES
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -I${CMAKE_SOURCE_DIR}/include -I${KVSNSINC} -I${GANESHASRC}/libntirpc/ntirpc -I${GANESHASRC}/include -I${GANESHASRC}/FSAL ")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wno-unused-variable")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DDNOT_TRACE")
 
 # TODO: Check if we need to explicitly add /usr/lib64 here
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -L/usr/lib64/ -L${LIBKVSNS}")
@@ -52,7 +53,6 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -L/usr/lib64/ -L${LIBKVSNS}")
 # TODO: Wrap this with a check against build type
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g3")
 # set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fstack-protector-all")
-
 
 check_library_exists(
   kvsns
