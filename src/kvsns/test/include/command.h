@@ -12,7 +12,7 @@
 /**
  * List of supported Command's
  */
- 
+
 #define KVSNS_OP_MAP(XX)							\
 	XX(CREATE,	create,		"Create the FILE")			\
 	XX(MKDIR,	mkdir,		"Create the DIRECTORY")			\
@@ -23,7 +23,10 @@
 	XX(WRITE,	write,		"Write the FILE")			\
 	XX(LINK,	link,		"Create the symbolic LINK")		\
 	XX(UNLINK,	unlink,		"Unlink the FILE")			\
-	XX(READLINK,	readlink,	"Read the symbolic LINK CONTENT")
+	XX(READLINK,	readlink,	"Read the symbolic LINK CONTENT")	\
+	XX(SET,		set,		"set key value pair")			\
+	XX(GET,		get,		"get value for given key")			\
+	XX(DEL,		del,		"del key value pair")
 
 
 typedef enum kvsns_command_id_t {
@@ -31,7 +34,7 @@ typedef enum kvsns_command_id_t {
 #define XX(uop, lop, _) KVSNS_ ## uop,
 	KVSNS_OP_MAP(XX)
 #undef XX
-	
+
 } kvsns_cmd_id_t;
 
 typedef struct kvsns_command {
@@ -44,12 +47,12 @@ typedef struct kvsns_command {
 
 /**
  * @brief kvsns command parser
- * 
+ *
  * @param[in] str_command	kvsns command.
  * @param[in] fs_ctx		Filesystem context.
  * @param[in] user_cred		User credentials.
- * @param[in] argv		Command line argumenets. 
- * @param[in] argc		Number of command line argumenets. 
+ * @param[in] argv		Command line argumenets.
+ * @param[in] argc		Number of command line argumenets.
  *
  * @return 			returns success = 0, failure = -1.
  */
