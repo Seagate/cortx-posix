@@ -11,5 +11,8 @@ add_library(kvsns_op STATIC
 	lookup.c	
 	link.c	
 	readlink.c	
+	set.c	
+	get.c	
+	del.c	
 )
 
