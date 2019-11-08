@@ -33,7 +33,6 @@ include_directories(${CMAKE_SOURCE_DIR})
 include_directories(${GANESHASRC}/libntirpc)
 include_directories(${GANESHASRC}/libntirpc/ntirpc)
 include_directories(${GANESHABUILD}/include)
-include_directories(${KVSNSINC})
 include_directories(${GANESHASRC}/include)
 include_directories(${GANESHASRC}/include/FSAL)
 
@@ -45,23 +44,30 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g3")
 # set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fstack-protector-all")
 
 
-check_library_exists(kvsns kvsns_mkdir ${LIBKVSNS} HAVE_KVSNS_LIB)
+set(CMAKE_REQUIRED_INCLUDES ${KVSNSINC})
 
-# FIXME: it looks like this check does not work correctly --
-# it checks /usr/include files only ignoring "include_directories".
-# We might need to figure out something better.
-check_include_files("kvsns/kvsns.h" HAVE_LIBKVSNS_H)
+CHECK_INCLUDE_FILES("kvsns/kvsns.h" HAVE_LIBKVSNS_H)
 
-message(STATUS "HAVE_LIBKVSNS_H=${HAVE_LIBKVSNS_H} HAVE_KVSNS_LIB=${HAVE_KVSNS_LIB}")
+# FIXME: This check is disabled to allow the top-level eos-fs build script
+# to run 'config' step even if kvsns is not build yet.
+# Ideally, we should add a flag to turn on/off this check depending
+# on the situation: by default this check is enabled but if we set the flag
+# then it will be bypassed.
+# CHECK_LIBRARY_EXISTS(kvsns kvsns_mkdir ${LIBKVSNS} HAVE_KVSNS_LIB)
 
-if((NOT HAVE_KVSNS_LIB) OR (NOT HAVE_LIBKVSNS_H))
+message(STATUS "HAVE_LIBKVSNS_H=${HAVE_LIBKVSNS_H}")
+
+if(NOT HAVE_LIBKVSNS_H)
  if(STRICT_PACKAGE)
     message(FATAL_ERROR "STRICT_PACKAGE: Cannot find KVSNS runtime. Disabling KVSFS build")
  else(STRICT_PACKAGE)
     message(WARNING "Cannot find KVSNS runtime. Disabling KVSFS build")
     set(USE_FSAL_KVSFS OFF)
   endif(STRICT_PACKAGE)
-endif((NOT HAVE_KVSNS_LIB) OR (NOT HAVE_LIBKVSNS_H))
+endif(NOT HAVE_LIBKVSNS_H)
+
+include_directories(${KVSNSINC})
+link_directories(${LIBKVSNS})
 
 SET(fsalkvsfs_LIB_SRCS
    fsal_internal.c

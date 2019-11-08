@@ -25,9 +25,9 @@ See also:
 4. Build & Install KVSFS-FSAL:
 
 ```sh
-./scripts/build.sh config
+./scripts/build.sh reconf
 ./scripts/build.sh make -j
-./scripts/build.sh install
+./scripts/build.sh reinstall
 ```
 
 4. Run NFS Ganesha.
