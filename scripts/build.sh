@@ -13,15 +13,25 @@
 set -e
 
 ###############################################################################
+###############################################################################
 # CMD Inteface
 
 eosfs_cmd_usage() {
-	echo "usage: $PROG_NAME [-p <ganesha src path>] [-v <version>] [-b <build>] [-k {mero|redis}] [-e {mero|posix}]" 1>&2;
-	echo "    -p    Path to NFS Ganesha source src dir, e.g. ~/nfs-gaensha/src" 1>&2;
-	echo "    -v    EOS FS Version" 1>&2;
-	echo "    -b    EOS FS Build Number" 1>&2;
-	echo "    -k    Use \"mero\" or \"redis\" for Key Value Store" 1>&2;
-	echo "    -e    Use \"mero\" or \"posix\" for Backend Store" 1>&2;
+    echo -e "
+Usage $0  [-p <ganesha src path>] [-v <version>] [-b <build>] [-k {mero|redis}] [-e {mero|posix}]
+
+Arguments:
+    -p (optional) Path to an existing NFS Ganesha repository.
+    -v (optional) EOS FS Source version.
+    -b (optional) EOS FS Build version.
+    -k (optional) KVSAL backend (mero/redis).
+    -e (optional) EXTSTORE backend (mero/posix).
+
+Examples:
+    $0 -p ~/nfs-ganesha -- Builds EOS-FS with a custom NFS Ganesha
+    $0 -v 1.0.1 -b 99 -- Builds packages with version 1.0.1-99_<commit>.
+    $0 -k redis -- Builds EOS-FS with Redis as a KVS.
+"
 	exit 1;
 }
 
@@ -29,13 +39,39 @@ eosfs_parse_cmd() {
     while getopts ":b:v:p:k:e:" o; do
         case "${o}" in
         b)
-            export EOS_FS_BUILD_VERSION="${OPTARG}"
+            export EOS_FS_BUILD_VERSION="${OPTARG}_$(git rev-parse --short HEAD)"
             ;;
         v)
             export EOS_FS_VERSION=${OPTARG}
             ;;
         p)
-            export KVSFS_NFS_GANESHA_DIR="$(dirname ${OPTARG})"
+            local ganpath="${OPTARG}"
+            if [ -d $ganpath ]; then
+                if [ -d $ganpath/src ] && [ -d $ganpath/.git ] ; then
+                    echo "Found existing NFS Ganesha repo in $ganpath."
+                    export KVSFS_NFS_GANESHA_DIR="$(realpath $ganpath)"
+                elif [ "$(basename $ganpath)" == "src" ] && [ -d $ganpath/../.git ]; then
+                    echo "Found existing NFS Ganesha repo in $ganpath/.."
+                    export KVSFS_NFS_GANESHA_DIR="$(realpath $ganpath/..)"
+                else
+                    if (($(find $ganpath -mindepth 1 -maxdepth 1 | wc -l) != 0 )); then
+                        echo "The directory $ganpath is not empty but does not have NFS Ganesha sources."
+                        echo "Please either specify a correct path to NFS Ganesha repository"
+                        echo "  or allow the script to use the default path."
+                        exit 1
+                    else
+                        echo "The directory $ganpath is empty. NFS Ganesha will be downloaded into it."
+                        export KVSFS_NFS_GANESHA_DIR="$(realpath $ganpath)/nfs-ganesha"
+                    fi
+                fi
+            else
+                echo "The directory $ganpath does not exist."
+                echo "Please either specify a correct path to NFS Ganesha repository"
+                echo "  or allow the script to use the default path."
+                exit 1
+            fi
+            echo "NFS Ganesha repo path: $KVSFS_NFS_GANESHA_DIR"
+
             ;;
         k)
             export KVSNS_KVSAL_BACKEND=${OPTARG}
@@ -55,7 +91,7 @@ eosfs_parse_cmd() {
 
 eosfs_set_env() {
     export KVSNS_SOURCE_ROOT=$PWD/kvsns
-    export KVSFS_SOURCE_ROOT=$PWD/nfs-ganesha
+    export KVSFS_SOURCE_ROOT=$PWD/kvsfs-ganesha
 
     export EOS_FS_BUILD_ROOT=${EOS_FS_BUILD_ROOT:-/tmp/eos-fs}
     export EOS_FS_VERSION=${EOS_FS_VERSION:-"$(cat $PWD/VERSION)"}
@@ -64,8 +100,8 @@ eosfs_set_env() {
     export KVSNS_KVSAL_BACKEND=${KVSNS_KVSAL_BACKEND:-"mero"}
     export KVSNS_EXTSTORE_BACKEND=${KVSNS_EXTSTORE_BACKEND:-"mero"}
 
-    export KVSFS_NFS_GANESHA_DIR=${KVSFS_NFS_GANESHA_DIR:-$PWD/../nfs-ganesha}
-    export KVSFS_NFS_GANESHA_BUILD_DIR=${KVSFS_NFS_GANESHA_BUILD_DIR:-$KVSFS_NFS_GANESHA_DIR/build}
+    export KVSFS_NFS_GANESHA_DIR=${KVSFS_NFS_GANESHA_DIR:-$PWD/../nfs-ganesha-eos}
+    export KVSFS_NFS_GANESHA_BUILD_DIR=${KVSFS_NFS_GANESHA_BUILD_DIR:-$EOS_FS_BUILD_ROOT/build-nfs-ganesha}
 }
 
 
@@ -87,13 +123,139 @@ eosfs_print_env() {
 }
 
 ###############################################################################
+# Builds scripts for sub-modules
+
+_kvsfs_build() {
+    echo "KVSFS_BUILD: $@"
+    $KVSFS_SOURCE_ROOT/scripts/build.sh "$@"
+}
+
+_kvsns_build() {
+    echo "KVSNS_BUILD: $@"
+    $KVSNS_SOURCE_ROOT/scripts/build.sh "$@"
+}
+
+_nfs_ganesha_build() {
+    echo "NFS_GANESHA_BUILD: $@"
+    ./scripts/build-nfs-ganesha.sh "$@"
+}
+
+###############################################################################
 eosfs_bootstrap() {
-    echo "Updating local sub-modules"
-    git submodule update --init --recursive
-    echo "Downloading NFS Ganesha sources"
-    if [ ! -d $KVSFS_NFS_GANESHA_DIR ]; then
-       git clone --depth 1 --recurse-submodules ssh://git@gitlab.mero.colo.seagate.com:6022/eos/fs/nfs-ganesha.git $KVSFS_NFS_GANESHA_DIR
+    eosfs_set_env
+
+    if [ ! -f $KVSNS_SOURCE_ROOT/src/CMakeLists.txt ]; then
+        git submodule update --init --recursive $KVSNS_SOURCE_ROOT
+    else
+        echo "Skipping bootstrap for KVSNS: $KVSNS_SOURCE_ROOT"
     fi
+
+    if [ ! -f $KVSFS_SOURCE_ROOT/src/FSAL/FSAL_KVSFS/CMakeLists.txt ]; then
+        git submodule update --init --recursive $KVSFS_SOURCE_ROOT
+    else
+        echo "Skipping bootstrap for KVSFS: $KVSFS_SOURCE_ROOT"
+    fi
+
+    if [ ! -f $KVSFS_NFS_GANESHA_DIR/src/CMakeLists.txt ]; then
+        _nfs_ganesha_build bootstrap
+    else
+        echo "Skipping bootstrap for NFS Ganesha: $KVSFS_NFS_GANESHA_DIR"
+    fi
+
+}
+
+###############################################################################
+eosfs_jenkins_build() {
+    local rpms_dir="$HOME/rpmbuild/RPMS/x64_86"
+
+    if ! { eosfs_parse_cmd "$@" && eosfs_set_env && eosfs_print_env; } ; then
+        echo "Failed set env variables"
+        exit 1
+    fi
+
+    if [ ! eosfs_bootstrap ]; then
+        echo "Failed to get extra git repositories"
+        exit 1
+    fi
+
+    # Remove old build root dir
+    rm -fR $EOS_FS_BUILD_ROOT
+
+    # Remove old packages
+    rm -fR "$rpms_dir/"*.rpm
+
+    mkdir -p $EOS_FS_BUILD_ROOT &&
+        _nfs_ganesha_build config &&
+        _kvsns_build reconf &&
+        _kvsns_build make -j all &&
+        _kvsfs_build reconf &&
+        _kvsfs_build make -j all &&
+        _kvsns_build rpm-gen &&
+        _kvsfs_build rpm-gen &&
+        _kvsfs_build purge &&
+        _kvsns_build purge &&
+    echo "OK"
+}
+
+###############################################################################
+eosfs_configure() {
+    eosfs_set_env &&
+    rm -fR "EOS_FS_BUILD_ROOT"
+    mkdir -p "$EOS_FS_BUILD_ROOT" &&
+    _nfs_ganesha_build config &&
+    _kvsns_build reconf &&
+    _kvsfs_build reconf &&
+    echo "OK"
+}
+
+###############################################################################
+eosfs_make() {
+    eosfs_set_env &&
+        _kvsns_build make "$@" &&
+        _kvsfs_build make "$@" &&
+    echo "OK"
+}
+
+###############################################################################
+eosfs_rpm_gen() {
+    local rpms_dir="$HOME/rpmbuild/RPMS/x64_86"
+
+    rm -fR "$rpms_dir/nfs-ganesha*"
+    rm -fR "$rpms_dir/libntirpc*"
+    rm -fR "$rpms_dir/libkvsns*"
+    rm -fR "$rpmn_dir/libfsalkvsfs*"
+
+    eosfs_set_env &&
+        _nfs_ganesha_build rpm-gen &&
+        _kvsns_build rpm-gen &&
+        _kvsfs_build rpm-gen &&
+    echo "OK"
+}
+
+eosfs_rpm_install() {
+    eosfs_set_env
+    sudo echo "Checking sudo access"
+    _kvsns_build rpm-install
+    _kvsfs_build rpm-install
+}
+
+eosfs_rpm_uninstall() {
+    eosfs_set_env
+    sudo echo "Checking sudo access"
+    _kvsfs_build rpm-uninstall
+    _kvsns_build rpm-uninstall
+}
+
+eosfs_reinstall() {
+    eosfs_set_env
+    sudo echo "Checking sudo access"
+
+    _kvsns_build rpm-gen &&
+    _kvsfs_build rpm-gen &&
+    _kvsfs_build rpm-uninstall &&
+    _kvsns_build rpm-uninstall &&
+    _kvsns_build rpm-install &&
+    _kvsfs_build rpm-install
 }
 
 ###############################################################################
@@ -105,20 +267,36 @@ Usage:
 
 Where action is one of the following:
     env     - Show build environment.
-    bootstrap - Fetch recent sub-modules, check local/external build deps.
-    config  - Delete old build root, run configure, and build local deps.
-    make    - Run make [...] command.
-    purge   - Clean up all files generated by build/config steps.
-    jenkins - Run CI build.
-    install - Build RPMs and install them locally.
-    uninstall - Uninstall RPMs from the local system.
     help    - Print usage.
+    jenkins - Run CI build.
+
+    config  - Delete old build root, run configure, and build local deps.
+    purge   - Clean up all files generated by build/config steps.
+
+    make    - Run make [...] command.
+
+    bootstrap - Fetch recent sub-modules, check local/external build deps.
+    update    - Update existing sub-modules and external sources.
+
+    rpm-gen       - Generate RPMs.
+    rpm-install   - Install the generated RPMs.
+    rpm-unintsall - Uninstall the RPMs.
+    reinstall     - Generate/Uninstall/Install RPMs.
+
+    <component> <action> - Perform action on a sub-component.
+     Available components: kvsns kvsfs nfs-ganesha.
 
 Dev workflow:
-    $0 bootstrap -- Update sources if you don't do git-pull manually.
+    $0 bootstrap -- Download sources for EOS-FS components.
+    $0 update -- (optional) Update sources.
     $0 config -- Initialize the build folders
     $0 make -j -- and build binaries from the sources.
-    $0 install -- Install RPMs locally (internal components only).
+    $0 reinstall -- Install packages.
+
+Sub-component examples:
+    $0 kvsns config -- Configure KVSNS only.
+    $0 kvsfs make -j -- Build KVSFS only.
+    $0 nfs-ganesha rpm-gen -- Generate NFS Ganesha RPMs.
 
 External sources:
     NFS Ganesha.
@@ -130,122 +308,47 @@ External sources:
 }
 
 ###############################################################################
-_kvsfs_build() {
-    echo "KVSFS_BUILD: $@"
-    $KVSFS_SOURCE_ROOT/scripts/build.sh "$@"
-}
-
-_kvsns_build() {
-    echo "KVSNS_BUILD: $@"
-    $KVSNS_SOURCE_ROOT/scripts/build.sh "$@"
-}
-
-###############################################################################
-eosfs_configure_ganesha() {
-    rm -fR "$KVSFS_NFS_GANESHA_BUILD_DIR"
-    mkdir -p "$KVSFS_NFS_GANESHA_BUILD_DIR"
-
-    export KVSFS_NFS_GANESHA_DIR=$(realpath $KVSFS_NFS_GANESHA_DIR)
-    export KVSFS_NFS_GANESHA_BUILD_DIR=$(realpath $KVSFS_NFS_GANESHA_BUILD_DIR)
-
-
-    cd $KVSFS_NFS_GANESHA_BUILD_DIR
-    echo "Configuring NFS Ganesha $KVSFS_NFS_GANESHA_DIR -> $KVSFS_NFS_GANESHA_BUILD_DIR"
-    cmake "$KVSFS_NFS_GANESHA_DIR/src"
-    cd -
-    echo "Finished NFS Ganesha config"
-}
-
-eosfs_make_ganesha_rpms() {
-    cd $KVSFS_NFS_GANESHA_BUILD_DIR >/dev/null
-    echo "Bulding NFS Ganesha RPMS"
-    make rpm
-    cd - >/dev/null
-    echo "Finished building NFS Ganesha RPMs"
-}
-
-eosfs_jenkins_build() {
-    eosfs_parse_cmd "$@" &&
-        eosfs_set_env &&
-        eosfs_print_env &&
-        eosfs_bootstrap &&
-        mkdir -p $EOS_FS_BUILD_ROOT &&
-        eosfs_configure_ganesha &&
-        _kvsns_build reconf &&
-        _kvsns_build make -j all &&
-        _kvsfs_build reconf &&
-        _kvsfs_build make -j all &&
-        _kvsns_build rpms &&
-        _kvsfs_build rpms &&
-        eosfs_make_ganesha_rpms &&
-        _kvsfs_build purge &&
-        _kvsns_build purge &&
-    echo "OK"
-}
-
-###############################################################################
-eosfs_configure() {
-    eosfs_set_env
-
-    if [ ! -d "$KVSFS_NFS_GANESHA_DIR" ]; then
-        echo "NFS Ganesha sources not found in $KVSFS_NFS_GANESHA_DIR."
-        echo "Please git-clone it or set differnt location"
-        exit 1
-    fi
-
-    if [ ! -d "$KVSFS_NFS_GANESHA_BUILD_DIR" ] ; then
-        echo "NFS Ganesha build dir not found in $KVSFS_NFS_GANESHA_BUILD_DIR."
-        echo "Please build it or set differnt location"
-        exit 1
-    fi
-
-    mkdir -p $EOS_FS_BUILD_ROOT
-    _kvsns_build reconf
-    _kvsfs_build reconf
-}
-
-###############################################################################
-eosfs_make() {
-    eosfs_set_env
-    _kvsns_build make "$@" && \
-        _kvsfs_build make "$@"
-}
-
-###############################################################################
-eosfs_local_install() {
-    eosfs_set_env
-    sudo echo "Checking sudo access"
-    _kvsns_build install
-    _kvsfs_build install
-}
-
-eosfs_local_uninstall() {
-    eosfs_set_env
-    sudo echo "Checking sudo access"
-    _kvsfs_build uninstall
-    _kvsns_build uninstall
-}
-
-###############################################################################
 case $1 in
     env)
         eosfs_print_env;;
-    bootstrap)
-        eosfs_bootstrap;;
-    config)
-        eosfs_configure;;
-    make)
-        shift
-        eosfs_make "$@" ;;
-    purge)
-        eosfs_purge;;
     jenkins)
         shift
         eosfs_jenkins_build "$@";;
-    install)
-        eosfs_local_install;;
-    uninstall)
-        eosfs_local_uninstall;;
+    bootstrap)
+        eosfs_bootstrap;;
+
+# Build steps
+    config)
+        eosfs_configure;;
+    purge)
+        eosfs_purge;;
+    make)
+        shift
+        eosfs_make "$@" ;;
+
+# Pkg mmgmt:
+    rpm-gen)
+        eosfs_rpm_gen;;
+    rpm-install)
+        eosfs_rpm_install;;
+    rpm-uninstall)
+        eosfs_rpm_uninstall;;
+    reinstall)
+        eosfs_reinstall;;
+
+# Sub-components:
+    kvsns)
+        shift
+        eosfs_set_env
+        _kvsns_build "$@";;
+    kvsfs)
+        shift
+        eosfs_set_env
+        _kvsfs_build "$@";;
+    nfs-ganesha)
+        shift
+        eosfs_set_env
+        _nfs_ganesha_build "$@";;
     *)
         eosfs_usage;;
 esac
