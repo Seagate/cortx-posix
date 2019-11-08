@@ -29,7 +29,7 @@ static struct option opts[] = {
 static void usage(const char *prog)
 {
 	printf("Usage: %s\n"
-		"\t-k, --key=KEY  \t -v, --value=VALUE.\n", prog);
+		"\t-k, --key=KEY  -v, --value=VALUE.\n", prog);
 
 	printf("\n");
 
@@ -40,24 +40,34 @@ int op_set(void *ctx, void *cred, int argc, char *argv[])
 {
 	int rc;
 	int print_usage = 0;
-	char *key = NULL;
-	char *value = NULL;
+
+	kvsns_fs_ctx_t *fs_ctx = (kvsns_fs_ctx_t*)ctx;
+
+	char *kvsal_key = NULL;
+	char key[KLEN];
+	char value[VLEN];
+	int klen = 0;
+	int vlen = 0;
 	int c;
+
+	memset(key, 0, KLEN);
+	memset(value, 0, VLEN);
+
 	// Reinitialize getopt internals.
 	optind = 0;
 	while ((c = getopt_long(argc, argv, "k:v:h", opts, NULL)) != -1) {
 		switch (c) {
 			case 'k':
-				key = strdup(optarg);
+				strcpy(key, optarg);
 				break;
 			case 'v':
-				value = strdup(optarg);
+				strcpy(value, optarg);
 				break;
 			case 'h':
 				usage(argv[0]);
 				break;
 			default:
-				fprintf(stderr, "defual Bad parameters.\n");
+				fprintf(stderr, "defualt Bad parameters.\n");
 				print_usage = 1;
 				rc = -1;
 				goto error;
@@ -71,15 +81,26 @@ int op_set(void *ctx, void *cred, int argc, char *argv[])
 	}
 
 #ifdef DEBUG
-	printf("key  = %s\n", key);
-	printf("value  = %s\n", value);
+	printf("key = %s\n", key);
+	printf("value = %s\n", value);
 #endif
 
-	printf("Setting key:value  = [%s:%s].\n", key, value);
+	klen = strlen(key);
+	vlen = strlen(value);
 
-	RC_LOG_NOTEQ(rc, STATUS_OK, error, kvsal_set_char,
-			key, value);
+	RC_WRAP_LABEL(rc, free_error, kvsal_alloc, (void **)&kvsal_key,
+                      klen);
+
+	strcpy(kvsal_key, key);
+
+	RC_LOG_NOTEQ(rc, STATUS_OK, error, kvsal2_set_bin,
+			 fs_ctx, kvsal_key, klen, (void *)value, vlen);
+
 	printf("Set key:value  = [%s:%s].\n", key, value);
+
+free_error:
+        kvsal_free(kvsal_key);
+
 error:
 	if (print_usage)
 		usage(argv[0]);

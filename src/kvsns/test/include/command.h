@@ -23,16 +23,21 @@
 	XX(WRITE,	write,		"Write the FILE")			\
 	XX(LINK,	link,		"Create the symbolic LINK")		\
 	XX(UNLINK,	unlink,		"Unlink the FILE")			\
-	XX(READLINK,	readlink,	"Read the symbolic LINK CONTENT")	\
-	XX(SET,		set,		"set key value pair")			\
-	XX(GET,		get,		"get value for given key")			\
-	XX(DEL,		del,		"del key value pair")
+	XX(READLINK,	readlink,	"Read the symbolic LINK CONTENT")
 
+#define KVSAL_OP_MAP(XX)							\
+	XX(SET,		set,		"set key value pair")			\
+	XX(GET,		get,		"get value for given key")		\
+	XX(DEL,		del,		"del key value pair")			\
+	XX(INC_COUNT,	inc_count,	"inc count key value")
 
 typedef enum kvsns_command_id_t {
 	KVSNS_INIT	= 0,
 #define XX(uop, lop, _) KVSNS_ ## uop,
 	KVSNS_OP_MAP(XX)
+#undef XX
+#define XX(uop, lop, _) KVSAL_ ## uop,
+	KVSAL_OP_MAP(XX)
 #undef XX
 
 } kvsns_cmd_id_t;
@@ -69,6 +74,11 @@ void display_commands(void);
 #define XX(uop, lop, _) \
 	int op_ ## lop (void *fs_ctx, void *user_cred, int argc, char *argv[]);
 	KVSNS_OP_MAP(XX)
+#undef XX
+
+#define XX(uop, lop, _) \
+	int op_ ## lop (void *fs_ctx, void *user_cred, int argc, char *argv[]);
+	KVSAL_OP_MAP(XX)
 #undef XX
 
 #endif

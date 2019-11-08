@@ -14,7 +14,11 @@ kvsns_command_t command_table[] = {
 	{#lop,	KVSNS_ ## uop,	op_ ## lop,	desc},
 	KVSNS_OP_MAP(XX)
 #undef XX
-	
+
+#define XX(uop, lop, desc) \
+	{#lop,	KVSAL_ ## uop,	op_ ## lop,	desc},
+	KVSAL_OP_MAP(XX)
+#undef XX
 	/* Coomand table terminator entry */
 	{NULL,	0,		NULL,		NULL}
 };

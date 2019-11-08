@@ -1,9 +1,9 @@
 /**
- * @file del.c
+ * @file get.c
  * @author Jatinder Kumar <jatinder.kumar@seagate.com>
- * @brief kvssh del key.
+ * @brief kvssh get key.
  *
- * Value can be directly removed using del utility.
+ * Vlaue for given can be directly obtained using get utility.
  * It accept fs_ctx, user_cred.
  */
 
@@ -28,38 +28,46 @@ static struct option opts[] = {
 static void usage(const char *prog)
 {
 	printf("Usage: %s\n"
-		"\t-k, --key=KEY\n", prog);
+		"\t-k, --key=KEY \n", prog);
 
 	printf("\n");
 
 	exit(EXIT_FAILURE);
 }
 
-int op_del(void *ctx, void *cred, int argc, char *argv[])
+int op_get(void *ctx, void *cred, int argc, char *argv[])
 {
 	int rc;
 	int print_usage = 0;
-	char *key = NULL;
+
+	kvsns_fs_ctx_t *fs_ctx = (kvsns_fs_ctx_t*)ctx;
+
+	char key[KLEN];
+	char value[VLEN];
 	int c;
+
+	memset(key, 0, KLEN);
+	memset(value, 0, VLEN);
+
 	// Reinitialize getopt internals.
 	optind = 0;
 	while ((c = getopt_long(argc, argv, "k:h", opts, NULL)) != -1) {
 		switch (c) {
 			case 'k':
-				key = strdup(optarg);
+				strcpy(key, optarg);
 				break;
 			case 'h':
 				usage(argv[0]);
 				break;
 			default:
-				fprintf(stderr, "defual Bad parameters.\n");
+				fprintf(stderr, "defualt Bad parameters.\n");
 				print_usage = 1;
 				rc = -1;
 				goto error;
 		}
 	}
 
-	if (optind != argc || key == NULL) {
+	if (optind != argc || key ==  NULL) {
 		fprintf(stderr, "Bad parameters.\n");
 		print_usage = 1;
 		goto error;
@@ -68,12 +76,12 @@ int op_del(void *ctx, void *cred, int argc, char *argv[])
 #ifdef DEBUG
 	printf("key  = %s\n", key);
 #endif
+	int klen = strlen(key);
 
-	printf("deleting key  = [%s].\n", key);
+	RC_LOG_NOTEQ(rc, STATUS_OK, error, kvsal2_get_bin,
+			fs_ctx, key, klen, value, VLEN);
 
-	RC_LOG_NOTEQ(rc, STATUS_OK, error, kvsal_del,
-			key);
-	printf("delete key = [%s].\n", key);
+	printf("key:value  = [%s:%s].\n", key, value);
 error:
 	if (print_usage)
 		usage(argv[0]);

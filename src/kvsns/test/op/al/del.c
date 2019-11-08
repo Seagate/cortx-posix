@@ -1,9 +1,9 @@
 /**
- * @file get.c
+ * @file del.c
  * @author Jatinder Kumar <jatinder.kumar@seagate.com>
- * @brief kvssh get key.
+ * @brief kvssh del key.
  *
- * Vlaue for given can be directly obtained using get utility.
+ * Value can be directly removed using del utility.
  * It accept fs_ctx, user_cred.
  */
 
@@ -28,39 +28,46 @@ static struct option opts[] = {
 static void usage(const char *prog)
 {
 	printf("Usage: %s\n"
-		"\t-k, --key=KEY \n", prog);
+		"\t-k, --key=KEY\n", prog);
 
 	printf("\n");
 
 	exit(EXIT_FAILURE);
 }
 
-int op_get(void *ctx, void *cred, int argc, char *argv[])
+int op_del(void *ctx, void *cred, int argc, char *argv[])
 {
 	int rc;
 	int print_usage = 0;
-	char *key = NULL;
-	char value[VLEN];
+
+	kvsns_fs_ctx_t *fs_ctx = (kvsns_fs_ctx_t*)ctx;
+
+	char key[KLEN];
+	char *kvsal_key = NULL;
+	int klen = 0;
 	int c;
+
+	memset(key, 0, KLEN);
 	// Reinitialize getopt internals.
 	optind = 0;
 	while ((c = getopt_long(argc, argv, "k:h", opts, NULL)) != -1) {
 		switch (c) {
 			case 'k':
-				key = strdup(optarg);
+				//key = strdup(optarg);
+				strcpy(key, optarg);
 				break;
 			case 'h':
 				usage(argv[0]);
 				break;
 			default:
-				fprintf(stderr, "defual Bad parameters.\n");
+				fprintf(stderr, "defualt Bad parameters.\n");
 				print_usage = 1;
 				rc = -1;
 				goto error;
 		}
 	}
 
-	if (optind != argc || key ==  NULL) {
+	if (optind != argc || key == NULL) {
 		fprintf(stderr, "Bad parameters.\n");
 		print_usage = 1;
 		goto error;
@@ -70,11 +77,20 @@ int op_get(void *ctx, void *cred, int argc, char *argv[])
 	printf("key  = %s\n", key);
 #endif
 
-	printf("getting key:value  = [%s].\n", key);
+	klen = strlen(key);
+	RC_WRAP_LABEL(rc, free_error, kvsal_alloc, (void **)&kvsal_key,
+                      sizeof (*kvsal_key));
+	strcpy(kvsal_key, key);
 
-	RC_LOG_NOTEQ(rc, STATUS_OK, error, kvsal_get_char,
-			key, value);
-	printf("Set key:value  = [%s:%s].\n", key, value);
+	printf("deleting key  = [%s].\n", key);
+
+	RC_LOG_NOTEQ(rc, STATUS_OK, error, kvsal2_del,
+			fs_ctx, kvsal_key, klen);
+
+	printf("delete key = [%s].\n", key);
+
+free_error:
+	kvsal_free(kvsal_key);
 error:
 	if (print_usage)
 		usage(argv[0]);
