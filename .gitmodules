@@ -1,6 +1,6 @@
 [submodule "kvsns"]
 	path = kvsns
 	url = ssh://git@gitlab.mero.colo.seagate.com:6022/eos/fs/kvsns.git
-[submodule "nfs-ganesha"]
-	path = nfs-ganesha
-	url = ssh://git@gitlab.mero.colo.seagate.com:6022/eos/fs/kvsfs-fsal.git
+[submodule "kvsfs-ganesha"]
+	path = kvsfs-ganesha
+	url = ssh://git@gitlab.mero.colo.seagate.com:6022/eos/fs/kvsfs-ganesha.git
