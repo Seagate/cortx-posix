@@ -23,7 +23,10 @@
 	XX(WRITE,	write,		"Write the FILE")			\
 	XX(LINK,	link,		"Create the symbolic LINK")		\
 	XX(UNLINK,	unlink,		"Unlink the FILE")			\
-	XX(READLINK,	readlink,	"Read the symbolic LINK CONTENT")
+	XX(READLINK,	readlink,	"Read the symbolic LINK CONTENT")	\
+	XX(SET,		set,		"set key value pair")			\
+	XX(GET,		get,		"get value for given key")			\
+	XX(DEL,		del,		"del key value pair")
 
 #define KVSAL_OP_MAP(XX)							\
 	XX(SET,		set,		"set key value pair")			\
