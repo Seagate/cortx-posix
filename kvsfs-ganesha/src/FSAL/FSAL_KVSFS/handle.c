@@ -64,6 +64,9 @@
 #include <fsal_convert.h> /* posix2fsal */
 #include <FSAL/fsal_commonlib.h> /* FSAL methods */
 
+#include <../FSAL/Stackable_FSALs/FSAL_MDCACHE/mdcache_int.h>
+#include <../FSAL/Stackable_FSALs/FSAL_MDCACHE/mdcache_hash.h>
+
 /******************************************************************************/
 /* Internal data types */
 
@@ -199,6 +202,17 @@ int kvsfs_export_to_kvsns_ctx(struct fsal_export *exp_hdl,
 	*fs_ctx = ctx;
 	LogDebug(COMPONENT_FSAL, "kvsns_fs_ctx: %p ", *fs_ctx);
 	return rc;
+}
+
+/******************************************************************************/
+/* Checks if a KVSFS File Handle is open.
+ * NOTE: It works only with files passed by NFS Ganesha from the MDCACHE.
+ * A file handle created by a kvsfs_lookup call won't show the correct state.
+ */
+static bool kvsfs_fh_is_open(struct kvsfs_fsal_obj_handle *obj)
+{
+	static const struct fsal_share empty_share = {0};
+	return (memcmp(&empty_share, &obj->share, sizeof(empty_share)) != 0);
 }
 
 /******************************************************************************/
@@ -733,6 +747,49 @@ static fsal_status_t kvsfs_readdir(struct fsal_obj_handle *dir_hdl,
 }
 
 /******************************************************************************/
+static fsal_status_t kvsfs_unlink_reg(struct fsal_obj_handle *dir_hdl,
+				      struct fsal_obj_handle *obj_hdl,
+				      const char *name);
+
+
+/* Finds a file object cached in the inode cache.
+ * The inode cache (MDCACHE) must keep an in-memory file handle structure
+ * if the corresponding file is open.
+ * One of the use cases is a rename() call where a client
+ * is trying to overwrite an existing regular file with another regular file.
+ * The kvsfs_rename needs the information ('share' field from the FH) about
+ * existing open states in order to determine if the file needs to be removed
+ * or not.
+ * NOTE: This function returns only the cached FH but it does not return
+ * an uncached FH (created with kvsfs_lookup).
+ */
+fsal_status_t kvsfs_find_in_mdcache(struct fsal_obj_handle *obj,
+				    struct fsal_obj_handle **obj_cached)
+{
+	struct gsh_buffdesc fh_desc;
+	mdcache_entry_t *mdc_obj_hdl;
+	mdcache_key_t key;
+	fsal_status_t result;
+
+	/* Get a key to be used for searching in the MDCACHE. */
+	obj->obj_ops->handle_to_key(obj, &fh_desc);
+
+	(void) cih_hash_key(&key, op_ctx->fsal_export->fsal, &fh_desc,
+			    CIH_HASH_KEY_PROTOTYPE);
+
+	/* Try to find it in the cache. */
+	result = mdcache_find_keyed(&key, &mdc_obj_hdl);
+	if (FSAL_IS_ERROR(result)) {
+		goto out;
+	}
+
+	/* Get the KVSFS file handle */
+	*obj_cached = mdc_obj_hdl->sub_handle;
+
+out:
+	return result;
+}
+
 /* FSAL.rename */
 /** Rename (re-link) an object in a filesystem.
  *  @param[in] obj_hdl An existing object in the FS to be renamed.
@@ -745,15 +802,19 @@ static fsal_status_t kvsfs_readdir(struct fsal_obj_handle *dir_hdl,
  *  @return @see kvsns2_rename error codes.
  */
 static fsal_status_t kvsfs_rename(struct fsal_obj_handle *obj_hdl,
-				 struct fsal_obj_handle *olddir_hdl,
-				 const char *old_name,
-				 struct fsal_obj_handle *newdir_hdl,
-				 const char *new_name)
+				  struct fsal_obj_handle *olddir_hdl,
+				  const char *old_name,
+				  struct fsal_obj_handle *newdir_hdl,
+				  const char *new_name)
 {
 	struct kvsfs_fsal_obj_handle *olddir;
 	struct kvsfs_fsal_obj_handle *newdir;
 	struct kvsfs_fsal_obj_handle *obj;
-	fsal_errors_t fsal_error = ERR_FSAL_NO_ERROR;
+	struct kvsfs_fsal_obj_handle *newobj;
+	struct fsal_obj_handle *kvsfs_obj_hdl = NULL;
+	struct fsal_obj_handle *newobj_hdl = NULL;
+	struct kvsns_rename_flags flags = KVSNS_RENAME_FLAGS_INIT;
+	fsal_status_t result;
 	int rc = 0;
 	kvsns_cred_t cred = KVSNS_CRED_INIT_FROM_OP;
 
@@ -768,7 +829,6 @@ static fsal_status_t kvsfs_rename(struct fsal_obj_handle *obj_hdl,
 			 "obj fs_ctx does not match olddir fs_ctx "
 			 "'%p' != '%p'", obj_hdl, olddir_hdl);
 		rc = -EXDEV;
-		fsal_error = ERR_FSAL_XDEV;
 		goto out;
 	}
 	if (obj->fs_ctx != newdir->fs_ctx) {
@@ -776,25 +836,51 @@ static fsal_status_t kvsfs_rename(struct fsal_obj_handle *obj_hdl,
 			 "obj fs_ctx does not match newdir fs_ctx "
 			 "'%p' != '%p'", obj_hdl, newdir_hdl);
 		rc = -EXDEV;
-		fsal_error = ERR_FSAL_XDEV;
 		goto out;
 	}
 #endif
 
-	/* TODO:PERF: obj can be passed down in order to eliminate one extra
-	 * `lookup` call, but the inode of the object is not a part
-	 * of the kvsns_rename API right now.
-	 */
-	rc = kvsns_rename(obj->fs_ctx, &cred,
-			  &olddir->handle->kvsfs_handle, (char *) old_name,
-			  &newdir->handle->kvsfs_handle, (char *) new_name);
-	if (rc != 0) {
+	result = newdir_hdl->obj_ops->lookup(newdir_hdl, new_name, &kvsfs_obj_hdl, NULL);
+	if (result.major == ERR_FSAL_NOENT) {
+		/* Destination object does not exist -> go on and rename. */
+		newobj_hdl = NULL;
+		goto rename;
+	}
+	if (FSAL_IS_ERROR(result)) {
+		LogFatal(COMPONENT_FSAL,
+			 "Failed to lookup destination object: %p/%s",
+			 newdir_hdl, new_name);
 		goto out;
 	}
 
+	/* It is a file handle which will be removed from the file system.
+	 * By default use the FH found by kvsfs_lookup() call.
+	 * */
+	newobj_hdl = kvsfs_obj_hdl;
+
+	if (fsal_obj_handle_is(newobj_hdl, REGULAR_FILE)) {
+		/* Use an FH from the mdcache if it exists in the cache */
+		(void) kvsfs_find_in_mdcache(kvsfs_obj_hdl, &newobj_hdl);
+	}
+
+	newobj = container_of(newobj_hdl, struct kvsfs_fsal_obj_handle, obj_handle);
+	flags.is_dst_open = kvsfs_fh_is_open(newobj);
+
+rename:
+	rc = kvsns_rename(obj->fs_ctx, &cred,
+			  &olddir->handle->kvsfs_handle, (char *) old_name,
+			  &obj->handle->kvsfs_handle,
+			  &newdir->handle->kvsfs_handle, (char *) new_name,
+			  newobj_hdl ? &newobj->handle->kvsfs_handle : NULL,
+			  &flags);
+
+	result = fsalstat(posix2fsal_error(-rc), -rc);
+
 out:
-	fsal_error = posix2fsal_error(-rc);
-	return fsalstat(fsal_error, -rc);
+	if (kvsfs_obj_hdl) {
+		kvsfs_obj_hdl->obj_ops->release(kvsfs_obj_hdl);
+	}
+	return result;
 
 }
 
@@ -961,12 +1047,6 @@ out:
 }
 
 /******************************************************************************/
-static bool kvsfs_fh_is_open(struct kvsfs_fsal_obj_handle *obj)
-{
-	static const struct fsal_share empty_share = { 0};
-	return (memcmp(&empty_share, &obj->share, sizeof(empty_share)) != 0);
-}
-
 /* INTERNAL */
 static fsal_status_t kvsfs_unlink_reg(struct fsal_obj_handle *dir_hdl,
 				      struct fsal_obj_handle *obj_hdl,
