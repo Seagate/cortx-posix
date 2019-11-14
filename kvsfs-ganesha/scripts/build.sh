@@ -23,7 +23,7 @@ KVSFS_NFS_GANESHA_DIR=${KVSFS_NFS_GANESHA_DIR:-"$KVSFS_SOURCE_ROOT/../../nfs-gan
 # NFS Ganesha build dir location
 # For superproject builds: pre-defined.
 # Local builds: in the same level where target build folder located.
-KVSFS_NFS_GANESHA_BUILD_DIR=${KVSFS_GANESHA_BUILD_DIR:-"$KVSFS_NFS_GANESHA_DIR/build"}
+KVSFS_NFS_GANESHA_BUILD_DIR=${KVSFS_NFS_GANESHA_BUILD_DIR:-"$KVSFS_NFS_GANESHA_DIR/build"}
 
 # Select KVSNS Source Version.
 # Superproject: derived from eos-fs version.
