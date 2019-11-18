@@ -2411,7 +2411,7 @@ static void kvsfs_read2(struct fsal_obj_handle *obj_hdl,
 	buffer_size = read_arg->iov[0].iov_len;
 	offset = read_arg->offset;
 
-	nb_read = kvsns2_read(obj->fs_ctx, &cred, &fd->kvsns_fd,
+	nb_read = kvsns_read(obj->fs_ctx, &cred, &fd->kvsns_fd,
 			     buffer, buffer_size, offset);
 	if (nb_read < 0) {
 		result = fsalstat(posix2fsal_error(-nb_read), -nb_read);
@@ -2564,7 +2564,7 @@ static void kvsfs_write2(struct fsal_obj_handle *obj_hdl,
 	buffer_size = write_arg->iov[0].iov_len;
 	offset = write_arg->offset;
 
-	nb_write = kvsns2_write(obj->fs_ctx, &cred, &fd->kvsns_fd,
+	nb_write = kvsns_write(obj->fs_ctx, &cred, &fd->kvsns_fd,
 			     buffer, buffer_size, offset);
 	if (nb_write < 0) {
 		result = fsalstat(posix2fsal_error(-nb_write), -nb_write);
