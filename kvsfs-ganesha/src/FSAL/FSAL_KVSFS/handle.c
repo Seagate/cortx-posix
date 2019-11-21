@@ -265,7 +265,7 @@ static fsal_status_t kvsfs_lookup(struct fsal_obj_handle *parent_hdl,
 
 	}
 
-	retval = kvsns2_getattr(parent->fs_ctx, &cred, &object, &stat);
+	retval = kvsns_getattr(parent->fs_ctx, &cred, &object, &stat);
 	if (retval < 0) {
 		fsal_error = posix2fsal_error(-retval);
 		goto out;
@@ -314,7 +314,7 @@ fsal_status_t kvsfs_lookup_path(struct fsal_export *exp_hdl,
 	object = myexport->root_inode;
 	fs_ctx = myexport->index_context;
 
-	rc = kvsns2_getattr(fs_ctx, &cred, &object, &stat);
+	rc = kvsns_getattr(fs_ctx, &cred, &object, &stat);
 	if (rc != 0) {
 		return fsalstat(posix2fsal_error(-rc), -rc);
 	}
@@ -365,7 +365,7 @@ static fsal_status_t kvsfs_mkdir(struct fsal_obj_handle *dir_hdl,
 		goto out;
 	}
 
-	retval = kvsns2_getattr(myself->fs_ctx, &cred, &object, &stat);
+	retval = kvsns_getattr(myself->fs_ctx, &cred, &object, &stat);
 	if (retval < 0) {
 		/* XXX:
 		 * We have created a directory but cannot get its attributes
@@ -373,7 +373,7 @@ static fsal_status_t kvsfs_mkdir(struct fsal_obj_handle *dir_hdl,
 		 *
 		 * TODO:PERF:
 		 * kvsns_mkdir must return the stats of the created
-		 * directory so that we can avoid this kvsns2_getattr call.
+		 * directory so that we can avoid this kvsns_getattr call.
 		 */
 		goto out;
 	}
@@ -430,7 +430,7 @@ static fsal_status_t kvsfs_makesymlink(struct fsal_obj_handle *dir_hdl,
 		goto out;
 	}
 
-	retval = kvsns2_getattr(myself->fs_ctx, &cred, &object, &stat);
+	retval = kvsns_getattr(myself->fs_ctx, &cred, &object, &stat);
 	if (retval < 0) {
 		status = fsalstat(posix2fsal_error(-retval), -retval);
 		goto out;
@@ -647,7 +647,7 @@ static bool kvsfs_readdir_cb(void *ctx, const char *name,
 		int retval;
 		kvsns_ino_t object = *ino;
 
-		retval = kvsns2_getattr(cb_ctx->parent->fs_ctx, &cred, &object,
+		retval = kvsns_getattr(cb_ctx->parent->fs_ctx, &cred, &object,
 					&stat);
 		if (retval < 0) {
 			cb_ctx->inner_rc = retval;
@@ -905,7 +905,7 @@ static fsal_status_t kvsfs_getattrs(struct fsal_obj_handle *obj_hdl,
 	myself =
 		container_of(obj_hdl, struct kvsfs_fsal_obj_handle, obj_handle);
 
-	retval = kvsns2_getattr(myself->fs_ctx, &cred,
+	retval = kvsns_getattr(myself->fs_ctx, &cred,
 				&myself->handle->kvsfs_handle, &stat);
 	if (retval < 0) {
 		goto out;
@@ -1035,7 +1035,7 @@ fsal_status_t kvsfs_setattrs(struct fsal_obj_handle *obj_hdl,
 		/* If the size does not need to be change, then
 		 * we can simply update the stats associated with the inode
 		 */
-		rc = kvsns2_setattr(obj->fs_ctx, &cred,
+		rc = kvsns_setattr(obj->fs_ctx, &cred,
 				    &obj->handle->kvsfs_handle,
 				    &stats, flags);
 		result = fsalstat(posix2fsal_error(-rc), -rc);
@@ -1323,7 +1323,7 @@ fsal_status_t kvsfs_create_handle(struct fsal_export *exp_hdl,
 
 	fh = hdl_desc->addr;
 
-	retval = kvsns2_getattr(myexport->index_context, &cred,
+	retval = kvsns_getattr(myexport->index_context, &cred,
 				&fh->kvsfs_handle, &stat);
 	if (retval < 0) {
 		fsal_error = posix2fsal_error(-retval);
@@ -1761,7 +1761,7 @@ static fsal_status_t kvsfs_open2_by_handle(struct fsal_obj_handle *obj_hdl,
 	}
 
 	if (attrs_out != NULL) {
-		rc = kvsns2_getattr(obj->fs_ctx, &cred,
+		rc = kvsns_getattr(obj->fs_ctx, &cred,
 				    &obj->handle->kvsfs_handle, &stat);
 		if (rc < 0) {
 			status = fsalstat(posix2fsal_error(-rc), -rc);
@@ -1772,7 +1772,7 @@ static fsal_status_t kvsfs_open2_by_handle(struct fsal_obj_handle *obj_hdl,
 	}
 
 	/* kvsfs_file_state_open does not call test_access and
-	 * kvsns2_getattrs also does not check it. Therefore, let the caller
+	 * kvsns_getattrs also does not check it. Therefore, let the caller
 	 * check access.
 	 */
 	if (caller_perm_check) {
