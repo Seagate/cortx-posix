@@ -1,0 +1,36 @@
+1. Add following code in src/kvsns/kvsns/kvsns_init.c
+   #include <lib/trace.h>
+- In kvsns_start(...) function
+   m0_trace_set_immediate_mask("all");
+   m0_trace_set_print_context("full");
+   m0_trace_set_level("DEBUG");
+   M0_LOG(M0_DEBUG, "kvsns init Successful");
+
+2. Add following code in src/kvsns/kvsns/CMakeLists.txt
+   set(MERO_CFLAGS "-D_REENTRANT -D_GNU_SOURCE -DM0_INTERNAL='' -DM0_EXTERN=extern ")
+   set(MERO_CFLAGS "${MERO_CFLAGS} -Wall -Werror -Wno-attributes -Wno-unused-but-set-variable ")
+   set(MERO_CFLAGS "${MERO_CFLAGS} -I/usr/include/mero ")
+
+   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${MERO_CFLAGS}")
+   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${MERO_CFLAGS}")
+
+3. Change directory to /tmp/kvsns_build/kvsns_shell
+Run make to build modified source code
+
+4. Run ./kvsns_init
+5. Step 4 generates the m0trace.<pid> in binary format.
+6. Change directory to eos-fs/experiments/m0trace
+   - Build kvsns_trace_dump.c using following command
+gcc -Wall -D_REENTRANT -D_GNU_SOURCE -DM0_INTERNAL='' -DM0_EXTERN=extern -Werror -Wno-attributes -Wno-unused-but-set-variable -I/usr/include/mero kvsns_trace_dump.c -o kvsns_trace_dump -L/lib64/ -lmero -lkvsns -m64
+7. sudo ./kvsns_trace_dump -i m0_trace.<pid> -o <Output file>
+8. Open Output file
+Failed to show the M0_LOG message added in kvsns_init.c file. Other messages from mero library can be seen in this file.
+
+
+Note:
+There is another m0_log.c file in experiments/m0trace folder. It also logs message in m0trace.<pid> file using mero library. kvsns_trace_dump executable should be able to access to m0_log symbols. To build m0_log.c run following command
+gcc -Wall -D_REENTRANT -D_GNU_SOURCE -DM0_INTERNAL='' -DM0_EXTERN=extern -Werror -Wno-attributes -Wno-unused-but-set-variable -I/usr/include/mero m0_log.c -o m0_log -L/lib64/ -lmero -m64
+
+After the completion of ticket EOS-3131:
+1. Change m0_trace_parse call in kvsns_trace_dump.c file. Need to pass trace descriptor offset in m0_trace_parse call.
+2. Should be able to successfully show the log message added in the kvsns_init.c file
