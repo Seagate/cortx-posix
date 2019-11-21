@@ -1137,7 +1137,7 @@ static fsal_status_t kvsfs_rmdir(struct fsal_obj_handle *dir_hdl,
 	 * rmdir().
 	 */
 
-	rc = kvsns2_rmdir(parent->fs_ctx, &cred,
+	rc = kvsns_rmdir(parent->fs_ctx, &cred,
 			  &parent->handle->kvsfs_handle,
 			  (char *) name);
 	if (rc != 0) {
