@@ -632,6 +632,7 @@ static bool kvsfs_readdir_cb(void *ctx, const char *name,
 	}
 
 	if (cb_ctx->where < cb_ctx->whence) {
+		cb_ctx->where++;
 		T_EXIT("%s", "SKIP");
 		return true;
 	}
@@ -686,7 +687,13 @@ static fsal_status_t kvsfs_readdir(struct fsal_obj_handle *dir_hdl,
 	struct kvsfs_fsal_obj_handle *obj;
 	kvsns_cred_t cred = KVSNS_CRED_INIT_FROM_OP;
 	struct kvsfs_readdir_cb_ctx readdir_ctx = {
-		.whence = whence ? *whence : KVSFS_FIRST_COOKIE,
+		/* If whence is NULL, it means we should start from the very
+		 * beginning (dentry[0]).
+		 * Othwerwise, it indicates the index of the dentry
+		 * (dentry[N]) followed by the dentry (dentry[N+1]) we should
+		 * pass to the callback.
+		 */
+		.whence = whence ? ((*whence) + 1) : KVSFS_FIRST_COOKIE,
 		.where = KVSFS_FIRST_COOKIE,
 		.fsal_cb = cb,
 		.fsal_cb_ctx = dir_state,
