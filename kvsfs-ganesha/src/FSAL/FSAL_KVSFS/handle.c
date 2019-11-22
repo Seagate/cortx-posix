@@ -254,7 +254,7 @@ static fsal_status_t kvsfs_lookup(struct fsal_obj_handle *parent_hdl,
 	    parent->handle->kvsfs_handle == export->root_inode) {
 		object = export->root_inode;
 	} else {
-		retval = kvsns2_lookup(parent->fs_ctx,
+		retval = kvsns_lookup(parent->fs_ctx,
 				       &cred,
 				       &parent->handle->kvsfs_handle,
 				       (char *) name, &object);
@@ -799,7 +799,7 @@ out:
  *  @param[in] newdir_hdl A dir where the object will be linked under the name
  *  `new_name`.
  *  @param[in] new_name A name of the object.
- *  @return @see kvsns2_rename error codes.
+ *  @return @see kvsns_rename error codes.
  */
 static fsal_status_t kvsfs_rename(struct fsal_obj_handle *obj_hdl,
 				  struct fsal_obj_handle *olddir_hdl,
@@ -1105,7 +1105,7 @@ static fsal_status_t kvsfs_rmsymlink(struct fsal_obj_handle *dir_hdl,
 	parent = container_of(dir_hdl, struct kvsfs_fsal_obj_handle, obj_handle);
 	obj = container_of(obj_hdl, struct kvsfs_fsal_obj_handle, obj_handle);
 
-	rc = kvsns2_unlink(parent->fs_ctx, &cred,
+	rc = kvsns_unlink(parent->fs_ctx, &cred,
 			  &parent->handle->kvsfs_handle,
 			  &obj->handle->kvsfs_handle,
 			  (char *) name);
