@@ -158,6 +158,15 @@ fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
 
 	kvsns_fs_ctx_t fs_ctx;
 
+	/*
+	 * Lookup global ctx
+	 */
+	retval = kvsns_create_fs_ctx(1, &fs_ctx);
+	if (retval != 0) {
+		LogCrit(COMPONENT_FSAL, "Lookup global ctx failed: %d", retval);
+		goto errout;
+	}
+
 	retval = kvsfs_export_to_kvsns_ctx(&myself->export, &fs_ctx);
 	if (retval != 0) {
 		LogCrit(COMPONENT_FSAL, "Unable to get fs_handle: %d", retval);

@@ -77,8 +77,8 @@ EOM
 
 	touch $NFS_INITIALIZED
 
-	# Initialize kvsns
-	run $KVSNS_INIT
+	# Initialize kvsns, 1 here is FSID when global idx is used as FS
+	run $KVSNS_INIT "1"
 	[ $? -ne 0 ] && die "Failed to initialise kvsns"
 }
 
