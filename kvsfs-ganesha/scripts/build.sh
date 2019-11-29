@@ -49,6 +49,8 @@ KVSNS_CMAKE_BUILD_ROOT=${EOS_FS_BUILD_ROOT:-"$KVSFS_SOURCE_ROOT/../kvsns"}
 ###############################################################################
 # Locals
 
+KVSFS_TEST_DIR=$KVSFS_SOURCE_ROOT/test
+KVSFS_TEST_BUILD=$KVSFS_CMAKE_BUILD_ROOT/build-kvsfs-test
 KVSFS_BUILD=$KVSFS_CMAKE_BUILD_ROOT/build-kvsfs
 KVSFS_SRC=$KVSFS_SOURCE_ROOT/src/FSAL/FSAL_KVSFS
 
@@ -100,6 +102,23 @@ _kvsfs_check_deps() {
 }
 
 ###############################################################################
+kvsfs_tools_configure() {
+
+	mkdir $KVSFS_TEST_BUILD
+	pushd $KVSFS_TEST_BUILD
+
+	local cmd=" cmake \
+-DBASE_VERSION:STRING=${KVSFS_VERSION} \
+-DRELEASE_VER:STRING=${KVSFS_BUILD_VERSION}
+$KVSFS_TEST_DIR"
+	echo -e "Config:\n $cmd" > $KVSFS_BUILD/.config
+	echo -e "Env:\n $(kvsfs_print_env)" >> $KVSFS_BUILD/.config
+	$cmd
+
+	popd
+}
+
+###############################################################################
 kvsfs_configure() {
     if [ -f $KVSFS_BUILD/.config ]; then
         echo "Build folder $KVSFS_BUILD has already been configured. Please remove it."
@@ -129,7 +148,19 @@ $KVSFS_SRC"
     echo -e "Config:\n $cmd" > $KVSFS_BUILD/.config
     echo -e "Env:\n $(kvsfs_print_env)" >> $KVSFS_BUILD/.config
     $cmd
+
     cd -
+	kvsfs_tools_configure
+}
+
+###############################################################################
+kvsfs_test_purge() {
+    if [ ! -d "$KVSFS_TEST_BUILD" ]; then
+        echo "Nothing to remove"
+        return 0;
+    fi
+
+    rm -fR "$KVSFS_TEST_BUILD"
 }
 
 ###############################################################################
@@ -140,6 +171,20 @@ kvsfs_purge() {
     fi
 
     rm -fR "$KVSFS_BUILD"
+
+    kvsfs_test_purge
+}
+
+###############################################################################
+kvsfs_test_make() {
+	if [ ! -d $KVSFS_TEST_BUILD ]; then
+        echo "Build folder $KVSFS_TEST_BUILD does not exist. Please run 'config'"
+        exit 1;
+    fi
+
+    pushd $KVSFS_TEST_BUILD
+	make $1
+    popd
 }
 
 ###############################################################################
@@ -149,9 +194,11 @@ kvsfs_make() {
         exit 1;
     fi
 
+	tmp_arg="$@"
     cd $KVSFS_BUILD
     make "$@"
     cd -
+	kvsfs_test_make $tmp_arg
 }
 
 ###############################################################################
@@ -169,8 +216,9 @@ kvsfs_rpm_install() {
     local rpms_dir=$HOME/rpmbuild/RPMS/x86_64
     local suffix="$KVSFS_VERSION-$KVSFS_BUILD_VERSION.el7.centos.x86_64.rpm"
     local mypkg=(
-        libfsalkvsfs
-        libfsalkvsfs-debuginfo
+        kvsfs-ganesha
+        kvsfs-ganesha-debuginfo
+        kvsfs-ganesha-test
     )
     local myrpms=()
 
@@ -197,7 +245,7 @@ kvsfs_rpm_install() {
 }
 
 kvsfs_rpm_uninstall() {
-    sudo yum remove -y 'libfsalkvsfs*'
+    sudo yum remove -y 'kvsfs-ganesha*'
 }
 
 ###############################################################################
