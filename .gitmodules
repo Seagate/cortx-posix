@@ -1,15 +1,15 @@
 [submodule "kvsns"]
 	path = kvsns
-	url = ssh://git@gitlab.mero.colo.seagate.com:6022/eos/fs/kvsns.git
+	url = ../kvsns.git
 [submodule "kvsfs-ganesha"]
 	path = kvsfs-ganesha
-	url = ssh://git@gitlab.mero.colo.seagate.com:6022/eos/fs/kvsfs-ganesha.git
+	url = ../kvsfs-ganesha.git
 [submodule "utils"]
 	path = utils
-	url = ssh://git@gitlab.mero.colo.seagate.com:6022/eos/fs/utils.git
+	url = ../utils.git
 [submodule "nsal"]
 	path = nsal
-	url = ssh://git@gitlab.mero.colo.seagate.com:6022/eos/fs/nsal.git
+	url = ../nsal.git
 [submodule "dsal"]
 	path = dsal
-	url = ssh://git@gitlab.mero.colo.seagate.com:6022/eos/fs/dsal.git
+	url = ../dsal.git
