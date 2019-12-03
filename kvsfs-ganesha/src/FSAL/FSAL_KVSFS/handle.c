@@ -1191,7 +1191,7 @@ static fsal_status_t kvsfs_handle_digest(const struct fsal_obj_handle *obj_hdl,
 {
 	const struct kvsfs_fsal_obj_handle *myself;
 	const struct kvsfs_file_handle *fh;
-	const size_t fh_size = sizeof(fh);
+	const size_t fh_size = sizeof(struct kvsfs_file_handle);
 
 	assert(fh_desc);
 	assert(obj_hdl);
