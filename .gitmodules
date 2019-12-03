@@ -4,3 +4,12 @@
 [submodule "kvsfs-ganesha"]
 	path = kvsfs-ganesha
 	url = ../kvsfs-ganesha.git
+[submodule "utils"]
+    path = utils
+    url = ../utils.git
+[submodule "nsal"]
+    path = nsal
+    url = ../nsal.git
+[submodule "dsal"]
+    path = dsal
+    url = ../dsal.git
