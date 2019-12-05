@@ -179,8 +179,7 @@ fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
 	}
 
 	myself->index_context = fs_ctx;
-	myself->root_fh.fs_id = fsid;
-	myself->root_fh.kvsfs_handle = KVSNS_ROOT_INODE;
+	myself->fs_id = fsid;
 
 	/* TODO:PORTING: pNFS support */
 #if 0

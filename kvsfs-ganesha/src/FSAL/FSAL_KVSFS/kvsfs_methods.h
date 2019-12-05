@@ -3,6 +3,7 @@
 
 #include <fsal_api.h>
 #include <kvsns/kvsns.h>
+#include <kvsns/kvsns_fh.h>
 #include <gsh_list.h>
 #include <fsal_types.h>
 
@@ -56,8 +57,8 @@ struct kvsfs_fsal_export {
 	/** A filesystem in Open state */
 	struct kvsfs_fsal_index_context *index_context;
 
-	/** Root File Handle of the filesystem associated with the export */
-	struct kvsfs_file_handle root_fh;
+	/* TODO: This field should be a property of a FS object */
+	uint64_t fs_id;
 
 	/** Export config. */
 	char *kvsns_config;
