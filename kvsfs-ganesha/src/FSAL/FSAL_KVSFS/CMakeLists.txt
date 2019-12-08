@@ -18,12 +18,14 @@ set(DEFAULT_GANESHASRC "")
 set(DEFAULT_GANESHABUILD "")
 set(DEFAULT_KVSNSINC "")
 set(DEFAULT_LIBKVSNS "")
+set(DEFAULT_CAPIINC "")
 
 set(GANESHASRC ${DEFAULT_GANESHASRC} CACHE PATH "Path to NFS-Ganesha Source (nfs-ganesha/src)")
 set(GANESHABUILD ${DEFAULT_GANESHABUILD} CACHE PATH "Path to NFS-Ganesha Build (nfs-ganesha/build)")
 set(KVSNSINC ${DEFAULT_KVSNSINC} CACHE PATH "Path to folder with kvsns.h")
 set(LIBKVSNS ${DEFAULT_LIBKVSNS} CACHE PATH "Path to folder with libkvsns.so")
 set(FSAL_DESTINATION "/usr/lib64/ganesha" CACHE PATH "Target directory for FSAL")
+set(CAPIINC ${DEFAULT_CAPIINC} CACHE PATH "Path to CAPI")
 
 # TODO: Add a condition here and check nfs-ganesha configuration
 set(SYSTEM_LIBRARIES
@@ -36,6 +38,7 @@ include_directories(${GANESHABUILD}/include)
 include_directories(${GANESHASRC}/include)
 include_directories(${GANESHASRC}/include/FSAL)
 
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -I${CAPIINC}")
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wno-unused-variable")
 

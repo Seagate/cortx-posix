@@ -53,6 +53,7 @@ KVSFS_TEST_DIR=$KVSFS_SOURCE_ROOT/test
 KVSFS_TEST_BUILD=$KVSFS_CMAKE_BUILD_ROOT/build-kvsfs-test
 KVSFS_BUILD=$KVSFS_CMAKE_BUILD_ROOT/build-kvsfs
 KVSFS_SRC=$KVSFS_SOURCE_ROOT/src/FSAL/FSAL_KVSFS
+CAPI_INC=$KVSNS_SOURCE_ROOT/src/capi
 
 # Use either local header/lib or the files from libkvsns-devel package.
 
@@ -82,6 +83,7 @@ kvsfs_print_env() {
         KVSFS_NFS_GANESHA_BUILD_DIR
         KVSNS_LIB
         KVSNS_INC
+	CAPI_INC
     )
 
     for i in ${myenv[@]}; do
@@ -143,6 +145,7 @@ kvsfs_configure() {
 -DLIBKVSNS:PATH=${KVSNS_LIB} \
 -DBASE_VERSION:STRING=${KVSFS_VERSION} \
 -DRELEASE_VER:STRING=${KVSFS_BUILD_VERSION} \
+-DCAPIINC:PATH=${CAPI_INC} \
 $KVSFS_SRC"
 
     echo -e "Config:\n $cmd" > $KVSFS_BUILD/.config
