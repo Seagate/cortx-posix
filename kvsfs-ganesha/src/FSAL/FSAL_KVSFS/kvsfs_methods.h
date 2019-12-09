@@ -43,6 +43,12 @@ struct kvsfs_exp_pnfs_parameter {
 
 struct kvsfs_fsal_index_context;
 
+/* Wrapper for a File Handle object. */
+struct kvsfs_file_handle {
+	uint64_t fs_id;
+	kvsns_ino_t kvsfs_handle;
+};
+
 struct kvsfs_fsal_export {
 	/* base */
 	struct fsal_export export;
@@ -50,8 +56,8 @@ struct kvsfs_fsal_export {
 	/** A filesystem in Open state */
 	struct kvsfs_fsal_index_context *index_context;
 
-	/** Root Inode of the filesystem associated with the export */
-	kvsns_ino_t root_inode;
+	/** Root File Handle of the filesystem associated with the export */
+	struct kvsfs_file_handle root_fh;
 
 	/** Export config. */
 	char *kvsns_config;

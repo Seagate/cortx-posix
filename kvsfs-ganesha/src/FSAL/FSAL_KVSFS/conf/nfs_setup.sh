@@ -4,7 +4,11 @@
 PROFILE='<0x7000000000000001:0>'
 PROC_FID='<0x7200000000000000:0>'
 INDEX_DIR=/tmp
-KVS_FID='<0x780000000000000b:1>'
+# Global idx (meta index)
+KVS_GLOBAL_FID='<0x780000000000000b:1>'
+# DEFAULT FSID 2
+KVS_DEFAULT_FS_FID='<0x780000000000000b:2>'
+DEFAULT_FSID='2'
 LOC_EXPORT_ID='@tcp:12345:44:301'
 HA_EXPORT_ID='@tcp:12345:45:1'
 KVSNS_INI=/etc/kvsns.d/kvsns.ini
@@ -46,9 +50,12 @@ function get_ip {
 function clovis_init {
 	log "Initializing Clovis..."
 
-	# Initialize Clovis
-	run m0clovis -l $ip_add$LOC_EXPORT_ID -h $ip_add$HA_EXPORT_ID -p $PROFILE -f $PROC_FID index create "$KVS_FID"
-	[ $? -ne 0 ] && die "Failed to Initialise Clovis"
+	# Create Clovis global idx
+	run m0clovis -l $ip_add$LOC_EXPORT_ID -h $ip_add$HA_EXPORT_ID -p $PROFILE -f $PROC_FID index create "$KVS_GLOBAL_FID"
+	[ $? -ne 0 ] && die "Failed to Initialise Clovis Global index"
+	# Create Clovis idx for FSID 2
+	run m0clovis -l $ip_add$LOC_EXPORT_ID -h $ip_add$HA_EXPORT_ID -p $PROFILE -f $PROC_FID index create "$KVS_DEFAULT_FS_FID"
+	[ $? -ne 0 ] && die "Failed to Initialise Clovis FS index"
 }
 
 function kvsns_init {
@@ -71,15 +78,15 @@ ha_addr = $ip_add$HA_EXPORT_ID
 profile = $PROFILE
 proc_fid = $PROC_FID
 index_dir = $INDEX_DIR
-kvs_fid = $KVS_FID
+kvs_fid = $KVS_GLOBAL_FID
 EOM
 	[ $? -ne 0 ] && die "Failed to configure kvsns.ini"
 
 	touch $NFS_INITIALIZED
 
-	# Initialize kvsns, 1 here is FSID when global idx is used as FS
-	run $KVSNS_INIT "1"
-	[ $? -ne 0 ] && die "Failed to initialise kvsns"
+	# Initialize KVSNS for FSID 2
+	run $KVSNS_INIT $DEFAULT_FSID
+	[ $? -ne 0 ] && die "Failed to initialise kvsns for FSID 2"
 }
 
 function prepare_ganesha_conf {
@@ -97,7 +104,7 @@ EXPORT {
 	Export_Id = 12345;
 
 	# Exported path (mandatory)
-	Path = /;
+	Path = 2;
 
 	# Pseudo Path (required for NFSv4 or if mount_path_pseudo = true)
 	Pseudo = /kvsns;
@@ -205,7 +212,8 @@ function eos_nfs_cleanup {
 	systemctl status nfs-ganesha > /dev/null && systemctl stop nfs-ganesha
 
 	# Drop index if previosly created
-	run m0clovis -l $ip_add$LOC_EXPORT_ID -h $ip_add$HA_EXPORT_ID -p $PROFILE -f $PROC_FID index drop "$KVS_FID"
+	run m0clovis -l $ip_add$LOC_EXPORT_ID -h $ip_add$HA_EXPORT_ID -p $PROFILE -f $PROC_FID index drop "$KVS_DEFAULT_FS_FID"
+	run m0clovis -l $ip_add$LOC_EXPORT_ID -h $ip_add$HA_EXPORT_ID -p $PROFILE -f $PROC_FID index drop "$KVS_GLOBAL_FID"
 
 	rm -f $NFS_INITIALIZED
 	echo "NFS cleanup is complete"
@@ -243,7 +251,7 @@ while [ ! -z $1 ]; do
 		-p ) prompt=1;;
 		-P ) PROFILE=$2; shift 1;;
 		-F ) PROC_FID=$2; shift 1;;
-		-k ) KVS_FID=$2; shift 1;;
+		-k ) KVS_GLOBAL_FID=$2; shift 1;;
 		-e ) LOC_EXPORT_ID=$2; shift 1;;
 		-E ) HA_EXPORT_ID=$2; shift 1;;
 		 * ) usage ;;

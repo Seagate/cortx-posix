@@ -118,6 +118,9 @@ fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
 	fsal_status_t status = { ERR_FSAL_NO_ERROR, 0 };
 	int retval = 0;
 	fsal_errors_t fsal_error = ERR_FSAL_INVAL;
+	/* NOTE: "Path" in ganesha.conf is fsid for us */
+	uint64_t fsid = strtoull(op_ctx->ctx_export->fullpath,
+				 NULL, 0);
 
 	myself = gsh_calloc(1, sizeof(struct kvsfs_fsal_export));
 
@@ -140,6 +143,16 @@ fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
 	} else
 		LogEvent(COMPONENT_FSAL, "KVSNS API is running");
 
+	/* @todo FS mgmt work will replace/reuse this call here */
+	retval = kvsns_set_fid(fsid);
+	if (retval != 0) {
+		LogMajor(COMPONENT_FSAL, "Can't set FSID:%"PRIu64" index",
+			 fsid);
+		goto errout;
+	} else
+		LogEvent(COMPONENT_FSAL, "FSID:%"PRIu64" FID set",
+			 fsid);
+
 	retval = fsal_attach_export(fsal_hdl, &myself->export.exports);
 	if (retval != 0)
 		goto err_locked;	/* seriously bad */
@@ -156,25 +169,18 @@ fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
 					    fso_pnfs_mds_supported) &&
 					    myself->pnfs_param.pnfs_enabled;
 
-	kvsns_fs_ctx_t fs_ctx;
+	kvsns_fs_ctx_t fs_ctx = NULL;
 
-	/*
-	 * Lookup global ctx
-	 */
-	retval = kvsns_create_fs_ctx(1, &fs_ctx);
+	retval = kvsns_fs_open(fsid, &fs_ctx);
 	if (retval != 0) {
-		LogCrit(COMPONENT_FSAL, "Lookup global ctx failed: %d", retval);
-		goto errout;
-	}
-
-	retval = kvsfs_export_to_kvsns_ctx(&myself->export, &fs_ctx);
-	if (retval != 0) {
-		LogCrit(COMPONENT_FSAL, "Unable to get fs_handle: %d", retval);
+		LogMajor(COMPONENT_FSAL, "FS open failed, FSID:<%"PRIu64,
+			 fsid);
 		goto errout;
 	}
 
 	myself->index_context = fs_ctx;
-	myself->root_inode = KVSNS_ROOT_INODE;
+	myself->root_fh.fs_id = fsid;
+	myself->root_fh.kvsfs_handle = KVSNS_ROOT_INODE;
 
 	/* TODO:PORTING: pNFS support */
 #if 0

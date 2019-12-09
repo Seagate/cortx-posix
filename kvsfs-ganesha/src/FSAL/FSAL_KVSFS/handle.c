@@ -89,10 +89,6 @@ struct kvsfs_state_fd {
 	struct kvsfs_file_state kvsfs_fd;
 };
 
-/* Wrapper for a File Handle object. */
-struct kvsfs_file_handle {
-	kvsns_ino_t kvsfs_handle;
-};
 
 struct kvsfs_fsal_obj_handle {
 	/* Base Handle */
@@ -158,17 +154,20 @@ static void construct_handle(struct fsal_export *export_base,
 	struct kvsfs_fsal_obj_handle *result;
 	struct kvsfs_fsal_export *export =
 	    container_of(op_ctx->fsal_export, struct kvsfs_fsal_export, export);
+	uint64_t fs_id = export->root_fh.fs_id;
 
 	result = gsh_calloc(1, sizeof(*result));
 
-	result->handle[0] = (struct kvsfs_file_handle) { *ino };
+	result->handle[0].fs_id = fs_id;
+	result->handle[0].kvsfs_handle = *ino;
 	result->fs_ctx = export->index_context;
 
 	fsal_obj_handle_init(&result->obj_handle,
 			     export_base,
 			     posix2fsal_type(stat->st_mode));
 
-	result->obj_handle.fsid = posix2fsal_fsid(stat->st_dev);
+	result->obj_handle.fsid.major = fs_id;
+	result->obj_handle.fsid.minor = 0;
 	result->obj_handle.fileid = stat->st_ino;
 
 	result->obj_handle.obj_ops = &KVSFS.handle_ops;
@@ -251,8 +250,9 @@ static fsal_status_t kvsfs_lookup(struct fsal_obj_handle *parent_hdl,
 	 * call and return root_inode for such a call.
 	 */
 	if (strcmp(name, "..") == 0 &&
-	    parent->handle->kvsfs_handle == export->root_inode) {
-		object = export->root_inode;
+	    parent->handle->kvsfs_handle == export->root_fh.kvsfs_handle &&
+	    parent->handle->fs_id == export->root_fh.fs_id) {
+		object = export->root_fh.kvsfs_handle;
 	} else {
 		retval = kvsns_lookup(parent->fs_ctx,
 				       &cred,
@@ -276,7 +276,6 @@ static fsal_status_t kvsfs_lookup(struct fsal_obj_handle *parent_hdl,
 	if (attrs_out != NULL) {
 		posix2fsal_attributes_all(&stat, attrs_out);
 	}
-
 	fsal_error = ERR_FSAL_NO_ERROR;
 	retval = 0;
 
@@ -306,12 +305,7 @@ fsal_status_t kvsfs_lookup_path(struct fsal_export *exp_hdl,
 	myexport = container_of(op_ctx->fsal_export,
 				struct kvsfs_fsal_export, export);
 
-	/* Only the root inode is exported so far */
-	if (strcmp(path, "/")) {
-		return fsalstat(ERR_FSAL_NOTSUPP, 0);
-	}
-
-	object = myexport->root_inode;
+	object = myexport->root_fh.kvsfs_handle;
 	fs_ctx = myexport->index_context;
 
 	rc = kvsns_getattr(fs_ctx, &cred, &object, &stat);
