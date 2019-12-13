@@ -23,6 +23,8 @@ mkdir -p %{buildroot}/opt/seagate/nfs/test/
 install -m 755 run_* %{buildroot}/opt/seagate/nfs/test/
 mkdir -p %{buildroot}/opt/seagate/nfs/test/filebench
 install -m 755 filebench/*  %{buildroot}/opt/seagate/nfs/test/filebench/
+mkdir -p %{buildroot}/opt/seagate/nfs/test/concurrency
+install -m 755 concurrency/*  %{buildroot}/opt/seagate/nfs/test/concurrency/
 
 #%post
 
