@@ -275,8 +275,10 @@ eosfs_reinstall() {
     _nsal_build rpm-gen &&
     _kvsns_build rpm-gen &&
     _kvsfs_build rpm-gen &&
+    _nsal_build rpm-uninstall &&
     _kvsfs_build rpm-uninstall &&
     _kvsns_build rpm-uninstall &&
+    _nsal_build rpm-install &&
     _kvsns_build rpm-install &&
     _kvsfs_build rpm-install
 }
