@@ -18,6 +18,13 @@
 #include <assert.h>
 #include <errno.h>
 
+static struct kvstore g_kvstore;
+
+struct kvstore *kvstore_get(void)
+{
+	return &g_kvstore;
+}
+
 int kvstore_init(struct kvstore *kvstore, char *type,
 		 struct collection_item *cfg,
 		 int flags, struct kvstore_ops *kvstore_ops,
@@ -27,6 +34,7 @@ int kvstore_init(struct kvstore *kvstore, char *type,
 	int rc;
 	assert(kvstore && type && kvstore_ops && index_ops && kv_ops);
 
+	kvstore->kvstore_ops = kvstore_ops;
 	rc = kvstore_ops->init(cfg);
 	if (rc)
 		return rc;

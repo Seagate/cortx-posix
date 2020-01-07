@@ -37,7 +37,7 @@
 #include <fnmatch.h>
 #include <ini_config.h>
 
-#include "kvstore.h"
+#include <kvstore.h>
 #include "clovis/clovis.h"
 #include "clovis/clovis_internal.h"
 #include "clovis/clovis_idx.h"

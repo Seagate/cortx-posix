@@ -16,10 +16,5 @@ SET(m0common_LIB_SRCS
    m0common.c
 )
 
-add_library(m0common SHARED ${m0common_LIB_SRCS})
+add_library(m0common OBJECT ${m0common_LIB_SRCS})
 
-target_link_libraries(m0common
-  mero
-  mero-helpers
-  ini_config
-)
