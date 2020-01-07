@@ -50,15 +50,17 @@ struct kvstore {
 	char *type;
 	/* Config for the kvstore specified type */
 	struct collection_item *cfg;
-	/* Every type of kvstore needs to define their alloc & free */
-	int (*alloc) (void **ptr, size_t size);
-	void (*free) (void *ptr);
 	struct kvstore_ops *kvstore_ops;
 	struct kvstore_index_ops *index_ops;
 	struct kvstore_kv_ops *kv_ops;
 	/* Not used currently */
 	int flags;
 };
+
+/**
+ * Return the global kvstore object.
+ */
+struct kvstore *kvstore_get(void);
 
 struct kvstore_index_ops {
 	int (*index_create) (struct kvstore *kvstore_obj,

@@ -193,3 +193,78 @@ struct kvstore_kv_ops eos_kvs_kv_ops = {
 	.del_bin = eos_kvs_del_bin
 };
 
+char *eos_kvs_get_gfid(void)
+{
+	return m0_get_gfid();
+}
+
+int eos_kvs_fid_from_str(const char *fid_str, struct kvstore_fid *out_fid)
+{
+	return m0_fid_sscanf(fid_str, (struct m0_fid *) out_fid);
+}
+
+bool get_list_cb_size(char *k, void *arg)
+{
+	int size;
+
+	memcpy((char *)&size, (char *)arg, sizeof(int));
+	size += 1;
+	memcpy((char *)arg, (char *)&size, sizeof(int));
+
+	return true;
+}
+
+int eos_kvs_get_list_size(void *ctx, char *pattern, size_t plen)
+{
+	char initk[KLEN];
+	int size = 0;
+	int rc;
+
+	strcpy(initk, pattern);
+	initk[plen - 2] = '\0';
+
+	rc = m0_pattern_kvs(ctx, initk, pattern,
+			     get_list_cb_size, &size);
+	if (rc < 0)
+		return rc;
+
+	return size;
+}
+
+bool eos_kvs_prefix_iter_has_prefix(struct kvstore_prefix_iter *iter)
+{
+	void *key;
+	size_t key_len;
+
+	key_len = eos_kvs_iter_get_key(&iter->base, &key);
+	assert(key_len >= iter->prefix_len);
+	return memcmp(iter->prefix, key, iter->prefix_len) == 0;
+}
+
+bool eos_kvs_prefix_iter_find(struct kvstore_prefix_iter *iter)
+{
+	return m0_key_iter_find(&iter->base, iter->prefix, iter->prefix_len) &&
+		eos_kvs_prefix_iter_has_prefix(iter);
+}
+
+bool eos_kvs_prefix_iter_next(struct kvstore_prefix_iter *iter)
+{
+	return m0_key_iter_next(&iter->base) &&
+		eos_kvs_prefix_iter_has_prefix(iter);
+}
+
+void eos_kvs_prefix_iter_fini(struct kvstore_prefix_iter *iter)
+{
+	m0_key_iter_fini(&iter->base);
+}
+
+size_t eos_kvs_iter_get_key(struct kvstore_iter *iter, void **buf)
+{
+	return m0_key_iter_get_key(iter, buf);
+}
+
+size_t eos_kvs_iter_get_value(struct kvstore_iter *iter, void **buf)
+{
+	return m0_key_iter_get_value(iter, buf);
+}
+

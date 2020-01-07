@@ -6,7 +6,6 @@ set(EOS_CFLAGS "${EOS_CFLAGS} -I/usr/include/mero -I/usr/include/libcfs ")
 set(EOS_CFLAGS "${EOS_CFLAGS} -I/usr/include/lustre")
 
 include_directories("/usr/include/mero")
-#LIBS=-lm -lpthread -lrt -lgf_complete -lyaml -luuid -lmero 
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${EOS_CFLAGS}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${EOS_CFLAGS}")
@@ -16,11 +15,5 @@ SET(kvstore_LIB_SRCS
    eos_kvstore.c
 )
 
-add_library(kvstore SHARED ${kvstore_LIB_SRCS})
+add_library(kvstore OBJECT ${kvstore_LIB_SRCS})
 
-target_link_libraries(kvstore
-  m0common
-)
-
-add_custom_command(TARGET kvstore
-		   COMMAND /usr/bin/cp libkvstore.so ../..)

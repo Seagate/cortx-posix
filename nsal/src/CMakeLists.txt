@@ -123,11 +123,23 @@ message(STATUS "USE_KVS_MERO=${USE_KVS_MERO}")
 
 # Build ancillary libs
 add_subdirectory(kvstore)
-set(KVSTORE_LIBRARY kvstore)
+set(KVSTORE kvstore)
 
 if (USE_MERO_STORE OR USE_KVS_MERO)
 add_subdirectory(common)
+set(M0COMMON m0common)
 endif (USE_MERO_STORE OR USE_KVS_MERO)
+
+add_library(eos-nsal SHARED
+		$<TARGET_OBJECTS:${KVSTORE}>
+		$<TARGET_OBJECTS:${M0COMMON}>
+	)
+
+target_link_libraries(eos-nsal
+  mero
+  mero-helpers
+  ini_config
+)
 
 # CPack / rpmbuild specific stuff
 set(CPACK_PACKAGE_FILE_NAME "eos-nsal-Source" )
