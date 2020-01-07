@@ -73,6 +73,8 @@ struct kvstore_index_ops {
 			   struct kvstore_index *index);
 	int (*index_close) (struct kvstore *kvstore_obj,
 			    struct kvstore_index *index);
+	int (*index_global) (struct kvstore *kvstore,
+			     struct kvstore_index *index);
 };
 
 struct kvstore_ops {

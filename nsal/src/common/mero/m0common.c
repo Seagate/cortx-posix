@@ -258,7 +258,7 @@ out:
 
 /* @todo: Creates an clovis index for a fs_id. Currently
  * this only returns a global idx */
-int m0_idx_create(uint64_t fs_id, struct m0_clovis_idx **index)
+int m0idx_get_global(struct m0_clovis_idx **index)
 {
 	*index = &idx;
 	return 0;

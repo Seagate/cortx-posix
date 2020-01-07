@@ -102,8 +102,8 @@ int eos_kvs_index_open(struct kvstore *kvstore, const struct kvstore_fid *fid,
 
 	index->kvstore_obj = kvstore;
 	index->index_priv = NULL;
-	index->idx_fid = *fid;;
-	
+	index->idx_fid = *fid;
+
 	mfid.u_hi = fid->f_hi;
 	mfid.u_lo = fid->f_lo;
 
@@ -133,11 +133,28 @@ int eos_kvs_index_close(struct kvstore *kvstore, struct kvstore_index *index)
 	return 0;
 }
 
+int eos_kvs_index_get_global(struct kvstore *kvstore, struct kvstore_index *index)
+{
+        int rc;
+
+	index->kvstore_obj = kvstore;
+	index->idx_fid.f_hi = 0;
+        index->idx_fid.f_lo = 0;
+
+        rc = m0idx_get_global((struct m0_clovis_idx **)&index->index_priv);
+        if (rc != 0) {
+                fprintf(stderr, "Failed to get global index");
+        }
+
+        return rc;
+}
+
 struct kvstore_index_ops eos_kvs_index_ops = {
 	.index_create = eos_kvs_index_create,
 	.index_delete = eos_kvs_index_delete,
 	.index_open = eos_kvs_index_open,
-	.index_close = eos_kvs_index_close
+	.index_close = eos_kvs_index_close,
+	.index_global = eos_kvs_index_get_global
 };
 
 int eos_kvs_begin_transaction(struct kvstore_index *index)

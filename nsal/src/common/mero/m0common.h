@@ -180,7 +180,7 @@ static inline void m0_fid_copy(struct m0_uint128 *src, struct m0_uint128 *dest)
 	dest->u_lo = src->u_lo;
 }
 
-int m0_idx_create(uint64_t fs_id, struct m0_clovis_idx **index);
+int m0idx_get_global(struct m0_clovis_idx **index);
 
 /** Creates a new index (a container for KVS records) in the underlying storage (Mero)
  * and returns a handle to be used in KVS operations within this index.
