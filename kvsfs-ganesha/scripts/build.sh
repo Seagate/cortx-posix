@@ -46,6 +46,10 @@ KVSNS_SOURCE_ROOT=${KVSNS_SOURCE_ROOT:-"$KVSFS_SOURCE_ROOT/../kvsns"}
 # Local: located inside kvsns sources.
 KVSNS_CMAKE_BUILD_ROOT=${EOS_FS_BUILD_ROOT:-"$KVSFS_SOURCE_ROOT/../kvsns"}
 
+NSAL_SOURCE_ROOT=${NSAL_SOURCE_ROOT:-"$KVSFS_SOURCE_ROOT/../nsal"}
+
+NSAL_CMAKE_BUILD_ROOT=${EOS_FS_BUILD_ROOT:-"$KVSFS_SOURCE_ROOT/../nsal"}
+
 ###############################################################################
 # Locals
 
@@ -54,6 +58,7 @@ KVSFS_TEST_BUILD=$KVSFS_CMAKE_BUILD_ROOT/build-kvsfs-test
 KVSFS_BUILD=$KVSFS_CMAKE_BUILD_ROOT/build-kvsfs
 KVSFS_SRC=$KVSFS_SOURCE_ROOT/src/FSAL/FSAL_KVSFS
 CAPI_INC=$KVSNS_SOURCE_ROOT/src/capi
+NSAL_INC=$NSAL_SOURCE_ROOT/src/include
 
 # Use either local header/lib or the files from libkvsns-devel package.
 
@@ -69,6 +74,7 @@ else
     KVSNS_LIB="$KVSNS_CMAKE_BUILD_ROOT/build-kvsns/kvsns"
 fi
 
+NSAL_LIB="$NSAL_CMAKE_BUILD_ROOT/build-nsal"
 
 ###############################################################################
 kvsfs_print_env() {
@@ -84,6 +90,8 @@ kvsfs_print_env() {
         KVSNS_LIB
         KVSNS_INC
 	CAPI_INC
+	NSAL_LIB
+	NSAL_INC
     )
 
     for i in ${myenv[@]}; do
@@ -146,6 +154,8 @@ kvsfs_configure() {
 -DBASE_VERSION:STRING=${KVSFS_VERSION} \
 -DRELEASE_VER:STRING=${KVSFS_BUILD_VERSION} \
 -DCAPIINC:PATH=${CAPI_INC} \
+-DNSALINC:PATH=${NSAL_INC} \
+-DLIBNSAL:PATH=${NSAL_LIB} \
 $KVSFS_SRC"
 
     echo -e "Config:\n $cmd" > $KVSFS_BUILD/.config

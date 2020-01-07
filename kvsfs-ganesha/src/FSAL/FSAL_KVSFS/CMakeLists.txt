@@ -19,6 +19,8 @@ set(DEFAULT_GANESHABUILD "")
 set(DEFAULT_KVSNSINC "")
 set(DEFAULT_LIBKVSNS "")
 set(DEFAULT_CAPIINC "")
+set(DEFAULT_NSALINC "")
+set(DEFAULT_LIBNSAL "")
 
 set(GANESHASRC ${DEFAULT_GANESHASRC} CACHE PATH "Path to NFS-Ganesha Source (nfs-ganesha/src)")
 set(GANESHABUILD ${DEFAULT_GANESHABUILD} CACHE PATH "Path to NFS-Ganesha Build (nfs-ganesha/build)")
@@ -26,6 +28,8 @@ set(KVSNSINC ${DEFAULT_KVSNSINC} CACHE PATH "Path to folder with kvsns.h")
 set(LIBKVSNS ${DEFAULT_LIBKVSNS} CACHE PATH "Path to folder with libkvsns.so")
 set(FSAL_DESTINATION "/usr/lib64/ganesha" CACHE PATH "Target directory for FSAL")
 set(CAPIINC ${DEFAULT_CAPIINC} CACHE PATH "Path to CAPI")
+set(NSALINC ${DEFAULT_NSALINC} CACHE PATH "Path to folder with nsal headers")
+set(LIBNSAL ${DEFAULT_LIBNSAL} CACHE PATH "Path to folder with libeos-nsal.so")
 
 # TODO: Add a condition here and check nfs-ganesha configuration
 set(SYSTEM_LIBRARIES
@@ -71,6 +75,9 @@ endif(NOT HAVE_LIBKVSNS_H)
 
 include_directories(${KVSNSINC})
 link_directories(${LIBKVSNS})
+
+include_directories(${NSALINC})
+link_directories(${LIBNSAL})
 
 SET(fsalkvsfs_LIB_SRCS
    fsal_internal.c
