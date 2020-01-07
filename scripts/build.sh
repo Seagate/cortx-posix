@@ -74,7 +74,7 @@ eosfs_parse_cmd() {
 
             ;;
         k)
-            export KVSNS_KVSAL_BACKEND=${OPTARG}
+            export NSAL_KVSTORE_BACKEND=${OPTARG}
             ;;
         e)
             export KVSNS_EXTSTORE_BACKEND=${OPTARG}
@@ -92,27 +92,28 @@ eosfs_parse_cmd() {
 eosfs_set_env() {
     export KVSNS_SOURCE_ROOT=$PWD/kvsns
     export KVSFS_SOURCE_ROOT=$PWD/kvsfs-ganesha
+    export NSAL_SOURCE_ROOT=$PWD/nsal
 
     export EOS_FS_BUILD_ROOT=${EOS_FS_BUILD_ROOT:-/tmp/eos-fs}
     export EOS_FS_VERSION=${EOS_FS_VERSION:-"$(cat $PWD/VERSION)"}
     export EOS_FS_BUILD_VERSION=${EOS_FS_BUILD_VERSION:-"$(git rev-parse --short HEAD)"}
 
-    export KVSNS_KVSAL_BACKEND=${KVSNS_KVSAL_BACKEND:-"mero"}
+    export NSAL_KVSTORE_BACKEND=${NSAL_KVSTORE_BACKEND:-"mero"}
     export KVSNS_EXTSTORE_BACKEND=${KVSNS_EXTSTORE_BACKEND:-"mero"}
 
     export KVSFS_NFS_GANESHA_DIR=${KVSFS_NFS_GANESHA_DIR:-$PWD/../nfs-ganesha-eos}
     export KVSFS_NFS_GANESHA_BUILD_DIR=${KVSFS_NFS_GANESHA_BUILD_DIR:-$EOS_FS_BUILD_ROOT/build-nfs-ganesha}
 }
 
-
 eosfs_print_env() {
     eosfs_set_env
     local myenv=(
         KVSNS_SOURCE_ROOT
         KVSFS_SOURCE_ROOT
+	NSAL_SOURCE_ROOT
         EOS_FS_BUILD_ROOT
         EOS_FS_BUILD_VERSION
-        KVSNS_KVSAL_BACKEND
+        NSAL_KVSTORE_BACKEND
         KVSNS_EXTSTORE_BACKEND
         KVSFS_NFS_GANESHA_DIR
         KVSFS_NFS_GANESHA_BUILD_DIR
@@ -135,6 +136,11 @@ _kvsns_build() {
     $KVSNS_SOURCE_ROOT/scripts/build.sh "$@"
 }
 
+_nsal_build() {
+    echo "NSAL_BUILD: $@"
+    $NSAL_SOURCE_ROOT/scripts/build.sh "$@"
+}
+
 _nfs_ganesha_build() {
     echo "NFS_GANESHA_BUILD: $@"
     ./scripts/build-nfs-ganesha.sh "$@"
@@ -143,6 +149,12 @@ _nfs_ganesha_build() {
 ###############################################################################
 eosfs_bootstrap() {
     eosfs_set_env
+
+    if [ ! -f $NSAL_SOURCE_ROOT/src/CMakeLists.txt ]; then
+        git submodule update --init --recursive $NSAL_SOURCE_ROOT
+    else
+        echo "Skipping bootstrap for NSAL: $NSAL_SOURCE_ROOT"
+    fi
 
     if [ ! -f $KVSNS_SOURCE_ROOT/src/CMakeLists.txt ]; then
         git submodule update --init --recursive $KVSNS_SOURCE_ROOT
@@ -186,14 +198,18 @@ eosfs_jenkins_build() {
 
     mkdir -p $EOS_FS_BUILD_ROOT &&
         _nfs_ganesha_build config &&
+        _nsal_build reconf &&
+        _nsal_build make -j all &&
         _kvsns_build reconf &&
         _kvsns_build make -j all &&
         _kvsfs_build reconf &&
         _kvsfs_build make -j all &&
+        _nsal_build rpcm-gen &&
         _kvsns_build rpm-gen &&
         _kvsfs_build rpm-gen &&
         _kvsfs_build purge &&
         _kvsns_build purge &&
+        _nsal_build purge &&
     echo "OK"
 }
 
@@ -203,6 +219,7 @@ eosfs_configure() {
     rm -fR "EOS_FS_BUILD_ROOT"
     mkdir -p "$EOS_FS_BUILD_ROOT" &&
     _nfs_ganesha_build config &&
+    _nsal_build reconf &&
     _kvsns_build reconf &&
     _kvsfs_build reconf &&
     echo "OK"
@@ -211,6 +228,7 @@ eosfs_configure() {
 ###############################################################################
 eosfs_make() {
     eosfs_set_env &&
+        _nsal_build make "$@" &&
         _kvsns_build make "$@" &&
         _kvsfs_build make "$@" &&
     echo "OK"
@@ -222,11 +240,13 @@ eosfs_rpm_gen() {
 
     rm -fR "$rpms_dir/nfs-ganesha*"
     rm -fR "$rpms_dir/libntirpc*"
+    rm -fR "$rpms_dir/libnsal*"
     rm -fR "$rpms_dir/libkvsns*"
     rm -fR "$rpmn_dir/libfsalkvsfs*"
 
     eosfs_set_env &&
         _nfs_ganesha_build rpm-gen &&
+        _nsal_build rpm-gen &&
         _kvsns_build rpm-gen &&
         _kvsfs_build rpm-gen &&
     echo "OK"
@@ -235,6 +255,7 @@ eosfs_rpm_gen() {
 eosfs_rpm_install() {
     eosfs_set_env
     sudo echo "Checking sudo access"
+    _nsal_build rpm-install
     _kvsns_build rpm-install
     _kvsfs_build rpm-install
 }
@@ -242,6 +263,7 @@ eosfs_rpm_install() {
 eosfs_rpm_uninstall() {
     eosfs_set_env
     sudo echo "Checking sudo access"
+    _nsal_build rpm-uninstall
     _kvsfs_build rpm-uninstall
     _kvsns_build rpm-uninstall
 }
@@ -250,10 +272,13 @@ eosfs_reinstall() {
     eosfs_set_env
     sudo echo "Checking sudo access"
 
+    _nsal_build rpm-gen &&
     _kvsns_build rpm-gen &&
     _kvsfs_build rpm-gen &&
+    _nsal_build rpm-uninstall &&
     _kvsfs_build rpm-uninstall &&
     _kvsns_build rpm-uninstall &&
+    _nsal_build rpm-install &&
     _kvsns_build rpm-install &&
     _kvsfs_build rpm-install
 }
@@ -337,6 +362,10 @@ case $1 in
         eosfs_reinstall;;
 
 # Sub-components:
+    nsal)
+        shift
+        eosfs_set_env
+        _nsal_build "$@";;
     kvsns)
         shift
         eosfs_set_env
