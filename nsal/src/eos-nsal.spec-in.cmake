@@ -72,8 +72,6 @@ install -m 644 include/eos/eos_kvstore.h  %{buildroot}%{_includedir}/nsal/eos
 install -m 644 common/mero/m0common.h  %{buildroot}%{_includedir}/nsal/common/mero
 install -m 744 libeos-nsal.so %{buildroot}%{_libdir}
 install -m 644 eos-nsal.pc  %{buildroot}%{_libdir}/pkgconfig
-pwd
-install -m 644 conf/nsal.conf %{buildroot}%{_sysconfdir}/nsal.d
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -81,7 +79,6 @@ rm -rf $RPM_BUILD_ROOT
 %files
 %defattr(-,root,root)
 %{_libdir}/libeos-nsal.so*
-%config(noreplace) %{_sysconfdir}/nsal.d/nsal.conf
 
 %files devel
 %defattr(-,root,root)
