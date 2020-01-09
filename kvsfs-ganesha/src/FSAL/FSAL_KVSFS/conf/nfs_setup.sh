@@ -65,13 +65,16 @@ function kvsns_init {
 	[ ! -e $KVSNS_INI_BAK ] && run cp $KVSNS_INI $KVSNS_INI_BAK
 
 	# Modify kvsns.ini
-	tmp_var=$(sed -n '/mero/=' $KVSNS_INI)
+	tmp_var=$(sed -n '/kvstore/=' $KVSNS_INI)
 	[ $? -ne 0 ] && die "Failed to access kvsns.ini file"
 
 	run sed -i "$tmp_var,\$d" $KVSNS_INI
 	[ $? -ne 0 ] && die "Failed to edit kvsns.ini file"
 
 	cat >> $KVSNS_INI << EOM
+[kvstore]
+type = mero
+
 [mero]
 local_addr = $ip_add$LOC_EXPORT_ID
 ha_addr = $ip_add$HA_EXPORT_ID
