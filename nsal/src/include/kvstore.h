@@ -62,6 +62,17 @@ struct kvstore {
  */
 struct kvstore *kvstore_get(void);
 
+/**
+ * Create global index.
+ */
+int kvstore_global_index_create(struct kvstore *kvstor);
+
+/**
+ *  Return the global index.
+ */
+int kvstore_get_global_index(struct kvstore *kvstor,
+			     struct kvstore_index *index);
+
 struct kvstore_index_ops {
 	int (*index_create) (struct kvstore *kvstore_obj,
 			     const struct kvstore_fid *fid,
@@ -73,8 +84,6 @@ struct kvstore_index_ops {
 			   struct kvstore_index *index);
 	int (*index_close) (struct kvstore *kvstore_obj,
 			    struct kvstore_index *index);
-	int (*index_global) (struct kvstore *kvstore,
-			     struct kvstore_index *index);
 };
 
 struct kvstore_ops {
@@ -89,6 +98,8 @@ int kvstore_init(struct kvstore *kvstore_obj, char *type,
 		 int flags, struct kvstore_ops *kvstore_ops,
 		 struct kvstore_index_ops *index_ops,
 		 struct kvstore_kv_ops *kv_ops);
+
+int kvstore_gbloal_index_create(struct kvstore *kvstor);
 
 int kvstore_fini(struct kvstore *kvstore_obj);
 

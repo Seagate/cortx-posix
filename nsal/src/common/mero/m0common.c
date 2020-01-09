@@ -258,7 +258,7 @@ out:
 
 /* @todo: Creates an clovis index for a fs_id. Currently
  * this only returns a global idx */
-int m0idx_get_global(struct m0_clovis_idx **index)
+int m0_idx_create(struct m0_clovis_idx **index)
 {
 	*index = &idx;
 	return 0;
@@ -352,7 +352,7 @@ int m0idx_open(const struct m0_uint128 *fid, struct m0_clovis_idx **index)
 {
 	int 			rc = 0;
 	struct m0_clovis_idx  	*idx = NULL;
-	
+
 	*index = NULL;
 
 	idx = m0kvs_alloc(sizeof(struct m0_clovis_idx));

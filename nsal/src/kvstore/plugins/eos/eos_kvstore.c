@@ -64,8 +64,8 @@ int eos_kvs_index_create(struct kvstore *kvstore, const struct kvstore_fid *fid,
 
         rc = m0idx_create(&mfid, &idx);
         if (rc != 0) {
-                fprintf(stderr, "Failed to create index, fid=%" PRIx64 ":%" PRIx64 "", 
-			mfid.u_hi, mfid.u_lo);
+                fprintf(stderr, "Failed to create index, fid=%" PRIx64 ":%" PRIx64 " , rc = %d\n",
+			mfid.u_hi, mfid.u_lo, rc);
 		goto out;
 	}
 
@@ -86,7 +86,7 @@ int eos_kvs_index_delete(struct kvstore *kvstore_obj,
 
         rc = m0idx_delete(&mfid);
         if (rc != 0) {
-                fprintf(stderr, "Failed to delete index, fid=%" PRIx64 ":%" PRIx64 "", 
+                fprintf(stderr, "Failed to delete index, fid=%" PRIx64 ":%" PRIx64 "",
 			mfid.u_hi, mfid.u_lo);
 	}
 
@@ -109,7 +109,7 @@ int eos_kvs_index_open(struct kvstore *kvstore, const struct kvstore_fid *fid,
 
 	rc = m0idx_open(&mfid, &idx);
 	if (rc != 0) {
-		fprintf(stderr, "Failed to open index, fid=%" PRIx64 ":%" PRIx64 "", 
+		fprintf(stderr, "Failed to open index, fid=%" PRIx64 ":%" PRIx64 "",
 			mfid.u_hi, mfid.u_lo);
 		goto out;
 	}
@@ -133,28 +133,11 @@ int eos_kvs_index_close(struct kvstore *kvstore, struct kvstore_index *index)
 	return 0;
 }
 
-int eos_kvs_index_get_global(struct kvstore *kvstore, struct kvstore_index *index)
-{
-        int rc;
-
-	index->kvstore_obj = kvstore;
-	index->idx_fid.f_hi = 0;
-        index->idx_fid.f_lo = 0;
-
-        rc = m0idx_get_global((struct m0_clovis_idx **)&index->index_priv);
-        if (rc != 0) {
-                fprintf(stderr, "Failed to get global index");
-        }
-
-        return rc;
-}
-
 struct kvstore_index_ops eos_kvs_index_ops = {
 	.index_create = eos_kvs_index_create,
 	.index_delete = eos_kvs_index_delete,
 	.index_open = eos_kvs_index_open,
 	.index_close = eos_kvs_index_close,
-	.index_global = eos_kvs_index_get_global
 };
 
 int eos_kvs_begin_transaction(struct kvstore_index *index)

@@ -17,12 +17,42 @@
 #include "kvstore.h"
 #include <assert.h>
 #include <errno.h>
+#include "eos/eos_kvstore.h"
+#include "../common/mero/m0common.h"
 
 static struct kvstore g_kvstore;
-
+struct kvstore_index g_index;
 struct kvstore *kvstore_get(void)
 {
 	return &g_kvstore;
+}
+
+int kvstore_global_index_create(struct kvstore *kvstor)
+{
+	int rc;
+	struct kvstore_fid fid;
+	char *vfid_str = eos_kvs_get_gfid();
+
+	rc = eos_kvs_fid_from_str(vfid_str, &fid);
+	free(vfid_str);
+
+	rc = kvstor->index_ops->index_create(kvstor, &fid, &g_index);
+
+	return rc;
+}
+
+int kvstore_get_global_index(struct kvstore *kvstor, struct kvstore_index *index)
+{
+	int rc;
+	struct kvstore_fid fid;
+        char *vfid_str = eos_kvs_get_gfid();
+
+        rc = eos_kvs_fid_from_str(vfid_str, &fid);
+        free(vfid_str);
+
+	rc =  kvstor->index_ops->index_open(kvstor, &fid, index);
+
+	return rc;
 }
 
 int kvstore_init(struct kvstore *kvstore, char *type,
@@ -48,7 +78,6 @@ int kvstore_init(struct kvstore *kvstore, char *type,
 	kvstore->index_ops = index_ops;
 	kvstore->kv_ops = kv_ops;
 	kvstore->flags = flags;
-
 	return 0;
 }
 
@@ -56,7 +85,7 @@ int kvstore_fini(struct kvstore *kvstore)
 {
 	assert(kvstore && kvstore->kvstore_ops && kvstore->kvstore_ops->fini);
 
-	return kvstore->kvstore_ops->fini();	
+	return kvstore->kvstore_ops->fini();
 }
 
 int kvstore_alloc(void **ptr, uint64_t size)
@@ -71,4 +100,3 @@ void kvstore_free(void *ptr)
 {
 	free(ptr);
 }
-
