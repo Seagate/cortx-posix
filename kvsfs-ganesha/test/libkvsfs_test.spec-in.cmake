@@ -19,18 +19,20 @@ Installs test scripts for KVSFS-Ganesha
 # Nothing to do here
 
 %install
-mkdir -p %{buildroot}/opt/seagate/nfs/test/
-install -m 755 run_* %{buildroot}/opt/seagate/nfs/test/
-mkdir -p %{buildroot}/opt/seagate/nfs/test/filebench
-install -m 755 filebench/*  %{buildroot}/opt/seagate/nfs/test/filebench/
-mkdir -p %{buildroot}/opt/seagate/nfs/test/concurrency
-install -m 755 concurrency/*  %{buildroot}/opt/seagate/nfs/test/concurrency/
+mkdir -p %{buildroot}/opt/seagate/eos/efs/test/
+install -m 755 run_* %{buildroot}/opt/seagate/eos/efs/test/
+mkdir -p %{buildroot}/opt/seagate/eos/efs/test/filebench
+install -m 755 filebench/*  %{buildroot}/opt/seagate/eos/efs/test/filebench/
+mkdir -p %{buildroot}/opt/seagate/eos/efs/test/concurrency
+install -m 755 concurrency/*  %{buildroot}/opt/seagate/eos/efs/test/concurrency/
+mkdir -p %{buildroot}/opt/seagate/eos/efs/test/iozone
+install -m 755 iozone/*  %{buildroot}/opt/seagate/eos/efs/test/iozone/
 
 #%post
 
 %files
 %defattr(-, root, root, -)
-/opt/seagate/nfs/test/
+/opt/seagate/eos/efs/test/
 
 %changelog
 * Tue Nov 26 2019 Shreya Karmakar <shreya.karmakar@seagate.com> - 1.0.0
