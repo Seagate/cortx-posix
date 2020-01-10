@@ -27,6 +27,9 @@ mkdir -p %{buildroot}/opt/seagate/eos/efs/test/concurrency
 install -m 755 concurrency/*  %{buildroot}/opt/seagate/eos/efs/test/concurrency/
 mkdir -p %{buildroot}/opt/seagate/eos/efs/test/iozone
 install -m 755 iozone/*  %{buildroot}/opt/seagate/eos/efs/test/iozone/
+mkdir -p %{buildroot}/opt/seagate/eos/efs/test/fio/fio_workloads/
+install -m 755 fio/fio_params %{buildroot}/opt/seagate/eos/efs/test/fio/
+install -m 755 fio/fio_workloads/* %{buildroot}/opt/seagate/eos/efs/test/fio/fio_workloads/
 
 #%post
 

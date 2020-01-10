@@ -1,0 +1,17 @@
+; fio-rand-write.job for fiotest
+[global]
+bs=${bl_size}
+size=${io_size}
+
+[fio-rand-write]
+name=fio-rand-write
+filename=${path}/fio-rand-write${i}
+rw=randwrite
+direct=0
+numjobs=4
+time_based=1
+runtime=60
+
+ioengine=libaio
+iodepth=16
+

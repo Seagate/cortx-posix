@@ -1,0 +1,16 @@
+; fio-rand-read.job for fiotest
+[global]
+bs=${bl_size}
+size=${io_size}
+
+[rand-read]
+name=fio-rand-read
+filename=${path}/fio-rand-read${i}
+rw=randread
+direct=0
+numjobs=1
+time_based=1
+runtime=60
+ioengine=libaio
+iodepth=16
+
