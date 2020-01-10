@@ -1581,13 +1581,10 @@ ssize_t m0store_do_io(struct m0_uint128 id, enum io_type iotype,
 	return done;
 }
 
-#define ENABLE_MERO_UNMAP
-/* FIXME:EOS-1820: Use Mero unmap from EOS-294. */
-#ifdef ENABLE_MERO_UNMAP
+/** Synchronously deallocates the given vector of extents. */
 static int m0_file_unmap_extents(const struct m0_uint128 *fid,
-			  struct m0_indexvec *extents)
+				 struct m0_indexvec *extents)
 {
-
 	int rc;
 	int op_rc;
 	struct m0_clovis_obj obj;
@@ -1625,49 +1622,17 @@ static int m0_file_unmap_extents(const struct m0_uint128 *fid,
 	m0_clovis_entity_fini(&obj.ob_entity);
 
 	if (rc != 0) {
-		fprintf(stderr, "Failed to wait for operation completion.");
+		fprintf(stderr, "Failed to wait for operation "
+			" completion (%d).\n", rc);
 	} else if (op_rc != 0) {
-		fprintf(stderr, "Trunc operation has failed.");
+		fprintf(stderr, "Trunc operation has failed (%d).\n", rc);
 		rc = op_rc;
 	}
 
 	return rc;
 }
-#else
-static void m0_file_unmap_aligned_debug_print(const struct m0_uint128 *fid,
-					      struct m0_indexvec *extents)
-{
-	m0_bcount_t i;
-	m0_bcount_t block_count = extents->iv_vec.v_nr;
-	m0_bindex_t extnt_start;
-	m0_bcount_t extnt_len;
 
-	fprintf(stdout, "UNMAP file (" U128X_F "), extents:", U128_P(fid));
-	if (block_count > UINT16_MAX) {
-		/* don't print if it is larger than 256MB */
-		fprintf(stdout, "\t... many extents ...");
-	} else {
-		for (i = 0; i < block_count; i++) {
-			extnt_start = extents->iv_index[i];
-			extnt_len = extents->iv_vec.v_count[i];
-			fprintf(stdout, "\tExtent: N=%d, off=%" PRIu64 ", len=%" PRIu64 ","
-				  "range=[%" PRIx64 ",%" PRIx64 "]",
-				  (int) (extnt_start / extnt_len),
-				  extnt_start, extnt_len,
-				  extnt_start, extnt_start + extnt_len);
-		}
-	}
-	fprintf(stdout, "end_of_extents");
-}
-
-static int m0_file_unmap_extents(const struct m0_uint128 *fid,
-				 struct m0_indexvec *extents)
-{
-	m0_file_unmap_aligned_debug_print(fid, extents);
-	return 0;
-}
-#endif
-
+/** Syncronously writes zeros into the given region of an object. */
 static int m0_file_zero(const struct m0_uint128 *fid,
 			m0_bcount_t count,
 			m0_bindex_t offset,
@@ -1694,17 +1659,18 @@ out:
 	return rc;
 }
 
-/* TODO:KVSNS_TUNEABLE */
+/* NSAL_TUNEABLE:
+ * Size of data block that can be definitely UNMAP-ed by Mero
+ * without generating errors at RPC layer or getting stuck somewhere
+ * in the state machine.
+ */
 /* Default value: 5120 4K pages or 20 1MB pages or 20MB of data */
-static uint64_t m0_kvsns_trunc_data_per_request = 20 * (1 << 20);
+static const uint64_t m0_kvsns_trunc_data_per_request = 20 * (1 << 20);
 
 /** Submits UNMAP requests to Clvois and waits until the data blocks
  * are actually unmapped.
- * TODO:EOS-1819:
- * Mero is not able to handle large extents in the truncate operations,
- * so that we are sending only small portions of extends per request.
- * When Clovis Truncate is fixed and is able to free a large extent
- * at a time, this code needs to be reworked.
+ * NOTE: Mero is not able to handle large extents in the truncate operations,
+ * so that we are sending only small portions of extents per request.
  */
 int m0_file_unmap_aligned(struct m0_uint128 fid,
 			  size_t nblocks,
@@ -1726,7 +1692,7 @@ int m0_file_unmap_aligned(struct m0_uint128 fid,
 	M0_DASSERT(SIZE_MAX / bsize >= (offset / bsize) + nblocks);
 
 	if (nblocks == 0) {
-		fprintf(stdout, "Nothing to unmap.");
+		fprintf(stdout, "Nothing to unmap.\n");
 		goto out;
 	}
 
@@ -1750,18 +1716,18 @@ int m0_file_unmap_aligned(struct m0_uint128 fid,
 
 	for (i = 0; i < nrequests; i++) {
 		fprintf(stdout, "De-allocating large extent[%d]: off=%llu, size=%d, "
-			  "done=%.02f%%",
+			  "done=%.02f%%\n",
 			  (int) i,
 			  (unsigned long long) offset,
 			  (int) ndata_per_req,
-			  (((float) offset) / (nblocks * bsize)) * 100);
+			  (((float) i * ndata_per_req) / (nblocks * bsize)) * 100);
 
 		extent.iv_index[0] = offset;
 		extent.iv_vec.v_count[0] = ndata_per_req;
 
 		rc = m0_file_unmap_extents(&fid, &extent);
 		if (rc != 0) {
-			fprintf(stdout, "Failed to unmap the extent: %llu, %llu.",
+			fprintf(stdout, "Failed to unmap the extent: %llu, %llu.\n",
 				(unsigned long long) offset,
 				(unsigned long long) ndata_per_req);
 			goto out_free_extent;
@@ -1771,7 +1737,7 @@ int m0_file_unmap_aligned(struct m0_uint128 fid,
 	}
 
 	if (tail_size) {
-		fprintf(stdout, "De-allocating tail extent: off=%llu, size=%d",
+		fprintf(stdout, "De-allocating tail extent: off=%llu, size=%d\n",
 			  (unsigned long long) offset,
 			  (int) tail_size);
 		extent.iv_index[0] = offset;
@@ -1805,7 +1771,7 @@ int m0_file_unmap(struct m0_uint128 fid, size_t count, off_t offset)
 	M0_DASSERT(offset < INT64_MAX);
 	M0_DASSERT(count != 0);
 
-	/* ajust to the very first byte of the nearest (from right) page */
+	/* adjust to the very first byte of the nearest (from right) page */
 	aligned_off = m0_round_up(offset, bsize);
 	/* cut out the left unaligned part from the whole len,
 	 * round it up and then count the amount of blocks */
@@ -1815,7 +1781,7 @@ int m0_file_unmap(struct m0_uint128 fid, size_t count, off_t offset)
 	 * which cannot be de-allocated.
 	 */
 	if (m0_round_up(offset, bsize) == m0_round_up(offset + count, bsize)) {
-		fprintf(stdout, "the range [%llu,%llu] is inside a single block %llu",
+		fprintf(stdout, "the range [%llu,%llu] is inside a single block %llu\n",
 			  (unsigned long long) offset,
 			  (unsigned long long) offset + count,
 			  (unsigned long long) aligned_off);
@@ -1832,7 +1798,7 @@ int m0_file_unmap(struct m0_uint128 fid, size_t count, off_t offset)
 	 */
 	if (offset != aligned_off) {
 		M0_DASSERT(offset < aligned_off);
-		fprintf(stdout, "Non-freed range=[%llu, %llu]",
+		fprintf(stdout, "Non-freed range=[%llu, %llu]\n",
 			  (unsigned long long) offset,
 			  (unsigned long long) aligned_off);
 		/* FIXME: the same case: zero the range which won't be unmapped */
