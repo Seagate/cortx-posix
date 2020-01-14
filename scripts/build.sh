@@ -257,6 +257,7 @@ eosfs_rpm_gen() {
 
     rm -fR "$rpms_dir/nfs-ganesha*"
     rm -fR "$rpms_dir/libntirpc*"
+    rm -fR "$rpms_dir/libeos-utils*"
     rm -fR "$rpms_dir/libnsal*"
     rm -fR "$rpms_dir/libkvsns*"
     rm -fR "$rpmn_dir/libfsalkvsfs*"
@@ -300,6 +301,7 @@ eosfs_reinstall() {
     _nsal_build rpm-uninstall &&
     _kvsfs_build rpm-uninstall &&
     _kvsns_build rpm-uninstall &&
+    _utils_build rpm-install &&
     _nsal_build rpm-install &&
     _kvsns_build rpm-install &&
     _kvsfs_build rpm-install
