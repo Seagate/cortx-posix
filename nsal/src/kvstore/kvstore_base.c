@@ -17,10 +17,9 @@
 #include "kvstore.h"
 #include <assert.h>
 #include <errno.h>
-#include "eos/eos_kvstore.h"
-#include "../common/mero/m0common.h"
 
 static struct kvstore g_kvstore;
+
 struct kvstore *kvstore_get(void)
 {
 	return &g_kvstore;
@@ -49,6 +48,7 @@ int kvstore_init(struct kvstore *kvstore, char *type,
 	kvstore->index_ops = index_ops;
 	kvstore->kv_ops = kv_ops;
 	kvstore->flags = flags;
+
 	return 0;
 }
 
