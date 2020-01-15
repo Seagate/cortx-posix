@@ -5,7 +5,7 @@ variables:
   GIT_DEPTH: 1  # clone only the current commit
   GIT_STRATEGY: clone  # make a fresh `git clone` of the repo for every new CI job
   GIT_SUBMODULE_STRATEGY: normal  # init and check out submodules
-  CENTOS_RELEASE: '7.6'
+  CENTOS_RELEASE: eos
   M0_VG_NO_SYMLINKS: 'true'
   WORKSPACE_NAME: "${CI_PROJECT_NAME}${CI_PIPELINE_ID}"
   WORKSPACE_DIR:  "/home/gitlab-runner/workspaces/${CI_PROJECT_NAME}${CI_PIPELINE_ID}"
