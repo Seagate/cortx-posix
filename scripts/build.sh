@@ -257,10 +257,10 @@ eosfs_rpm_gen() {
 
     rm -fR "$rpms_dir/nfs-ganesha*"
     rm -fR "$rpms_dir/libntirpc*"
-    rm -fR "$rpms_dir/libeos-utils*"
-    rm -fR "$rpms_dir/libnsal*"
+    rm -fR "$rpms_dir/eos-utils*"
+    rm -fR "$rpms_dir/eos-nsal*"
     rm -fR "$rpms_dir/libkvsns*"
-    rm -fR "$rpmn_dir/libfsalkvsfs*"
+    rm -fR "$rpmn_dir/kvsfs-ganesha*"
 
     eosfs_set_env &&
         _nfs_ganesha_build rpm-gen &&
