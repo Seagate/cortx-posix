@@ -88,8 +88,6 @@ int kvstore_init(struct kvstore *kvstore_obj, char *type,
 		 struct kvstore_index_ops *index_ops,
 		 struct kvstore_kv_ops *kv_ops);
 
-int kvstore_gbloal_index_create(struct kvstore *kvstor);
-
 int kvstore_fini(struct kvstore *kvstore_obj);
 
 struct kvstore_index {

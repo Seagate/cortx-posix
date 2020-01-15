@@ -54,26 +54,30 @@ int eos_kvs_index_create(struct kvstore *kvstore, const struct kvstore_fid *fid,
         int rc;
 	struct m0_uint128 mfid = M0_UINT128(0, 0);
 	struct m0_clovis_idx *idx = NULL;
+	struct kvstore_fid gfid;
+	char *vfid_str  = NULL;
 
 	index->kvstore_obj = kvstore;
 	index->index_priv = NULL;
 
 	if (fid == NULL) {
-		struct kvstore_fid lfid;
-		char *vfid_str = eos_kvs_get_gfid();
-
-	        rc = eos_kvs_fid_from_str(vfid_str, &lfid);
+		vfid_str = eos_kvs_get_gfid();
+	        rc = eos_kvs_fid_from_str(vfid_str, &gfid);
         	free(vfid_str);
 
-		index->idx_fid = lfid;
-		mfid.u_hi = lfid.f_hi;
-		mfid.u_lo = lfid.f_lo;
+		index->idx_fid = gfid;
 
-	} else  {
+		mfid.u_hi = gfid.f_hi;
+		mfid.u_lo = gfid.f_lo;
+
+	} else {
 		index->idx_fid = *fid;
+
 		mfid.u_hi = fid->f_hi;
 		mfid.u_lo = fid->f_lo;
+
 	}
+
 
         rc = m0idx_create(&mfid, &idx);
         if (rc != 0) {
@@ -112,23 +116,26 @@ int eos_kvs_index_open(struct kvstore *kvstore, const struct kvstore_fid *fid,
 	int rc;
 	struct m0_uint128 mfid = M0_UINT128(0, 0);
 	struct m0_clovis_idx *idx = NULL;
+	char *vfid_str = NULL;
+	struct kvstore_fid gfid;
 
 	index->kvstore_obj = kvstore;
 	index->index_priv = NULL;
 
 	if (fid == NULL) {
-		struct kvstore_fid lfid;
-		char *vfid_str = eos_kvs_get_gfid();
+		vfid_str = eos_kvs_get_gfid();
 
-	        rc = eos_kvs_fid_from_str(vfid_str, &lfid);
+	        rc = eos_kvs_fid_from_str(vfid_str, &gfid);
         	free(vfid_str);
 
-		index->idx_fid = lfid;
-		mfid.u_hi = lfid.f_hi;
-		mfid.u_lo = lfid.f_lo;
+		index->idx_fid = gfid;
 
-	} else  {
+		mfid.u_hi = gfid.f_hi;
+		mfid.u_lo = gfid.f_lo;
+
+	} else {
 		index->idx_fid = *fid;
+
 		mfid.u_hi = fid->f_hi;
 		mfid.u_lo = fid->f_lo;
 	}
