@@ -36,6 +36,16 @@ KVSFS_VERSION=${EOS_FS_VERSION:-"$(cat $KVSFS_SOURCE_ROOT/VERSION)"}
 KVSFS_BUILD_VERSION=${EOS_FS_BUILD_VERSION:-"$(git rev-parse --short HEAD)"}
 
 
+# Optional, EOS-UTILS source location.
+# Superproject: uses pre-defined location.
+# Local: searches in the top-level dir.
+EOS_UTILS_SOURCE_ROOT=${EOS_UTILS_SOURCE_ROOT:-"$KVSFS_SOURCE_ROOT/../utils"}
+
+# Optional, EOS-UTILS build root location
+# Superproject: derived from EOS-FS build root.
+# Local: located inside eos-utils sources.
+EOS_UTILS_CMAKE_BUILD_ROOT=${EOS_FS_BUILD_ROOT:-"$KVSFS_SOURCE_ROOT/../utils"}
+
 # Optional, KVSNS source location.
 # Superproject: uses pre-defined location.
 # Local: searches in the top-level dir.
@@ -62,6 +72,18 @@ NSAL_INC=$NSAL_SOURCE_ROOT/src/include
 
 # Use either local header/lib or the files from libkvsns-devel package.
 
+if [ "x$EOS_UTILS_SOURCE_ROOT" == "x" ]; then
+EOS_UTILS_INC="/opt/seagate/eos/utils"
+else
+EOS_UTILS_INC="$EOS_UTILS_SOURCE_ROOT/src/include"
+fi
+
+if [ "x$EOS_UTILS_CMAKE_BUILD_ROOT" == "x" ]; then
+EOS_UTILS_LIB="/usr/lib64/"
+else
+EOS_UTILS_LIB="$EOS_UTILS_CMAKE_BUILD_ROOT/build-eos-utils"
+fi
+
 if [ "x$KVSNS_SOURCE_ROOT" == "x" ]; then
     KVSNS_INC="/usr/include/"
 else
@@ -87,6 +109,8 @@ kvsfs_print_env() {
         KVSFS_BUILD_VERSION
         KVSFS_NFS_GANESHA_DIR
         KVSFS_NFS_GANESHA_BUILD_DIR
+	EOS_UTILS_LIB
+	EOS_UTILS_INC
         KVSNS_LIB
         KVSNS_INC
 	CAPI_INC
@@ -153,6 +177,8 @@ kvsfs_configure() {
 -DLIBKVSNS:PATH=${KVSNS_LIB} \
 -DBASE_VERSION:STRING=${KVSFS_VERSION} \
 -DRELEASE_VER:STRING=${KVSFS_BUILD_VERSION} \
+-DLIBEOSUTILS:PATH=${EOS_UTILS_LIB} \
+-DEOSUTILSINC:PATH=${EOS_UTILS_INC} \
 -DCAPIINC:PATH=${CAPI_INC} \
 -DNSALINC:PATH=${NSAL_INC} \
 -DLIBNSAL:PATH=${NSAL_LIB} \

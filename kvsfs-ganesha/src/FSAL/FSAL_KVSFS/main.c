@@ -154,6 +154,16 @@ MODULE_INIT void kvsfs_load(void)
 	int retval;
 	struct fsal_module *myself = &KVSFS.fsal;
 
+	/*
+	 * @todo Introduce new function kvsns_init() &
+	 * move log_init inside it
+	 */
+	retval = log_init("/var/log/eos/nfs_server.log", LEVEL_INFO);
+	if (retval != 0) {
+		LogCrit(COMPONENT_FSAL,
+			"log init failed");
+		return;
+	}
 	retval = register_fsal(myself, module_name,
 			       FSAL_MAJOR_VERSION,
 			       FSAL_MINOR_VERSION,

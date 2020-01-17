@@ -21,6 +21,11 @@ set(DEFAULT_LIBKVSNS "")
 set(DEFAULT_CAPIINC "")
 set(DEFAULT_NSALINC "")
 set(DEFAULT_LIBNSAL "")
+set(DEFAULT_EOSUTILSINC "")
+set(DEFAULT_LIBEOSUTILS "")
+
+set(EOSUTILSINC ${DEFAULT_EOSUTILSINC} CACHE PATH "Path to folder with fault.h")
+set(LIBEOSUTILS ${DEFAULT_LIBEOSUTILS} CACHE PATH "Path to folder with libeos-utils.so")
 
 set(GANESHASRC ${DEFAULT_GANESHASRC} CACHE PATH "Path to NFS-Ganesha Source (nfs-ganesha/src)")
 set(GANESHABUILD ${DEFAULT_GANESHABUILD} CACHE PATH "Path to NFS-Ganesha Build (nfs-ganesha/build)")
@@ -50,7 +55,6 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wno-unused-variable")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g3")
 # set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fstack-protector-all")
 
-
 set(CMAKE_REQUIRED_INCLUDES ${KVSNSINC})
 
 CHECK_INCLUDE_FILES("kvsns/kvsns.h" HAVE_LIBKVSNS_H)
@@ -79,6 +83,24 @@ link_directories(${LIBKVSNS})
 include_directories(${NSALINC})
 link_directories(${LIBNSAL})
 
+set(CMAKE_REQUIRED_INCLUDES ${EOSUTILSINC})
+
+CHECK_INCLUDE_FILES("fault.h" HAVE_EOS_UTILS_H)
+
+message(STATUS "HAVE_EOS_UTILS_H=${HAVE_EOS_UTILS_H}")
+
+if(NOT HAVE_EOS_UTILS_H)
+ if(STRICT_PACKAGE)
+    message(FATAL_ERROR "STRICT_PACKAGE: Cannot find EOS-UTILS runtime. Disabling KVSFS build")
+ else(STRICT_PACKAGE)
+    message(WARNING "Cannot find EOS-UTILS runtime. Disabling KVSFS build")
+    set(USE_FSAL_KVSFS OFF)
+  endif(STRICT_PACKAGE)
+endif(NOT HAVE_EOS_UTILS_H)
+
+include_directories(${EOSUTILSINC})
+link_directories(${LIBEOSUTILS})
+
 SET(fsalkvsfs_LIB_SRCS
    fsal_internal.c
    main.c
@@ -93,6 +115,7 @@ SET(fsalkvsfs_LIB_SRCS
 add_library(fsalkvsfs SHARED ${fsalkvsfs_LIB_SRCS})
 
 target_link_libraries(fsalkvsfs
+  eos-utils
   kvsns
   ${SYSTEM_LIBRARIES}
 )
