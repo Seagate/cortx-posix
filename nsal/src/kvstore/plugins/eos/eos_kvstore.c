@@ -14,6 +14,7 @@
  on top of eos clovis index APIs.
 */
 #include "eos/eos_kvstore.h"
+#include <eos/helpers.h>
 
 int eos_kvs_init(struct collection_item *cfg_items)
 {
@@ -55,15 +56,13 @@ int eos_kvs_index_create(struct kvstore *kvstore, const struct kvstore_fid *fid,
 	struct m0_uint128 mfid = M0_UINT128(0, 0);
 	struct m0_clovis_idx *idx = NULL;
 	struct kvstore_fid gfid;
-	char *vfid_str  = NULL;
 
 	index->kvstore_obj = kvstore;
 	index->index_priv = NULL;
 
 	if (fid == NULL) {
-		vfid_str = eos_kvs_get_gfid();
+		const char *vfid_str = eos_kvs_get_gfid();
 	        rc = eos_kvs_fid_from_str(vfid_str, &gfid);
-        	free(vfid_str);
 
 		index->idx_fid = gfid;
 
@@ -116,17 +115,15 @@ int eos_kvs_index_open(struct kvstore *kvstore, const struct kvstore_fid *fid,
 	int rc;
 	struct m0_uint128 mfid = M0_UINT128(0, 0);
 	struct m0_clovis_idx *idx = NULL;
-	char *vfid_str = NULL;
 	struct kvstore_fid gfid;
 
 	index->kvstore_obj = kvstore;
 	index->index_priv = NULL;
 
 	if (fid == NULL) {
-		vfid_str = eos_kvs_get_gfid();
+		const char *vfid_str = eos_kvs_get_gfid();
 
 	        rc = eos_kvs_fid_from_str(vfid_str, &gfid);
-        	free(vfid_str);
 
 		index->idx_fid = gfid;
 
@@ -226,7 +223,7 @@ struct kvstore_kv_ops eos_kvs_kv_ops = {
 	.del_bin = eos_kvs_del_bin
 };
 
-char *eos_kvs_get_gfid(void)
+const char *eos_kvs_get_gfid(void)
 {
 	return m0_get_gfid();
 }
@@ -256,8 +253,8 @@ int eos_kvs_get_list_size(void *ctx, char *pattern, size_t plen)
 	strcpy(initk, pattern);
 	initk[plen - 2] = '\0';
 
-	rc = m0_pattern_kvs(ctx, initk, pattern,
-			     get_list_cb_size, &size);
+	rc = m0kvs_pattern(ctx, initk, pattern,
+			   get_list_cb_size, &size);
 	if (rc < 0)
 		return rc;
 

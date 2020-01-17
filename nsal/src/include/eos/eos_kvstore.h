@@ -29,7 +29,7 @@ extern struct kvstore_index_ops eos_kvs_index_ops;
 
 extern struct kvstore_kv_ops eos_kvs_kv_ops;
 
-char *eos_kvs_get_gfid(void);
+const char *eos_kvs_get_gfid(void);
 
 int eos_kvs_fid_from_str(const char *fid_str, struct kvstore_fid *out_fid);
 
