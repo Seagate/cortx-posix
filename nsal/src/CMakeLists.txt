@@ -7,6 +7,12 @@ set(EOS_NSAL_MINOR_VERSION 0)
 set(EOS_NSAL_PATCH_LEVEL 1)
 set(EOS_NSAL_EXTRA_VERSION ${RELEASE_VER})
 
+set(DEFAULT_EOSUTILSINC "")
+set(DEFAULT_LIBEOSUTILS "")
+
+set(EOSUTILSINC ${DEFAULT_EOSUTILSINC} CACHE PATH "Path to folder with fault.h")
+set(LIBEOSUTILS ${DEFAULT_LIBEOSUTILS} CACHE PATH "Path to folder with libeos-utils.so")
+
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -I${CMAKE_SOURCE_DIR}/include -fPIC -g")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror -DDEBUG")
 
@@ -14,6 +20,7 @@ set(EOS_NSAL_BASE_VERSION ${BASE_VERSION})
 
 message( STATUS "cmake version ${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION}" )
 message( STATUS "eos-nsal version ${EOS_NSAL_BASE_VERSION}")
+
 
 # Option (for choosing KVSAL backend)
 option(USE_KVS_REDIS "Use REDIS as a KVS in KVSAL" ON)
@@ -130,6 +137,9 @@ add_subdirectory(common)
 set(M0COMMON m0common)
 endif (USE_MERO_STORE OR USE_KVS_MERO)
 
+include_directories(${EOSUTILSINC})
+link_directories(${LIBEOSUTILS})
+
 add_library(eos-nsal SHARED
 		$<TARGET_OBJECTS:${KVSTORE}>
 		$<TARGET_OBJECTS:${M0COMMON}>
@@ -139,6 +149,7 @@ target_link_libraries(eos-nsal
   mero
   mero-helpers
   ini_config
+  eos-utils
 )
 
 # CPack / rpmbuild specific stuff

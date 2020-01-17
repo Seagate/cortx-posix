@@ -54,6 +54,8 @@ This package contains tools for eos-nsal.
 %build
 cmake . -DUSE_KVS_REDIS=%{use_kvs_redis}     \
 	-DUSE_KVS_MERO=%{use_kvs_mero}       \
+	-DEOSUTILSINC:PATH=@EOSUTILSINC@     \
+	-DLIBEOSUTILS:PATH=@LIBEOSUTILS@
 
 make %{?_smp_mflags} || make %{?_smp_mflags} || make
 

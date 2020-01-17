@@ -29,6 +29,16 @@ NSAL_VERSION=${EOS_FS_VERSION:-"$(cat $NSAL_SOURCE_ROOT/VERSION)"}
 # Local: taken from git rev.
 NSAL_BUILD_VERSION=${EOS_FS_BUILD_VERSION:-"$(git rev-parse --short HEAD)"}
 
+# Optional, EOS-UTILS source location.
+# Superproject: uses pre-defined location.
+# Local: searches in the top-level dir.
+EOS_UTILS_SOURCE_ROOT=${EOS_UTILS_SOURCE_ROOT:-"$NSAL_SOURCE_ROOT/../utils"}
+
+# Optional, EOS-UTILS build root location
+# Superproject: derived from EOS-FS build root.
+# Local: located inside eos-utils sources.
+EOS_UTILS_CMAKE_BUILD_ROOT=${EOS_FS_BUILD_ROOT:-"$NSAL_SOURCE_ROOT/../utils"}
+
 ###############################################################################
 # Local variables
 
@@ -39,6 +49,18 @@ USE_KVS_MERO="OFF"
 USE_KVS_REDIS="OFF"
 USE_MERO_STORE="OFF"
 USE_POSIX_STORE="OFF"
+
+if [ "x$EOS_UTILS_SOURCE_ROOT" == "x" ]; then
+EOS_UTILS_INC="/opt/seagate/eos/utils"
+else
+EOS_UTILS_INC="$EOS_UTILS_SOURCE_ROOT/src/include"
+fi
+
+if [ "x$EOS_UTILS_CMAKE_BUILD_ROOT" == "x" ]; then
+EOS_UTILS_LIB="/usr/lib64/"
+else
+EOS_UTILS_LIB="$EOS_UTILS_CMAKE_BUILD_ROOT/build-eos-utils"
+fi
 
 case $NSAL_KVSTORE_BACKEND in
     "mero")
@@ -62,6 +84,8 @@ nsal_print_env() {
         NSAL_SRC
         USE_KVS_MERO
         USE_KVS_REDIS
+	EOS_UTILS_LIB
+	EOS_UTILS_INC
     )
 
     for i in ${myenv[@]}; do
@@ -84,6 +108,8 @@ nsal_configure() {
 -DUSE_KVS_REDIS=${USE_KVS_REDIS} \
 -DBASE_VERSION:STRING=${NSAL_VERSION} \
 -DRELEASE_VER:STRING=${NSAL_BUILD_VERSION} \
+-DLIBEOSUTILS:PATH=${EOS_UTILS_LIB} \
+-DEOSUTILSINC:PATH=${EOS_UTILS_INC} \
 $NSAL_SRC"
     echo -e "Config:\n $cmd" > $NSAL_BUILD/.config
     echo -e "Env:\n $(nsal_print_env)" >> $NSAL_BUILD/.config
