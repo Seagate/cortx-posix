@@ -56,7 +56,7 @@ int kvstore_fini(struct kvstore *kvstore)
 {
 	assert(kvstore && kvstore->kvstore_ops && kvstore->kvstore_ops->fini);
 
-	return kvstore->kvstore_ops->fini();	
+	return kvstore->kvstore_ops->fini();
 }
 
 int kvstore_alloc(void **ptr, uint64_t size)
@@ -71,4 +71,3 @@ void kvstore_free(void *ptr)
 {
 	free(ptr);
 }
-

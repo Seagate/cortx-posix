@@ -54,17 +54,34 @@ int eos_kvs_index_create(struct kvstore *kvstore, const struct kvstore_fid *fid,
         int rc;
 	struct m0_uint128 mfid = M0_UINT128(0, 0);
 	struct m0_clovis_idx *idx = NULL;
+	struct kvstore_fid gfid;
+	char *vfid_str  = NULL;
 
 	index->kvstore_obj = kvstore;
 	index->index_priv = NULL;
-	index->idx_fid = *fid;
 
-	mfid.u_hi = fid->f_hi;
-	mfid.u_lo = fid->f_lo;
+	if (fid == NULL) {
+		vfid_str = eos_kvs_get_gfid();
+	        rc = eos_kvs_fid_from_str(vfid_str, &gfid);
+        	free(vfid_str);
+
+		index->idx_fid = gfid;
+
+		mfid.u_hi = gfid.f_hi;
+		mfid.u_lo = gfid.f_lo;
+
+	} else {
+		index->idx_fid = *fid;
+
+		mfid.u_hi = fid->f_hi;
+		mfid.u_lo = fid->f_lo;
+
+	}
+
 
         rc = m0idx_create(&mfid, &idx);
         if (rc != 0) {
-                fprintf(stderr, "Failed to create index, fid=%" PRIx64 ":%" PRIx64 "", 
+                fprintf(stderr, "Failed to create index, fid=%" PRIx64 ":%" PRIx64 "\n",
 			mfid.u_hi, mfid.u_lo);
 		goto out;
 	}
@@ -86,7 +103,7 @@ int eos_kvs_index_delete(struct kvstore *kvstore_obj,
 
         rc = m0idx_delete(&mfid);
         if (rc != 0) {
-                fprintf(stderr, "Failed to delete index, fid=%" PRIx64 ":%" PRIx64 "", 
+                fprintf(stderr, "Failed to delete index, fid=%" PRIx64 ":%" PRIx64 "\n",
 			mfid.u_hi, mfid.u_lo);
 	}
 
@@ -99,17 +116,33 @@ int eos_kvs_index_open(struct kvstore *kvstore, const struct kvstore_fid *fid,
 	int rc;
 	struct m0_uint128 mfid = M0_UINT128(0, 0);
 	struct m0_clovis_idx *idx = NULL;
+	char *vfid_str = NULL;
+	struct kvstore_fid gfid;
 
 	index->kvstore_obj = kvstore;
 	index->index_priv = NULL;
-	index->idx_fid = *fid;;
-	
-	mfid.u_hi = fid->f_hi;
-	mfid.u_lo = fid->f_lo;
+
+	if (fid == NULL) {
+		vfid_str = eos_kvs_get_gfid();
+
+	        rc = eos_kvs_fid_from_str(vfid_str, &gfid);
+        	free(vfid_str);
+
+		index->idx_fid = gfid;
+
+		mfid.u_hi = gfid.f_hi;
+		mfid.u_lo = gfid.f_lo;
+
+	} else {
+		index->idx_fid = *fid;
+
+		mfid.u_hi = fid->f_hi;
+		mfid.u_lo = fid->f_lo;
+	}
 
 	rc = m0idx_open(&mfid, &idx);
 	if (rc != 0) {
-		fprintf(stderr, "Failed to open index, fid=%" PRIx64 ":%" PRIx64 "", 
+		fprintf(stderr, "Failed to open index, fid=%" PRIx64 ":%" PRIx64 "\n",
 			mfid.u_hi, mfid.u_lo);
 		goto out;
 	}
