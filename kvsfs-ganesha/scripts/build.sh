@@ -60,6 +60,16 @@ NSAL_SOURCE_ROOT=${NSAL_SOURCE_ROOT:-"$KVSFS_SOURCE_ROOT/../nsal"}
 
 NSAL_CMAKE_BUILD_ROOT=${EOS_FS_BUILD_ROOT:-"$KVSFS_SOURCE_ROOT/../nsal"}
 
+# Optional, EOS-UTILS source location.
+# Superproject: uses pre-defined location.
+# Local: searches in the top-level dir.
+EOS_UTILS_SOURCE_ROOT=${EOS_UTILS_SOURCE_ROOT:-"$KVSNS_SOURCE_ROOT/../utils"}
+
+# Optional, EOS-UTILS build root location
+# Superproject: derived from EOS-FS build root.
+# Local: located inside eos-utils sources.
+EOS_UTILS_CMAKE_BUILD_ROOT=${EOS_FS_BUILD_ROOT:-"$KVSNS_SOURCE_ROOT/../utils"}
+
 ###############################################################################
 # Locals
 
@@ -68,7 +78,6 @@ KVSFS_TEST_BUILD=$KVSFS_CMAKE_BUILD_ROOT/build-kvsfs-test
 KVSFS_BUILD=$KVSFS_CMAKE_BUILD_ROOT/build-kvsfs
 KVSFS_SRC=$KVSFS_SOURCE_ROOT/src/FSAL/FSAL_KVSFS
 CAPI_INC=$KVSNS_SOURCE_ROOT/src/capi
-NSAL_INC=$NSAL_SOURCE_ROOT/src/include
 
 # Use either local header/lib or the files from libkvsns-devel package.
 
@@ -96,7 +105,29 @@ else
     KVSNS_LIB="$KVSNS_CMAKE_BUILD_ROOT/build-kvsns/kvsns"
 fi
 
+if [ "x$EOS_UTILS_SOURCE_ROOT" == "x" ]; then
+EOS_UTILS_INC="/usr/include/eos/utils"
+else
+EOS_UTILS_INC="$EOS_UTILS_SOURCE_ROOT/src/include"
+fi
+
+if [ "x$EOS_UTILS_CMAKE_BUILD_ROOT" == "x" ]; then
+EOS_UTILS_LIB="/usr/lib64/"
+else
+EOS_UTILS_LIB="$EOS_UTILS_CMAKE_BUILD_ROOT/build-eos-utils"
+fi
+
+if [ "x$NSAL_SOURCE_ROOT" == "x" ]; then
+NSAL_INC="/usr/include/eos/nsal"
+else
+NSAL_INC="$NSAL_SOURCE_ROOT/src/include"
+fi
+
+if [ "x$NSAL_CMAKE_BUILD_ROOT" == "x" ]; then
+NSAL_LIB="/usr/lib64/"
+else
 NSAL_LIB="$NSAL_CMAKE_BUILD_ROOT/build-nsal"
+fi
 
 ###############################################################################
 kvsfs_print_env() {
@@ -114,6 +145,8 @@ kvsfs_print_env() {
         KVSNS_LIB
         KVSNS_INC
 	CAPI_INC
+	EOS_UTILS_LIB
+	EOS_UTILS_INC
 	NSAL_LIB
 	NSAL_INC
     )

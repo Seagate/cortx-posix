@@ -27,6 +27,12 @@ set(DEFAULT_LIBEOSUTILS "")
 set(EOSUTILSINC ${DEFAULT_EOSUTILSINC} CACHE PATH "Path to folder with fault.h")
 set(LIBEOSUTILS ${DEFAULT_LIBEOSUTILS} CACHE PATH "Path to folder with libeos-utils.so")
 
+set(DEFAULT_EOSUTILSINC "")
+set(DEFAULT_LIBEOSUTILS "")
+
+set(EOSUTILSINC ${DEFAULT_EOSUTILSINC} CACHE PATH "Path to folder with fault.h")
+set(LIBEOSUTILS ${DEFAULT_LIBEOSUTILS} CACHE PATH "Path to folder with libeos-utils.so")
+
 set(GANESHASRC ${DEFAULT_GANESHASRC} CACHE PATH "Path to NFS-Ganesha Source (nfs-ganesha/src)")
 set(GANESHABUILD ${DEFAULT_GANESHABUILD} CACHE PATH "Path to NFS-Ganesha Build (nfs-ganesha/build)")
 set(KVSNSINC ${DEFAULT_KVSNSINC} CACHE PATH "Path to folder with kvsns.h")
@@ -79,6 +85,24 @@ endif(NOT HAVE_LIBKVSNS_H)
 
 include_directories(${KVSNSINC})
 link_directories(${LIBKVSNS})
+
+set(CMAKE_REQUIRED_INCLUDES ${EOSUTILSINC})
+
+CHECK_INCLUDE_FILES("fault.h" HAVE_EOS_UTILS_H)
+
+message(STATUS "HAVE_EOS_UTILS_H=${HAVE_EOS_UTILS_H}")
+
+if(NOT HAVE_EOS_UTILS_H)
+ if(STRICT_PACKAGE)
+    message(FATAL_ERROR "STRICT_PACKAGE: Cannot find EOS-UTILS runtime. Disabling KVSNS build")
+ else(STRICT_PACKAGE)
+    message(WARNING "Cannot find EOS-UTILS runtime. Disabling KVSNS build")
+    set(USE_KVSNS OFF)
+  endif(STRICT_PACKAGE)
+endif(NOT HAVE_EOS_UTILS_H)
+
+include_directories(${EOSUTILSINC})
+link_directories(${LIBEOSUTILS})
 
 include_directories(${NSALINC})
 link_directories(${LIBNSAL})

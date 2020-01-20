@@ -9,13 +9,15 @@ KVS_GLOBAL_FID='<0x780000000000000b:1>'
 # DEFAULT FSID 2
 KVS_DEFAULT_FS_FID='<0x780000000000000b:2>'
 DEFAULT_FSID='2'
+DEFAULT_FS='kvsns'
 LOC_EXPORT_ID='@tcp:12345:44:301'
 HA_EXPORT_ID='@tcp:12345:45:1'
 KVSNS_INI=/etc/kvsns.d/kvsns.ini
 KVSNS_INI_BAK=${KVSNS_INI}.$$
 GANESHA_CONF=/etc/ganesha/ganesha.conf
 GANESHA_CONF_BAK=${GANESHA_CONF}.$$
-KVSNS_INIT=/usr/bin/kvsns_init
+KVSNS_FS_CREATE=/usr/bin/kvsns_fs_create
+KVSNS_FS_DELETE=/usr/bin/kvsns_fs_delete
 NFS_INITIALIZED=/var/lib/nfs/nfs_initialized
 TMP_FILE=/tmp/nfs_tmp_file
 NFS_SETUP_LOG=/var/log/nfs_setup.log
@@ -53,9 +55,6 @@ function clovis_init {
 	# Create Clovis global idx
 	run m0clovis -l $ip_add$LOC_EXPORT_ID -h $ip_add$HA_EXPORT_ID -p $PROFILE -f $PROC_FID index create "$KVS_GLOBAL_FID"
 	[ $? -ne 0 ] && die "Failed to Initialise Clovis Global index"
-	# Create Clovis idx for FSID 2
-	run m0clovis -l $ip_add$LOC_EXPORT_ID -h $ip_add$HA_EXPORT_ID -p $PROFILE -f $PROC_FID index create "$KVS_DEFAULT_FS_FID"
-	[ $? -ne 0 ] && die "Failed to Initialise Clovis FS index"
 }
 
 function kvsns_init {
@@ -87,9 +86,9 @@ EOM
 
 	touch $NFS_INITIALIZED
 
-	# Initialize KVSNS for FSID 2
-	run $KVSNS_INIT $DEFAULT_FSID
-	[ $? -ne 0 ] && die "Failed to initialise kvsns for FSID 2"
+	# Create default FS
+	run $KVSNS_FS_CREATE $DEFAULT_FS
+	[ $? -ne 0 ] && die "Failed to initialise kvsns for $DEFAULT_FS"
 }
 
 function prepare_ganesha_conf {
