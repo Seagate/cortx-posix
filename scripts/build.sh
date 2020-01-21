@@ -219,6 +219,7 @@ eosfs_jenkins_build() {
         _kvsns_build make -j all &&
         _kvsfs_build reconf &&
         _kvsfs_build make -j all &&
+        _utils_build rpm-gen &&
         _nsal_build rpm-gen &&
         _kvsns_build rpm-gen &&
         _kvsfs_build rpm-gen &&
