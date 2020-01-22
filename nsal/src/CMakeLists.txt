@@ -79,10 +79,28 @@ check_library_exists(
 	HAVE_INI_CONFIG
 	)
 
-
+#Check EOS utils
 if((NOT HAVE_INI_CONFIG) OR (NOT HAVE_INI_CONFIG_H))
       message(FATAL_ERROR "Cannot find ini_config")
 endif((NOT HAVE_INI_CONFIG) OR (NOT HAVE_INI_CONFIG_H))
+
+set(CMAKE_REQUIRED_INCLUDES ${EOSUTILSINC})
+
+CHECK_INCLUDE_FILES("fault.h" HAVE_EOS_UTILS_H)
+
+message(STATUS "HAVE_EOS_UTILS_H=${HAVE_EOS_UTILS_H}")
+
+if(NOT HAVE_EOS_UTILS_H)
+ if(STRICT_PACKAGE)
+    message(FATAL_ERROR "STRICT_PACKAGE: Cannot find EOS-UTILS runtime. Disabling KVSNS build")
+ else(STRICT_PACKAGE)
+    message(WARNING "Cannot find EOS-UTILS runtime. Disabling KVSNS build")
+    set(USE_KVSNS OFF)
+  endif(STRICT_PACKAGE)
+endif(NOT HAVE_EOS_UTILS_H)
+
+include_directories(${EOSUTILSINC})
+link_directories(${LIBEOSUTILS})
 
 ## Start building stuff ##
 if(USE_KVS_REDIS)
@@ -128,6 +146,7 @@ endif(USE_KVS_MERO OR USE_MERO_STORE)
 message(STATUS "USE_KVS_REDIS=${USE_KVS_REDIS}")
 message(STATUS "USE_KVS_MERO=${USE_KVS_MERO}")
 
+
 # Build ancillary libs
 add_subdirectory(kvstore)
 set(KVSTORE kvstore)
@@ -140,9 +159,13 @@ endif (USE_MERO_STORE OR USE_KVS_MERO)
 include_directories(${EOSUTILSINC})
 link_directories(${LIBEOSUTILS})
 
+add_subdirectory(metadata)
+set(METADATA metadata)
+
 add_library(eos-nsal SHARED
 		$<TARGET_OBJECTS:${KVSTORE}>
 		$<TARGET_OBJECTS:${M0COMMON}>
+		$<TARGET_OBJECTS:${METADATA}>
 	)
 
 target_link_libraries(eos-nsal
