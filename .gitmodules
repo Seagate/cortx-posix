@@ -13,3 +13,6 @@
 [submodule "dsal"]
 	path = dsal
 	url = ../dsal.git
+[submodule "efs"]
+	path = efs
+	url = ../efs.git
