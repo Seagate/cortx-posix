@@ -22,6 +22,7 @@
 #include <limits.h>
 #include <inttypes.h>
 #include <kvstore.h>
+#include <object.h>
 
 #define MD_DASSERT(cond) assert(cond)
 
@@ -41,10 +42,12 @@ typedef enum md_version {
 	MD_VERSION_INVALID,
 } md_version_t;
 
+#if 0
 typedef struct obj_fid {
 	uint64_t f_hi;
 	uint64_t f_lo;
 } obj_fid_t;
+#endif
 
 /* Common md key types associated with particular version of md. */
 typedef enum md_key_type {

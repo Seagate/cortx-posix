@@ -35,7 +35,7 @@ struct kvstore_index;
  * @return 0 if successful, a negative "-errno" value in case of failure
  */
 
-int md_xattr_set(struct kvstore_index *idx, const obj_fid_t *fid,
+int md_xattr_set(struct kvstore_index *idx, const obj_id_t *oid,
 		 const char *name, const void *value, size_t size);
 
 /**
@@ -53,7 +53,7 @@ int md_xattr_set(struct kvstore_index *idx, const obj_fid_t *fid,
  * @return zero if successful, negative "-errno" value in case of
  *         failure
  */
-int md_xattr_get(struct kvstore_index *idx, const obj_fid_t *fid,
+int md_xattr_get(struct kvstore_index *idx, const obj_id_t *oid,
 		 const char *name, void **value, size_t *size);
 
 /**
@@ -69,7 +69,7 @@ int md_xattr_get(struct kvstore_index *idx, const obj_fid_t *fid,
  * @return zero if successful, negative "-errno" value in case of
  *         failure.
  */
-int md_xattr_exists(struct kvstore_index *idx, const obj_fid_t *fid,
+int md_xattr_exists(struct kvstore_index *idx, const obj_id_t *oid,
 		    const char *name, bool *result);
 
 /**
@@ -84,7 +84,7 @@ int md_xattr_exists(struct kvstore_index *idx, const obj_fid_t *fid,
  * @return zero if xattr has been deleted successfully,  negative "-errno" value
  *	    in case of failure
  */
-int md_xattr_delete(struct kvstore_index *idx, const obj_fid_t *kfid,
+int md_xattr_delete(struct kvstore_index *idx, const obj_id_t *oid,
 		    const char *name);
 
 /**
@@ -104,7 +104,7 @@ int md_xattr_delete(struct kvstore_index *idx, const obj_fid_t *kfid,
  *
  * @return zero for success, negative "-errno" value in case of failure
  */
-int md_xattr_list(struct kvstore_index *idx, const obj_fid_t *fid, void *buf,
+int md_xattr_list(struct kvstore_index *idx, const obj_id_t *oid, void *buf,
 		  size_t *count, size_t *size);
 
 /** Frees a passed md pointer. */
