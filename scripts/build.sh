@@ -18,14 +18,14 @@ set -e
 
 eosfs_cmd_usage() {
     echo -e "
-Usage $0  [-p <ganesha src path>] [-v <version>] [-b <build>] [-k {mero|redis}] [-e {mero|posix}]
+Usage $0  [-p <ganesha src path>] [-v <version>] [-b <build>] [-k {mero|redis}] [-e {eos|posix}]
 
 Arguments:
     -p (optional) Path to an existing NFS Ganesha repository.
     -v (optional) EOS FS Source version.
     -b (optional) EOS FS Build version.
-    -k (optional) KVSAL backend (mero/redis).
-    -e (optional) EXTSTORE backend (mero/posix).
+    -k (optional) NSAL KVSTORE backend (mero/redis).
+    -e (optional) DSAL DSTORE backend (eos/posix).
 
 Examples:
     $0 -p ~/nfs-ganesha -- Builds EOS-FS with a custom NFS Ganesha
@@ -77,7 +77,7 @@ eosfs_parse_cmd() {
             export NSAL_KVSTORE_BACKEND=${OPTARG}
             ;;
         e)
-            export KVSNS_EXTSTORE_BACKEND=${OPTARG}
+            export DSAL_DSTORE_BACKEND=${OPTARG}
             ;;
         *)
             eosfs_cmd_usage
@@ -93,6 +93,7 @@ eosfs_set_env() {
     export KVSNS_SOURCE_ROOT=$PWD/kvsns
     export KVSFS_SOURCE_ROOT=$PWD/kvsfs-ganesha
     export NSAL_SOURCE_ROOT=$PWD/nsal
+    export DSAL_SOURCE_ROOT=$PWD/dsal
     export EOS_UTILS_SOURCE_ROOT=$PWD/utils
 
     export EOS_FS_BUILD_ROOT=${EOS_FS_BUILD_ROOT:-/tmp/eos-fs}
@@ -100,7 +101,7 @@ eosfs_set_env() {
     export EOS_FS_BUILD_VERSION=${EOS_FS_BUILD_VERSION:-"$(git rev-parse --short HEAD)"}
 
     export NSAL_KVSTORE_BACKEND=${NSAL_KVSTORE_BACKEND:-"mero"}
-    export KVSNS_EXTSTORE_BACKEND=${KVSNS_EXTSTORE_BACKEND:-"mero"}
+    export DSAL_DSTORE_BACKEND=${DSAL_DSTORE_BACKEND:-"eos"}
 
     export KVSFS_NFS_GANESHA_DIR=${KVSFS_NFS_GANESHA_DIR:-$PWD/../nfs-ganesha-eos}
     export KVSFS_NFS_GANESHA_BUILD_DIR=${KVSFS_NFS_GANESHA_BUILD_DIR:-$EOS_FS_BUILD_ROOT/build-nfs-ganesha}
@@ -112,11 +113,12 @@ eosfs_print_env() {
         KVSNS_SOURCE_ROOT
         KVSFS_SOURCE_ROOT
 	NSAL_SOURCE_ROOT
+	DSAL_SOURCE_ROOT
         EOS_UTILS_SOURCE_ROOT
         EOS_FS_BUILD_ROOT
         EOS_FS_BUILD_VERSION
         NSAL_KVSTORE_BACKEND
-        KVSNS_EXTSTORE_BACKEND
+        DSAL_DSTORE_BACKEND
         KVSFS_NFS_GANESHA_DIR
         KVSFS_NFS_GANESHA_BUILD_DIR
     )
@@ -148,6 +150,11 @@ _nsal_build() {
     $NSAL_SOURCE_ROOT/scripts/build.sh "$@"
 }
 
+_dsal_build() {
+    echo "DSAL_BUILD: $@"
+    $DSAL_SOURCE_ROOT/scripts/build.sh "$@"
+}
+
 _nfs_ganesha_build() {
     echo "NFS_GANESHA_BUILD: $@"
     ./scripts/build-nfs-ganesha.sh "$@"
@@ -167,6 +174,12 @@ eosfs_bootstrap() {
         git submodule update --init --recursive $NSAL_SOURCE_ROOT
     else
         echo "Skipping bootstrap for NSAL: $NSAL_SOURCE_ROOT"
+    fi
+
+    if [ ! -f $DSAL_SOURCE_ROOT/src/CMakeLists.txt ]; then
+	git submodule update --init --recursive $DSAL_SOURCE_ROOT
+    else
+        echo "Skipping bootstrap for DSAL: $DSAL_SOURCE_ROOT"
     fi
 
     if [ ! -f $KVSNS_SOURCE_ROOT/src/CMakeLists.txt ]; then
@@ -215,17 +228,21 @@ eosfs_jenkins_build() {
 	_utils_build make -j all &&
         _nsal_build reconf &&
         _nsal_build make -j all &&
+        _dsal_build reconf &&
+        _dsal_build make -j all &&
         _kvsns_build reconf &&
         _kvsns_build make -j all &&
         _kvsfs_build reconf &&
         _kvsfs_build make -j all &&
         _utils_build rpm-gen &&
         _nsal_build rpm-gen &&
+        _dsal_build rpm-gen &&
         _kvsns_build rpm-gen &&
         _kvsfs_build rpm-gen &&
         _kvsfs_build purge &&
         _kvsns_build purge &&
         _nsal_build purge &&
+        _dsal_build purge &&
     echo "OK"
 }
 
@@ -237,6 +254,7 @@ eosfs_configure() {
     _nfs_ganesha_build config &&
     _utils_build reconf &&
     _nsal_build reconf &&
+    _dsal_build reconf &&
     _kvsns_build reconf &&
     _kvsfs_build reconf &&
     echo "OK"
@@ -247,6 +265,7 @@ eosfs_make() {
     eosfs_set_env &&
         _utils_build make "$@" &&
         _nsal_build make "$@" &&
+        _dsal_build make "$@" &&
         _kvsns_build make "$@" &&
         _kvsfs_build make "$@" &&
     echo "OK"
@@ -260,6 +279,7 @@ eosfs_rpm_gen() {
     rm -fR "$rpms_dir/libntirpc*"
     rm -fR "$rpms_dir/eos-utils*"
     rm -fR "$rpms_dir/eos-nsal*"
+    rm -fR "$rpms_dir/eos-dsal*"
     rm -fR "$rpms_dir/libkvsns*"
     rm -fR "$rpmn_dir/kvsfs-ganesha*"
 
@@ -267,6 +287,7 @@ eosfs_rpm_gen() {
         _nfs_ganesha_build rpm-gen &&
 	_utils_build rpm-gen &&
         _nsal_build rpm-gen &&
+        _dsal_build rpm-gen &&
         _kvsns_build rpm-gen &&
         _kvsfs_build rpm-gen &&
     echo "OK"
@@ -277,6 +298,7 @@ eosfs_rpm_install() {
     sudo echo "Checking sudo access"
     _utils_build rpm-install
     _nsal_build rpm-install
+    _dsal_build rpm-install
     _kvsns_build rpm-install
     _kvsfs_build rpm-install
 }
@@ -286,6 +308,7 @@ eosfs_rpm_uninstall() {
     sudo echo "Checking sudo access"
     _utils_build rpm-uninstall
     _nsal_build rpm-uninstall
+    _dsal_build rpm-uninstall
     _kvsfs_build rpm-uninstall
     _kvsns_build rpm-uninstall
 }
@@ -296,14 +319,17 @@ eosfs_reinstall() {
 
     _utils_build rpm-gen &&
     _nsal_build rpm-gen &&
+    _dsal_build rpm-gen &&
     _kvsns_build rpm-gen &&
     _kvsfs_build rpm-gen &&
     _utils_build rpm-uninstall &&
     _nsal_build rpm-uninstall &&
+    _dsal_build rpm-uninstall &&
     _kvsfs_build rpm-uninstall &&
     _kvsns_build rpm-uninstall &&
     _utils_build rpm-install &&
     _nsal_build rpm-install &&
+    _dsal_build rpm-install &&
     _kvsns_build rpm-install &&
     _kvsfs_build rpm-install
 }
@@ -395,6 +421,10 @@ case $1 in
         shift
         eosfs_set_env
         _nsal_build "$@";;
+    dsal)
+        shift
+        eosfs_set_env
+        _dsal_build "$@";;
     kvsns)
         shift
         eosfs_set_env
