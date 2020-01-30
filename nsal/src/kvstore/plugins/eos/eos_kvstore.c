@@ -212,17 +212,6 @@ int eos_kvs_del_bin(struct kvstore_index *index, const void *key, size_t klen)
 	return m0kvs_del(index->index_priv, (void *) key, klen);
 }
 
-struct kvstore_kv_ops eos_kvs_kv_ops = {
-	.begin_transaction = eos_kvs_begin_transaction,
-	.end_transaction = eos_kvs_end_transaction,
-	.discard_transaction = eos_kvs_discard_transaction,
-	.get_bin = eos_kvs_get_bin,
-	.get4_bin = eos_kvs4_get_bin,
-	.set_bin = eos_kvs_set_bin,
-	.set4_bin = eos_kvs4_set_bin,
-	.del_bin = eos_kvs_del_bin
-};
-
 const char *eos_kvs_get_gfid(void)
 {
 	return m0_get_gfid();
@@ -261,40 +250,90 @@ int eos_kvs_get_list_size(void *ctx, char *pattern, size_t plen)
 	return size;
 }
 
+/******************************************************************************/
+/* Key Iterator */
+
+_Static_assert(sizeof(struct m0kvs_key_iter) <=
+	       sizeof(((struct kvstore_iter*) NULL)->priv),
+	       "m0kvs_key_iter does not fit into 'priv'");
+
+static inline
+struct m0kvs_key_iter *eos_key_iter_priv(struct kvstore_iter *iter)
+{
+	return (void *) &iter->priv[0];
+}
+
+void eos_kvs_iter_get_kv(struct kvstore_iter *iter, void **key, size_t *klen,
+                          void **val, size_t *vlen)
+{
+	struct m0kvs_key_iter *priv = eos_key_iter_priv(iter);
+	return m0kvs_key_iter_get_kv(priv, key, klen, val, vlen);
+}
+
 bool eos_kvs_prefix_iter_has_prefix(struct kvstore_prefix_iter *iter)
 {
-	void *key;
-	size_t key_len;
+	void *key, *value;
+	size_t key_len, val_len;
 
-	key_len = eos_kvs_iter_get_key(&iter->base, &key);
+	eos_kvs_iter_get_kv(&iter->base, &key, &key_len, &value, &val_len);
 	assert(key_len >= iter->prefix_len);
 	return memcmp(iter->prefix, key, iter->prefix_len) == 0;
 }
 
+/** Find the first record following by the prefix and set iter to it.
+ * @param iter Iterator object to initialized with the starting record.
+ * @param prefix Key prefix to be found.
+ * @param prefix_len Length of the prefix.
+ * @return True if found, otherwise False. @see kvstore_iter::inner_rc for return
+ * code.
+ */
 bool eos_kvs_prefix_iter_find(struct kvstore_prefix_iter *iter)
 {
-	return m0_key_iter_find(&iter->base, iter->prefix, iter->prefix_len) &&
-		eos_kvs_prefix_iter_has_prefix(iter);
+	int rc = 0;
+	struct m0kvs_key_iter *priv = eos_key_iter_priv(&iter->base);
+	priv->index = iter->base.idx.index_priv;
+	rc = m0kvs_key_iter_find(iter->prefix, iter->prefix_len, priv);
+	iter->base.inner_rc = rc;
+	if (rc == 0) {
+		return eos_kvs_prefix_iter_has_prefix(iter);
+	} else {
+		return false;
+	}
 }
 
+/* Find the next record and set iter to it. */
 bool eos_kvs_prefix_iter_next(struct kvstore_prefix_iter *iter)
 {
-	return m0_key_iter_next(&iter->base) &&
-		eos_kvs_prefix_iter_has_prefix(iter);
+	int rc = 0;
+	struct m0kvs_key_iter *priv = eos_key_iter_priv(&iter->base);
+	priv->index = iter->base.idx.index_priv;
+	rc = m0kvs_key_iter_next(priv);
+	iter->base.inner_rc = rc;
+	if (rc == 0) {
+		return eos_kvs_prefix_iter_has_prefix(iter);
+	} else {
+		return false;
+	}
 }
 
+/** Cleanup key iterator object */
 void eos_kvs_prefix_iter_fini(struct kvstore_prefix_iter *iter)
 {
-	m0_key_iter_fini(&iter->base);
+	struct m0kvs_key_iter *priv = eos_key_iter_priv(&iter->base);
+	m0kvs_key_iter_fini(priv);
 }
 
-size_t eos_kvs_iter_get_key(struct kvstore_iter *iter, void **buf)
-{
-	return m0_key_iter_get_key(iter, buf);
-}
-
-size_t eos_kvs_iter_get_value(struct kvstore_iter *iter, void **buf)
-{
-	return m0_key_iter_get_value(iter, buf);
-}
-
+struct kvstore_kv_ops eos_kvs_kv_ops = {
+	.begin_transaction = eos_kvs_begin_transaction,
+	.end_transaction = eos_kvs_end_transaction,
+	.discard_transaction = eos_kvs_discard_transaction,
+	.get_bin = eos_kvs_get_bin,
+	.get4_bin = eos_kvs4_get_bin,
+	.set_bin = eos_kvs_set_bin,
+	.set4_bin = eos_kvs4_set_bin,
+	.del_bin = eos_kvs_del_bin,
+	.kv_find = eos_kvs_prefix_iter_find,
+	.kv_next = eos_kvs_prefix_iter_next,
+	.kv_fini = eos_kvs_prefix_iter_fini,
+	.kv_get = eos_kvs_iter_get_kv,
+};
