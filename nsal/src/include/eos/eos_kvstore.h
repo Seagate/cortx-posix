@@ -18,7 +18,6 @@
 #define _EOS_KVSTORE_H
 
 #include "kvstore.h"
-#include "../../common/mero/m0common.h"
 
 extern struct kvstore_ops eos_kvs_ops;
 
@@ -34,17 +33,5 @@ const char *eos_kvs_get_gfid(void);
 int eos_kvs_fid_from_str(const char *fid_str, struct kvstore_fid *out_fid);
 
 int eos_kvs_get_list_size(void *ctx, char *pattern, size_t plen);
-
-bool eos_kvs_prefix_iter_has_prefix(struct kvstore_prefix_iter *iter);
-
-bool eos_kvs_prefix_iter_find(struct kvstore_prefix_iter *iter);
-
-bool eos_kvs_prefix_iter_next(struct kvstore_prefix_iter *iter);
-
-void eos_kvs_prefix_iter_fini(struct kvstore_prefix_iter *iter);
-
-size_t eos_kvs_iter_get_key(struct kvstore_iter *iter, void **buf);
-
-size_t eos_kvs_iter_get_value(struct kvstore_iter *iter, void **buf);
 
 #endif

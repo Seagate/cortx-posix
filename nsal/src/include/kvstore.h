@@ -44,6 +44,8 @@ struct kvstore_ops;
 struct kvstore_index_ops;
 struct kvstore_kv_ops;
 struct kvstore_index;
+struct kvstore_iter;
+struct kvstore_prefix_iter;
 
 struct kvstore {
 	/* Type of kvstore, current could be 2, {mero or redis} */
@@ -108,10 +110,15 @@ struct kvstore_kv_ops {
 	int (*set4_bin) (void *k, const size_t klen, void *v,
 			 const size_t vlen);
 	int (*del_bin) (struct kvstore_index *index, const void *k, size_t klen);
+	bool (*kv_find) (struct kvstore_prefix_iter *iter);
+	bool (*kv_next) (struct kvstore_prefix_iter *iter);
+	void (*kv_fini) (struct kvstore_prefix_iter *iter);
+	void (*kv_get) (struct kvstore_iter *iter, void **key, size_t *klen,
+	                void **val, size_t *vlen);
 };
 
 /** Max size of implementation-defined data for a kvstore_iter. */
-#define KVSTORE_ITER_PRIV_DATA_SIZE 64
+#define KVSTORE_ITER_PRIV_DATA_SIZE 128
 
 /*
  * @todo: NSAL: MR: 1, comment, why separate,
@@ -131,36 +138,5 @@ struct kvstore_prefix_iter {
 	const void *prefix;
 	size_t prefix_len;
 };
-
-/**
- * Find first record with the specified prefix.
- * @return True if the start record found.
- */
-bool kvstore_prefix_iter_find(struct kvstore_prefix_iter *iter);
-
-/**
- * Find the record following by the current record.
- * @return True if the next record found.
- */
-bool kvstore_prefix_iter_next(struct kvstore_prefix_iter *iter);
-
-/**
- * Free resources allocated by find/next calls.
- */
-void kvstore_prefix_iter_fini(struct kvstore_prefix_iter *iter);
-
-/**
- * Get pointer to key data.
- * @param[out] buf View of key data owned by iter.
- * @return Size of key.
- */
-size_t kvstore_iter_get_key(struct kvstore_iter *iter, void **buf);
-
-/**
- * Get pointer to value data.
- * @param[out] buf View of value data owner by iter.
- * @return Size of value.
- */
-size_t kvstore_iter_get_value(struct kvstore_iter *iter, void **buf);
 
 #endif

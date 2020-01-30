@@ -219,11 +219,11 @@ int md_xattr_list(struct kvstore_index *idx, const obj_id_t *oid, void *buf,
 {
 	int rc;
 	struct kvstore *kvstor = kvstore_get();
-	size_t klen;
+	size_t klen, vlen;
 	bool has_next = true;
 	const struct md_xattr_key prefix = XATTR_KEY_PREFIX_INIT(oid);
 	const struct md_xattr_key *key = NULL;
-
+	void *value;
 	MD_DASSERT(kvstor != NULL);
 	MD_DASSERT(buf != NULL);
 	MD_DASSERT(size != NULL);
@@ -248,13 +248,13 @@ int md_xattr_list(struct kvstore_index *idx, const obj_id_t *oid, void *buf,
 		.prefix_len = md_xattr_key_psize,
 	};
 
-	if (!eos_kvs_prefix_iter_find(&iter)) {
+	if (!kvstor->kv_ops->kv_find(&iter)) {
 		rc = iter.base.inner_rc;
 		goto out;
 	}
-
 	while (has_next) {
-		klen = eos_kvs_iter_get_key(&iter.base, (void **) &key);
+		kvstor->kv_ops->kv_get(&iter.base, (void **) &key, &klen,
+		                       (void **) &value, &vlen);
 		MD_DASSERT(key->xk_name.len != 0);
 		MD_DASSERT(klen > md_xattr_key_psize);
 		log_debug("xattr name=%s, len= %" PRIu8 "", key->xk_name.str,
@@ -276,7 +276,7 @@ int md_xattr_list(struct kvstore_index *idx, const obj_id_t *oid, void *buf,
 		}
 		names += key->xk_name.len + 1;
 		(*count)++;
-		has_next = eos_kvs_prefix_iter_next(&iter);
+		has_next = kvstor->kv_ops->kv_next(&iter);
 		log_debug("offset=%zu, has_next=%d, iter rc =%d), count=%zu",
 			  offset, (int) has_next, iter.base.inner_rc, *count);
 	}
@@ -297,7 +297,7 @@ out:
 err:
 	log_trace("idx=%p, oid=%" PRIx64 ":%" PRIx64 ", size=%zu, rc=%d",
 		  idx, oid->f_hi, oid->f_lo, *size, rc);
-	eos_kvs_prefix_iter_fini(&iter);
+	kvstor->kv_ops->kv_fini(&iter);
 	return rc;
 }
 
