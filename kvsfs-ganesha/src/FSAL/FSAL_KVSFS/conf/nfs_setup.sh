@@ -21,6 +21,7 @@ KVSNS_FS_DELETE=/usr/bin/kvsns_fs_delete
 NFS_INITIALIZED=/var/lib/nfs/nfs_initialized
 TMP_FILE=/tmp/nfs_tmp_file
 NFS_SETUP_LOG=/var/log/nfs_setup.log
+LOG_DIR_PATH=/var/log/eos
 
 function die {
 	log "error: $*"
@@ -57,6 +58,12 @@ function clovis_init {
 	[ $? -ne 0 ] && die "Failed to Initialise Clovis Global index"
 }
 
+
+function log_dir_setup {
+	mkdir -p $LOG_DIR_PATH
+	[ $? -ne 0 ] && die "Failed to create log dir $LOG_DIR_PATH"
+}
+
 function kvsns_init {
 	log "Initializing KVSNS..."
 
@@ -73,6 +80,9 @@ function kvsns_init {
 	cat >> $KVSNS_INI << EOM
 [kvstore]
 type = mero
+
+[dstore]
+type = eos
 
 [mero]
 local_addr = $ip_add$LOC_EXPORT_ID
@@ -192,6 +202,8 @@ function eos_nfs_init {
 	# Initialize  clovis
 	clovis_init
 
+	# log dir setup
+	log_dir_setup
 	# Prepare kvsns_init
 	kvsns_init
 
@@ -218,6 +230,7 @@ function eos_nfs_cleanup {
 	run m0clovis -l $ip_add$LOC_EXPORT_ID -h $ip_add$HA_EXPORT_ID -p $PROFILE -f $PROC_FID index drop "$KVS_GLOBAL_FID"
 
 	rm -f $NFS_INITIALIZED
+	rm -rf $LOG_DIR_PATH
 	echo "NFS cleanup is complete"
 }
 
