@@ -8,6 +8,8 @@ set(MERO_CFLAGS "${MERO_CFLAGS} -I/usr/include/lustre")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${MERO_CFLAGS}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${MERO_CFLAGS}")
 
+include_directories(${EOSUTILSINC})
+
 SET(METADATA_LIB_SRCS
    md_xattrs.c
    md_common.c
