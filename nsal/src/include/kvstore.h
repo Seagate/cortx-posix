@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <utils.h>
 
 #define KLEN (256)
 #define VLEN (256)
@@ -138,5 +139,70 @@ struct kvstore_prefix_iter {
 	const void *prefix;
 	size_t prefix_len;
 };
+
+/** Batch Operation Implementation in kvstore */
+
+struct kvpair {
+	buff_t key, val;
+};
+
+struct kvgroup {
+	/* Array of kv-pairs*/
+	struct kvpair **kv_list;
+	/* Maximum size of the kvpair list*/
+	uint32_t kv_max;
+	/* Number of kvpair present in group*/
+	uint32_t kv_count;
+};
+
+/** Allocates memory for a new kvpair.
+ *  @param kv - pointer of kvpair to which memory is allocated.
+ */
+int kvpair_alloc(struct kvpair **kv);
+
+/** Frees memory for a given kvpair.
+ *  @param kv - pointer to kvpair.
+ */
+void kvpair_free(struct kvpair *kv);
+
+/** Initializes kvpair with given key and value.
+ *  @param[in] kv - pointer to new kvpair
+ *  @param[in] key - buffer of key
+ *  @param[in] klen - length of key buffer
+ *  @param[in] val - buffer of value
+ *  @param[in] vlen - length of value buffer
+ */
+void kvpair_init(struct kvpair *kv, void *key, const size_t klen, void *val,
+                 const size_t vlen);
+
+/** Allocate array of kvpair with the given size inside kv_group.
+ *  @param[in] kv_grp - pointer to kv_group object
+ *  @param[in] size - length of kvpair array
+ *  @return 0 if successful, else return error code.
+ */
+int kvgroup_init(struct kvgroup *kv_grp, const uint32_t size);
+
+/** Add kvpair in kv_group.
+ *  @param[in] kv_grp - pointer to kv_group
+ *  @param[in] kv - kvpair to be added
+ *  @return 0 if successful, else return error code.
+ */
+int kvgroup_add(struct kvgroup *kv_grp,
+                struct kvpair *kv);
+
+/** Free memory for array of kvpair in kv_group.
+ *  @param[in] kv_grp - pointer to kv_group
+ */
+void kvgroup_fini(struct kvgroup *kv_grp);
+
+/** Iterate over the values in kv group
+ *  @param[in] kv_grp - pointer to kv_group, which is iterated
+ *  @param[in] index - index of value to be returned
+ *  @param[out] value - return value buffer
+ *  @param[out] vlen - return value buffer length
+ *  return 0 if value is present for a kvpair
+ */
+int kvgroup_kvpair_get(struct kvgroup *kv_grp, const int index,
+                        void **value, size_t *vlen);
 
 #endif

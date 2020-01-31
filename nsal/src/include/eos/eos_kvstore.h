@@ -34,4 +34,18 @@ int eos_kvs_fid_from_str(const char *fid_str, struct kvstore_fid *out_fid);
 
 int eos_kvs_get_list_size(void *ctx, char *pattern, size_t plen);
 
+/** Set list of key-value pairs
+ *  @param[in] kv_grp - pointer to kv_group
+ *  @return 0 if successful, else return error code.
+ */
+int eos_kvs_list_set(struct kvstore_index *index,
+                     const struct kvgroup *kv_grp);
+
+/** Get list of key-value pairs
+ *  @param kv_grp - pointer to kv_group which fetches values for given keys
+ *  @return 0 if successful, else return error code.
+ */
+int eos_kvs_list_get(struct kvstore_index *index,
+                     struct kvgroup *kv_grp);
+
 #endif
