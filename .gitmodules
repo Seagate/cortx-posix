@@ -16,3 +16,12 @@
 [submodule "efs"]
 	path = efs
 	url = ../efs.git
+[submodule "third-party/libevent"]
+    path = third-party/libevent
+    url = ../../third_party/libevent.git
+[submodule "third-party/libevhtp"]
+	path = third-party/libevhtp
+	url = ../../third_party/libevhtp.git
+[submodule "third-party/jason-c"]
+	path = third-party/jason-c
+	url = ../../third_party/jason-c.git
