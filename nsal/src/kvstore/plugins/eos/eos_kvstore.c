@@ -337,3 +337,63 @@ struct kvstore_kv_ops eos_kvs_kv_ops = {
 	.kv_fini = eos_kvs_prefix_iter_fini,
 	.kv_get = eos_kvs_iter_get_kv,
 };
+
+int eos_kvs_list_set(struct kvstore_index *index,
+                     const struct kvgroup *kv_grp)
+{
+	struct m0kvs_list key, val;
+	int rc = 0, i;
+
+	rc = m0kvs_list_alloc(&key, kv_grp->kv_count);
+	if (rc != 0) {
+		goto out;
+	}
+	rc = m0kvs_list_alloc(&val, kv_grp->kv_count);
+	if (rc != 0) {
+		goto out_free_key;
+	}
+
+	for (i = 0; i < kv_grp->kv_count; ++i) {
+		m0kvs_list_add(&key, kv_grp->kv_list[i]->key.buf,
+		               kv_grp->kv_list[i]->key.len, i);
+		m0kvs_list_add(&val, kv_grp->kv_list[i]->val.buf,
+		               kv_grp->kv_list[i]->val.len, i);
+	}
+
+	rc = m0kvs_list_set(index->index_priv, &key, &val);
+
+	m0kvs_list_free(&val);
+out_free_key:
+	m0kvs_list_free(&key);
+out:
+	return rc;
+}
+
+int eos_kvs_list_get(struct kvstore_index *index,
+                     struct kvgroup *kv_grp)
+{
+	struct m0kvs_list key, val;
+	int rc = 0, i;
+
+	rc = m0kvs_list_alloc(&key, kv_grp->kv_count);
+	if (rc != 0) {
+		goto out;
+	}
+	rc = m0kvs_list_alloc(&val, kv_grp->kv_count);
+	if (rc != 0) {
+		goto out_free_key;
+	}
+
+	for (i = 0; i < kv_grp->kv_count; ++i) {
+		m0kvs_list_add(&key, kv_grp->kv_list[i]->key.buf,
+		               kv_grp->kv_list[i]->key.len, i);
+	}
+
+	rc = m0kvs_list_get(index->index_priv, &key, &val);
+
+	m0kvs_list_free(&val);
+out_free_key:
+	m0kvs_list_free(&key);
+out:
+	return rc;
+}

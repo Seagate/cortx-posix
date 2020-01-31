@@ -17,6 +17,7 @@
 #include "kvstore.h"
 #include <assert.h>
 #include <errno.h>
+#include <debug.h>
 
 static struct kvstore g_kvstore;
 
@@ -70,4 +71,90 @@ int kvstore_alloc(void **ptr, uint64_t size)
 void kvstore_free(void *ptr)
 {
 	free(ptr);
+}
+
+int kvpair_alloc(struct kvpair **kv)
+{
+	struct kvstore *kvstor = kvstore_get();
+	int rc = 0;
+
+	dassert(*kv == NULL);
+	rc = kvstor->kvstore_ops->alloc((void **)kv, sizeof(struct kvpair));
+	return rc;
+}
+
+void kvpair_free(struct kvpair *kv)
+{
+	struct kvstore *kvstor = kvstore_get();
+	kvstor->kvstore_ops->free(kv);
+}
+
+void kvpair_init(struct kvpair *kv, void *key, const size_t klen,
+                 void *val, const size_t vlen)
+{
+	dassert(kv);
+	dassert(key && klen && val && vlen);
+
+	kv->key.buf = key;
+	kv->key.len = klen;
+
+	kv->val.buf = val;
+	kv->val.len = vlen;
+}
+
+int kvgroup_init(struct kvgroup *kv_grp, const uint32_t size)
+{
+	struct kvstore *kvstor = kvstore_get();
+	int rc = 0;
+	struct kvpair *temp_list = NULL;
+
+	dassert(kv_grp->kv_list == NULL);
+	rc = kvstor->kvstore_ops->alloc((void **)&temp_list,
+	                                sizeof(struct kvpair *) * size);
+	if (rc) {
+		goto out;
+	}
+	kv_grp->kv_list = &temp_list;
+	kv_grp->kv_max = size;
+	kv_grp->kv_count = 0;
+out:
+	return rc;
+}
+
+int kvgroup_add(struct kvgroup *kv_grp, struct kvpair *kv)
+{
+	if (kv_grp->kv_count == kv_grp->kv_max)
+		return -ENOMEM;
+	kv_grp->kv_list[kv_grp->kv_count++] = kv;
+	return 0;
+}
+
+void kvgroup_fini(struct kvgroup *kv_grp)
+{
+	struct kvstore *kvstor = kvstore_get();
+	uint32_t i;
+	if (kv_grp != NULL) {
+		if (kv_grp->kv_list != NULL) {
+			for (i = 0; i < kv_grp->kv_count; ++i) {
+				kvpair_free(kv_grp->kv_list[i]);
+				kv_grp->kv_list[i] = NULL;
+			}
+		}
+		kvstor->kvstore_ops->free(kv_grp->kv_list);
+		kv_grp->kv_list = NULL;
+	}
+}
+
+int kvgroup_kvpair_get(struct kvgroup *kv_grp, const int index,
+                        void **value, size_t *vlen)
+{
+	if (index >= kv_grp->kv_count)
+		return -ENOMEM;
+	struct kvpair *kv = kv_grp->kv_list[index];
+	*value = kv->val.buf;
+	*vlen = kv->val.len;
+	if (*value == NULL && *vlen == 0) {
+		return -EINVAL;
+	}
+	return 0;
 }
