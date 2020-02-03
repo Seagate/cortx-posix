@@ -151,11 +151,6 @@ message(STATUS "USE_KVS_MERO=${USE_KVS_MERO}")
 add_subdirectory(kvstore)
 set(KVSTORE kvstore)
 
-if (USE_MERO_STORE OR USE_KVS_MERO)
-add_subdirectory(common)
-set(M0COMMON m0common)
-endif (USE_MERO_STORE OR USE_KVS_MERO)
-
 include_directories(${EOSUTILSINC})
 link_directories(${LIBEOSUTILS})
 
@@ -164,7 +159,6 @@ set(METADATA metadata)
 
 add_library(eos-nsal SHARED
 		$<TARGET_OBJECTS:${KVSTORE}>
-		$<TARGET_OBJECTS:${M0COMMON}>
 		$<TARGET_OBJECTS:${METADATA}>
 	)
 
