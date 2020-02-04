@@ -5,7 +5,33 @@
 
 KVSFS_NFS_GANESHA_DIR=${KVSFS_NFS_GANESHA_DIR:-$PWD/../nfs-ganesha}
 KVSFS_NFS_GANESHA_BUILD_DIR=${KVSFS_NFS_GANESHA_BUILD_DIR:-$KVSFS_NFS_GANESHA_DIR/build}
-KVSFS_NFS_GANESHA_CMAKE_ARGS=${KVSFS_NFS_GANESHA_CMAKE_ARGS:-""}
+
+# NFS Ganesha config options
+# * Disable GPFS FSAL. The FSAL requires a python package "gpfs" to be installed,
+#   otherwise, NFS Ganesha RPMs cannot be built.
+# * Enable RFC ACL. This flag is used to pass RFC compliance tests and
+#   to perform some checks on the NFS Ganesha side.
+#   See details here:
+#   https://github.com/nfs-ganesha/nfs-ganesha/commit/e00e05fb871470d1b5dcc2ae317b4dbc1dd3452e
+#   https://github.com/nfs-ganesha/nfs-ganesha/commit/fccc3e3fa9fcdeccaeee96ab699de0a77b02ca0e
+# * Disable unused FSALS: Ceph, Gluster, RGW, Lustre.
+# * Disable 9P.
+#
+DEFAULT_CMAKE_ARGS_LIST=(
+    -DUSE_FSAL_GPFS=OFF
+    -DENABLE_RFC_ACL=ON
+    -DUSE_FSAL_PROXY=OFF
+    -DUSE_FSAL_LUSTRE=OFF
+    -DUSE_FSAL_CEPH=OFF
+    -DUSE_FSAL_GLUSTER=OFF
+    -DUSE_FSAL_RGW=OFF
+    -DUSE_RADOS_RECOV=OFF
+    -DRADOS_URLS=OFF
+    -DUSE_9P=OFF
+)
+DEFAULT_CMAKE_ARGS="${DEFAULT_CMAKE_ARGS_LIST[@]}"
+
+KVSFS_NFS_GANESHA_CMAKE_ARGS=${KVSFS_NFS_GANESHA_CMAKE_ARGS:-"$DEFAULT_CMAKE_ARGS"}
 
 ###############################################################################
 nfs_ganesha_print_env() {
@@ -45,11 +71,23 @@ _nfs_ganesha_check_installed_pkgs() {
 
 ###############################################################################
 nfs_ganesha_bootstrap() {
+    local rc=0
+    local stable_branch="V2.8-stable"
     rm -fR "$KVSFS_NFS_GANESHA_DIR"
     echo "Downloading NFS Ganesha sources into $KVSFS_NFS_GANESHA_DIR"
-    git clone --depth 1 ssh://git@gitlab.mero.colo.seagate.com:6022/eos/fs/nfs-ganesha.git $KVSFS_NFS_GANESHA_DIR
+    git clone --depth 1 --branch $stable_branch ssh://git@gitlab.mero.colo.seagate.com:6022/eos/fs/nfs-ganesha.git $KVSFS_NFS_GANESHA_DIR
+    rc=$?
+    if (( rc != 0 )); then
+        echo "Failed to clone NFS Ganesha sources ($rc)"
+        return 1
+    fi
     cd $KVSFS_NFS_GANESHA_DIR
     git submodule update --init --recursive
+    rc=$?
+    if (( rc != 0 )); then
+        echo "Failed to initialize NFS Ganesha submodules ($rc)"
+        return 1
+    fi
     cd -
 }
 
