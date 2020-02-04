@@ -95,6 +95,7 @@ eosfs_set_env() {
     export NSAL_SOURCE_ROOT=$PWD/nsal
     export DSAL_SOURCE_ROOT=$PWD/dsal
     export EOS_UTILS_SOURCE_ROOT=$PWD/utils
+    export EFS_SOURCE_ROOT=$PWD/efs
 
     export EOS_FS_BUILD_ROOT=${EOS_FS_BUILD_ROOT:-/tmp/eos-fs}
     export EOS_FS_VERSION=${EOS_FS_VERSION:-"$(cat $PWD/VERSION)"}
@@ -186,6 +187,12 @@ eosfs_bootstrap() {
         git submodule update --init --recursive $KVSNS_SOURCE_ROOT
     else
         echo "Skipping bootstrap for KVSNS: $KVSNS_SOURCE_ROOT"
+    fi
+
+    if [ ! -f $EFS_SOURCE_ROOT/src/CMakeLists.txt ]; then
+        git submodule update --init --recursive $EFS_SOURCE_ROOT
+    else
+        echo "Skipping bootstrap for EFS: $EFS_SOURCE_ROOT"
     fi
 
     if [ ! -f $KVSFS_SOURCE_ROOT/src/FSAL/FSAL_KVSFS/CMakeLists.txt ]; then
