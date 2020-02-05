@@ -154,7 +154,8 @@ dsal_rpm_gen() {
 
 dsal_rpm_install() {
     local rpms_dir=$HOME/rpmbuild/RPMS/x86_64
-    local suffix="$DSAL_VERSION-$DSAL_BUILD_VERSION.el7.centos.x86_64.rpm"
+    local dist=$(rpm --eval '%{dist}')
+    local suffix="${DSAL_VERSION}-${DSAL_BUILD_VERSION}${dist}.x86_64.rpm"
     local mypkg=(
         eos-dsal
         eos-dsal-debuginfo
