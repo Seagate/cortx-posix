@@ -159,7 +159,8 @@ nsal_rpm_gen() {
 
 nsal_rpm_install() {
     local rpms_dir=$HOME/rpmbuild/RPMS/x86_64
-    local suffix="$NSAL_VERSION-$NSAL_BUILD_VERSION.el7.centos.x86_64.rpm"
+    local dist=$(rpm --eval '%{dist}')
+    local suffix="${NSAL_VERSION}-${NSAL_BUILD_VERSION}${dist}.x86_64.rpm"
     local mypkg=(
         eos-nsal
         eos-nsal-debuginfo
