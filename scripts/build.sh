@@ -122,6 +122,7 @@ eosfs_print_env() {
         DSAL_DSTORE_BACKEND
         KVSFS_NFS_GANESHA_DIR
         KVSFS_NFS_GANESHA_BUILD_DIR
+	EFS_SOURCE_ROOT
     )
     for i in ${myenv[@]}; do
         echo "$i=${!i}"
@@ -154,6 +155,11 @@ _nsal_build() {
 _dsal_build() {
     echo "DSAL_BUILD: $@"
     $DSAL_SOURCE_ROOT/scripts/build.sh "$@"
+}
+
+_efs_build() {
+    echo "EFS_BUILD: $@"
+    $EFS_SOURCE_ROOT/scripts/build.sh "$@"
 }
 
 _nfs_ganesha_build() {
@@ -237,6 +243,8 @@ eosfs_jenkins_build() {
         _nsal_build make -j all &&
         _dsal_build reconf &&
         _dsal_build make -j all &&
+	_efs_build reconf &&
+	_efs_build make -j all &&
         _kvsns_build reconf &&
         _kvsns_build make -j all &&
         _kvsfs_build reconf &&
@@ -244,10 +252,12 @@ eosfs_jenkins_build() {
         _utils_build rpm-gen &&
         _nsal_build rpm-gen &&
         _dsal_build rpm-gen &&
+	_efs_build rpm-gen &&
         _kvsns_build rpm-gen &&
         _kvsfs_build rpm-gen &&
         _kvsfs_build purge &&
         _kvsns_build purge &&
+	_efs_build purge &&
         _nsal_build purge &&
         _dsal_build purge &&
     echo "OK"
@@ -262,6 +272,7 @@ eosfs_configure() {
     _utils_build reconf &&
     _nsal_build reconf &&
     _dsal_build reconf &&
+    _efs_build reconf &&
     _kvsns_build reconf &&
     _kvsfs_build reconf &&
     echo "OK"
@@ -273,6 +284,7 @@ eosfs_make() {
         _utils_build make "$@" &&
         _nsal_build make "$@" &&
         _dsal_build make "$@" &&
+	_efs_build make "$@" &&
         _kvsns_build make "$@" &&
         _kvsfs_build make "$@" &&
     echo "OK"
@@ -287,6 +299,7 @@ eosfs_rpm_gen() {
     rm -fR "$rpms_dir/eos-utils*"
     rm -fR "$rpms_dir/eos-nsal*"
     rm -fR "$rpms_dir/eos-dsal*"
+    rm -fR "$rpms_dir/eos-efs*"
     rm -fR "$rpms_dir/libkvsns*"
     rm -fR "$rpmn_dir/kvsfs-ganesha*"
 
@@ -295,6 +308,7 @@ eosfs_rpm_gen() {
 	_utils_build rpm-gen &&
         _nsal_build rpm-gen &&
         _dsal_build rpm-gen &&
+	_efs_build rpm-gen &&
         _kvsns_build rpm-gen &&
         _kvsfs_build rpm-gen &&
     echo "OK"
@@ -306,6 +320,7 @@ eosfs_rpm_install() {
     _utils_build rpm-install
     _nsal_build rpm-install
     _dsal_build rpm-install
+    _efs_build rpm-install
     _kvsns_build rpm-install
     _kvsfs_build rpm-install
 }
@@ -316,6 +331,7 @@ eosfs_rpm_uninstall() {
     _utils_build rpm-uninstall
     _nsal_build rpm-uninstall
     _dsal_build rpm-uninstall
+    _efs_build rpm-uninstall
     _kvsfs_build rpm-uninstall
     _kvsns_build rpm-uninstall
 }
@@ -327,16 +343,19 @@ eosfs_reinstall() {
     _utils_build rpm-gen &&
     _nsal_build rpm-gen &&
     _dsal_build rpm-gen &&
+    _efs_build rpm-gen &&
     _kvsns_build rpm-gen &&
     _kvsfs_build rpm-gen &&
     _utils_build rpm-uninstall &&
     _nsal_build rpm-uninstall &&
     _dsal_build rpm-uninstall &&
+    _efs_build rpm-uninstall &&
     _kvsfs_build rpm-uninstall &&
     _kvsns_build rpm-uninstall &&
     _utils_build rpm-install &&
     _nsal_build rpm-install &&
     _dsal_build rpm-install &&
+    _efs_build rpm-install &&
     _kvsns_build rpm-install &&
     _kvsfs_build rpm-install
 }
@@ -432,6 +451,10 @@ case $1 in
         shift
         eosfs_set_env
         _dsal_build "$@";;
+    efs)
+	shift
+	eosfs_set_env
+	_efs_build "$@";;
     kvsns)
         shift
         eosfs_set_env
