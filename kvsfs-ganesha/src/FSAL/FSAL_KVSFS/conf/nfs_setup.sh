@@ -21,7 +21,7 @@ KVSNS_FS_DELETE=/usr/bin/kvsns_fs_delete
 NFS_INITIALIZED=/var/lib/nfs/nfs_initialized
 TMP_FILE=/tmp/nfs_tmp_file
 NFS_SETUP_LOG=/var/log/nfs_setup.log
-LOG_DIR_PATH=/var/log/eos
+LOG_DIR_PATH=/var/log/eos/efs
 
 function die {
 	log "error: $*"
@@ -78,6 +78,10 @@ function kvsns_init {
 	[ $? -ne 0 ] && die "Failed to edit kvsns.ini file"
 
 	cat >> $KVSNS_INI << EOM
+[log]
+path = /var/log/eos/efs/efs.log
+level = LEVEL_INFO
+
 [kvstore]
 type = mero
 

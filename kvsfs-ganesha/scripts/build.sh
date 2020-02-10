@@ -60,6 +60,10 @@ NSAL_SOURCE_ROOT=${NSAL_SOURCE_ROOT:-"$KVSFS_SOURCE_ROOT/../nsal"}
 
 NSAL_CMAKE_BUILD_ROOT=${EOS_FS_BUILD_ROOT:-"$KVSFS_SOURCE_ROOT/../nsal"}
 
+EFS_SOURCE_ROOT=${EFS_SOURCE_ROOT:-"$KVSFS_SOURCE_ROOT/../efs"}
+
+EFS_CMAKE_BUILD_ROOT=${EOS_FS_BUILD_ROOT:-"$KVSFS_SOURCE_ROOT/../efs"}
+
 # Optional, EOS-UTILS source location.
 # Superproject: uses pre-defined location.
 # Local: searches in the top-level dir.
@@ -129,6 +133,18 @@ else
 NSAL_LIB="$NSAL_CMAKE_BUILD_ROOT/build-nsal"
 fi
 
+if [ "x$EFS_SOURCE_ROOT" == "x" ]; then
+EFS_INC="/usr/include/eos/nsal"
+else
+EFS_INC="$EFS_SOURCE_ROOT/src/include"
+fi
+
+if [ "x$EFS_CMAKE_BUILD_ROOT" == "x" ]; then
+EFS_LIB="/usr/lib64/"
+else
+EFS_LIB="$EFS_CMAKE_BUILD_ROOT/build-efs"
+fi
+
 ###############################################################################
 kvsfs_print_env() {
     myenv=(
@@ -149,6 +165,8 @@ kvsfs_print_env() {
 	EOS_UTILS_INC
 	NSAL_LIB
 	NSAL_INC
+	EFS_LIB
+	EFS_INC
     )
 
     for i in ${myenv[@]}; do
@@ -215,6 +233,8 @@ kvsfs_configure() {
 -DCAPIINC:PATH=${CAPI_INC} \
 -DNSALINC:PATH=${NSAL_INC} \
 -DLIBNSAL:PATH=${NSAL_LIB} \
+-DEFSINC:PATH=${EFS_INC} \
+-DLIBEFS:PATH=${EFS_LIB} \
 $KVSFS_SRC"
 
     echo -e "Config:\n $cmd" > $KVSFS_BUILD/.config

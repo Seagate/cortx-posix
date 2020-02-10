@@ -30,12 +30,14 @@
  */
 
 #include <stdint.h>
+#include <common/log.h>
 #include <config_parsing.h>
 #include <fsal_types.h>
 #include <FSAL/fsal_config.h>
 #include <FSAL/fsal_commonlib.h>
 #include "fsal_internal.h"
 #include "kvsfs_methods.h"
+#include <efs.h>
 
 static struct config_item ds_array_params[] = {
 	CONF_MAND_IP_ADDR("DS_Addr", "127.0.0.1",
@@ -136,13 +138,13 @@ fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
 	if (retval != 0)
 		goto errout;
 
-	retval = kvsns_start(myself->kvsns_config);
+	retval = efs_init(EFS_DEFAULT_CONFIG);
 	if (retval != 0) {
-		LogMajor(COMPONENT_FSAL, "Can't start KVSNS API");
+		LogMajor(COMPONENT_FSAL, "Can't start EFS");
 		goto errout;
-	} else
-		LogEvent(COMPONENT_FSAL, "KVSNS API is running");
-
+	} else {
+		LogEvent(COMPONENT_FSAL, "EFS API is running");
+	}
 	/* @todo FS mgmt work will replace/reuse this call here */
 	retval = kvsns_set_fid(fsid);
 	if (retval != 0) {
@@ -172,6 +174,7 @@ fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
 	struct kvstore_index index;
 	kvsns_fs_ctx_t fs_ctx = NULL;
 
+	log_info("hello 3");
 	retval = kvsns_fs_open(fsid, &index);
 	if (retval != 0) {
 		LogMajor(COMPONENT_FSAL, "FS open failed, FSID:<%"PRIu64,

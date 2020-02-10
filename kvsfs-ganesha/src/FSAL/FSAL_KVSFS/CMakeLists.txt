@@ -21,6 +21,8 @@ set(DEFAULT_LIBKVSNS "")
 set(DEFAULT_CAPIINC "")
 set(DEFAULT_NSALINC "")
 set(DEFAULT_LIBNSAL "")
+set(DEFAULT_EFSINC "")
+set(DEFAULT_LIBEFS "")
 set(DEFAULT_EOSUTILSINC "")
 set(DEFAULT_LIBEOSUTILS "")
 
@@ -41,6 +43,9 @@ set(FSAL_DESTINATION "/usr/lib64/ganesha" CACHE PATH "Target directory for FSAL"
 set(CAPIINC ${DEFAULT_CAPIINC} CACHE PATH "Path to CAPI")
 set(NSALINC ${DEFAULT_NSALINC} CACHE PATH "Path to folder with nsal headers")
 set(LIBNSAL ${DEFAULT_LIBNSAL} CACHE PATH "Path to folder with libeos-nsal.so")
+
+set(EFSINC ${DEFAULT_EFSINC} CACHE PATH "Path to folder with nsal headers")
+set(LIBEFS ${DEFAULT_LIBEFS} CACHE PATH "Path to folder with libeos-nsal.so")
 
 # TODO: Add a condition here and check nfs-ganesha configuration
 set(SYSTEM_LIBRARIES
@@ -107,6 +112,9 @@ link_directories(${LIBEOSUTILS})
 include_directories(${NSALINC})
 link_directories(${LIBNSAL})
 
+include_directories(${EFSINC})
+link_directories(${LIBEFS})
+
 set(CMAKE_REQUIRED_INCLUDES ${EOSUTILSINC})
 
 CHECK_INCLUDE_FILES("fault.h" HAVE_EOS_UTILS_H)
@@ -140,6 +148,7 @@ add_library(fsalkvsfs SHARED ${fsalkvsfs_LIB_SRCS})
 
 target_link_libraries(fsalkvsfs
   eos-utils
+  eos-efs
   kvsns
   ${SYSTEM_LIBRARIES}
 )

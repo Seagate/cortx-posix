@@ -32,6 +32,7 @@
 #include <FSAL/fsal_init.h>
 #include "fsal_internal.h"
 #include <kvsns/kvsns.h> /* maxlink */
+#include <efs.h>
 
 /* TODO:ACL: ATTR_ACL and ATTR4_SEC_LABEL are not supported yet. */
 #define KVSFS_SUPPORTED_ATTRIBUTES (ATTRS_POSIX)
@@ -153,17 +154,19 @@ MODULE_INIT void kvsfs_load(void)
 {
 	int retval;
 	struct fsal_module *myself = &KVSFS.fsal;
-
-	/*
-	 * @todo Introduce new function kvsns_init() &
-	 * move log_init inside it
-	 */
-	retval = log_init("/var/log/eos/nfs_server.log", LEVEL_INFO);
+/**
+ * @todo: uncommenting this code block, causes nfsmount to fail.
+ * Failure is in m0_clovis_init(), stuck on sem, called from
+ * dstore_init()
+ */
+#if 0
+	retval = efs_init(EFS_DEFAULT_CONFIG);
 	if (retval != 0) {
 		LogCrit(COMPONENT_FSAL,
-			"log init failed");
+			"efs init failed");
 		return;
 	}
+#endif
 	retval = register_fsal(myself, module_name,
 			       FSAL_MAJOR_VERSION,
 			       FSAL_MINOR_VERSION,
