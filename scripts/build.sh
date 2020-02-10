@@ -95,6 +95,7 @@ eosfs_set_env() {
     export NSAL_SOURCE_ROOT=$PWD/nsal
     export DSAL_SOURCE_ROOT=$PWD/dsal
     export EOS_UTILS_SOURCE_ROOT=$PWD/utils
+
     export EFS_SOURCE_ROOT=$PWD/efs
 
     export EOS_FS_BUILD_ROOT=${EOS_FS_BUILD_ROOT:-/tmp/eos-fs}
