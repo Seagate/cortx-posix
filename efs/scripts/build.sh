@@ -173,7 +173,8 @@ efs_rpm_gen() {
 
 efs_rpm_install() {
     local rpms_dir=$HOME/rpmbuild/RPMS/x86_64
-    local suffix="$EFS_VERSION-$EFS_BUILD_VERSION.el7.centos.x86_64.rpm"
+    local dist=$(rpm --eval '%{dist}')
+    local suffix="${EFS_VERSION}-${EFS_BUILD_VERSION}${dist}.x86_64.rpm"
     local mypkg=(
         eos-efs
         eos-efs-debuginfo
