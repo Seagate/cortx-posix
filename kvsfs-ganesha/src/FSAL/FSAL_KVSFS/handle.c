@@ -796,7 +796,12 @@ static fsal_status_t kvsfs_unlink_reg(struct fsal_obj_handle *dir_hdl,
 				      struct fsal_obj_handle *obj_hdl,
 				      const char *name);
 
-
+/* FIXME: MDCACHE does not expose find_keyed anymore.
+ * In order to support delete-on-close for RENAME op, we need to figure out
+ * another way to get a cached file handle for the file that
+ * needs to be removed prior rename.
+ */
+#if 0
 /* Finds a file object cached in the inode cache.
  * The inode cache (MDCACHE) must keep an in-memory file handle structure
  * if the corresponding file is open.
@@ -834,6 +839,15 @@ fsal_status_t kvsfs_find_in_mdcache(struct fsal_obj_handle *obj,
 out:
 	return result;
 }
+#else
+fsal_status_t kvsfs_find_in_mdcache(struct fsal_obj_handle *obj,
+				    struct fsal_obj_handle **obj_cached)
+{
+	(void) obj;
+	(void) obj_cached;
+	return fsalstat(posix2fsal_error(ENOENT), ENOENT);
+}
+#endif
 
 /* FSAL.rename */
 /** Rename (re-link) an object in a filesystem.

@@ -275,7 +275,7 @@ kvsfs_test_make() {
     fi
 
     pushd $KVSFS_TEST_BUILD
-	make $1
+    make "$@"
     popd
 }
 
@@ -286,11 +286,10 @@ kvsfs_make() {
         exit 1;
     fi
 
-	tmp_arg="$@"
-    cd $KVSFS_BUILD
+    pushd $KVSFS_BUILD
     make "$@"
-    cd -
-	kvsfs_test_make $tmp_arg
+    popd
+	kvsfs_test_make "$@"
 }
 
 ###############################################################################
@@ -306,7 +305,8 @@ kvsfs_jenkins_build() {
 ###############################################################################
 kvsfs_rpm_install() {
     local rpms_dir=$HOME/rpmbuild/RPMS/x86_64
-    local suffix="$KVSFS_VERSION-$KVSFS_BUILD_VERSION.el7.centos.x86_64.rpm"
+    local dist=$(rpm --eval '%{dist}')
+    local suffix="${KVSFS_VERSION}-${KVSFS_BUILD_VERSION}${dist}.x86_64.rpm"
     local mypkg=(
         kvsfs-ganesha
         kvsfs-ganesha-debuginfo
@@ -392,7 +392,10 @@ case $1 in
     rpm-uninstall)
         kvsfs_rpm_uninstall;;
     rpm-gen)
-        kvsfs_make rpm;;
+         # KVSFS does not rebuild sources automatically.
+         # "all" is passed here to ensure RPMs generated
+         # for the recent sources.
+        kvsfs_make all rpm;;
     reinstall)
         kvsfs_reinstall;;
     *)

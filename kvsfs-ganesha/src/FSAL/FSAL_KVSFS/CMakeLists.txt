@@ -196,7 +196,7 @@ add_custom_command(TARGET rpm
 # A quick check of the dependencies of the library
 add_custom_target(check_ldd DEPENDS fsalkvsfs)
 add_custom_command(TARGET check_ldd
-	COMMAND env LD_LIBRARY_PATH=${LIBKVSNS} LD_PRELOAD=/usr/bin/ganesha.nfsd /usr/bin/ldd -r ${CMAKE_BINARY_DIR}/libfsalkvsfs.so
+	COMMAND env LD_LIBRARY_PATH=${LIBKVSNS} LD_PRELOAD=/usr/lib64/libganesha_nfsd.so /usr/bin/ldd -r ${CMAKE_BINARY_DIR}/libfsalkvsfs.so
 	VERBATIM)
 
 
