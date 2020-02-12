@@ -1,7 +1,8 @@
 ARG  CENTOS_RELEASE=7
 FROM registry.gitlab.mero.colo.seagate.com/mero/mero:${CENTOS_RELEASE}
 
-RUN git clone --recursive http://gitlab.mero.colo.seagate.com/eos/fs/nfs-ganesha.git
+RUN git clone --recursive http://gitlab.mero.colo.seagate.com/eos/fs/nfs-ganesha.git \
+    --branch V2.8-stable
 RUN git clone http://gitlab.mero.colo.seagate.com/eos/fs/eos-fs.git
 
 RUN yum install -y \
@@ -9,7 +10,8 @@ RUN yum install -y \
         cmake \
         flex \
         krb5-devel \
-        krb5-libs
+        krb5-libs \
+        userspace-rcu-devel
 
 RUN cd eos-fs && ./scripts/build-nfs-ganesha.sh config
 RUN yum-builddep -y nfs-ganesha/src/libntirpc/libntirpc.spec
