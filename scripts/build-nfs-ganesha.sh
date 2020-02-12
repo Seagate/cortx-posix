@@ -73,22 +73,40 @@ _nfs_ganesha_check_installed_pkgs() {
 nfs_ganesha_bootstrap() {
     local rc=0
     local stable_branch="V2.8-stable"
+    local gan_deps=(
+        bison
+        cmake
+        flex
+        krb5-devel
+        krb5-libs
+        userspace-rcu-devel
+    )
+    local repo="ssh://git@gitlab.mero.colo.seagate.com:6022/eos/third_party/nfs-ganesha.git"
     rm -fR "$KVSFS_NFS_GANESHA_DIR"
     echo "Downloading NFS Ganesha sources into $KVSFS_NFS_GANESHA_DIR"
-    git clone --depth 1 --branch $stable_branch ssh://git@gitlab.mero.colo.seagate.com:6022/eos/fs/nfs-ganesha.git $KVSFS_NFS_GANESHA_DIR
+    git clone --depth 1 --branch $stable_branch $repo $KVSFS_NFS_GANESHA_DIR
     rc=$?
     if (( rc != 0 )); then
         echo "Failed to clone NFS Ganesha sources ($rc)"
-        return 1
+        return $rc
     fi
     cd $KVSFS_NFS_GANESHA_DIR
     git submodule update --init --recursive
     rc=$?
     if (( rc != 0 )); then
         echo "Failed to initialize NFS Ganesha submodules ($rc)"
-        return 1
+        return $rc
     fi
     cd -
+
+    for dep in ${gan_deps[@]}; do
+        { rpm -qa "$dep" | grep $dep; } > /dev/null 2>&1
+        rc=$?
+        if (( rc != 0 )); then
+            echo "NFS Ganesha requires \"$dep\" to be installed ($rc)"
+            return $rc
+        fi
+    done
 }
 
 ###############################################################################
