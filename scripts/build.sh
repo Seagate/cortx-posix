@@ -18,13 +18,13 @@ set -e
 
 eosfs_cmd_usage() {
     echo -e "
-Usage $0  [-p <ganesha src path>] [-v <version>] [-b <build>] [-k {mero|redis}] [-e {eos|posix}]
+Usage $0  [-p <ganesha src path>] [-v <version>] [-b <build>] [-k {eos|redis}] [-e {eos|posix}]
 
 Arguments:
     -p (optional) Path to an existing NFS Ganesha repository.
     -v (optional) EOS FS Source version.
     -b (optional) EOS FS Build version.
-    -k (optional) NSAL KVSTORE backend (mero/redis).
+    -k (optional) NSAL KVSTORE backend (eos/redis).
     -e (optional) DSAL DSTORE backend (eos/posix).
 
 Examples:
@@ -102,7 +102,7 @@ eosfs_set_env() {
     export EOS_FS_VERSION=${EOS_FS_VERSION:-"$(cat $PWD/VERSION)"}
     export EOS_FS_BUILD_VERSION=${EOS_FS_BUILD_VERSION:-"$(git rev-parse --short HEAD)"}
 
-    export NSAL_KVSTORE_BACKEND=${NSAL_KVSTORE_BACKEND:-"mero"}
+    export NSAL_KVSTORE_BACKEND=${NSAL_KVSTORE_BACKEND:-"eos"}
     export DSAL_DSTORE_BACKEND=${DSAL_DSTORE_BACKEND:-"eos"}
 
     export KVSFS_NFS_GANESHA_DIR=${KVSFS_NFS_GANESHA_DIR:-$PWD/../nfs-ganesha-eos}
