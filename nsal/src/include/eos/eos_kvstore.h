@@ -24,13 +24,9 @@ extern struct kvstore_ops eos_kvs_ops;
 int eos_kvs_alloc(void **ptr, size_t size);
 void eos_kvs_free(void *ptr);
 
-extern struct kvstore_index_ops eos_kvs_index_ops;
-
-extern struct kvstore_kv_ops eos_kvs_kv_ops;
-
 const char *eos_kvs_get_gfid(void);
 
-int eos_kvs_fid_from_str(const char *fid_str, struct kvstore_fid *out_fid);
+int eos_kvs_fid_from_str(const char *fid_str, kvs_fid_t *out_fid);
 
 int eos_kvs_get_list_size(void *ctx, char *pattern, size_t plen);
 
@@ -38,14 +34,14 @@ int eos_kvs_get_list_size(void *ctx, char *pattern, size_t plen);
  *  @param[in] kv_grp - pointer to kv_group
  *  @return 0 if successful, else return error code.
  */
-int eos_kvs_list_set(struct kvstore_index *index,
+int eos_kvs_list_set(struct kvs_idx *index,
                      const struct kvgroup *kv_grp);
 
 /** Get list of key-value pairs
  *  @param kv_grp - pointer to kv_group which fetches values for given keys
  *  @return 0 if successful, else return error code.
  */
-int eos_kvs_list_get(struct kvstore_index *index,
+int eos_kvs_list_get(struct kvs_idx *index,
                      struct kvgroup *kv_grp);
 
 #endif

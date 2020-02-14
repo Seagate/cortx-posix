@@ -26,27 +26,17 @@
 #include <stdbool.h>
 #include <utils.h>
 
+#include "object.h"
+
 #define KLEN (256)
 #define VLEN (256)
 
-struct kvstore_fid {
-	uint64_t f_hi;
-	uint64_t f_lo;
-};
-
-typedef int (*kvstore_alloc_t) (void **ptr, size_t size);
-typedef void (*kvstore_free_t) (void *ptr);
-
-int kvstore_alloc(void **ptr, uint64_t size);
-void kvstore_free(void *ptr);
+typedef obj_id_t kvs_fid_t;
 
 /* Forward declarations */
 struct kvstore_ops;
-struct kvstore_index_ops;
-struct kvstore_kv_ops;
-struct kvstore_index;
-struct kvstore_iter;
-struct kvstore_prefix_iter;
+struct kvs_idx;
+struct kvs_itr;
 
 struct kvstore {
 	/* Type of kvstore, current could be 2, {mero or redis} */
@@ -54,8 +44,6 @@ struct kvstore {
 	/* Config for the kvstore specified type */
 	struct collection_item *cfg;
 	struct kvstore_ops *kvstore_ops;
-	struct kvstore_index_ops *index_ops;
-	struct kvstore_kv_ops *kv_ops;
 	/* Not used currently */
 	int flags;
 };
@@ -65,85 +53,107 @@ struct kvstore {
  */
 struct kvstore *kvstore_get(void);
 
-struct kvstore_index_ops {
-	int (*index_create) (struct kvstore *kvstore_obj,
-			     const struct kvstore_fid *fid,
-			     struct kvstore_index *index);
-	int (*index_delete) (struct kvstore *kvstore_obj,
-			     const struct kvstore_fid *fid);
-	int (*index_open) (struct kvstore *kvstore_obj,
-			   const struct kvstore_fid *fid,
-			   struct kvstore_index *index);
-	int (*index_close) (struct kvstore *kvstore_obj,
-			    struct kvstore_index *index);
-};
+int kvs_fid_from_str(const char *fid_str, kvs_fid_t *out_fid);
+
+int kvs_alloc(void **ptr, size_t size);
+void kvs_free(void *ptr);
+
+int kvs_begin_transaction(struct kvs_idx *index);
+int kvs_end_transaction(struct kvs_idx *index);
+int kvs_discard_transaction(struct kvs_idx *index);
+
+int kvs_index_create(struct kvstore *kvstore, const kvs_fid_t *fid,
+                     struct kvs_idx *index);
+int kvs_index_delete(struct kvstore *kvstore, const kvs_fid_t *fid);
+int kvs_index_open(struct kvstore *kvstore, const kvs_fid_t *fid,
+                   struct kvs_idx *index);
+int kvs_index_close(struct kvstore *kvstore, struct kvs_idx *index);
+
+/* Key-Value operations */
+int kvs_get(struct kvs_idx *index, void *k, const size_t klen,
+            void **v, size_t *vlen);
+int kvs_set(struct kvs_idx *index, void *k, const size_t klen,
+            void *v, const size_t vlen);
+int kvs_del(struct kvs_idx *index, const void *k, size_t klen);
+
+/* Key-Value iterator API */
+int kvs_itr_find(struct kvs_idx *index, void *prefix,
+                  const size_t prefix_len, struct kvs_itr **iter);
+int kvs_itr_next(struct kvs_itr *iter);
+void kvs_itr_fini(struct kvs_itr *iter);
+void kvs_itr_get(struct kvs_itr *iter, void **key, size_t *klen,
+                 void **val, size_t *vlen);
 
 struct kvstore_ops {
+	/* Basic constructor and destructor */
 	int (*init) (struct collection_item *cfg);
 	int (*fini) (void);
 	int (*alloc) (void **ptr, size_t size);
 	void (*free) (void *ptr);
-};
 
-int kvstore_init(struct kvstore *kvstore_obj, char *type,
-		 struct collection_item *cfg,
-		 int flags, struct kvstore_ops *kvstore_ops,
-		 struct kvstore_index_ops *index_ops,
-		 struct kvstore_kv_ops *kv_ops);
+	/* Transaction related operations */
+	int (*begin_transaction) (struct kvs_idx *index);
+	int (*end_transaction) (struct kvs_idx *index);
+	int (*discard_transaction) (struct kvs_idx *index);
 
-int kvstore_fini(struct kvstore *kvstore_obj);
+	/* Index operations */
+	int (*index_create) (struct kvstore *kvstore, const kvs_fid_t *fid,
+	                     struct kvs_idx *index);
+	int (*index_delete) (struct kvstore *kvstore, const kvs_fid_t *fid);
+	int (*index_open) (struct kvstore *kvstore, const kvs_fid_t *fid,
+			           struct kvs_idx *index);
+	int (*index_close) (struct kvstore *kvstore, struct kvs_idx *index);
 
-struct kvstore_index {
-	struct kvstore *kvstore_obj;
-	void *index_priv;
-	struct kvstore_fid idx_fid;
-};
-
-struct kvstore_kv_ops {
-	int (*begin_transaction) (struct kvstore_index *index);
-	int (*end_transaction) (struct kvstore_index *index);
-	int (*discard_transaction) (struct kvstore_index *index);
-	int (*get_bin) (struct kvstore_index *index, void *k, const size_t klen,
-			void **v, size_t *vlen);
+	/* Key-Value operations */
+	int (*get_bin) (struct kvs_idx *index, void *k, const size_t klen,
+	                void **v, size_t *vlen);
 	int (*get4_bin) (void *k, const size_t klen, void **v, size_t *vlen);
-	int (*set_bin) (struct kvstore_index *index, void *k, const size_t klen,
-			void *v, const size_t vlen);
+		 /* TODO: Remove get4_bin interface */
+	int (*set_bin) (struct kvs_idx *index, void *k, const size_t klen,
+	                void *v, const size_t vlen);
 	int (*set4_bin) (void *k, const size_t klen, void *v,
-			 const size_t vlen);
-	int (*del_bin) (struct kvstore_index *index, const void *k, size_t klen);
-	bool (*kv_find) (struct kvstore_prefix_iter *iter);
-	bool (*kv_next) (struct kvstore_prefix_iter *iter);
-	void (*kv_fini) (struct kvstore_prefix_iter *iter);
-	void (*kv_get) (struct kvstore_iter *iter, void **key, size_t *klen,
+	                 const size_t vlen); /* TODO: Remove set4_bin interface */
+	int (*del_bin) (struct kvs_idx *index, const void *k, size_t klen);
+
+	/* Key-Value search */
+	int (*kv_find) (struct kvs_itr *iter);
+	int (*kv_next) (struct kvs_itr *iter);
+	void (*kv_fini) (struct kvs_itr *iter);
+	void (*kv_get) (struct kvs_itr *iter, void **key, size_t *klen,
 	                void **val, size_t *vlen);
 };
 
-/** Max size of implementation-defined data for a kvstore_iter. */
+int kvs_init(struct collection_item *cfg, int flags);
+
+int kvs_fini(void);
+
+struct kvs_idx {
+	kvs_fid_t index_fid;
+	void *index_priv;
+};
+
+/** Max size of implementation-defined data for a kvs_itr. */
 #define KVSTORE_ITER_PRIV_DATA_SIZE 128
 
 /*
  * @todo: NSAL: MR: 1, comment, why separate,
- * kvstore_iter & kvstore_prefix_iter is needed?, investigation,
+ * kvs_itr & kvstore_prefix_iter is needed?, investigation,
  * would be part of future work, when common
  * iterator objects would be implemented for mero &
  * redis.
  */
-struct kvstore_iter {
-	struct kvstore_index idx;
+struct kvs_itr {
+	struct kvs_idx idx;
+	buff_t prefix;
 	int inner_rc;
 	char priv[KVSTORE_ITER_PRIV_DATA_SIZE];
-};
-
-struct kvstore_prefix_iter {
-	struct kvstore_iter base;
-	const void *prefix;
-	size_t prefix_len;
 };
 
 /** Batch Operation Implementation in kvstore */
 
 struct kvpair {
-	buff_t key, val;
+	buff_t key;
+	buff_t val;
 };
 
 struct kvgroup {
