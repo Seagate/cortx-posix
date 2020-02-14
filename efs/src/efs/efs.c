@@ -24,11 +24,7 @@ int efs_init(const char *config_path)
 	struct collection_item *item = NULL;
 	char *log_path = NULL;
 	char *log_level = NULL;
-	struct kvstore *kvstor = kvstore_get();
-	char *kvstore_type = NULL;
 	efs_ctx_t ctx = EFS_NULL_FS_CTX;
-
-	dassert(kvstor);
 
 	/** only initialize efs once */
 	if (__sync_fetch_and_add(&efs_initialized, 1)) {
@@ -72,30 +68,12 @@ int efs_init(const char *config_path)
 	}
 	item = NULL;
 
-	RC_WRAP(get_config_item, "kvstore", "type", cfg_items, &item);
-	if (item == NULL) {
-		log_err("KVStore type not specified\n");
-		rc = -EINVAL;
+	rc = kvs_init(cfg_items, 0);
+	if (rc) {
+		log_err("kvs_init failed");
 		goto err;
 	}
 
-	kvstore_type = get_string_config_value(item, NULL);
-
-	if (strcmp(kvstore_type, "mero") == 0) {
-		rc = kvstore_init(kvstor, "mero", cfg_items, 0,
-				  &eos_kvs_ops, &eos_kvs_index_ops,
-				  &eos_kvs_kv_ops);
-
-	} else if (strcmp(kvstore_type, "redis") == 0) {
-#if 0 // @todo Need to port redis
-		rc = kvstore_init(kvstor, "redis", cfg_items, 0,
-				  redis_ops, redis_index_ops,
-				  redis_kv_ops);
-#endif
-	} else {
-		log_err("Invalid kvstore type %s", kvstore_type);
-		rc = -EINVAL;
-	}
 err:
 	if (rc) {
 		free_ini_config_errors(errors);
