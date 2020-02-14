@@ -171,10 +171,9 @@ fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
 					    fso_pnfs_mds_supported) &&
 					    myself->pnfs_param.pnfs_enabled;
 
-	struct kvstore_index index;
+	struct kvs_idx index;
 	kvsns_fs_ctx_t fs_ctx = NULL;
 
-	log_info("hello 3");
 	retval = kvsns_fs_open(fsid, &index);
 	if (retval != 0) {
 		LogMajor(COMPONENT_FSAL, "FS open failed, FSID:<%"PRIu64,
