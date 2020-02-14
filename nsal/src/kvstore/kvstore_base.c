@@ -18,59 +18,230 @@
 #include <assert.h>
 #include <errno.h>
 #include <debug.h>
+#include <ini_config.h>
+#include <eos/eos_kvstore.h>
+#include <string.h>
+#include <common/helpers.h>
+#include <common/log.h>
+
+#define KVSTORE "kvstore"
+#define TYPE "type"
 
 static struct kvstore g_kvstore;
+
+struct kvstore_module {
+    char *type;
+    struct kvstore_ops *ops;
+};
+
+static struct kvstore_module kvstore_modules[] = {
+    { "eos", &eos_kvs_ops },
+#ifdef	WITH_REDIS
+    { "redis", &redis_kvs_ops },
+#endif
+    { NULL, NULL },
+};
 
 struct kvstore *kvstore_get(void)
 {
 	return &g_kvstore;
 }
 
-int kvstore_init(struct kvstore *kvstore, char *type,
-		 struct collection_item *cfg,
-		 int flags, struct kvstore_ops *kvstore_ops,
-		 struct kvstore_index_ops *index_ops,
-		 struct kvstore_kv_ops *kv_ops)
+int kvs_init(struct collection_item *cfg, int flags)
 {
-	int rc;
-	assert(kvstore && type && kvstore_ops && index_ops && kv_ops);
+	int rc = 0, i;
+	struct kvstore *kvstore = kvstore_get();
+	char *kvstore_type = NULL;
+	struct collection_item *item = NULL;
 
-	kvstore->kvstore_ops = kvstore_ops;
-	rc = kvstore_ops->init(cfg);
-	if (rc)
-		return rc;
+	dassert(kvstore && cfg);
 
-	kvstore->type = type;
-	kvstore->cfg = cfg;
-	if (!kvstore_ops->alloc && !kvstore_ops->free) {
-		kvstore_ops->alloc = kvstore_alloc;
-		kvstore_ops->free = kvstore_free;
+	RC_WRAP(get_config_item, KVSTORE, TYPE, cfg, &item);
+	if (item == NULL) {
+		log_err("KVStore type not specified\n");
+		rc = -EINVAL;
+		goto out;
 	}
-	kvstore->index_ops = index_ops;
-	kvstore->kv_ops = kv_ops;
+	kvstore_type = get_string_config_value(item, NULL);
+
+	for (i = 0; kvstore_modules[i].type != NULL; ++i) {
+		if (strncmp(kvstore_type, kvstore_modules[i].type,
+		    strlen(kvstore_type)) == 0) {
+			kvstore->kvstore_ops = kvstore_modules[i].ops;
+			break;
+		}
+	}
+	if (kvstore_modules[i].type == NULL) {
+		log_err("Invalid kvstore type %s", kvstore_type);
+		rc = -EINVAL;
+		goto out;
+	}
+
+	dassert(kvstore->kvstore_ops->init != NULL);
+	rc = kvstore->kvstore_ops->init(cfg);
+	if (rc) {
+		goto out;
+	}
+
+	kvstore->type = kvstore_type;
+	kvstore->cfg = cfg;
 	kvstore->flags = flags;
 
-	return 0;
+out:
+	return rc;
 }
 
-int kvstore_fini(struct kvstore *kvstore)
+int kvs_fini()
 {
-	assert(kvstore && kvstore->kvstore_ops && kvstore->kvstore_ops->fini);
+	struct kvstore *kvstore = kvstore_get();
+	dassert(kvstore && kvstore->kvstore_ops && kvstore->kvstore_ops->fini);
 
 	return kvstore->kvstore_ops->fini();
 }
 
-int kvstore_alloc(void **ptr, uint64_t size)
+int kvs_fid_from_str(const char *fid_str, kvs_fid_t *out_fid)
 {
-	*ptr = malloc(size);
-	if (*ptr == NULL)
-		return -ENOMEM;
-	return 0;
+	return eos_kvs_fid_from_str(fid_str, out_fid);
 }
 
-void kvstore_free(void *ptr)
+int kvs_alloc(void **ptr, size_t size)
 {
-	free(ptr);
+	struct kvstore *kvstore = kvstore_get();
+
+	dassert(kvstore);
+	return kvstore->kvstore_ops->alloc(ptr, size);
+}
+
+void kvs_free(void *ptr)
+{
+	struct kvstore *kvstore = kvstore_get();
+
+	dassert(kvstore);
+	return kvstore->kvstore_ops->free(ptr);
+}
+
+int kvs_begin_transaction(struct kvs_idx *index)
+{
+	struct kvstore *kvstore = kvstore_get();
+
+	dassert(kvstore);
+	return kvstore->kvstore_ops->begin_transaction(index);
+}
+
+int kvs_end_transaction(struct kvs_idx *index)
+{
+	struct kvstore *kvstore = kvstore_get();
+
+	dassert(kvstore);
+	return kvstore->kvstore_ops->end_transaction(index);
+}
+
+int kvs_discard_transaction(struct kvs_idx *index)
+{
+	struct kvstore *kvstore = kvstore_get();
+
+	dassert(kvstore);
+	return kvstore->kvstore_ops->discard_transaction(index);
+}
+
+int kvs_index_create(struct kvstore *kvstore, const kvs_fid_t *fid,
+	                 struct kvs_idx *index)
+{
+	dassert(kvstore);
+	return kvstore->kvstore_ops->index_create(kvstore, fid, index);
+}
+
+int kvs_index_delete(struct kvstore *kvstore, const kvs_fid_t *fid)
+{
+	dassert(kvstore);
+	return kvstore->kvstore_ops->index_delete(kvstore, fid);
+}
+
+int kvs_index_open(struct kvstore *kvstore, const kvs_fid_t *fid,
+			       struct kvs_idx *index)
+{
+	dassert(kvstore);
+	return kvstore->kvstore_ops->index_open(kvstore, fid, index);
+}
+
+int kvs_index_close(struct kvstore *kvstore, struct kvs_idx *index)
+{
+	dassert(kvstore);
+	return kvstore->kvstore_ops->index_close(kvstore, index);
+}
+
+int kvs_get(struct kvs_idx *index, void *k, const size_t klen,
+	        void **v, size_t *vlen)
+{
+	struct kvstore *kvstore = kvstore_get();
+
+	dassert(kvstore);
+	return kvstore->kvstore_ops->get_bin(index, k, klen, v, vlen);
+}
+
+int kvs_set(struct kvs_idx *index, void *k, const size_t klen,
+	        void *v, const size_t vlen)
+{
+	struct kvstore *kvstore = kvstore_get();
+
+	dassert(kvstore);
+	return kvstore->kvstore_ops->set_bin(index, k, klen, v, vlen);
+}
+
+int kvs_del(struct kvs_idx *index, const void *k, size_t klen)
+{
+	struct kvstore *kvstore = kvstore_get();
+
+	dassert(kvstore);
+	return kvstore->kvstore_ops->del_bin(index, k, klen);
+}
+
+
+/* Key-Value iterator API */
+int kvs_itr_find(struct kvs_idx *index, void *prefix,
+                  const size_t prefix_len,
+                  struct kvs_itr **iter)
+{
+	struct kvstore *kvstore = kvstore_get();
+	int rc = 0;
+
+	dassert(kvstore);
+
+	rc = kvstore->kvstore_ops->alloc((void **)iter, sizeof(struct kvs_itr));
+	if (rc) {
+		return rc;
+	}
+	(*iter)->idx.index_priv = index->index_priv;
+	(*iter)->prefix.buf = prefix;
+	(*iter)->prefix.len = prefix_len;
+
+	return kvstore->kvstore_ops->kv_find(*iter);
+}
+
+int kvs_itr_next(struct kvs_itr *iter)
+{
+	struct kvstore *kvstore = kvstore_get();
+
+	dassert(kvstore);
+	return kvstore->kvstore_ops->kv_next(iter);
+}
+
+void kvs_itr_fini(struct kvs_itr *iter)
+{
+	struct kvstore *kvstore = kvstore_get();
+
+	dassert(kvstore);
+	kvstore->kvstore_ops->kv_fini(iter);
+	kvstore->kvstore_ops->free(iter);
+}
+
+void kvs_itr_get(struct kvs_itr *iter, void **key, size_t *klen,
+                      void **val, size_t *vlen)
+{
+	struct kvstore *kvstore = kvstore_get();
+
+	dassert(kvstore);
+	return kvstore->kvstore_ops->kv_get(iter, key, klen, val, vlen);
 }
 
 int kvpair_alloc(struct kvpair **kv)

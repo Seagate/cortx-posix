@@ -169,6 +169,8 @@ target_link_libraries(eos-nsal
   eos-utils
 )
 
+add_subdirectory(test)
+
 # CPack / rpmbuild specific stuff
 set(CPACK_PACKAGE_FILE_NAME "eos-nsal-Source" )
 set(CPACK_PACKAGE_VENDOR "NSAL")

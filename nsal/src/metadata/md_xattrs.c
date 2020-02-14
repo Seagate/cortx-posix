@@ -89,19 +89,18 @@ out:
 	return rc;
 }
 
-int md_xattr_set(struct kvstore_index *idx, const obj_id_t *oid,
+int md_xattr_set(struct kvs_idx *idx, const obj_id_t *oid,
 		 const char *name, const void *value, size_t size)
 {
 	int rc;
 	struct md_xattr_key *key;
 	struct kvstore *kvstor = kvstore_get();
-	struct kvstore_index index;
+	struct kvs_idx index;
 
 	MD_DASSERT(kvstor != NULL);
 	MD_DASSERT(oid && name && value);
 	MD_DASSERT(size != 0);
 
-	index.kvstore_obj = kvstor;
 	index.index_priv = idx;
 
 	if (size > MD_XATTR_SIZE_MAX) {
@@ -111,7 +110,7 @@ int md_xattr_set(struct kvstore_index *idx, const obj_id_t *oid,
 
 	MD_RC_WRAP_LABEL(rc, out, md_xattr_alloc_init_key, oid, name, &key);
 
-	MD_RC_WRAP_LABEL(rc, free_key, kvstor->kv_ops->set_bin, &index, key,
+	MD_RC_WRAP_LABEL(rc, free_key, kvs_set, &index, key,
 		         md_xattr_key_dsize(key), (void *)value, size);
 
 free_key:
@@ -124,7 +123,7 @@ out:
 	return rc;
 }
 
-int md_xattr_get(struct kvstore_index *idx, const obj_id_t *oid,
+int md_xattr_get(struct kvs_idx *idx, const obj_id_t *oid,
 		 const char *name, void **value, size_t *size)
 {
 	int rc;
@@ -132,17 +131,16 @@ int md_xattr_get(struct kvstore_index *idx, const obj_id_t *oid,
 	void *read_val = NULL;
 	size_t size_val = 0;
 	struct kvstore *kvstor = kvstore_get();
-	struct kvstore_index index;
+	struct kvs_idx index;
 
 	MD_DASSERT(kvstor != NULL);
 	MD_DASSERT(oid && name && size);
 
-	index.kvstore_obj = kvstor;
 	index.index_priv = idx;
 
 	MD_RC_WRAP_LABEL(rc, out, md_xattr_alloc_init_key, oid, name,  &key);
 
-	MD_RC_WRAP_LABEL(rc, free_key, kvstor->kv_ops->get_bin, &index, key,
+	MD_RC_WRAP_LABEL(rc, free_key, kvs_get, &index, key,
 		         md_xattr_key_dsize(key), &read_val, &size_val);
 
 	*value = read_val;
@@ -158,8 +156,8 @@ out:
 	return rc;
 }
 
-int md_xattr_exists(struct kvstore_index *idx, const obj_id_t *oid,
-		    const char *name,bool *result)
+int md_xattr_exists(struct kvs_idx *idx, const obj_id_t *oid,
+                    const char *name, bool *result)
 {
 	int rc;
 	size_t size = 0;
@@ -186,23 +184,22 @@ int md_xattr_exists(struct kvstore_index *idx, const obj_id_t *oid,
 	return rc;
 }
 
-int md_xattr_delete(struct kvstore_index *idx, const obj_id_t *oid,
+int md_xattr_delete(struct kvs_idx *idx, const obj_id_t *oid,
 		    const char *name)
 {
 	int rc;
 	struct md_xattr_key *key;
 	struct kvstore *kvstor = kvstore_get();
-	struct kvstore_index index;
+	struct kvs_idx index;
 
 	MD_DASSERT(kvstor != NULL);
 	MD_DASSERT(oid && name);
 
-	index.kvstore_obj = kvstor;
 	index.index_priv = idx;
 
 	MD_RC_WRAP_LABEL(rc, out, md_xattr_alloc_init_key, oid, name,  &key);
 
-	MD_RC_WRAP_LABEL(rc, free_key, kvstor->kv_ops->del_bin, &index, key,
+	MD_RC_WRAP_LABEL(rc, free_key, kvs_del, &index, key,
 		         md_xattr_key_dsize(key));
 
 free_key:
@@ -214,16 +211,19 @@ out:
 	return rc;
 }
 
-int md_xattr_list(struct kvstore_index *idx, const obj_id_t *oid, void *buf,
+int md_xattr_list(struct kvs_idx *idx, const obj_id_t *oid, void *buf,
 		  size_t *count, size_t *size)
 {
 	int rc;
 	struct kvstore *kvstor = kvstore_get();
 	size_t klen, vlen;
 	bool has_next = true;
-	const struct md_xattr_key prefix = XATTR_KEY_PREFIX_INIT(oid);
+	struct md_xattr_key prefix = XATTR_KEY_PREFIX_INIT(oid);
 	const struct md_xattr_key *key = NULL;
+	struct kvs_idx index;
+	struct kvs_itr *iter = NULL;
 	void *value;
+
 	MD_DASSERT(kvstor != NULL);
 	MD_DASSERT(buf != NULL);
 	MD_DASSERT(size != NULL);
@@ -241,20 +241,13 @@ int md_xattr_list(struct kvstore_index *idx, const obj_id_t *oid, void *buf,
 		goto err;
 	}
 
-	struct kvstore_prefix_iter iter = {
-		.base.idx.kvstore_obj = kvstor,
-		.base.idx.index_priv = idx,
-		.prefix = &prefix,
-		.prefix_len = md_xattr_key_psize,
-	};
-
-	if (!kvstor->kv_ops->kv_find(&iter)) {
-		rc = iter.base.inner_rc;
+	index.index_priv = idx;
+	if (kvs_itr_find(&index, &prefix, md_xattr_key_psize, &iter)) {
+		rc = iter->inner_rc;
 		goto out;
 	}
 	while (has_next) {
-		kvstor->kv_ops->kv_get(&iter.base, (void **) &key, &klen,
-		                       (void **) &value, &vlen);
+		kvs_itr_get(iter, (void **) &key, &klen, (void **) &value, &vlen);
 		MD_DASSERT(key->xk_name.len != 0);
 		MD_DASSERT(klen > md_xattr_key_psize);
 		log_debug("xattr name=%s, len= %" PRIu8 "", key->xk_name.str,
@@ -276,13 +269,15 @@ int md_xattr_list(struct kvstore_index *idx, const obj_id_t *oid, void *buf,
 		}
 		names += key->xk_name.len + 1;
 		(*count)++;
-		has_next = kvstor->kv_ops->kv_next(&iter);
+		rc = kvs_itr_next(iter);
+		has_next = (rc == 0);
+
 		log_debug("offset=%zu, has_next=%d, iter rc =%d), count=%zu",
-			  offset, (int) has_next, iter.base.inner_rc, *count);
+			  offset, (int) has_next, iter->inner_rc, *count);
 	}
 
 	if (!has_next) {
-		rc = iter.base.inner_rc == -ENOENT ? 0 : iter.base.inner_rc;
+		rc = iter->inner_rc == -ENOENT ? 0 : iter->inner_rc;
 	} else {
 		rc = 0;
 	}
@@ -297,7 +292,7 @@ out:
 err:
 	log_trace("idx=%p, oid=%" PRIx64 ":%" PRIx64 ", size=%zu, rc=%d",
 		  idx, oid->f_hi, oid->f_lo, *size, rc);
-	kvstor->kv_ops->kv_fini(&iter);
+	kvs_itr_fini(iter);
 	return rc;
 }
 
