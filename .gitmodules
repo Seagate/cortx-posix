@@ -16,6 +16,3 @@
 [submodule "efs"]
 	path = efs
 	url = ../efs.git
-[submodule "third-party/libevhtp"]
-	path = third-party/libevhtp
-	url = ../../third_party/libevhtp.git
