@@ -33,7 +33,7 @@ build:
   script: |
     # TODO: replace BCURRENT with BLATEST when it's ready
     export LATEST_RELEASE_DIR="$(readlink -f /releases/eos/BCURRENT)"
-    yum install -y $LATEST_RELEASE_DIR/mero{,-devel}-[0-9]*.rpm
+    yum install -y $LATEST_RELEASE_DIR/mero{,-devel}-[0-9]*.rpm libcmocka.x86_64 libcmocka-devel.x86_64
     time QA_RPATHS=255 ./jenkins/build.sh -p /root/nfs-ganesha -v $(cat VERSION) -b 0
 
 
