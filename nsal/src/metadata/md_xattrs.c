@@ -22,7 +22,6 @@
 #include <eos/eos_kvstore.h>
 #include <common/log.h>
 
-#define MD_XATTR_SIZE_MAX 4096
 
 /* */
 struct md_xattr_key {
