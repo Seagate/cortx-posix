@@ -83,7 +83,7 @@ path = /var/log/eos/efs/efs.log
 level = LEVEL_INFO
 
 [kvstore]
-type = mero
+type = eos
 
 [dstore]
 type = eos
