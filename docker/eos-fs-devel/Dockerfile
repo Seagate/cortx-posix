@@ -4,4 +4,6 @@ FROM registry.gitlab.mero.colo.seagate.com/eos/fs/nfs-ganesha:${CENTOS_RELEASE}
 RUN yum install -y \
         jemalloc \
         jemalloc-devel \
+        libcmocka \
+        libcmocka-devel \
         libini_config-devel
