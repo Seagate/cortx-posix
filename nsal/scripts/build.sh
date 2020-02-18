@@ -16,7 +16,7 @@ NSAL_SOURCE_ROOT=${NSAL_SOURCE_ROOT:-$PWD}
 NSAL_CMAKE_BUILD_ROOT=${EOS_FS_BUILD_ROOT:-$NSAL_SOURCE_ROOT}
 
 # Select NSAL KVSTORE implementation.
-NSAL_KVSTORE_BACKEND=${NSAL_KVSTORE_BACKEND:-"mero"}
+NSAL_KVSTORE_BACKEND=${NSAL_KVSTORE_BACKEND:-"eos"}
 
 # Select NSAL Source Version.
 # Superproject: derived from eos-fs version.
@@ -45,7 +45,7 @@ EOS_UTILS_CMAKE_BUILD_ROOT=${EOS_FS_BUILD_ROOT:-"$NSAL_SOURCE_ROOT/../utils"}
 NSAL_BUILD=$NSAL_CMAKE_BUILD_ROOT/build-nsal
 NSAL_SRC=$NSAL_SOURCE_ROOT/src
 
-USE_KVS_MERO="OFF"
+USE_KVS_EOS="OFF"
 USE_KVS_REDIS="OFF"
 USE_MERO_STORE="OFF"
 USE_POSIX_STORE="OFF"
@@ -63,8 +63,8 @@ EOS_UTILS_LIB="$EOS_UTILS_CMAKE_BUILD_ROOT/build-eos-utils"
 fi
 
 case $NSAL_KVSTORE_BACKEND in
-    "mero")
-        USE_KVS_MERO="ON" ;;
+    "eos")
+        USE_KVS_EOS="ON" ;;
     "redis")
         USE_KVS_REDIS="ON" ;;
     *)
@@ -82,7 +82,7 @@ nsal_print_env() {
         NSAL_BUILD_VERSION
         NSAL_BUILD
         NSAL_SRC
-        USE_KVS_MERO
+        USE_KVS_EOS
         USE_KVS_REDIS
 	EOS_UTILS_LIB
 	EOS_UTILS_INC
@@ -105,7 +105,7 @@ nsal_configure() {
     cd $NSAL_BUILD
 
     local cmd="cmake \
--DUSE_KVS_MERO=${USE_KVS_MERO} \
+-DUSE_KVS_EOS=${USE_KVS_EOS} \
 -DUSE_KVS_REDIS=${USE_KVS_REDIS} \
 -DLIBEOSUTILS:PATH=${EOS_UTILS_LIB} \
 -DEOSUTILSINC:PATH=${EOS_UTILS_INC} \
