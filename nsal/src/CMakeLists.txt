@@ -24,7 +24,7 @@ message( STATUS "eos-nsal version ${EOS_NSAL_BASE_VERSION}")
 
 # Option (for choosing KVSAL backend)
 option(USE_KVS_REDIS "Use REDIS as a KVS in KVSAL" ON)
-option(USE_KVS_MERO "USE MERO as a KVS in KVSAL" OFF)
+option(USE_KVS_EOS "USE EOS as a KVS in KVSAL" OFF)
 
 if(USE_FSAL_LUSTRE)
     set(BCOND_LUSTRE "%bcond_without")
@@ -32,10 +32,10 @@ else(USE_FSAL_LUSTRE)
     set(BCOND_LUSTRE "%bcond_with")
 endif(USE_FSAL_LUSTRE)
 
-if(USE_KVS_MERO)
+if(USE_KVS_EOS)
   set(USE_KVS_REDIS OFF)
   message(STATUS "Disabling REDIS")
-endif(USE_KVS_MERO)
+endif(USE_KVS_EOS)
 
 # BCOND* variables for spec file */
 if (USE_KVS_REDIS)
@@ -44,27 +44,27 @@ else (USE_KVS_REDIS)
 	set(BCOND_KVS_REDIS "%bcond_with")
 endif (USE_KVS_REDIS)
 
-if (USE_KVS_MERO)
-	set(BCOND_KVS_MERO "%bcond_without")
-else (USE_KVS_MERO)
-	set(BCOND_KVS_MERO "%bcond_with")
-endif (USE_KVS_MERO)
+if (USE_KVS_EOS)
+	set(BCOND_KVS_EOS "%bcond_without")
+else (USE_KVS_EOS)
+	set(BCOND_KVS_EOS "%bcond_with")
+endif (USE_KVS_EOS)
 
-if (USE_KVS_MERO OR USE_MERO_STORE)
+if (USE_KVS_EOS OR USE_MERO_STORE)
   set(RPM_REQUIRES "mero ${RPM_REQUIRES}")
   set(RPM_DEVEL_REQUIRES "mero-devel ${RPM_DEVEL_REQUIRES}")
-endif (USE_KVS_MERO OR USE_MERO_STORE)
+endif (USE_KVS_EOS OR USE_MERO_STORE)
 
 if (USE_KVS_REDIS)
   set(RPM_REQUIRES "redis hiredis ${RPM_REQUIRES}")
   set(RPM_DEVEL_REQUIRES "hiredis-devel ${RPM_DEVEL_REQUIRES}")
 endif (USE_KVS_REDIS)
 
-if (USE_KVS_MERO)
+if (USE_KVS_EOS)
   set(KVS_OPT "Mero")
 elseif (USE_KVS_REDIS)
   set(KVS_OPT "Redis")
-endif (USE_KVS_MERO)
+endif (USE_KVS_EOS)
 
 include(CheckIncludeFiles)
 include(CheckLibraryExists)
@@ -118,8 +118,8 @@ if(USE_KVS_REDIS)
   endif((NOT HAVE_HIREDIS) OR (NOT HAVE_HIREDIS_H))
 endif(USE_KVS_REDIS)
 
-# Check for MERO
-if(USE_KVS_MERO OR USE_MERO_STORE)
+# Check for EOS
+if(USE_KVS_EOS OR USE_MERO_STORE)
   find_library(HAVE_MERO mero)
   check_library_exists(
 	mero
@@ -140,11 +140,11 @@ if(USE_KVS_MERO OR USE_MERO_STORE)
   if((NOT HAVE_MERO) OR (NOT HAVE_MERO_H) OR (NOT HAVE_MERO_HELPERS))
       message(FATAL_ERROR "Cannot find MERO")
   endif((NOT HAVE_MERO) OR (NOT HAVE_MERO_H) OR (NOT HAVE_MERO_HELPERS))
-endif(USE_KVS_MERO OR USE_MERO_STORE)
+endif(USE_KVS_EOS OR USE_MERO_STORE)
 
 # Print summary
 message(STATUS "USE_KVS_REDIS=${USE_KVS_REDIS}")
-message(STATUS "USE_KVS_MERO=${USE_KVS_MERO}")
+message(STATUS "USE_KVS_EOS=${USE_KVS_EOS}")
 
 
 # Build ancillary libs

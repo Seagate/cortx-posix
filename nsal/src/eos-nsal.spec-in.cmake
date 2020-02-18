@@ -16,8 +16,8 @@ Provides: %{name} = %{version}-%{release}
 
 # Conditionally enable KVS and object stores
 #
-# 1. rpmbuild accepts these options (gpfs as example):
-#    --with mero
+# 1. rpmbuild accepts these options:
+#    --with eos
 #    --without redis
 
 %define on_off_switch() %%{?with_%1:ON}%%{!?with_%1:OFF}
@@ -30,8 +30,8 @@ Provides: %{name} = %{version}-%{release}
 @BCOND_KVS_REDIS@ kvs_redis
 %global use_kvs_redis %{on_off_switch kvs_redis}
 
-@BCOND_KVS_MERO@ kvs_mero
-%global use_kvs_mero %{on_off_switch kvs_mero}
+@BCOND_KVS_EOS@ kvs_eos
+%global use_kvs_eos %{on_off_switch kvs_eos}
 
 %description
 The eos-nsal is Namespace abstraction layer library. It uses @KVS_OPT@ as Key-Value Store.
@@ -53,7 +53,7 @@ This package contains tools for eos-nsal.
 
 %build
 cmake . -DUSE_KVS_REDIS=%{use_kvs_redis}     \
-	-DUSE_KVS_MERO=%{use_kvs_mero}       \
+	-DUSE_KVS_EOS=%{use_kvs_eos}       \
 	-DEOSUTILSINC:PATH=@EOSUTILSINC@     \
 	-DLIBEOSUTILS:PATH=@LIBEOSUTILS@
 
@@ -65,13 +65,10 @@ mkdir -p %{buildroot}%{_bindir}
 mkdir -p %{buildroot}%{_libdir}
 mkdir -p %{buildroot}%{_libdir}/pkgconfig
 mkdir -p %{buildroot}%{_includedir}/nsal
-mkdir -p %{buildroot}%{_includedir}/nsal/common
-mkdir -p %{buildroot}%{_includedir}/nsal/common/mero
 mkdir -p %{buildroot}%{_includedir}/nsal/eos
 mkdir -p %{buildroot}%{_sysconfdir}/nsal.d
 install -m 644 include/kvstore.h  %{buildroot}%{_includedir}/nsal
 install -m 644 include/eos/eos_kvstore.h  %{buildroot}%{_includedir}/nsal/eos
-install -m 644 common/mero/m0common.h  %{buildroot}%{_includedir}/nsal/common/mero
 install -m 744 libeos-nsal.so %{buildroot}%{_libdir}
 install -m 644 eos-nsal.pc  %{buildroot}%{_libdir}/pkgconfig
 
@@ -87,7 +84,6 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/pkgconfig/eos-nsal.pc
 %{_includedir}/nsal/kvstore.h
 %{_includedir}/nsal/eos/eos_kvstore.h
-%{_includedir}/nsal/common/mero/m0common.h
 
 %changelog
 * Tue Dec 24 2019 Seagate 1.0.1
