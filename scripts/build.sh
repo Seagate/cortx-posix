@@ -102,7 +102,7 @@ eosfs_set_env() {
     export EOS_FS_VERSION=${EOS_FS_VERSION:-"$(cat $PWD/VERSION)"}
     export EOS_FS_BUILD_VERSION=${EOS_FS_BUILD_VERSION:-"$(git rev-parse --short HEAD)"}
 
-    export NSAL_KVSTORE_BACKEND=${NSAL_KVSTORE_BACKEND:-"mero"}
+    export NSAL_KVSTORE_BACKEND=${NSAL_KVSTORE_BACKEND:-"eos"}
     export DSAL_DSTORE_BACKEND=${DSAL_DSTORE_BACKEND:-"eos"}
 
     export KVSFS_NFS_GANESHA_DIR=${KVSFS_NFS_GANESHA_DIR:-$PWD/../nfs-ganesha-eos}
