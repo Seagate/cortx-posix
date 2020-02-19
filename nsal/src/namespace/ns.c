@@ -62,6 +62,35 @@ struct ns_key {
 static struct kvs_idx g_ns_index;
 static char *ns_fid_str;
 
+int ns_scan(struct kvs_itr **ret_iter, struct namespace *ns)
+{
+	int rc = 0;
+	void *key;// *value;
+	size_t klen, vlen;
+
+	if (*ret_iter == NULL) {
+		rc = kvs_itr_find(&g_ns_index, "", 0, ret_iter);
+		printf("rc = %d\n", rc);
+		if (rc) {
+			ns = NULL;
+			(*ret_iter)->inner_rc = rc;
+			goto out;
+		}
+	} else {
+		kvs_itr_get(*ret_iter, &key, &klen, (void*)&ns, &vlen);
+		printf("id = %d, name = %s\n",(int)ns->nsobj_id, ns->ns_name.s_str );
+		rc = kvs_itr_next(*ret_iter);
+	}
+out:
+	log_debug("rc=%d", rc);
+	return rc;
+}
+
+void ns_scanf_fini(struct kvs_itr **iter)
+{
+	kvs_itr_fini(*iter);
+}
+
 int ns_next_id(uint32_t *nsobj_id)
 {
 	int rc = 0;
@@ -170,7 +199,7 @@ int ns_create(str256_t *name, struct namespace **ret_ns)
 
 	/* Get next nsobj_id */
 	RC_WRAP_LABEL(rc, out, ns_next_id, &nsobj_id);
-
+	printf("NSOBJ %d\n", (int)nsobj_id);
 	/* prepare for namespace obj index */
 	RC_WRAP_LABEL(rc, out, kvs_fid_from_str, ns_fid_str, &nsobj_fid);
 	nsobj_fid.f_lo = nsobj_id;
