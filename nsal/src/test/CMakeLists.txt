@@ -7,3 +7,9 @@ target_link_libraries( iter_test
 	${STORE_LIBRARY}
 )
 
+add_executable(ns_test ns_test.c)
+target_link_libraries( ns_test
+	eos-utils
+	eos-nsal
+	${STORE_LIBRARY}
+)

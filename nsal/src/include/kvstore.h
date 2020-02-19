@@ -25,6 +25,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <utils.h>
+#include <str.h>
 
 #include "object.h"
 
@@ -37,6 +38,12 @@ typedef obj_id_t kvs_fid_t;
 struct kvstore_ops;
 struct kvs_idx;
 struct kvs_itr;
+
+/* Key prefix */
+struct key_prefix {
+        uint8_t k_type;
+        uint8_t k_version;
+} __attribute__((packed));
 
 struct kvstore {
 	/* Type of kvstore, current could be 2, {mero or redis} */

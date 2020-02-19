@@ -157,9 +157,13 @@ link_directories(${LIBEOSUTILS})
 add_subdirectory(metadata)
 set(METADATA metadata)
 
+add_subdirectory(namespace)
+set(NAMESPACE namespace)
+
 add_library(eos-nsal SHARED
 		$<TARGET_OBJECTS:${KVSTORE}>
 		$<TARGET_OBJECTS:${METADATA}>
+		$<TARGET_OBJECTS:${NAMESPACE}>
 	)
 
 target_link_libraries(eos-nsal
