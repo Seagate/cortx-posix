@@ -47,6 +47,7 @@ mkdir -p %{buildroot}%{_libdir}/pkgconfig
 mkdir -p %{buildroot}%{_includedir}/efs
 mkdir -p %{buildroot}%{_sysconfdir}/efs.d
 install -m 644 include/efs.h  %{buildroot}%{_includedir}/efs
+install -m 644 include/efs_fh.h  %{buildroot}%{_includedir}/efs
 install -m 744 libeos-efs.so %{buildroot}%{_libdir}
 install -m 644 eos-efs.pc  %{buildroot}%{_libdir}/pkgconfig
 
@@ -61,6 +62,7 @@ rm -rf $RPM_BUILD_ROOT
 %defattr(-,root,root)
 %{_libdir}/pkgconfig/eos-efs.pc
 %{_includedir}/efs/efs.h
+%{_includedir}/efs/efs_fh.h
 
 %changelog
 * Thu Feb 6 2020 Seagate 1.0.1
