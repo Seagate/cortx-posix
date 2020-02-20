@@ -97,8 +97,7 @@ int ns_scan(struct ns_itr **iter, struct namespace **ns)
 
 		kvs_itr_get(kvs_iter, &key, &klen, &val, &vlen);
 		if (vlen != sizeof(struct namespace)) {
-			log_err("invalid key value pair\n");
-			rc = -EINVAL;
+			log_err("Invalid namespace entry in the KVS\n");
 			goto out;
 		}
 
