@@ -12,6 +12,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${EOS_CFLAGS}")
 
 SET(efs_LIB_SRCS
    efs.c
+   efs_fh.c
+   efs_internal.c
 )
 
 add_library(efs OBJECT ${efs_LIB_SRCS})
