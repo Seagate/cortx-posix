@@ -68,19 +68,18 @@ static struct kvs_idx g_ns_index;
 static char *ns_fid_str;
 struct ns_itr *ns_iter = NULL;
 
-static const size_t psize = sizeof(struct key_prefix);
 int ns_scan(struct ns_itr **iter)
 {
 	int rc = 0;
 	struct ns_key *prefix = NULL;
 	struct kvs_itr *kvs_iter = NULL;
-	//struct namespace *ns =  NULL;
-
 	void *key, *val;
 	size_t klen, vlen;
+	static const size_t psize = sizeof(struct key_prefix);
 
 	ns_iter = *iter;
-	if (*iter == NULL) {
+	if (ns_iter == NULL) {
+
 		RC_WRAP_LABEL(rc, out, kvs_alloc, (void **)&prefix, sizeof(*prefix));
 
 		prefix->ns_prefix.k_type = NS_KEY_TYPE_NS_INFO;
@@ -89,7 +88,6 @@ int ns_scan(struct ns_itr **iter)
 		RC_WRAP_LABEL(rc, out, kvs_alloc, (void **)&ns_iter, sizeof(*ns_iter));
 
 		rc = kvs_itr_find(&g_ns_index, prefix, psize, &kvs_iter);
-		printf("rc = %d\n", rc);
 		if (rc) {
 			kvs_iter->inner_rc = rc;
 			goto out;
@@ -97,18 +95,17 @@ int ns_scan(struct ns_itr **iter)
 
 		kvs_itr_get(kvs_iter, &key, &klen, &val, &vlen);
 		if (vlen != sizeof(struct namespace)) {
-			log_err("invalid key\n"); //more info
+			log_err("invalid key value pair\n"); //more info
+			rc = -EINVAL;
 			goto out;
 		}
 
-		kvs_free(key);
 		ns_iter->ns = val;
 		printf("name = %s\n",  ((struct namespace *)val)->ns_name.s_str);
 		ns_iter->kvs_iter = kvs_iter;
 		*iter = ns_iter;
 	} else {
-		rc = kvs_itr_next(ns_iter->kvs_iter); //getting error here (sig abort)
-		printf("nex ret = %d\n", rc);
+		rc = kvs_itr_next(ns_iter->kvs_iter);
 		if (rc != 0 ) {
 			kvs_itr_fini(ns_iter->kvs_iter);
 			kvs_free(*iter);
@@ -121,21 +118,14 @@ int ns_scan(struct ns_itr **iter)
 			log_err("invalid key\n"); //more info
 			goto out;
 		}
-		
+		// @toto remove this when link list implemneted.	
 		printf("name = %s\n",  ((struct namespace *)val)->ns_name.s_str);
 		ns_iter->ns = val;
-		kvs_free(val);
 		*iter = ns_iter;
 	}
 out:
-	//printf("ns exit = %d\n", rc);
 	log_debug("rc=%d", rc);
 	return rc;
-}
-
-void ns_scanf_fini(struct kvs_itr **iter)
-{
-	kvs_itr_fini(*iter);
 }
 
 int ns_next_id(uint32_t *nsobj_id)

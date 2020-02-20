@@ -90,9 +90,7 @@ int test_ns_scan()
 	int rc = 0;
 	struct ns_itr *iter = NULL;
 	rc = ns_scan(&iter);
-	printf("TEST first rc = %d\n", rc);	
-	while (!rc ) {
-		//printf("test first rc = %d\n", rc);	
+	while (rc == 0) {
 		rc = ns_scan(&iter);
 	}
 
