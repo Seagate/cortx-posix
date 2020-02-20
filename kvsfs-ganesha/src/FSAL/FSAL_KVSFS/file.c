@@ -58,8 +58,8 @@ static fsal_status_t kvsfs_create(struct fsal_obj_handle *dir_hdl,
 {
 	struct kvsfs_fsal_obj_handle *myself, *hdl;
 	int retval = 0;
-	kvsns_cred_t cred;
-	kvsns_ino_t object;
+	efs_cred_t cred;
+	efs_ino_t object;
 	struct stat stat;
 	kvsns_fs_ctx_t fs_ctx = KVSNS_NULL_FS_CTX;
 
@@ -108,7 +108,7 @@ fsal_status_t kvsfs_open(struct fsal_obj_handle *obj_hdl,
 	struct kvsfs_fsal_obj_handle *myself;
 	fsal_errors_t fsal_error = ERR_FSAL_NO_ERROR;
 	int rc = 0;
-	kvsns_cred_t cred;
+	efs_cred_t cred;
 	kvsns_fs_ctx_t fs_ctx = KVSNS_NULL_FS_CTX;
 
 	cred.uid = op_ctx->creds->caller_uid;
@@ -173,7 +173,7 @@ fsal_status_t kvsfs_read(struct fsal_obj_handle *obj_hdl,
 	struct kvsfs_fsal_obj_handle *myself;
 	kvsns_fs_ctx_t fs_ctx = KVSNS_NULL_FS_CTX;
 	int retval = 0;
-	kvsns_cred_t cred;
+	efs_cred_t cred;
 	fsal_errors_t fsal_error = ERR_FSAL_NO_ERROR;
 
 	cred.uid = op_ctx->creds->caller_uid;
@@ -226,7 +226,7 @@ fsal_status_t kvsfs_write(struct fsal_obj_handle *obj_hdl,
 {
 	struct kvsfs_fsal_obj_handle *myself;
 	kvsns_fs_ctx_t fs_ctx = KVSNS_NULL_FS_CTX;
-	kvsns_cred_t cred;
+	efs_cred_t cred;
 	int retval = 0;
 
 	cred.uid = op_ctx->creds->caller_uid;

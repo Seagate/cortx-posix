@@ -111,7 +111,7 @@ kvsfs_ds_read(struct fsal_ds_handle *const ds_pub,
 	struct kvsfs_file_handle *kvsfs_fh = &ds->wire;
 	/* The amount actually read */
 	int amount_read = 0;
-	kvsns_cred_t cred;
+	efs_cred_t cred;
 	kvsns_file_open_t fd;
 	int rc;
 
@@ -183,7 +183,7 @@ kvsfs_ds_write(struct fsal_ds_handle *const ds_pub,
 	struct kvsfs_file_handle *kvsfs_fh = &ds->wire;
 	/* The amount actually read */
 	int32_t amount_written = 0;
-	kvsns_cred_t cred;
+	efs_cred_t cred;
 	kvsns_file_open_t fd;
 	int rc;
 

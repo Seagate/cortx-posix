@@ -3,14 +3,14 @@
 
 #include <fsal_api.h>
 #include <kvsns/kvsns.h>
-#include <kvsns/kvsns_fh.h>
+#include <efs_fh.h>
 #include <gsh_list.h>
 #include <fsal_types.h>
 
 /******************************************************************************/
 /* Common helpers */
 
-static inline void kvsns_cred_from_op_ctx(kvsns_cred_t *out)
+static inline void kvsns_cred_from_op_ctx(efs_cred_t *out)
 {
 	assert(out);
 	assert(op_ctx);
@@ -19,7 +19,7 @@ static inline void kvsns_cred_from_op_ctx(kvsns_cred_t *out)
 	out->gid = op_ctx->creds->caller_gid;
 }
 
-#define KVSNS_CRED_INIT_FROM_OP {		\
+#define EFS_CRED_INIT_FROM_OP {			\
 	.uid = op_ctx->creds->caller_uid,	\
 	.gid = op_ctx->creds->caller_gid,	\
 }
@@ -47,7 +47,7 @@ struct kvsfs_fsal_index_context;
 /* Wrapper for a File Handle object. */
 struct kvsfs_file_handle {
 	uint64_t fs_id;
-	kvsns_ino_t kvsfs_handle;
+	efs_ino_t kvsfs_handle;
 };
 
 struct kvsfs_fsal_export {

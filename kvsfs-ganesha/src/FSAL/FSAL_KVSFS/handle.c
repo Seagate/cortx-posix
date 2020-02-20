@@ -63,7 +63,7 @@
 #include <gsh_list.h> /* container_of */
 #include <fsal_convert.h> /* posix2fsal */
 #include <FSAL/fsal_commonlib.h> /* FSAL methods */
-#include <kvsns/kvsns_fh.h>
+#include <efs_fh.h>
 
 #include <../FSAL/Stackable_FSALs/FSAL_MDCACHE/mdcache_int.h>
 #include <../FSAL/Stackable_FSALs/FSAL_MDCACHE/mdcache_hash.h>
@@ -94,12 +94,12 @@ struct kvsfs_fsal_obj_handle {
 	/* Base Handle */
 	struct fsal_obj_handle obj_handle;
 
-	/* KVSNS Handle */
-	kvsns_fh_t *handle;
+	/* EFS Handle */
+	struct efs_fh *handle;
 
 	/* TODO:EOS-3288
 	 * This field will removed and replaced
-	 * by a call to kvsns_fh_t
+	 * by a call to struct efs_fh
 	 */
 	/* KVSNS Context */
 	struct kvsfs_fsal_index_context *fs_ctx;
@@ -111,10 +111,10 @@ struct kvsfs_fsal_obj_handle {
 	struct fsal_share share;
 };
 
-static inline kvsns_ino_t *
-kvsfs_fh_to_ino(kvsns_fh_t *kvsfs_fh)
+static inline efs_ino_t *
+kvsfs_fh_to_ino(struct efs_fh *kvsfs_fh)
 {
-	return kvsns_fh_ino(kvsfs_fh);
+	return efs_fh_ino(kvsfs_fh);
 }
 
 /******************************************************************************/
@@ -154,7 +154,7 @@ extern struct kvsfs_fsal_module KVSFS;
  * Function is deprecated after EOS-3288 is complitely done.
  */
 static void construct_handle(struct fsal_export *export_base,
-			     const kvsns_ino_t *ino,
+			     const efs_ino_t *ino,
 			     const struct stat *stat,
 			     struct fsal_obj_handle **obj)
 {
@@ -171,7 +171,7 @@ static void construct_handle(struct fsal_export *export_base,
 	 * in the same as gsh_calloc() aborts execution if there is
 	 * not enough memory.
 	 */
-	rc = kvsns_fh_from_ino(export->index_context, ino, stat, &result->handle);
+	rc = efs_fh_from_ino(export->index_context, ino, stat, &result->handle);
 	if (rc < 0) {
 		LogCrit(COMPONENT_FSAL, "Failed to create FH, rc: %d", rc);
 		abort();
@@ -206,14 +206,14 @@ static void construct_handle(struct fsal_export *export_base,
  * KVSNS FH which is now a part of KVSFS FH.
  */
 static void fsal_obj_handle_from_kvsns_fh(struct fsal_export *export_base,
-					  kvsns_fh_t **pfh,
+					  struct efs_fh **pfh,
 					  struct fsal_obj_handle **obj)
 {
 	struct kvsfs_fsal_obj_handle *result;
-	kvsns_fh_t *fh = *pfh;
+	struct efs_fh *fh = *pfh;
 	struct kvsfs_fsal_export *export =
 	    container_of(op_ctx->fsal_export, struct kvsfs_fsal_export, export);
-	struct stat *stat = kvsns_fh_stat(fh);
+	struct stat *stat = efs_fh_stat(fh);
 
 	result = gsh_calloc(1, sizeof(*result));
 
@@ -242,7 +242,7 @@ static void fsal_obj_handle_from_kvsns_fh(struct fsal_export *export_base,
 	*pfh = NULL; /* moved into the result */
 
 	T_TRACE("Constructed KVSFS FH: %p, INO: %d, FSID: %d:%d, FILEID: %d",
-		*obj, (int) *kvsns_fh_ino(fh),
+		*obj, (int) *efs_fh_ino(fh),
 		(int) result->obj_handle.fsid.major,
 		(int) result->obj_handle.fsid.minor,
 		(int) result->obj_handle.fileid);
@@ -290,8 +290,8 @@ static fsal_status_t kvsfs_lookup(struct fsal_obj_handle *parent_hdl,
 {
 	struct kvsfs_fsal_obj_handle *parent;
 	int rc = 0;
-	kvsns_cred_t cred = KVSNS_CRED_INIT_FROM_OP;
-	kvsns_fh_t *object = NULL;
+	efs_cred_t cred = EFS_CRED_INIT_FROM_OP;
+	struct efs_fh *object = NULL;
 	struct kvsfs_fsal_export *export =
 	    container_of(op_ctx->fsal_export, struct kvsfs_fsal_export, export);
 
@@ -310,21 +310,21 @@ static fsal_status_t kvsfs_lookup(struct fsal_obj_handle *parent_hdl,
 	parent = container_of(parent_hdl, struct kvsfs_fsal_obj_handle,
 			     obj_handle);
 
-	rc = kvsns_fh_lookup(&cred, parent->handle, name, &object);
+	rc = efs_fh_lookup(&cred, parent->handle, name, &object);
 
 	if (rc < 0) {
 		goto out;
 	}
 
 	if (attrs_out != NULL) {
-		posix2fsal_attributes_all(kvsns_fh_stat(object), attrs_out);
+		posix2fsal_attributes_all(efs_fh_stat(object), attrs_out);
 	}
 
 	fsal_obj_handle_from_kvsns_fh(op_ctx->fsal_export, &object, handle);
 
  out:
 	if (object) {
-		kvsns_fh_destroy(object);
+		efs_fh_destroy(object);
 	}
 	T_EXIT0(-rc);
 	return fsalstat(posix2fsal_error(-rc), -rc);
@@ -338,8 +338,8 @@ fsal_status_t kvsfs_lookup_path(struct fsal_export *exp_hdl,
 			       struct attrlist *attrs_out)
 {
 	int rc = 0;
-	kvsns_fh_t *object = NULL;
-	kvsns_cred_t cred = KVSNS_CRED_INIT_FROM_OP;
+	struct efs_fh *object = NULL;
+	efs_cred_t cred = EFS_CRED_INIT_FROM_OP;
 	struct kvsfs_fsal_export *myexport;
 
 	T_ENTER(" >> (%p, %s)", exp_hdl, path);
@@ -348,20 +348,20 @@ fsal_status_t kvsfs_lookup_path(struct fsal_export *exp_hdl,
 	myexport = container_of(op_ctx->fsal_export,
 				struct kvsfs_fsal_export, export);
 
-	rc = kvsns_fh_getroot(myexport->index_context, &cred, &object);
+	rc = efs_fh_getroot(myexport->index_context, &cred, &object);
 	if (rc != 0) {
 		goto out;
 	}
 
 	if (attrs_out != NULL) {
-		posix2fsal_attributes_all(kvsns_fh_stat(object), attrs_out);
+		posix2fsal_attributes_all(efs_fh_stat(object), attrs_out);
 	}
 
 	fsal_obj_handle_from_kvsns_fh(op_ctx->fsal_export, &object, handle);
 
 out:
 	if (object) {
-		kvsns_fh_destroy(object);
+		efs_fh_destroy(object);
 	}
 	T_EXIT0(-rc);
 	return fsalstat(posix2fsal_error(-rc), -rc);
@@ -376,8 +376,8 @@ static fsal_status_t kvsfs_mkdir(struct fsal_obj_handle *dir_hdl,
 {
 	struct kvsfs_fsal_obj_handle *myself, *hdl;
 	int retval = 0;
-	kvsns_cred_t cred = KVSNS_CRED_INIT_FROM_OP;
-	kvsns_ino_t object;
+	efs_cred_t cred = EFS_CRED_INIT_FROM_OP;
+	efs_ino_t object;
 	struct stat stat;
 	mode_t unix_mode;
 
@@ -443,8 +443,8 @@ static fsal_status_t kvsfs_makesymlink(struct fsal_obj_handle *dir_hdl,
 {
 	struct kvsfs_fsal_obj_handle *myself, *hdl;
 	int retval = 0;
-	kvsns_cred_t cred = KVSNS_CRED_INIT_FROM_OP;
-	kvsns_ino_t object;
+	efs_cred_t cred = EFS_CRED_INIT_FROM_OP;
+	efs_ino_t object;
 	struct stat stat;
 	struct fsal_obj_handle *new_hdl = NULL;
 	fsal_status_t status = fsalstat(ERR_FSAL_NO_ERROR, 0);
@@ -527,7 +527,7 @@ static fsal_status_t kvsfs_readsymlink(struct fsal_obj_handle *obj_hdl,
 {
 	struct kvsfs_fsal_obj_handle *myself = NULL;
 	int retval = 0;
-	kvsns_cred_t cred = KVSNS_CRED_INIT_FROM_OP;
+	efs_cred_t cred = EFS_CRED_INIT_FROM_OP;
 
 	if (!fsal_obj_handle_is(obj_hdl, SYMBOLIC_LINK)) {
 		retval = -EINVAL; /* See RFC7530, 16.25.5 */
@@ -583,7 +583,7 @@ static fsal_status_t kvsfs_linkfile(struct fsal_obj_handle *obj_hdl,
 	struct kvsfs_fsal_obj_handle *myself;
 	struct kvsfs_fsal_obj_handle *destdir;
 	int retval = 0;
-	kvsns_cred_t cred = KVSNS_CRED_INIT_FROM_OP;
+	efs_cred_t cred = EFS_CRED_INIT_FROM_OP;
 
 	myself = container_of(obj_hdl, struct kvsfs_fsal_obj_handle,
 			      obj_handle);
@@ -646,7 +646,7 @@ struct kvsfs_readdir_cb_ctx {
  * directly call getattr().
 */
 static bool kvsfs_readdir_cb(void *ctx, const char *name,
-			     const kvsns_ino_t *ino)
+			     const efs_ino_t *ino)
 {
 	struct kvsfs_readdir_cb_ctx *cb_ctx = ctx;
 	enum fsal_dir_result dir_res;
@@ -681,10 +681,10 @@ static bool kvsfs_readdir_cb(void *ctx, const char *name,
 	 * kvsns
 	 */
 	{
-		kvsns_cred_t cred = KVSNS_CRED_INIT_FROM_OP;
+		efs_cred_t cred = EFS_CRED_INIT_FROM_OP;
 		struct stat stat;
 		int retval;
-		kvsns_ino_t object = *ino;
+		efs_ino_t object = *ino;
 
 		retval = kvsns_getattr(cb_ctx->parent->fs_ctx, &cred, &object,
 					&stat);
@@ -723,7 +723,7 @@ static fsal_status_t kvsfs_readdir(struct fsal_obj_handle *dir_hdl,
 
 {
 	struct kvsfs_fsal_obj_handle *obj;
-	kvsns_cred_t cred = KVSNS_CRED_INIT_FROM_OP;
+	efs_cred_t cred = EFS_CRED_INIT_FROM_OP;
 	struct kvsfs_readdir_cb_ctx readdir_ctx = {
 		/* If whence is NULL, it means we should start from the very
 		 * beginning (dentry[0]).
@@ -875,7 +875,7 @@ static fsal_status_t kvsfs_rename(struct fsal_obj_handle *obj_hdl,
 	struct kvsns_rename_flags flags = KVSNS_RENAME_FLAGS_INIT;
 	fsal_status_t result;
 	int rc = 0;
-	kvsns_cred_t cred = KVSNS_CRED_INIT_FROM_OP;
+	efs_cred_t cred = EFS_CRED_INIT_FROM_OP;
 
 	obj = container_of(obj_hdl, struct kvsfs_fsal_obj_handle, obj_handle);
 	olddir = container_of(olddir_hdl, struct kvsfs_fsal_obj_handle, obj_handle);
@@ -952,7 +952,7 @@ static fsal_status_t kvsfs_getattrs(struct fsal_obj_handle *obj_hdl,
 	struct stat stat;
 	fsal_errors_t fsal_error = ERR_FSAL_NO_ERROR;
 	int retval = 0;
-	kvsns_cred_t cred = KVSNS_CRED_INIT_FROM_OP;
+	efs_cred_t cred = EFS_CRED_INIT_FROM_OP;
 
 	T_ENTER(">>> (%p)", obj_hdl);
 
@@ -1068,7 +1068,7 @@ fsal_status_t kvsfs_setattrs(struct fsal_obj_handle *obj_hdl,
 	struct kvsfs_fsal_obj_handle *obj;
 	struct stat stats = { 0 };
 	int flags = 0;
-	kvsns_cred_t cred = KVSNS_CRED_INIT_FROM_OP;
+	efs_cred_t cred = EFS_CRED_INIT_FROM_OP;
 
 	T_ENTER(">>> (obj=%p, bypass=%d, state=%p, attrs=%p)", obj_hdl,
 		bypass, state, attrs);
@@ -1111,7 +1111,7 @@ static fsal_status_t kvsfs_unlink_reg(struct fsal_obj_handle *dir_hdl,
 				      struct fsal_obj_handle *obj_hdl,
 				      const char *name)
 {
-	kvsns_cred_t cred = KVSNS_CRED_INIT_FROM_OP;
+	efs_cred_t cred = EFS_CRED_INIT_FROM_OP;
 	struct kvsfs_fsal_obj_handle *parent;
 	struct kvsfs_fsal_obj_handle *obj;
 	int rc;
@@ -1156,7 +1156,7 @@ static fsal_status_t kvsfs_rmsymlink(struct fsal_obj_handle *dir_hdl,
 				     struct fsal_obj_handle *obj_hdl,
 				     const char *name)
 {
-	kvsns_cred_t cred = KVSNS_CRED_INIT_FROM_OP;
+	efs_cred_t cred = EFS_CRED_INIT_FROM_OP;
 	struct kvsfs_fsal_obj_handle *parent;
 	struct kvsfs_fsal_obj_handle *obj;
 	int rc;
@@ -1183,7 +1183,7 @@ static fsal_status_t kvsfs_rmdir(struct fsal_obj_handle *dir_hdl,
 				 struct fsal_obj_handle *obj_hdl,
 				 const char *name)
 {
-	kvsns_cred_t cred = KVSNS_CRED_INIT_FROM_OP;
+	efs_cred_t cred = EFS_CRED_INIT_FROM_OP;
 	struct kvsfs_fsal_obj_handle *parent;
 	int rc;
 
@@ -1240,7 +1240,7 @@ static fsal_status_t kvsfs_handle_digest(const struct fsal_obj_handle *obj_hdl,
 					struct gsh_buffdesc *fh_desc)
 {
 	const struct kvsfs_fsal_obj_handle *myself;
-	const size_t fh_size = kvsns_fh_serialized_size();
+	const size_t fh_size = efs_fh_serialized_size();
 
 	assert(fh_desc);
 	assert(obj_hdl);
@@ -1262,9 +1262,9 @@ static fsal_status_t kvsfs_handle_digest(const struct fsal_obj_handle *obj_hdl,
 		return fsalstat(ERR_FSAL_TOOSMALL, ENOBUFS);
 	}
 
-	fh_desc->len = kvsns_fh_ser_with_fsid(myself->handle, obj_hdl->fsid.major,
-					      fh_desc->addr,
-					      fh_desc->len);
+	fh_desc->len = efs_fh_ser_with_fsid(myself->handle, obj_hdl->fsid.major,
+					    fh_desc->addr,
+					    fh_desc->len);
 
 	return fsalstat(ERR_FSAL_NO_ERROR, 0);
 }
@@ -1283,7 +1283,7 @@ fsal_status_t kvsfs_extract_handle(struct fsal_export *exp_hdl,
 					 struct gsh_buffdesc *fh_desc,
 					 int flags)
 {
-	const size_t fh_size = kvsns_fh_serialized_size();
+	const size_t fh_size = efs_fh_serialized_size();
 
 	assert(fh_desc);
 
@@ -1336,7 +1336,7 @@ static void kvsfs_handle_to_key(struct fsal_obj_handle *obj_hdl,
 
 	myself = container_of(obj_hdl, struct kvsfs_fsal_obj_handle,
 			      obj_handle);
-	kvsns_fh_key(myself->handle, &fh_desc->addr, &fh_desc->len);
+	efs_fh_key(myself->handle, &fh_desc->addr, &fh_desc->len);
 }
 
 /******************************************************************************/
@@ -1349,11 +1349,11 @@ fsal_status_t kvsfs_create_handle(struct fsal_export *exp_hdl,
 				  struct attrlist *attrs_out)
 {
 	int rc = 0;
-	kvsns_fh_t *fh = NULL;
+	struct efs_fh *fh = NULL;
 	struct kvsfs_fsal_export *myexport;
 	/* FIXME: It is unclear yet if this function is a subject to access
 	 * checks */
-	kvsns_cred_t cred = KVSNS_CRED_INIT_FROM_OP;
+	efs_cred_t cred = EFS_CRED_INIT_FROM_OP;
 
 	assert(exp_hdl);
 	assert(hdl_desc);
@@ -1363,22 +1363,22 @@ fsal_status_t kvsfs_create_handle(struct fsal_export *exp_hdl,
 	myexport = container_of(op_ctx->fsal_export,
 				struct kvsfs_fsal_export, export);
 
-	rc = kvsns_fh_deserialize(myexport->index_context, &cred,
-				  hdl_desc->addr,
-				  hdl_desc->len, &fh);
+	rc = efs_fh_deserialize(myexport->index_context, &cred,
+				hdl_desc->addr,
+				hdl_desc->len, &fh);
 	if (rc < 0) {
 		goto out;
 	}
 
 	if (attrs_out != NULL) {
-		posix2fsal_attributes_all(kvsns_fh_stat(fh), attrs_out);
+		posix2fsal_attributes_all(efs_fh_stat(fh), attrs_out);
 	}
 
 	fsal_obj_handle_from_kvsns_fh(exp_hdl, &fh, handle);
 
 out:
 	if (fh) {
-		kvsns_fh_destroy(fh);
+		efs_fh_destroy(fh);
 	}
 
 	return fsalstat(posix2fsal_error(-rc), -rc);
@@ -1786,7 +1786,7 @@ static fsal_status_t kvsfs_open2_by_handle(struct fsal_obj_handle *obj_hdl,
 	struct kvsfs_fsal_obj_handle *obj;
 	int rc = 0;
 	fsal_status_t status = fsalstat(ERR_FSAL_NO_ERROR, 0);
-	kvsns_cred_t cred = KVSNS_CRED_INIT_FROM_OP;
+	efs_cred_t cred = EFS_CRED_INIT_FROM_OP;
 	struct kvsfs_file_state *fd;
 	struct stat stat;
 
@@ -1927,8 +1927,8 @@ kvsfs_create_unchecked(struct fsal_obj_handle *parent_obj_hdl, const char *name,
 	int rc;
 	struct kvsfs_fsal_obj_handle *parent_obj;
 	struct fsal_obj_handle *obj_hdl = NULL;
-	kvsns_cred_t cred = KVSNS_CRED_INIT_FROM_OP;
-	kvsns_ino_t object;
+	efs_cred_t cred = EFS_CRED_INIT_FROM_OP;
+	efs_ino_t object;
 	struct stat stat_in;
 	struct stat stat_out;
 	int flags;
@@ -2006,8 +2006,8 @@ kvsfs_create_exclusive40(struct fsal_obj_handle *parent_obj_hdl, const char *nam
 	int rc;
 	struct kvsfs_fsal_obj_handle *parent_obj;
 	struct fsal_obj_handle *obj_hdl = NULL;
-	kvsns_cred_t cred = KVSNS_CRED_INIT_FROM_OP;
-	kvsns_ino_t object;
+	efs_cred_t cred = EFS_CRED_INIT_FROM_OP;
+	efs_ino_t object;
 	struct stat stat_in;
 	struct stat stat_out;
 	int flags;
@@ -2489,7 +2489,7 @@ static void kvsfs_read2(struct fsal_obj_handle *obj_hdl,
 	struct kvsfs_fsal_obj_handle *obj;
 	struct kvsfs_file_state *fd;
 	uint64_t offset;
-	kvsns_cred_t cred = KVSNS_CRED_INIT_FROM_OP;
+	efs_cred_t cred = EFS_CRED_INIT_FROM_OP;
 	fsal_status_t result;
 	ssize_t nb_read;
 	void *buffer;
@@ -2548,7 +2548,7 @@ out:
 
 /******************************************************************************/
 /* TODO:KVSNS: a dummy implementation of FSYNC call */
-static int kvsns_fsync(void *ctx, kvsns_cred_t *cred, kvsns_ino_t *ino)
+static int kvsns_fsync(void *ctx, efs_cred_t *cred, efs_ino_t *ino)
 {
 	(void) ctx;
 	(void) cred;
@@ -2569,7 +2569,7 @@ static fsal_status_t kvsfs_ftruncate(struct fsal_obj_handle *obj_hdl,
 	fsal_status_t result = fsalstat(ERR_FSAL_NO_ERROR, 0);
 	struct kvsfs_file_state *fd = NULL;
 	struct kvsfs_fsal_obj_handle *obj = NULL;
-	kvsns_cred_t cred = KVSNS_CRED_INIT_FROM_OP;
+	efs_cred_t cred = EFS_CRED_INIT_FROM_OP;
 
 	T_ENTER0;
 
@@ -2632,7 +2632,7 @@ static void kvsfs_write2(struct fsal_obj_handle *obj_hdl,
 	struct kvsfs_fsal_obj_handle *obj;
 	struct kvsfs_file_state *fd;
 	uint64_t offset;
-	kvsns_cred_t cred = KVSNS_CRED_INIT_FROM_OP;
+	efs_cred_t cred = EFS_CRED_INIT_FROM_OP;
 	fsal_status_t result;
 	ssize_t nb_write;
 	void *buffer;
