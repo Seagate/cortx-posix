@@ -257,10 +257,15 @@ int eos_kvs_prefix_iter_has_prefix(struct kvs_itr *iter)
 {
 	void *key, *value;
 	size_t key_len, val_len;
+	int rc = 0;
 
 	eos_kvs_iter_get_kv(iter, &key, &key_len, &value, &val_len);
 	assert(key_len >= iter->prefix.len);
-	return memcmp(iter->prefix.buf, key, iter->prefix.len);
+	rc = memcmp(iter->prefix.buf, key, iter->prefix.len);
+	if (rc != 0) {
+		rc = -ENOENT;
+	}
+	return rc;
 }
 
 /** Find the first record following by the prefix and set iter to it.
