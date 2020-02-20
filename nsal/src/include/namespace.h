@@ -68,6 +68,21 @@ int ns_delete(struct namespace *ns);
  */
 int ns_next_id(uint32_t *nsobj_id);
 	
-/* TODO */
-int ns_scan(struct ns_itr **iter);
+/** scans the namespace table. 
+ *
+ * @param iter[out]: opaque iter for upper layer.
+ * @param ns[out]: namespace object.
+ *
+ *  @return 0 if successful, a negative "-errno" value in case of failure.
+ */ 
+int ns_scan(struct ns_itr **iter, struct namespace **ns);
+
+/** get namespace's name as str256_t obj.
+ *
+ * @param ns[in]: namespace obj.
+ * @param out[out]: str256_t obj.
+ *
+ * @return void.
+ */
+void get_ns_name(struct namespace *ns, str256_t **out);
 #endif /* _NAMESPACE_H_ */

@@ -27,8 +27,8 @@ struct namespace {
 	struct kvs_idx nsobj_index; /*namespace object index*/
 };
 
+/* opaque iter for upper layer */
 struct ns_itr {
-	struct namespace *ns;
 	struct kvs_itr *kvs_iter;
 };
 
@@ -68,40 +68,43 @@ static struct kvs_idx g_ns_index;
 static char *ns_fid_str;
 struct ns_itr *ns_iter = NULL;
 
-int ns_scan(struct ns_itr **iter)
+void get_ns_name(struct namespace *ns, str256_t **out)
+{
+	dassert(ns);
+	*out = &ns->ns_name;
+}
+
+int ns_scan(struct ns_itr **iter, struct namespace **ns)
 {
 	int rc = 0;
 	struct ns_key *prefix = NULL;
 	struct kvs_itr *kvs_iter = NULL;
-	void *key, *val;
+	void *key = NULL;
+	void *val = NULL;
 	size_t klen, vlen;
 	static const size_t psize = sizeof(struct key_prefix);
 
 	ns_iter = *iter;
 	if (ns_iter == NULL) {
-
 		RC_WRAP_LABEL(rc, out, kvs_alloc, (void **)&prefix, sizeof(*prefix));
-
 		prefix->ns_prefix.k_type = NS_KEY_TYPE_NS_INFO;
 		prefix->ns_prefix.k_version = NS_VERSION_0;
 
-		RC_WRAP_LABEL(rc, out, kvs_alloc, (void **)&ns_iter, sizeof(*ns_iter));
-
 		rc = kvs_itr_find(&g_ns_index, prefix, psize, &kvs_iter);
 		if (rc) {
-			kvs_iter->inner_rc = rc;
 			goto out;
 		}
 
 		kvs_itr_get(kvs_iter, &key, &klen, &val, &vlen);
 		if (vlen != sizeof(struct namespace)) {
-			log_err("invalid key value pair\n"); //more info
+			log_err("invalid key value pair\n");
 			rc = -EINVAL;
 			goto out;
 		}
 
-		ns_iter->ns = val;
-		printf("name = %s\n",  ((struct namespace *)val)->ns_name.s_str);
+		RC_WRAP_LABEL(rc, out, kvs_alloc, (void **)&ns_iter,
+		              sizeof(*ns_iter));
+		*ns = val;
 		ns_iter->kvs_iter = kvs_iter;
 		*iter = ns_iter;
 	} else {
@@ -115,16 +118,17 @@ int ns_scan(struct ns_itr **iter)
 
 		kvs_itr_get(ns_iter->kvs_iter, &key, &klen, &val, &vlen);
 		if (vlen != sizeof(struct namespace)) {
-			log_err("invalid key\n"); //more info
+			log_err("invalid key value pair\n");
 			goto out;
 		}
-		// @toto remove this when link list implemneted.	
-		printf("name = %s\n",  ((struct namespace *)val)->ns_name.s_str);
-		ns_iter->ns = val;
+
+		*ns = val;
 		*iter = ns_iter;
 	}
+
 out:
 	log_debug("rc=%d", rc);
+
 	return rc;
 }
 
@@ -217,7 +221,7 @@ int ns_fini()
 	RC_WRAP_LABEL(rc, out, kvs_index_close, kvstor, &g_ns_index);
 
 out:
-	return 0;
+	return rc;
 }
 
 int ns_create(str256_t *name, struct namespace **ret_ns)
@@ -236,7 +240,6 @@ int ns_create(str256_t *name, struct namespace **ret_ns)
 
 	/* Get next nsobj_id */
 	RC_WRAP_LABEL(rc, out, ns_next_id, &nsobj_id);
-	printf("NSOBJ %d\n", (int)nsobj_id);
 	/* prepare for namespace obj index */
 	RC_WRAP_LABEL(rc, out, kvs_fid_from_str, ns_fid_str, &nsobj_fid);
 	nsobj_fid.f_lo = nsobj_id;

@@ -70,7 +70,6 @@ int test_ns_create(char *name)
 {
 	int rc = 0;
 	str256_t ns_name;
-	printf("j\n");
 	str256_from_cstr(ns_name, name, strlen(name));
 	rc = ns_create(&ns_name, &ns);
 
@@ -89,9 +88,15 @@ int test_ns_scan()
 {
 	int rc = 0;
 	struct ns_itr *iter = NULL;
-	rc = ns_scan(&iter);
+	struct namespace *ns = NULL;
+	str256_t *ns_name = NULL;
+	rc = ns_scan(&iter, &ns);
+	get_ns_name(ns, &ns_name);
+	printf("name = %s\n", (ns_name->s_str));
 	while (rc == 0) {
-		rc = ns_scan(&iter);
+		rc = ns_scan(&iter, &ns);
+		get_ns_name(ns, &ns_name);
+		printf("name = %s\n", (ns_name->s_str));
 	}
 
 	return rc;
@@ -132,7 +137,8 @@ int main(int argc, char *argv[])
 	if (rc == 0 ) {
 		printf("passesd\n");
 	}
-/*	rc = test_ns_delete(ns);
+
+	rc = test_ns_delete(ns);
 	if (rc !=0 ) {
 		printf("namespace detetion failed rc=%d\n", rc);
 	} 
@@ -146,7 +152,7 @@ int main(int argc, char *argv[])
 	if (rc) {
 		printf("Failed namespace finialize.\n");
 	}
-*/
+
 	printf("All done.\n");
 
 	return 0;
