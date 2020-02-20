@@ -22,6 +22,7 @@
 
 /* Forward declaration */
 struct namespace;
+struct ns_itr;
 
 /******************************************************************************/
 /* Methods */
@@ -67,6 +68,6 @@ int ns_delete(struct namespace *ns);
  */
 int ns_next_id(uint32_t *nsobj_id);
 	
-int ns_scan(struct kvs_itr **iter, struct namespace *ns);
-void ns_scanf_fini(struct kvs_itr **ret_iter);
+/* TODO */
+int ns_scan(struct ns_itr **iter);
 #endif /* _NAMESPACE_H_ */

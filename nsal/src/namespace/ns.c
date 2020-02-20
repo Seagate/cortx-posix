@@ -27,6 +27,11 @@ struct namespace {
 	struct kvs_idx nsobj_index; /*namespace object index*/
 };
 
+struct ns_itr {
+	struct namespace *ns;
+	struct kvs_itr *kvs_iter;
+};
+
 typedef enum ns_version {
         NS_VERSION_0 = 0,
         NS_VERSION_INVALID,
@@ -61,27 +66,69 @@ struct ns_key {
 /* This is a global NS index which stores information about all the namespace */
 static struct kvs_idx g_ns_index;
 static char *ns_fid_str;
+struct ns_itr *ns_iter = NULL;
 
-int ns_scan(struct kvs_itr **ret_iter, struct namespace *ns)
+static const size_t psize = sizeof(struct key_prefix);
+int ns_scan(struct ns_itr **iter)
 {
 	int rc = 0;
-	void *key;// *value;
+	struct ns_key *prefix = NULL;
+	struct kvs_itr *kvs_iter = NULL;
+	//struct namespace *ns =  NULL;
+
+	void *key, *val;
 	size_t klen, vlen;
 
-	if (*ret_iter == NULL) {
-		rc = kvs_itr_find(&g_ns_index, "", 0, ret_iter);
+	ns_iter = *iter;
+	if (*iter == NULL) {
+		RC_WRAP_LABEL(rc, out, kvs_alloc, (void **)&prefix, sizeof(*prefix));
+
+		prefix->ns_prefix.k_type = NS_KEY_TYPE_NS_INFO;
+		prefix->ns_prefix.k_version = NS_VERSION_0;
+
+		RC_WRAP_LABEL(rc, out, kvs_alloc, (void **)&ns_iter, sizeof(*ns_iter));
+
+		rc = kvs_itr_find(&g_ns_index, prefix, psize, &kvs_iter);
 		printf("rc = %d\n", rc);
 		if (rc) {
-			ns = NULL;
-			(*ret_iter)->inner_rc = rc;
+			kvs_iter->inner_rc = rc;
 			goto out;
 		}
+
+		kvs_itr_get(kvs_iter, &key, &klen, &val, &vlen);
+		if (vlen != sizeof(struct namespace)) {
+			log_err("invalid key\n"); //more info
+			goto out;
+		}
+
+		kvs_free(key);
+		ns_iter->ns = val;
+		printf("name = %s\n",  ((struct namespace *)val)->ns_name.s_str);
+		ns_iter->kvs_iter = kvs_iter;
+		*iter = ns_iter;
 	} else {
-		kvs_itr_get(*ret_iter, &key, &klen, (void*)&ns, &vlen);
-		printf("id = %d, name = %s\n",(int)ns->nsobj_id, ns->ns_name.s_str );
-		rc = kvs_itr_next(*ret_iter);
+		rc = kvs_itr_next(ns_iter->kvs_iter); //getting error here (sig abort)
+		printf("nex ret = %d\n", rc);
+		if (rc != 0 ) {
+			kvs_itr_fini(ns_iter->kvs_iter);
+			kvs_free(*iter);
+			*iter = NULL;
+			goto out;
+		}
+
+		kvs_itr_get(ns_iter->kvs_iter, &key, &klen, &val, &vlen);
+		if (vlen != sizeof(struct namespace)) {
+			log_err("invalid key\n"); //more info
+			goto out;
+		}
+		
+		printf("name = %s\n",  ((struct namespace *)val)->ns_name.s_str);
+		ns_iter->ns = val;
+		kvs_free(val);
+		*iter = ns_iter;
 	}
 out:
+	//printf("ns exit = %d\n", rc);
 	log_debug("rc=%d", rc);
 	return rc;
 }

@@ -88,19 +88,14 @@ int test_ns_delete(struct namespace *ns)
 int test_ns_scan()
 {
 	int rc = 0;
-	struct kvs_itr *iter, *iter_next;
-	struct namespace *ns = NULL;
-	iter = iter_next = NULL;
-
-	rc = ns_scan(&iter, ns);
-	printf("rc = %d\n", rc);	
+	struct ns_itr *iter = NULL;
+	rc = ns_scan(&iter);
+	printf("TEST first rc = %d\n", rc);	
 	while (!rc ) {
-		rc = ns_scan(&iter, ns);
+		//printf("test first rc = %d\n", rc);	
+		rc = ns_scan(&iter);
 	}
 
-	if (iter) {
-		ns_scanf_fini(&iter);
-	}
 	return rc;
 }
 
