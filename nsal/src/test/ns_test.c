@@ -8,6 +8,7 @@
 #include <common/log.h>
 #include "str.h"
 #include <namespace.h>
+#include <ut.h>
 
 #define DEFAULT_CONFIG "/etc/kvsns.d/kvsns.ini"
 
@@ -87,23 +88,28 @@ int test_ns_delete(struct namespace *ns)
 void test_cb(struct namespace *ns)
 {
 	str256_t *ns_name = NULL;
-	get_ns_name(ns, &ns_name);
+	ns_get_name(ns, &ns_name);
 	printf("CB ns_name = %s\n", (ns_name->s_str));
-
 }
 
-int test_ns_scan()
+void test_ns_scan()
 {
 	int rc = 0;
 	rc = ns_scan(test_cb);
-	return rc;
+	ut_assert_int_equal(rc,0);
 }
 
 int main(int argc, char *argv[])
 {
 	int rc = 0;
+	char *test_logs = "/var/log/eos/test.logs";
 
+	if (argc > 1) {
+		test_logs = argv[1];
+	}
 	printf("Namespace test\n");
+
+	rc = ut_init(test_logs);
 
 	rc = nsal_start(DEFAULT_CONFIG);
 	if (rc) {
@@ -129,20 +135,23 @@ int main(int argc, char *argv[])
 	if (rc != 0) {
 		printf("Failed to create namespace, rc=%d\n", rc);
 	}
+	struct test_case test_list[] = {
+		ut_test_case(test_ns_scan)
+	};
 
-	rc = test_ns_scan();
-	if (rc == 0 ) {
-		printf("passed\n");
+	int test_count = 1;
+	int test_failed = 0;
+
+	test_failed = ut_run(test_list, test_count);
+
+	rc = test_ns_delete(ns);
+	if (rc != 0 ) {
+		printf("namespace deletion failed rc=%d\n", rc);
 	}
 
 	rc = test_ns_delete(ns);
-	if (rc !=0 ) {
-		printf("namespace deletion failed rc=%d\n", rc);
-	} 
-
-	rc = test_ns_delete(ns);
-	if (rc !=0 ) {
-		printf("namespace deletion failed expected rc=%d\n", rc);
+	if (rc == 0 ) {
+		printf("namespace deletion for non-existent namespace succeeded\n");
 	}
 
 	rc = test_ns_fini();
@@ -150,7 +159,8 @@ int main(int argc, char *argv[])
 		printf("Failed namespace finialize.\n");
 	}
 
-	printf("All done.\n");
+	ut_fini();
+	printf("Tests failed = %d", test_failed);
 
 	return 0;
 }

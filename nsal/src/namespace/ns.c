@@ -62,48 +62,44 @@ struct ns_key {
 static struct kvs_idx g_ns_index;
 static char *ns_fid_str;
 
-void get_ns_name(struct namespace *ns, str256_t **out)
+void ns_get_name(struct namespace *ns, str256_t **name)
 {
 	dassert(ns);
-	*out = &ns->ns_name;
+	*name = &ns->ns_name;
 }
 
 int ns_scan(void (*cb)(struct namespace *))
 {
 	int rc = 0;
-	int i = 0;
 	struct kvs_itr *kvs_iter = NULL;
 	size_t klen, vlen;
 	void *key = NULL;
-	struct namespace *val = NULL;
+	struct namespace *ns = NULL;
 	static const size_t psize = sizeof(struct key_prefix);
 
 	struct kvstore *kvstor = kvstore_get();
 
 	struct ns_key prefix;
-	prefix.ns_prefix.k_type = NS_KEY_TYPE_NS_INFO;
-	prefix.ns_prefix.k_version = NS_VERSION_0;
+	NS_KEY_PREFIX_INIT((&prefix.ns_prefix), NS_KEY_TYPE_NS_INFO);
 
 	rc = kvs_itr_find(kvstor, &g_ns_index, &prefix, psize, &kvs_iter);
 	if (rc) {
-			goto out;
+		goto out;
 	}
 
-	for (i = 0; (rc == 0); ++i) {
-		kvs_itr_get(kvstor, kvs_iter, &key, &klen, (void **)&val, &vlen);
+	do {
+		kvs_itr_get(kvstor, kvs_iter, &key, &klen, (void **)&ns, &vlen);
 
 		if (vlen != sizeof(struct namespace)) {
 			log_err("Invalid namespace entry in the KVS\n");
-			goto out;
+			continue;
 		}
 
-		cb(val);
-		rc = kvs_itr_next(kvstor, kvs_iter);
-	}
-	if (rc) {
-         rc = rc == -ENOENT ? 0 : rc;
-	} else {
-        rc = 0;
+		cb(ns);
+	} while ((rc = kvs_itr_next(kvstor, kvs_iter)) == 0);
+
+	if (rc == -ENOENT) {
+		rc = 0;
 	}
 out:
 	kvs_itr_fini(kvstor, kvs_iter);
