@@ -18,8 +18,8 @@
 #include <assert.h>
 #include <errno.h>
 #include <debug.h>
-#include <ini_config.h>
 #include <eos/eos_kvstore.h>
+#include "redis/redis_kvstore.h"
 #include <string.h>
 #include <common/helpers.h>
 #include <common/log.h>
@@ -47,10 +47,10 @@ struct kvstore *kvstore_get(void)
 	return &g_kvstore;
 }
 
-int kvs_init(struct collection_item *cfg, int flags)
+int kvs_init(struct kvstore *kvstore, struct collection_item *cfg)
+
 {
 	int rc = 0, i;
-	struct kvstore *kvstore = kvstore_get();
 	char *kvstore_type = NULL;
 	struct collection_item *item = NULL;
 
@@ -84,16 +84,12 @@ int kvs_init(struct collection_item *cfg, int flags)
 	}
 
 	kvstore->type = kvstore_type;
-	kvstore->cfg = cfg;
-	kvstore->flags = flags;
-
 out:
 	return rc;
 }
 
-int kvs_fini()
+int kvs_fini(struct kvstore *kvstore)
 {
-	struct kvstore *kvstore = kvstore_get();
 	dassert(kvstore && kvstore->kvstore_ops && kvstore->kvstore_ops->fini);
 
 	return kvstore->kvstore_ops->fini();
@@ -104,42 +100,32 @@ int kvs_fid_from_str(const char *fid_str, kvs_fid_t *out_fid)
 	return eos_kvs_fid_from_str(fid_str, out_fid);
 }
 
-int kvs_alloc(void **ptr, size_t size)
+int kvs_alloc(struct kvstore *kvstore, void **ptr, size_t size)
 {
-	struct kvstore *kvstore = kvstore_get();
-
 	dassert(kvstore);
 	return kvstore->kvstore_ops->alloc(ptr, size);
 }
 
-void kvs_free(void *ptr)
+void kvs_free(struct kvstore *kvstore, void *ptr)
 {
-	struct kvstore *kvstore = kvstore_get();
-
 	dassert(kvstore);
 	return kvstore->kvstore_ops->free(ptr);
 }
 
-int kvs_begin_transaction(struct kvs_idx *index)
+int kvs_begin_transaction(struct kvstore *kvstore, struct kvs_idx *index)
 {
-	struct kvstore *kvstore = kvstore_get();
-
 	dassert(kvstore);
 	return kvstore->kvstore_ops->begin_transaction(index);
 }
 
-int kvs_end_transaction(struct kvs_idx *index)
+int kvs_end_transaction(struct kvstore *kvstore, struct kvs_idx *index)
 {
-	struct kvstore *kvstore = kvstore_get();
-
 	dassert(kvstore);
 	return kvstore->kvstore_ops->end_transaction(index);
 }
 
-int kvs_discard_transaction(struct kvs_idx *index)
+int kvs_discard_transaction(struct kvstore *kvstore, struct kvs_idx *index)
 {
-	struct kvstore *kvstore = kvstore_get();
-
 	dassert(kvstore);
 	return kvstore->kvstore_ops->discard_transaction(index);
 }
@@ -148,61 +134,54 @@ int kvs_index_create(struct kvstore *kvstore, const kvs_fid_t *fid,
 	                 struct kvs_idx *index)
 {
 	dassert(kvstore);
-	return kvstore->kvstore_ops->index_create(kvstore, fid, index);
+	return kvstore->kvstore_ops->index_create(fid, index);
 }
 
 int kvs_index_delete(struct kvstore *kvstore, const kvs_fid_t *fid)
 {
 	dassert(kvstore);
-	return kvstore->kvstore_ops->index_delete(kvstore, fid);
+	return kvstore->kvstore_ops->index_delete(fid);
 }
 
 int kvs_index_open(struct kvstore *kvstore, const kvs_fid_t *fid,
 			       struct kvs_idx *index)
 {
 	dassert(kvstore);
-	return kvstore->kvstore_ops->index_open(kvstore, fid, index);
+	return kvstore->kvstore_ops->index_open(fid, index);
 }
 
 int kvs_index_close(struct kvstore *kvstore, struct kvs_idx *index)
 {
 	dassert(kvstore);
-	return kvstore->kvstore_ops->index_close(kvstore, index);
+	return kvstore->kvstore_ops->index_close(index);
 }
 
-int kvs_get(struct kvs_idx *index, void *k, const size_t klen,
+int kvs_get(struct kvstore *kvstore, struct kvs_idx *index, void *k, const size_t klen,
 	        void **v, size_t *vlen)
 {
-	struct kvstore *kvstore = kvstore_get();
-
 	dassert(kvstore);
 	return kvstore->kvstore_ops->get_bin(index, k, klen, v, vlen);
 }
 
-int kvs_set(struct kvs_idx *index, void *k, const size_t klen,
+int kvs_set(struct kvstore *kvstore, struct kvs_idx *index, void *k, const size_t klen,
 	        void *v, const size_t vlen)
 {
-	struct kvstore *kvstore = kvstore_get();
-
 	dassert(kvstore);
 	return kvstore->kvstore_ops->set_bin(index, k, klen, v, vlen);
 }
 
-int kvs_del(struct kvs_idx *index, const void *k, size_t klen)
+int kvs_del(struct kvstore *kvstore, struct kvs_idx *index, const void *k,
+            size_t klen)
 {
-	struct kvstore *kvstore = kvstore_get();
-
 	dassert(kvstore);
 	return kvstore->kvstore_ops->del_bin(index, k, klen);
 }
 
-
 /* Key-Value iterator API */
-int kvs_itr_find(struct kvs_idx *index, void *prefix,
+int kvs_itr_find(struct kvstore *kvstore, struct kvs_idx *index, void *prefix,
                   const size_t prefix_len,
                   struct kvs_itr **iter)
 {
-	struct kvstore *kvstore = kvstore_get();
 	int rc = 0;
 
 	dassert(kvstore);
@@ -218,28 +197,22 @@ int kvs_itr_find(struct kvs_idx *index, void *prefix,
 	return kvstore->kvstore_ops->kv_find(*iter);
 }
 
-int kvs_itr_next(struct kvs_itr *iter)
+int kvs_itr_next(struct kvstore *kvstore, struct kvs_itr *iter)
 {
-	struct kvstore *kvstore = kvstore_get();
-
 	dassert(kvstore);
 	return kvstore->kvstore_ops->kv_next(iter);
 }
 
-void kvs_itr_fini(struct kvs_itr *iter)
+void kvs_itr_fini(struct kvstore *kvstore, struct kvs_itr *iter)
 {
-	struct kvstore *kvstore = kvstore_get();
-
 	dassert(kvstore);
 	kvstore->kvstore_ops->kv_fini(iter);
 	kvstore->kvstore_ops->free(iter);
 }
 
-void kvs_itr_get(struct kvs_itr *iter, void **key, size_t *klen,
-                      void **val, size_t *vlen)
+void kvs_itr_get(struct kvstore *kvstore, struct kvs_itr *iter, void **key,
+                 size_t *klen, void **val, size_t *vlen)
 {
-	struct kvstore *kvstore = kvstore_get();
-
 	dassert(kvstore);
 	return kvstore->kvstore_ops->kv_get(iter, key, klen, val, vlen);
 }

@@ -110,11 +110,11 @@ int md_xattr_set(struct kvs_idx *idx, const obj_id_t *oid,
 
 	MD_RC_WRAP_LABEL(rc, out, md_xattr_alloc_init_key, oid, name, &key);
 
-	MD_RC_WRAP_LABEL(rc, free_key, kvs_set, &index, key,
+	MD_RC_WRAP_LABEL(rc, free_key, kvs_set, kvstor, &index, key,
 		         md_xattr_key_dsize(key), (void *)value, size);
 
 free_key:
-	kvstor->kvstore_ops->free(key);
+	kvs_free(kvstor, key);
 
 out:
 	log_trace("idx=%p oid=%" PRIx64 ":%" PRIx64 " rc=%d name=%s val=%p"
@@ -140,14 +140,14 @@ int md_xattr_get(struct kvs_idx *idx, const obj_id_t *oid,
 
 	MD_RC_WRAP_LABEL(rc, out, md_xattr_alloc_init_key, oid, name,  &key);
 
-	MD_RC_WRAP_LABEL(rc, free_key, kvs_get, &index, key,
+	MD_RC_WRAP_LABEL(rc, free_key, kvs_get, kvstor, &index, key,
 		         md_xattr_key_dsize(key), &read_val, &size_val);
 
 	*value = read_val;
 	*size = size_val;
 
 free_key:
-	kvstor->kvstore_ops->free(key);
+	kvs_free(kvstor, key);
 
 out:
 	log_trace("idx=%p oid=%" PRIx64 ":%" PRIx64 " rc=%d name=%s val=%p "
@@ -199,11 +199,11 @@ int md_xattr_delete(struct kvs_idx *idx, const obj_id_t *oid,
 
 	MD_RC_WRAP_LABEL(rc, out, md_xattr_alloc_init_key, oid, name,  &key);
 
-	MD_RC_WRAP_LABEL(rc, free_key, kvs_del, &index, key,
+	MD_RC_WRAP_LABEL(rc, free_key, kvs_del, kvstor, &index, key,
 		         md_xattr_key_dsize(key));
 
 free_key:
-	kvstor->kvstore_ops->free(key);
+	kvs_free(kvstor, key);
 
 out:
 	log_trace("idx=%p oid=%" PRIx64 ":%" PRIx64 " rc=%d name=%s",idx,
@@ -242,12 +242,12 @@ int md_xattr_list(struct kvs_idx *idx, const obj_id_t *oid, void *buf,
 	}
 
 	index.index_priv = idx;
-	if (kvs_itr_find(&index, &prefix, md_xattr_key_psize, &iter)) {
-		rc = iter->inner_rc;
+	rc = kvs_itr_find(kvstor, &index, &prefix, md_xattr_key_psize, &iter);
+	if (rc) {
 		goto out;
 	}
 	while (has_next) {
-		kvs_itr_get(iter, (void **) &key, &klen, (void **) &value, &vlen);
+		kvs_itr_get(kvstor, iter, (void **) &key, &klen, (void **) &value, &vlen);
 		MD_DASSERT(key->xk_name.len != 0);
 		MD_DASSERT(klen > md_xattr_key_psize);
 		log_debug("xattr name=%s, len= %" PRIu8 "", key->xk_name.str,
@@ -269,15 +269,15 @@ int md_xattr_list(struct kvs_idx *idx, const obj_id_t *oid, void *buf,
 		}
 		names += key->xk_name.len + 1;
 		(*count)++;
-		rc = kvs_itr_next(iter);
+		rc = kvs_itr_next(kvstor, iter);
 		has_next = (rc == 0);
 
 		log_debug("offset=%zu, has_next=%d, iter rc =%d), count=%zu",
-			  offset, (int) has_next, iter->inner_rc, *count);
+			  offset, (int) has_next, rc, *count);
 	}
 
 	if (!has_next) {
-		rc = iter->inner_rc == -ENOENT ? 0 : iter->inner_rc;
+		rc = rc == -ENOENT ? 0 : rc;
 	} else {
 		rc = 0;
 	}
@@ -292,7 +292,7 @@ out:
 err:
 	log_trace("idx=%p, oid=%" PRIx64 ":%" PRIx64 ", size=%zu, rc=%d",
 		  idx, oid->f_hi, oid->f_lo, *size, rc);
-	kvs_itr_fini(iter);
+	kvs_itr_fini(kvstor, iter);
 	return rc;
 }
 

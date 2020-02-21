@@ -21,10 +21,17 @@ set(EOS_NSAL_BASE_VERSION ${BASE_VERSION})
 message( STATUS "cmake version ${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION}" )
 message( STATUS "eos-nsal version ${EOS_NSAL_BASE_VERSION}")
 
+string(REPLACE "," ";" KVS_LIST "${KVS_LIST}")
 
-# Option (for choosing KVSAL backend)
-option(USE_KVS_REDIS "Use REDIS as a KVS in KVSAL" ON)
-option(USE_KVS_EOS "USE EOS as a KVS in KVSAL" OFF)
+foreach(KVS_ELE ${KVS_LIST})
+       if(KVS_ELE STREQUAL "eos")
+               set(USE_KVS_EOS ON)
+       endif(KVS_ELE STREQUAL "eos")
+
+       if(KVS_ELE STREQUAL "redis")
+               set(USE_KVS_REDIS ON)
+       endif(KVS_ELE STREQUAL "redis")
+endforeach(KVS_ELE ${KVS_LIST})
 
 if(USE_FSAL_LUSTRE)
     set(BCOND_LUSTRE "%bcond_without")
@@ -32,10 +39,9 @@ else(USE_FSAL_LUSTRE)
     set(BCOND_LUSTRE "%bcond_with")
 endif(USE_FSAL_LUSTRE)
 
-if(USE_KVS_EOS)
-  set(USE_KVS_REDIS OFF)
+if(NOT USE_KVS_REDIS)
   message(STATUS "Disabling REDIS")
-endif(USE_KVS_EOS)
+endif(NOT USE_KVS_REDIS)
 
 # BCOND* variables for spec file */
 if (USE_KVS_REDIS)
@@ -149,7 +155,16 @@ message(STATUS "USE_KVS_EOS=${USE_KVS_EOS}")
 
 # Build ancillary libs
 add_subdirectory(kvstore)
-set(KVSTORE kvstore)
+
+set(BASE_KVSTORE base_kvstore)
+
+set(EOS_KVSTORE eos_kvstore)
+
+if(USE_KVS_REDIS)
+       set(REDIS_KVSTORE redis_kvstore)
+       set(REDIS_TARGET_OBJECT "$<TARGET_OBJECTS:${REDIS_KVSTORE}>")
+       set(HIREDIS "hiredis")
+endif(USE_KVS_REDIS)
 
 include_directories(${EOSUTILSINC})
 link_directories(${LIBEOSUTILS})
@@ -161,7 +176,9 @@ add_subdirectory(namespace)
 set(NAMESPACE namespace)
 
 add_library(eos-nsal SHARED
-		$<TARGET_OBJECTS:${KVSTORE}>
+		$<TARGET_OBJECTS:${BASE_KVSTORE}>
+		$<TARGET_OBJECTS:${EOS_KVSTORE}>
+		${REDIS_TARGET_OBJECT}
 		$<TARGET_OBJECTS:${METADATA}>
 		$<TARGET_OBJECTS:${NAMESPACE}>
 	)
@@ -171,6 +188,7 @@ target_link_libraries(eos-nsal
   mero-helpers
   ini_config
   eos-utils
+  ${HIREDIS}
 )
 
 add_subdirectory(test)

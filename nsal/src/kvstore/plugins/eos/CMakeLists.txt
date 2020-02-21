@@ -11,10 +11,9 @@ include_directories(${EOSUTILSINC})
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${EOS_CFLAGS}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${EOS_CFLAGS}")
 
-SET(kvstore_LIB_SRCS
-   ../../kvstore_base.c
+SET(eos_kvstore_LIB_SRCS
    eos_kvstore.c
 )
 
-add_library(kvstore OBJECT ${kvstore_LIB_SRCS})
+add_library(eos_kvstore OBJECT ${eos_kvstore_LIB_SRCS})
 

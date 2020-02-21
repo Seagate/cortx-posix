@@ -62,15 +62,7 @@ else
 EOS_UTILS_LIB="$EOS_UTILS_CMAKE_BUILD_ROOT/build-eos-utils"
 fi
 
-case $NSAL_KVSTORE_BACKEND in
-    "eos")
-        USE_KVS_EOS="ON" ;;
-    "redis")
-        USE_KVS_REDIS="ON" ;;
-    *)
-        echo "Invalid KVSAL configuration $NSAL_KVSTORE_BACKEND"
-        exit 1;;
-esac
+KVS_LIST=$NSAL_KVSTORE_BACKEND
 
 ###############################################################################
 nsal_print_env() {
@@ -84,9 +76,10 @@ nsal_print_env() {
         NSAL_SRC
         USE_KVS_EOS
         USE_KVS_REDIS
-	EOS_UTILS_LIB
-	EOS_UTILS_INC
-	EOS_UTILS_CMAKE_BUILD_ROOT
+        KVS_LIST
+        EOS_UTILS_LIB
+        EOS_UTILS_INC
+        EOS_UTILS_CMAKE_BUILD_ROOT
     )
 
     for i in ${myenv[@]}; do
@@ -105,8 +98,7 @@ nsal_configure() {
     cd $NSAL_BUILD
 
     local cmd="cmake \
--DUSE_KVS_EOS=${USE_KVS_EOS} \
--DUSE_KVS_REDIS=${USE_KVS_REDIS} \
+-DKVS_LIST=${KVS_LIST} \
 -DLIBEOSUTILS:PATH=${EOS_UTILS_LIB} \
 -DEOSUTILSINC:PATH=${EOS_UTILS_INC} \
 -DBASE_VERSION:STRING=${NSAL_VERSION} \
