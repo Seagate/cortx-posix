@@ -212,17 +212,17 @@ static int efs_ns_get_inode_attr(efs_fs_ctx_t ctx,
 
 	index.index_priv = ctx;
 
-	RC_WRAP_LABEL(rc, out, kvs_alloc, (void **)&key, sizeof (*key));
+	RC_WRAP_LABEL(rc, out, kvs_alloc, kvstor, (void **)&key, sizeof (*key));
 
 	INODE_ATTR_KEY_PTR_INIT(key, ino, type);
 
 	dassert(ino);
 
-	RC_WRAP_LABEL(rc, out, kvs_get, &index,
+	RC_WRAP_LABEL(rc, out, kvs_get, kvstor, &index,
 		      key, sizeof(struct efs_inode_attr_key), buf, buf_size);
 
 out:
-	kvs_free(key);
+	kvs_free(kvstor, key);
 	log_trace("GET %llu.%s = (%d), rc=%d ctx=%p", *ino,
 		  efs_key_type_to_str(type), (int) *buf_size, rc, ctx);
 	return rc;
@@ -241,17 +241,17 @@ static int efs_ns_set_inode_attr(efs_fs_ctx_t ctx,
 	dassert(kvstor != NULL);
 	index.index_priv = ctx;
 
-	RC_WRAP_LABEL(rc, out, kvs_alloc, (void **)&key, sizeof (*key));
+	RC_WRAP_LABEL(rc, out, kvs_alloc, kvstor, (void **)&key, sizeof (*key));
 
 	INODE_ATTR_KEY_PTR_INIT(key, ino, type);
 
 	dassert(buf && ino && buf_size != 0);
 
-	RC_WRAP_LABEL(rc, out, kvs_set, &index, key,
+	RC_WRAP_LABEL(rc, out, kvs_set, kvstor, &index, key,
 		      sizeof(struct efs_inode_attr_key), buf, buf_size);
 
 out:
-	kvs_free(key);
+	kvs_free(kvstor, key);
 	log_trace("SET %llu.%s = (%d), rc=%d ctx=%p", *ino,
 		  efs_key_type_to_str(type), (int) buf_size, rc, ctx);
 	return rc;
@@ -271,15 +271,15 @@ static int efs_ns_del_inode_attr(efs_fs_ctx_t ctx,
 	index.index_priv = ctx;
 
 	dassert(ino);
-	RC_WRAP_LABEL(rc, out, kvs_alloc, (void **)&key,
+	RC_WRAP_LABEL(rc, out, kvs_alloc, kvstor, (void **)&key,
 		      sizeof (*key));
 
 	INODE_ATTR_KEY_PTR_INIT(key, ino, type);
 
-	RC_WRAP_LABEL(rc, out, kvs_del, &index, key,
+	RC_WRAP_LABEL(rc, out, kvs_del, kvstor, &index, key,
 		      sizeof(struct efs_inode_attr_key));
 out:
-	kvs_free(key);
+	kvs_free(kvstor, key);
 	log_trace("DEL %llu.%s, rc=%d", *ino,
 		  efs_key_type_to_str(type), rc);
 	return rc;
@@ -333,7 +333,7 @@ int efs_update_stat(efs_fs_ctx_t ctx, const efs_ino_t *ino, int flags)
 	RC_WRAP_LABEL(rc, out, efs_set_stat, ctx, ino, stat);
 
 out:
-	kvs_free(stat);
+	kvs_free(kvstor, stat);
 	log_trace("Update stats (%d) for %llu, rc=%d",
 		  flags, *ino, rc);
 
@@ -412,7 +412,7 @@ int efs_tree_create_root(struct kvs_idx *index)
 
 	dassert(kvstor != NULL);
 
-        RC_WRAP_LABEL(rc, out, kvs_alloc, (void **)&parent_key,
+        RC_WRAP_LABEL(rc, out, kvs_alloc, kvstor, (void **)&parent_key,
 		      sizeof (*parent_key));
 
         PARENTDIR_KEY_PTR_INIT(parent_key, &ino, &ino);
@@ -420,7 +420,7 @@ int efs_tree_create_root(struct kvs_idx *index)
 	/* number-of-links */
         v = 1;
 
-        RC_WRAP_LABEL(rc, free_key, kvs_set, index, parent_key,
+        RC_WRAP_LABEL(rc, free_key, kvs_set, kvstor, index, parent_key,
 		      sizeof(*parent_key),(void *)&v, sizeof(v));
 
         v = EFS_ROOT_INODE + 1;
@@ -443,7 +443,7 @@ int efs_tree_create_root(struct kvs_idx *index)
         RC_WRAP(efs_set_stat, ctx, &ino, &bufstat);
 
 free_key:
-	kvs_free(parent_key);
+	kvs_free(kvstor, parent_key);
 out:
         return rc;
 }
@@ -459,12 +459,12 @@ int efs_tree_delete_root(struct kvs_idx *index)
 
 	dassert(kvstor != NULL);
 
-        RC_WRAP_LABEL(rc, out, kvs_alloc, (void **)&parent_key,
+        RC_WRAP_LABEL(rc, out, kvs_alloc, kvstor, (void **)&parent_key,
 		      sizeof(struct efs_parentdir_key));
 
         PARENTDIR_KEY_PTR_INIT(parent_key, &ino, &ino);
 
-        RC_WRAP_LABEL(rc, free_key, kvs_del, index, parent_key,
+        RC_WRAP_LABEL(rc, free_key, kvs_del, kvstor, index, parent_key,
 		      sizeof(struct efs_parentdir_key));
 
 	ctx = index->index_priv;
@@ -475,7 +475,7 @@ int efs_tree_delete_root(struct kvs_idx *index)
         RC_WRAP(efs_del_stat, ctx, &ino);
 
 free_key:
-        kvs_free(parent_key);
+        kvs_free(kvstor, parent_key);
 
 out:
         return rc;
@@ -499,20 +499,20 @@ int efs_tree_detach(efs_fs_ctx_t fs_ctx,
 	index.index_priv = fs_ctx;
 
 	// Remove dentry
-	RC_WRAP_LABEL(rc, out, kvs_alloc, (void **)&dentry_key,
+	RC_WRAP_LABEL(rc, out, kvs_alloc, kvstor, (void **)&dentry_key,
 		      sizeof (*dentry_key));
 
 	DENTRY_KEY_PTR_INIT(dentry_key, parent_ino, node_name);
 
-	RC_WRAP_LABEL(rc, free_dentrykey, kvs_del, &index, dentry_key,
+	RC_WRAP_LABEL(rc, free_dentrykey, kvs_del, kvstor, &index, dentry_key,
 		      efs_dentry_key_dsize(dentry_key));
 
 	// Update parent link count
-	RC_WRAP_LABEL(rc, free_dentrykey, kvs_alloc, (void **)&parent_key,
+	RC_WRAP_LABEL(rc, free_dentrykey, kvs_alloc, kvstor, (void **)&parent_key,
 		      sizeof (*parent_key));
 	PARENTDIR_KEY_PTR_INIT(parent_key, ino, parent_ino);
 	uint64_t val_size = 0;
-	RC_WRAP_LABEL(rc, free_parent_key, kvs_get, &index,
+	RC_WRAP_LABEL(rc, free_parent_key, kvs_get, kvstor, &index,
 		      parent_key, sizeof (*parent_key),
 		      (void **)&parent_value, &val_size);
 
@@ -521,24 +521,24 @@ int efs_tree_detach(efs_fs_ctx_t fs_ctx,
 	(*parent_value)--;
 
 	if (parent_value > 0){
-		RC_WRAP_LABEL(rc, free_parent_key, kvs_set, &index,
+		RC_WRAP_LABEL(rc, free_parent_key, kvs_set, kvstor, &index,
 			      parent_key, sizeof (*parent_key),
 			      parent_value, sizeof(*parent_value));
 	} else {
-		RC_WRAP_LABEL(rc, free_parent_key, kvs_del, &index,
+		RC_WRAP_LABEL(rc, free_parent_key, kvs_del, kvstor, &index,
 			      parent_key, sizeof (*parent_key));
 	}
 
-	kvs_free(parent_value);
+	kvs_free(kvstor, parent_value);
 	// Update stats
 	RC_WRAP_LABEL(rc, free_parent_key, efs_update_stat, fs_ctx,
 		      parent_ino, STAT_CTIME_SET|STAT_MTIME_SET);
 
 free_parent_key:
-	kvs_free(parent_key);
+	kvs_free(kvstor, parent_key);
 
 free_dentrykey:
-	kvs_free(dentry_key);
+	kvs_free(kvstor, dentry_key);
 
 out:
 	log_debug("tree_detach(%p,pino=%llu,ino=%llu,n=%.*s) = %d",
@@ -566,26 +566,26 @@ int efs_tree_attach(efs_fs_ctx_t fs_ctx,
 
 	index.index_priv = fs_ctx;
 	// Add dentry
-	RC_WRAP_LABEL(rc, out, kvs_alloc, (void **)&dentry_key,
+	RC_WRAP_LABEL(rc, out, kvs_alloc, kvstor, (void **)&dentry_key,
 		      sizeof (*dentry_key));
 	/* @todo rename this to DENTRY_KEY_INIT once all the instances of
 	 * DENTRY_KEY_INIT are replaced with DENTRY_KEY_PTR_INIT */
 
 	DENTRY_KEY_PTR_INIT(dentry_key, parent_ino, node_name);
 
-	RC_WRAP_LABEL(rc, free_dentrykey, kvs_set, &index,
+	RC_WRAP_LABEL(rc, free_dentrykey, kvs_set, kvstor, &index,
 		      dentry_key, efs_dentry_key_dsize(dentry_key),
 		      &dentry_value, sizeof(dentry_value));
 
 	// Update parent link count
-	RC_WRAP_LABEL(rc, free_dentrykey, kvs_alloc,
+	RC_WRAP_LABEL(rc, free_dentrykey, kvs_alloc, kvstor,
 		      (void **)&parent_key, sizeof (*parent_key));
 
 	/* @todo rename this to PARENT_KEY_INIT once all the instances of
 	 * PARENT_KEY_INIT are replaced with PARENT_DIR_KEY_PTR_INIT */
 	PARENTDIR_KEY_PTR_INIT(parent_key, ino, parent_ino);
 
-	rc = kvs_get(&index, parent_key, sizeof(*parent_key),
+	rc = kvs_get(kvstor, &index, parent_key, sizeof(*parent_key),
 		     (void **)&parent_val_ptr, &val_size);
 	if (rc == -ENOENT) {
 		parent_value = 0;
@@ -600,11 +600,11 @@ int efs_tree_attach(efs_fs_ctx_t fs_ctx,
 
 	if (parent_val_ptr != NULL) {
 		parent_value = *parent_val_ptr;
-		kvs_free(parent_val_ptr);
+		kvs_free(kvstor, parent_val_ptr);
 	}
 
 	parent_value++;
-	RC_WRAP_LABEL(rc, free_parentkey, kvs_set, &index,
+	RC_WRAP_LABEL(rc, free_parentkey, kvs_set, kvstor, &index,
 		      parent_key, sizeof(*parent_key),
 		      (void *)&parent_value, sizeof(parent_value));
 
@@ -613,10 +613,10 @@ int efs_tree_attach(efs_fs_ctx_t fs_ctx,
 		      STAT_CTIME_SET|STAT_MTIME_SET);
 
 free_parentkey:
-	kvs_free(parent_key);
+	kvs_free(kvstor, parent_key);
 
 free_dentrykey:
-	kvs_free(dentry_key);
+	kvs_free(kvstor, dentry_key);
 
 out:
 	log_debug("tree_attach(%p,pino=%llu,ino=%llu,n=%.*s) = %d",
@@ -641,7 +641,7 @@ int efs_tree_rename_link(efs_fs_ctx_t fs_ctx,
 
 	index.index_priv = fs_ctx;
 
-	RC_WRAP_LABEL(rc, out, kvs_alloc,
+	RC_WRAP_LABEL(rc, out, kvs_alloc, kvstor,
 		      (void **)&dentry_key, sizeof (*dentry_key));
 
 	DENTRY_KEY_PTR_INIT(dentry_key, parent_ino, old_name);
@@ -650,13 +650,13 @@ int efs_tree_rename_link(efs_fs_ctx_t fs_ctx,
 	dassert(efs_tree_lookup(fs_ctx, parent_ino, old_name, NULL) == 0);
 
 	// Remove dentry
-	RC_WRAP_LABEL(rc, cleanup, kvs_del, &index,
+	RC_WRAP_LABEL(rc, cleanup, kvs_del, kvstor, &index,
 		      dentry_key, efs_dentry_key_dsize(dentry_key));
 
 	dentry_key->name = *new_name;
 
 	// Add dentry
-	RC_WRAP_LABEL(rc, cleanup, kvs_set, &index,
+	RC_WRAP_LABEL(rc, cleanup, kvs_set, kvstor, &index,
 		      dentry_key, efs_dentry_key_dsize(dentry_key),
 		      &dentry_value, sizeof(dentry_value));
 
@@ -665,7 +665,7 @@ int efs_tree_rename_link(efs_fs_ctx_t fs_ctx,
 		      STAT_CTIME_SET);
 
 cleanup:
-	kvs_free(dentry_key);
+	kvs_free(kvstor, dentry_key);
 
 out:
 	log_debug("tree_rename(%p,pino=%llu,ino=%llu,o=%.*s,n=%.*s) = %d",
@@ -700,7 +700,7 @@ int efs_tree_has_children(efs_fs_ctx_t fs_ctx,
 
 	index.index_priv = fs_ctx;
 
-	result = kvs_itr_find(&index, &prefix, efs_dentry_key_psize, &iter);
+	result = kvs_itr_find(kvstor, &index, &prefix, efs_dentry_key_psize, &iter);
 
 	/* Check if we got an unexpected error from KVS */
 	if ((iter == NULL) || (iter->inner_rc != 0 && iter->inner_rc != -ENOENT)) {
@@ -713,7 +713,7 @@ int efs_tree_has_children(efs_fs_ctx_t fs_ctx,
 	}
 
 	if (result) {
-		kvs_itr_fini(iter);
+		kvs_itr_fini(kvstor, iter);
 	}
 
 	*has_children = result;
@@ -743,11 +743,11 @@ int efs_tree_lookup(efs_fs_ctx_t fs_ctx,
 	index.index_priv = fs_ctx;
 
 	dassert(parent_ino && name);
-	RC_WRAP_LABEL(rc, out, kvs_alloc, (void **)&dkey, sizeof (*dkey));
+	RC_WRAP_LABEL(rc, out, kvs_alloc, kvstor, (void **)&dkey, sizeof (*dkey));
 
 	DENTRY_KEY_PTR_INIT(dkey, parent_ino, name);
 
-	RC_WRAP_LABEL(rc, cleanup, kvs_get, &index,
+	RC_WRAP_LABEL(rc, cleanup, kvs_get, kvstor, &index,
 		      dkey, efs_dentry_key_dsize(dkey),
 		      (void **)&val_ptr, &val_size);
 
@@ -756,11 +756,11 @@ int efs_tree_lookup(efs_fs_ctx_t fs_ctx,
 		dassert(val_size == sizeof(*val_ptr));
 		*ino = *val_ptr;
 		value = *ino;
-		kvs_free(val_ptr);
+		kvs_free(kvstor, val_ptr);
 	}
 
 cleanup:
-	kvs_free(dkey);
+	kvs_free(kvstor, dkey);
 
 out:
 	log_debug("GET %llu.dentries.%.*s=%llu, rc=%d",
@@ -796,13 +796,13 @@ int efs_tree_iter_children(efs_fs_ctx_t fs_ctx,
 
 	index.index_priv = fs_ctx;
 
-	if (kvs_itr_find(&index, &prefix, efs_dentry_key_psize, &iter)) {
+	if (kvs_itr_find(kvstor, &index, &prefix, efs_dentry_key_psize, &iter)) {
 		rc = iter->inner_rc;
 		goto out;
 	}
 
 	while (need_next && has_next) {
-		kvs_itr_get(iter, (void**) &key, &klen, (void **) &value, &vlen);
+		kvs_itr_get(kvstor, iter, (void**) &key, &klen, (void **) &value, &vlen);
 		/* A dentry cannot be empty. */
 		dassert(klen > efs_dentry_key_psize);
 		/* The klen is limited by the size of the dentry structure. */
@@ -817,7 +817,7 @@ int efs_tree_iter_children(efs_fs_ctx_t fs_ctx,
 
 		log_debug("NEXT %s = %llu", dentry_name_str, *value);
 		need_next = cb(cb_ctx, dentry_name_str, value);
-		rc = kvs_itr_next(iter);
+		rc = kvs_itr_next(kvstor, iter);
 		has_next = (rc == 0);
 
 		log_debug("NEXT_STEP (%d,%d,%d)",
@@ -832,7 +832,7 @@ int efs_tree_iter_children(efs_fs_ctx_t fs_ctx,
 	}
 
 out:
-	kvs_itr_fini(iter);
+	kvs_itr_fini(kvstor, iter);
 	return rc;
 }
 

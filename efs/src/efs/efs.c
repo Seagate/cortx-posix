@@ -40,6 +40,7 @@ int efs_init(const char *config_path)
 	char *log_path = NULL;
 	char *log_level = NULL;
 	efs_ctx_t ctx = EFS_NULL_FS_CTX;
+	struct kvstore *kvstore = kvstore_get();
 
 	/** only initialize efs once */
 	if (__sync_fetch_and_add(&efs_initialized, 1)) {
@@ -83,7 +84,7 @@ int efs_init(const char *config_path)
 	}
 	item = NULL;
 
-	rc = kvs_init(cfg_items, 0);
+	rc = kvs_init(kvstore, cfg_items);
 	if (rc) {
 		log_err("kvs_init failed");
 		goto err;
