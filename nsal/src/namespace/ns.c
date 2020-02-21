@@ -62,6 +62,51 @@ struct ns_key {
 static struct kvs_idx g_ns_index;
 static char *ns_fid_str;
 
+void ns_get_name(struct namespace *ns, str256_t **name)
+{
+	dassert(ns);
+	*name = &ns->ns_name;
+}
+
+int ns_scan(void (*cb)(struct namespace *))
+{
+	int rc = 0;
+	struct kvs_itr *kvs_iter = NULL;
+	size_t klen, vlen;
+	void *key = NULL;
+	struct namespace *ns = NULL;
+	static const size_t psize = sizeof(struct key_prefix);
+
+	struct kvstore *kvstor = kvstore_get();
+
+	struct ns_key prefix;
+	NS_KEY_PREFIX_INIT((&prefix.ns_prefix), NS_KEY_TYPE_NS_INFO);
+
+	rc = kvs_itr_find(kvstor, &g_ns_index, &prefix, psize, &kvs_iter);
+	if (rc) {
+		goto out;
+	}
+
+	do {
+		kvs_itr_get(kvstor, kvs_iter, &key, &klen, (void **)&ns, &vlen);
+
+		if (vlen != sizeof(struct namespace)) {
+			log_err("Invalid namespace entry in the KVS\n");
+			continue;
+		}
+
+		cb(ns);
+	} while ((rc = kvs_itr_next(kvstor, kvs_iter)) == 0);
+
+	if (rc == -ENOENT) {
+		rc = 0;
+	}
+out:
+	kvs_itr_fini(kvstor, kvs_iter);
+	log_debug("rc = %d", rc);
+	return rc;
+}
+
 int ns_next_id(uint32_t *nsobj_id)
 {
 	int rc = 0;
@@ -151,7 +196,7 @@ int ns_fini()
 	RC_WRAP_LABEL(rc, out, kvs_index_close, kvstor, &g_ns_index);
 
 out:
-	return 0;
+	return rc;
 }
 
 int ns_create(str256_t *name, struct namespace **ret_ns)
@@ -170,7 +215,6 @@ int ns_create(str256_t *name, struct namespace **ret_ns)
 
 	/* Get next nsobj_id */
 	RC_WRAP_LABEL(rc, out, ns_next_id, &nsobj_id);
-
 	/* prepare for namespace obj index */
 	RC_WRAP_LABEL(rc, out, kvs_fid_from_str, ns_fid_str, &nsobj_fid);
 	nsobj_fid.f_lo = nsobj_id;

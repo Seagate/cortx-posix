@@ -22,6 +22,7 @@
 
 /* Forward declaration */
 struct namespace;
+struct ns_itr;
 
 /******************************************************************************/
 /* Methods */
@@ -67,4 +68,24 @@ int ns_delete(struct namespace *ns);
  */
 int ns_next_id(uint32_t *nsobj_id);
 
+/** scans the namespace table.
+ * Callback needs to copy the buffer containing ns, as it will be deleted in
+ * the next iteration.
+ * @param iter[out]: opaque iter for upper layer.
+ * @param ns[out]: namespace object.
+ *
+ *  @return 0 if successful, a negative "-errno" value in case of failure.
+ */
+int ns_scan(void (*cb)(struct namespace *));
+
+/** get namespace's name as str256_t obj.
+ * For given str256_t obj, memory is not allocated by the caller,
+ * namespace's buffer is assigned to str256_t obj.
+ * Caller need-not free str256_t obj.
+ * @param ns[in]: namespace obj.
+ * @param name[out]: str256_t obj.
+ *
+ * @return void.
+ */
+void ns_get_name(struct namespace *ns, str256_t **name);
 #endif /* _NAMESPACE_H_ */
