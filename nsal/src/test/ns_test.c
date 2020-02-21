@@ -84,21 +84,18 @@ int test_ns_delete(struct namespace *ns)
 	return rc;
 }
 
+void test_cb(struct namespace *ns)
+{
+	str256_t *ns_name = NULL;
+	get_ns_name(ns, &ns_name);
+	printf("CB ns_name = %s\n", (ns_name->s_str));
+
+}
+
 int test_ns_scan()
 {
 	int rc = 0;
-	struct ns_itr *iter = NULL;
-	struct namespace *ns = NULL;
-	str256_t *ns_name = NULL;
-	rc = ns_scan(&iter, &ns);
-	get_ns_name(ns, &ns_name);
-	printf("name = %s\n", (ns_name->s_str));
-	while (rc == 0) {
-		rc = ns_scan(&iter, &ns);
-		get_ns_name(ns, &ns_name);
-		printf("name = %s\n", (ns_name->s_str));
-	}
-
+	rc = ns_scan(test_cb);
 	return rc;
 }
 
@@ -135,17 +132,17 @@ int main(int argc, char *argv[])
 
 	rc = test_ns_scan();
 	if (rc == 0 ) {
-		printf("passesd\n");
+		printf("passed\n");
 	}
 
 	rc = test_ns_delete(ns);
 	if (rc !=0 ) {
-		printf("namespace detetion failed rc=%d\n", rc);
+		printf("namespace deletion failed rc=%d\n", rc);
 	} 
 
 	rc = test_ns_delete(ns);
 	if (rc !=0 ) {
-		printf("namespace detetion failed expected rc=%d\n", rc);
+		printf("namespace deletion failed expected rc=%d\n", rc);
 	}
 
 	rc = test_ns_fini();

@@ -75,8 +75,7 @@ int ns_next_id(uint32_t *nsobj_id);
  *
  *  @return 0 if successful, a negative "-errno" value in case of failure.
  */ 
-int ns_scan(struct ns_itr **iter, struct namespace **ns);
-
+int ns_scan(void (*cb)(struct namespace *));
 /** get namespace's name as str256_t obj.
  *
  * @param ns[in]: namespace obj.

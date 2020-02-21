@@ -74,60 +74,46 @@ void get_ns_name(struct namespace *ns, str256_t **out)
 	*out = &ns->ns_name;
 }
 
-int ns_scan(struct ns_itr **iter, struct namespace **ns)
+int ns_scan(void (*cb)(struct namespace *))
 {
 	int rc = 0;
-	struct ns_key *prefix = NULL;
+	int i = 0;
 	struct kvs_itr *kvs_iter = NULL;
-	void *key = NULL;
-	void *val = NULL;
 	size_t klen, vlen;
+	void *key = NULL;
+	struct namespace *val = NULL;
 	static const size_t psize = sizeof(struct key_prefix);
 
-	ns_iter = *iter;
-	if (ns_iter == NULL) {
-		RC_WRAP_LABEL(rc, out, kvs_alloc, (void **)&prefix, sizeof(*prefix));
-		prefix->ns_prefix.k_type = NS_KEY_TYPE_NS_INFO;
-		prefix->ns_prefix.k_version = NS_VERSION_0;
+	struct kvstore *kvstor = kvstore_get();
 
-		rc = kvs_itr_find(&g_ns_index, prefix, psize, &kvs_iter);
-		if (rc) {
+	struct ns_key prefix;
+	prefix.ns_prefix.k_type = NS_KEY_TYPE_NS_INFO;
+	prefix.ns_prefix.k_version = NS_VERSION_0;
+
+	rc = kvs_itr_find(kvstor, &g_ns_index, &prefix, psize, &kvs_iter);
+	if (rc) {
 			goto out;
-		}
+	}
 
-		kvs_itr_get(kvs_iter, &key, &klen, &val, &vlen);
+	for (i = 0; (rc == 0); ++i) {
+		kvs_itr_get(kvstor, kvs_iter, &key, &klen, (void **)&val, &vlen);
+
 		if (vlen != sizeof(struct namespace)) {
 			log_err("Invalid namespace entry in the KVS\n");
 			goto out;
 		}
 
-		RC_WRAP_LABEL(rc, out, kvs_alloc, (void **)&ns_iter,
-		              sizeof(*ns_iter));
-		*ns = val;
-		ns_iter->kvs_iter = kvs_iter;
-		*iter = ns_iter;
-	} else {
-		rc = kvs_itr_next(ns_iter->kvs_iter);
-		if (rc != 0 ) {
-			kvs_itr_fini(ns_iter->kvs_iter);
-			kvs_free(*iter);
-			*iter = NULL;
-			goto out;
-		}
-
-		kvs_itr_get(ns_iter->kvs_iter, &key, &klen, &val, &vlen);
-		if (vlen != sizeof(struct namespace)) {
-			log_err("invalid key value pair\n");
-			goto out;
-		}
-
-		*ns = val;
-		*iter = ns_iter;
+		cb(val);
+		rc = kvs_itr_next(kvstor, kvs_iter);
 	}
-
+	if (rc) {
+         rc = rc == -ENOENT ? 0 : rc;
+	} else {
+        rc = 0;
+	}
 out:
-	log_debug("rc=%d", rc);
-
+	kvs_itr_fini(kvstor, kvs_iter);
+	log_debug("rc = %d", rc);
 	return rc;
 }
 
