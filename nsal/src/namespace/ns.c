@@ -27,11 +27,6 @@ struct namespace {
 	struct kvs_idx nsobj_index; /*namespace object index*/
 };
 
-/* opaque iter for upper layer */
-struct ns_itr {
-	struct kvs_itr *kvs_iter;
-};
-
 typedef enum ns_version {
         NS_VERSION_0 = 0,
         NS_VERSION_INVALID,
@@ -66,7 +61,6 @@ struct ns_key {
 /* This is a global NS index which stores information about all the namespace */
 static struct kvs_idx g_ns_index;
 static char *ns_fid_str;
-struct ns_itr *ns_iter = NULL;
 
 void get_ns_name(struct namespace *ns, str256_t **out)
 {
