@@ -267,7 +267,6 @@ int main(int argc, char *argv[])
 		log_err("Failed nsal_fini");
 		goto out;
 	}
-	nsal_stop();
 out:
 	ut_fini();
 	printf("Tests failed = %d", test_failed);
