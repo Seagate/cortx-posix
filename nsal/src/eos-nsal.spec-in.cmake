@@ -66,9 +66,11 @@ mkdir -p %{buildroot}%{_libdir}
 mkdir -p %{buildroot}%{_libdir}/pkgconfig
 mkdir -p %{buildroot}%{_includedir}/nsal
 mkdir -p %{buildroot}%{_includedir}/nsal/eos
+mkdir -p %{buildroot}%{_includedir}/nsal/redis
 mkdir -p %{buildroot}%{_sysconfdir}/nsal.d
 install -m 644 include/kvstore.h  %{buildroot}%{_includedir}/nsal
 install -m 644 include/eos/eos_kvstore.h  %{buildroot}%{_includedir}/nsal/eos
+install -m 644 include/redis/redis_kvstore.h  %{buildroot}%{_includedir}/nsal/redis
 install -m 744 libeos-nsal.so %{buildroot}%{_libdir}
 install -m 644 eos-nsal.pc  %{buildroot}%{_libdir}/pkgconfig
 
@@ -84,6 +86,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/pkgconfig/eos-nsal.pc
 %{_includedir}/nsal/kvstore.h
 %{_includedir}/nsal/eos/eos_kvstore.h
+%{_includedir}/nsal/redis/redis_kvstore.h
 
 %changelog
 * Tue Dec 24 2019 Seagate 1.0.1

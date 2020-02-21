@@ -19,7 +19,9 @@ int nsal_start(const char *config_path)
 {
 	struct collection_item *errors = NULL;
 	int rc = 0;
+	struct kvstore *kvstore = kvstore_get();
 
+	dassert(kvstore != NULL);
 	rc = log_init("/var/log/eos/efs/efs.log", LEVEL_DEBUG);
 	if (rc != 0) {
 		rc = -EINVAL;
@@ -35,7 +37,7 @@ int nsal_start(const char *config_path)
 		goto out;
 	}
 
-	rc = kvs_init(cfg_items, 0);
+	rc = kvs_init(kvstore, cfg_items);
 	if (rc) {
 		log_debug("Failed to do kvstore init rc = %d", rc);
 		goto out;

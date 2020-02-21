@@ -42,8 +42,7 @@ void eos_kvs_free(void *ptr)
 }
 
 
-int eos_kvs_index_create(struct kvstore *kvstore, const kvs_fid_t *fid,
-		      struct kvs_idx *index)
+int eos_kvs_index_create(const kvs_fid_t *fid, struct kvs_idx *index)
 {
         int rc;
 	struct m0_uint128 mfid = M0_UINT128(0, 0);
@@ -83,8 +82,7 @@ out:
         return rc;
 }
 
-int eos_kvs_index_delete(struct kvstore *kvstore_obj,
-		      const kvs_fid_t *fid)
+int eos_kvs_index_delete(const kvs_fid_t *fid)
 {
         int rc;
 	struct m0_uint128 mfid = M0_UINT128(0, 0);
@@ -101,8 +99,7 @@ int eos_kvs_index_delete(struct kvstore *kvstore_obj,
         return rc;
 }
 
-int eos_kvs_index_open(struct kvstore *kvstore, const kvs_fid_t *fid,
-		     struct kvs_idx *index)
+int eos_kvs_index_open(const kvs_fid_t *fid, struct kvs_idx *index)
 {
 	int rc;
 	struct m0_uint128 mfid = M0_UINT128(0, 0);
@@ -140,7 +137,7 @@ out:
 	return rc;
 }
 
-int eos_kvs_index_close(struct kvstore *kvstore, struct kvs_idx *index)
+int eos_kvs_index_close(struct kvs_idx *index)
 {
 	struct m0_clovis_idx *idx = (struct m0_clovis_idx *)index->index_priv;
 

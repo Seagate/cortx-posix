@@ -73,12 +73,12 @@ int ns_next_id(uint32_t *nsobj_id)
 
 	dassert(kvstor != NULL);
 
-	RC_WRAP_LABEL(rc, out, kvs_alloc, (void **)&key_prefix,
+	RC_WRAP_LABEL(rc, out, kvs_alloc, kvstor, (void **)&key_prefix,
 			sizeof(struct key_prefix));
 
 	NS_KEY_PREFIX_INIT(key_prefix, NS_KEY_TYPE_NS_ID_NEXT);
 
-	rc = kvs_get(&g_ns_index, key_prefix, sizeof(struct key_prefix),
+	rc = kvs_get(kvstor, &g_ns_index, key_prefix, sizeof(struct key_prefix),
 			(void **)&val_ptr, &buf_size);
 
 	if (likely(rc == 0)) {
@@ -93,18 +93,18 @@ int ns_next_id(uint32_t *nsobj_id)
 	}
 
 	val++;
-	RC_WRAP_LABEL(rc, free_key, kvs_set, &g_ns_index, key_prefix,
+	RC_WRAP_LABEL(rc, free_key, kvs_set, kvstor, &g_ns_index, key_prefix,
 			sizeof(struct key_prefix), (void *)&val, sizeof(val));
 	*nsobj_id = val;
 
 free_key:
 	if (key_prefix) {
-		kvs_free(key_prefix);
+		kvs_free(kvstor, key_prefix);
 	}
 
 out:
 	if (val_ptr) {
-		kvs_free(val_ptr);
+		kvs_free(kvstor, val_ptr);
 	}
 
 	log_debug("ctx=%p ns_id=%lu rc=%d",
@@ -179,24 +179,24 @@ int ns_create(str256_t *name, struct namespace **ret_ns)
 	RC_WRAP_LABEL(rc, out, kvs_index_create, kvstor, &nsobj_fid, &nsobj_index);
 
 	/* dump namespace in kvs */
-	RC_WRAP_LABEL(rc, out, kvs_alloc, (void **)&ns, sizeof(*ns));
+	RC_WRAP_LABEL(rc, out, kvs_alloc, kvstor, (void **)&ns, sizeof(*ns));
 	ns->nsobj_id = nsobj_id;
 	ns->ns_name = *name;
 	ns->nsobj_fid = nsobj_fid;
 	ns->nsobj_index = nsobj_index;
 
-	RC_WRAP_LABEL(rc, out, kvs_alloc, (void **)&ns_key, sizeof(*ns_key));
+	RC_WRAP_LABEL(rc, out, kvs_alloc, kvstor, (void **)&ns_key, sizeof(*ns_key));
 
 	NS_KEY_INIT(ns_key, nsobj_id, NS_KEY_TYPE_NS_INFO);
 
-	RC_WRAP_LABEL(rc, free_key, kvs_set, &g_ns_index, ns_key,
+	RC_WRAP_LABEL(rc, free_key, kvs_set, kvstor, &g_ns_index, ns_key,
 			sizeof(struct ns_key), ns, sizeof(struct namespace));
 
 	*ret_ns = ns;
 
 free_key:
 	if (ns_key) {
-		kvs_free(ns_key);
+		kvs_free(kvstor, ns_key);
 	}
 
 out:
@@ -215,20 +215,20 @@ int ns_delete(struct namespace *ns)
 	dassert(ns != NULL);
 
 	nsobj_id = ns->nsobj_id;
-	RC_WRAP_LABEL(rc, out, kvs_alloc, (void **)&ns_key, sizeof(*ns_key));
+	RC_WRAP_LABEL(rc, out, kvs_alloc, kvstor, (void **)&ns_key, sizeof(*ns_key));
 
 	NS_KEY_INIT(ns_key, nsobj_id, NS_KEY_TYPE_NS_INFO);
 
-	RC_WRAP_LABEL(rc, free_key, kvs_del, &g_ns_index, ns_key,
+	RC_WRAP_LABEL(rc, free_key, kvs_del, kvstor, &g_ns_index, ns_key,
 			sizeof(struct ns_key));
 	/* Delete namespace object index */
 	RC_WRAP_LABEL(rc, out, kvs_index_delete, kvstor, &(ns->nsobj_fid));
 
-	kvs_free(ns);
+	kvs_free(kvstor, ns);
 
 free_key:
 	if (ns_key) {
-		kvs_free(ns_key);
+		kvs_free(kvstor, ns_key);
 	}
 
 out:
