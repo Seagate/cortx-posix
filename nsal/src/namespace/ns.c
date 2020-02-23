@@ -62,10 +62,21 @@ struct ns_key {
 static struct kvs_idx g_ns_index;
 static char *ns_fid_str;
 
+size_t ns_size(struct namespace *ns)
+{
+	return sizeof(*ns);
+}
+
 void ns_get_name(struct namespace *ns, str256_t **name)
 {
 	dassert(ns);
 	*name = &ns->ns_name;
+}
+
+void ns_get_index(struct namespace *ns, struct kvs_idx **index)
+{
+	dassert(ns);
+	*index = &ns->nsobj_index;
 }
 
 int ns_scan(void (*cb)(struct namespace *))
@@ -75,11 +86,11 @@ int ns_scan(void (*cb)(struct namespace *))
 	size_t klen, vlen;
 	void *key = NULL;
 	struct namespace *ns = NULL;
+	struct ns_key prefix;
 	static const size_t psize = sizeof(struct key_prefix);
 
 	struct kvstore *kvstor = kvstore_get();
 
-	struct ns_key prefix;
 	NS_KEY_PREFIX_INIT((&prefix.ns_prefix), NS_KEY_TYPE_NS_INFO);
 
 	rc = kvs_itr_find(kvstor, &g_ns_index, &prefix, psize, &kvs_iter);
@@ -199,7 +210,7 @@ out:
 	return rc;
 }
 
-int ns_create(str256_t *name, struct namespace **ret_ns)
+int ns_create(const str256_t *name, struct namespace **ret_ns)
 {
 	int rc = 0;
 	uint32_t nsobj_id = 0;
@@ -259,12 +270,14 @@ int ns_delete(struct namespace *ns)
 	dassert(ns != NULL);
 
 	nsobj_id = ns->nsobj_id;
+
 	RC_WRAP_LABEL(rc, out, kvs_alloc, kvstor, (void **)&ns_key, sizeof(*ns_key));
 
 	NS_KEY_INIT(ns_key, nsobj_id, NS_KEY_TYPE_NS_INFO);
 
 	RC_WRAP_LABEL(rc, free_key, kvs_del, kvstor, &g_ns_index, ns_key,
 			sizeof(struct ns_key));
+
 	/* Delete namespace object index */
 	RC_WRAP_LABEL(rc, out, kvs_index_delete, kvstor, &(ns->nsobj_fid));
 
@@ -280,4 +293,3 @@ out:
 
 	return rc;
 }
-
