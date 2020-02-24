@@ -15,7 +15,7 @@ link_directories(${LIBKVSTORE})
 set(CMAKE_INSTALL_RPATH "${LIBKVSTORE}")
 
 set(nsal_TEST_SRC
-        test_nsal_ns.c
+        test_ns.c
 )
 add_library(nsal_tests SHARED ${nsal_TEST_SRC})
 

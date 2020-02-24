@@ -12,7 +12,7 @@
  * Author: Jatinder Kumar <jatinder.kumar@seagate.com>
  */
 
-#include "test_nsal.h"
+#include "test_ns.h"
 
 int ut_nsal_init()
 {

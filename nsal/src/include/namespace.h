@@ -22,7 +22,6 @@
 
 /* Forward declaration */
 struct namespace;
-struct ns_itr;
 
 /******************************************************************************/
 /* Methods */
@@ -47,10 +46,10 @@ int ns_fini(void);
  *
  *  @param name[in] - namespace name.
  *  @param ret_ns[out] - namespace object.
- *
+ *  @param ns_size[out] - namespace object size.
  *  @return 0 if successful, a negative "-errno" value in case of failure.
  */
-int ns_create(const str256_t *name, struct namespace **ret_ns);
+int ns_create(const str256_t *name, struct namespace **ret_ns, size_t *ns_size);
 
 /** Deletes namespace object.
  *
@@ -74,7 +73,7 @@ int ns_next_id(uint32_t *nsobj_id);
  * @param : function pointer.
  *  @return 0 if successful, a negative "-errno" value in case of failure.
  */
-int ns_scan(void (*cb)(struct namespace *));
+int ns_scan(void (*cb)(struct namespace *, size_t ns_size));
 
 /** get namespace's name as str256_t obj.
  * For given str256_t obj, memory is not allocated by the caller,
@@ -97,12 +96,4 @@ void ns_get_name(struct namespace *ns, str256_t **name);
  * @return void.
  */
 void ns_get_index(struct namespace *ns, struct kvs_idx **index);
-
-/** get namespace object size.
- *
- * @param ns[in]: namespace obj.
- *
- * @return size of namespace obj.
- */
-size_t ns_size(struct namespace *ns);
 #endif /* _NAMESPACE_H_ */

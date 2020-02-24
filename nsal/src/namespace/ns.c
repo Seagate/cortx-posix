@@ -62,11 +62,6 @@ struct ns_key {
 static struct kvs_idx g_ns_index;
 static char *ns_fid_str;
 
-size_t ns_size(struct namespace *ns)
-{
-	return sizeof(*ns);
-}
-
 void ns_get_name(struct namespace *ns, str256_t **name)
 {
 	dassert(ns);
@@ -79,7 +74,7 @@ void ns_get_index(struct namespace *ns, struct kvs_idx **index)
 	*index = &ns->nsobj_index;
 }
 
-int ns_scan(void (*cb)(struct namespace *))
+int ns_scan(void (*cb)(struct namespace *, size_t ))
 {
 	int rc = 0;
 	struct kvs_itr *kvs_iter = NULL;
@@ -88,7 +83,7 @@ int ns_scan(void (*cb)(struct namespace *))
 	struct namespace *ns = NULL;
 	struct ns_key prefix;
 	static const size_t psize = sizeof(struct key_prefix);
-
+	size_t ns_size = 0;
 	struct kvstore *kvstor = kvstore_get();
 
 	NS_KEY_PREFIX_INIT((&prefix.ns_prefix), NS_KEY_TYPE_NS_INFO);
@@ -106,7 +101,8 @@ int ns_scan(void (*cb)(struct namespace *))
 			continue;
 		}
 
-		cb(ns);
+		ns_size = sizeof(struct namespace);
+		cb(ns, ns_size);
 	} while ((rc = kvs_itr_next(kvstor, kvs_iter)) == 0);
 
 	if (rc == -ENOENT) {
@@ -210,7 +206,7 @@ out:
 	return rc;
 }
 
-int ns_create(const str256_t *name, struct namespace **ret_ns)
+int ns_create(const str256_t *name, struct namespace **ret_ns, size_t *ns_size)
 {
 	int rc = 0;
 	uint32_t nsobj_id = 0;
@@ -248,6 +244,7 @@ int ns_create(const str256_t *name, struct namespace **ret_ns)
 			sizeof(struct ns_key), ns, sizeof(struct namespace));
 
 	*ret_ns = ns;
+	*ns_size = sizeof(struct namespace);
 
 free_key:
 	if (ns_key) {

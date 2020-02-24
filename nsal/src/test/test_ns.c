@@ -1,5 +1,5 @@
-/*
- * Filename: test_nsal_ns.c
+/*1
+ * Filename: test_ns.c
  * Description: Implementation tests for namespace.
  *
  * Do NOT modify or remove this copyright and confidentiality notice!
@@ -12,7 +12,7 @@
  * Author: Jatinder Kumar <jatinder.kumar@seagate.com>
  */
 
-#include "test_nsal.h"
+#include "test_ns.h"
 
 void test_init_ns()
 {
@@ -38,9 +38,10 @@ void test_create_ns()
 	str256_t ns_name;
 	char *name = "eosfs";
 	struct namespace *ns;
+	size_t ns_size = 0;
 
 	str256_from_cstr(ns_name, name, strlen(name));
-	rc = ns_create(&ns_name, &ns);
+	rc = ns_create(&ns_name, &ns, &ns_size);
 
 	ut_assert_int_equal(rc, 0);
 }
@@ -52,12 +53,13 @@ void test_delete_ns()
 	char *name = "eosfs1";
 	struct namespace *fsn;
 	struct namespace *ns;
+	size_t ns_size = 0;
 
 	str256_from_cstr(ns_name, name, strlen(name));
-	rc = ns_create(&ns_name, &ns);
+	rc = ns_create(&ns_name, &ns, &ns_size);
 
-	fsn = malloc(ns_size(ns));
-	memcpy(fsn, ns, ns_size(ns));
+	fsn = malloc(ns_size);
+	memcpy(fsn, ns, ns_size);
 
 	rc = ns_delete(fsn);
 
@@ -65,11 +67,11 @@ void test_delete_ns()
 
 }
 
-void test_cb(struct namespace *ns)
+void test_cb(struct namespace *ns, size_t ns_size)
 {
 	str256_t *ns_name = NULL;
 	ns_get_name(ns, &ns_name);
-	printf("CB ns_name = %s\n", (ns_name->s_str));
+	printf("CB ns_name = %s\n", ns_name->s_str);
 }
 
 void test_scan_ns()
