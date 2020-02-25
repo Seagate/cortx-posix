@@ -14,16 +14,46 @@
 
 #include "test_ns.h"
 
-void test_init_ns()
+void test_ns_init()
 {
+	struct collection_item *errors = NULL;
 	int rc = 0;
+	struct kvstore *kvstore = kvstore_get();
+
+	dassert(kvstore != NULL);
+
+	rc = log_init("/var/log/eos/efs/efs.log", LEVEL_DEBUG);
+	if (rc != 0) {
+		rc = -EINVAL;
+		printf("Log init failed, rc: %d\n", rc);
+		goto out;
+	}
+
+	rc = config_from_file("libkvsns", DEFAULT_CONFIG, &cfg_items,
+							INI_STOP_ON_ERROR, &errors);
+	if (rc) {
+		printf("Can't load config rc = %d", rc);
+		rc = -rc;
+		goto out;
+	}
+
+	rc = kvs_init(kvstore, cfg_items);
+	if (rc) {
+		printf("Failed to do kvstore init rc = %d", rc);
+		goto out;
+	}
 
 	rc = ns_init(cfg_items);
+
+out:
+	if (rc) {
+		free_ini_config_errors(errors);
+	}
 
 	ut_assert_int_equal(rc, 0);
 }
 
-void test_fini_ns()
+void test_ns_fini()
 {
 	int rc = 0;
 
@@ -32,7 +62,7 @@ void test_fini_ns()
 	ut_assert_int_equal(rc, 0);
 }
 
-void test_create_ns()
+void test_ns_create()
 {
 	int rc = 0;
 	str256_t ns_name;
@@ -46,7 +76,7 @@ void test_create_ns()
 	ut_assert_int_equal(rc, 0);
 }
 
-void test_delete_ns()
+void test_ns_delete()
 {
 	int rc = 0;
 	str256_t ns_name;
@@ -74,7 +104,7 @@ void test_cb(struct namespace *ns, size_t ns_size)
 	printf("CB ns_name = %s\n", ns_name->s_str);
 }
 
-void test_scan_ns()
+void test_ns_scan()
 {
 	int rc = 0;
 	rc = ns_scan(test_cb);

@@ -1,5 +1,5 @@
 /*
- * Filename: test_nsal.h
+ * Filename: test_ns.h
  * Description: Declararions of functions used to test nsal
  *
  * Do NOT modify or remove this copyright and confidentiality notice!
@@ -31,42 +31,32 @@
 
 struct collection_item *cfg_items;
 
-/**
- * Does required nsal initialization to execute unit tests
- */
-int ut_nsal_init();
-
-/**
- * Finishes nsal initialization
- */
-void ut_nsal_fini(void);
-
 // Namespace Tests
 
 /**
  * Test for namespace initialization.
  */
-void test_init_ns();
+void test_ns_init();
 
 /**
  *Test for namespce finish initialization.
  */
-void test_fini_ns();
+void test_ns_fini();
 
 /**
  * Test for namespace create.
  */
-void test_create_ns();
+void test_ns_create();
 
 /**
  * Test for namespace delete.
  */
-void test_delete_ns();
+void test_ns_delete();
 
 /**
  * Test for namspace scan.
  */
-void test_scan_ns();
+void test_ns_scan();
 
 // iter test
 // todo

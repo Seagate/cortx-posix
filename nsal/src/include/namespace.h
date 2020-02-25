@@ -95,5 +95,5 @@ void ns_get_name(struct namespace *ns, str256_t **name);
  *
  * @return void.
  */
-void ns_get_index(struct namespace *ns, struct kvs_idx **index);
+void ns_get_nsobj_index(struct namespace *ns, struct kvs_idx **nsobj_index);
 #endif /* _NAMESPACE_H_ */

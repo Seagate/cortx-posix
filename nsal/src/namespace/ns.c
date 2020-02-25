@@ -68,10 +68,10 @@ void ns_get_name(struct namespace *ns, str256_t **name)
 	*name = &ns->ns_name;
 }
 
-void ns_get_index(struct namespace *ns, struct kvs_idx **index)
+void ns_get_nsobj_index(struct namespace *ns, struct kvs_idx **nsobj_index)
 {
 	dassert(ns);
-	*index = &ns->nsobj_index;
+	*nsobj_index = &ns->nsobj_index;
 }
 
 int ns_scan(void (*cb)(struct namespace *, size_t ))
@@ -276,7 +276,7 @@ int ns_delete(struct namespace *ns)
 			sizeof(struct ns_key));
 
 	/* Delete namespace object index */
-	RC_WRAP_LABEL(rc, out, kvs_index_delete, kvstor, &(ns->nsobj_fid));
+	RC_WRAP_LABEL(rc, out, kvs_index_delete, kvstor, &ns->nsobj_fid);
 
 	kvs_free(kvstor, ns);
 
