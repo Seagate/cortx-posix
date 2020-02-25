@@ -13,12 +13,11 @@
  */
 
 #include <errno.h> /*error no*/
-#include <debug.h> /*dassert*/
-#include <ini_config.h> /*config*/
-#include <namespace.h> /*namespace*/
-#include <common.h> /*likely*/
-#include <common/helpers.h> /*RC_WRAP_LABEL*/
-#include <common/log.h> /*logging*/
+#include "debug.h" /*dassert*/
+#include "namespace.h" /*namespace*/
+#include "common.h" /*likely*/
+#include "common/helpers.h" /*RC_WRAP_LABEL*/
+#include "common/log.h" /*logging*/
 
 struct namespace {
         uint64_t ns_id; /*namespace object id, monotonically increments*/

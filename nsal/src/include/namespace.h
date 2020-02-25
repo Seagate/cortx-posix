@@ -15,8 +15,8 @@
 #ifndef _NAMESPACE_H_
 #define _NAMESPACE_H_
 
-#include <str.h> /*str256_t*/
-#include <kvstore.h> /*kvstore api*/
+#include "str.h" /*str256_t*/
+#include "kvstore.h" /*kvstore api*/
 
 #define NS_ID_INIT 2  /* @todo change to 1 when module level intitalization is fixed */
 

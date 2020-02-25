@@ -15,17 +15,14 @@
 #ifndef TEST_NSAL_H
 #define TEST_NSAL_H
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <ini_config.h>
-#include "eos/eos_kvstore.h"
-#include <debug.h>
-#include <string.h>
 #include <errno.h>
-#include <common/log.h>
+#include <string.h>
+#include "eos/eos_kvstore.h"
+#include "debug.h"
+#include "common/log.h"
 #include "str.h"
-#include <namespace.h>
-#include <ut.h>
+#include "namespace.h"
+#include "ut.h"
 
 #define DEFAULT_CONFIG "/etc/kvsns.d/kvsns.ini"
 
