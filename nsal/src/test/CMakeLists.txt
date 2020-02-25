@@ -9,19 +9,20 @@ if((NOT HAVE_CMOCKA))
         message (FATAL ERROR "Conannot find cmocka")
 endif((NOT HAVE_CMOCKA))
 
-add_executable(ut test_nsal.c)
+add_executable(test_ns test_ns.c)
+add_executable(iter iter_test.c)
 
 link_directories(${LIBKVSTORE})
 set(CMAKE_INSTALL_RPATH "${LIBKVSTORE}")
 
-set(nsal_TEST_SRC
-        test_ns.c
-)
-add_library(nsal_tests SHARED ${nsal_TEST_SRC})
-
-target_link_libraries(ut
+target_link_libraries(test_ns
 	eos-utils
 	eos-nsal
-	nsal_tests
+	${STORE_LIBRARY}
+)
+
+target_link_libraries(iter
+	eos-utils
+	eos-nsal
 	${STORE_LIBRARY}
 )

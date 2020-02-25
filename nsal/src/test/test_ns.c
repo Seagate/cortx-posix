@@ -94,7 +94,6 @@ void test_ns_delete()
 	rc = ns_delete(fsn);
 
 	ut_assert_int_equal(rc, 0);
-
 }
 
 void test_cb(struct namespace *ns, size_t ns_size)
@@ -108,5 +107,40 @@ void test_ns_scan()
 {
 	int rc = 0;
 	rc = ns_scan(test_cb);
+
 	ut_assert_int_equal(rc,0);
+}
+
+int main(int argc, char *argv[])
+{
+        int rc = 0;
+        char *test_logs = "/var/log/eos/fs/test.logs";
+
+        if (argc > 1) {
+                test_logs = argv[1];
+        }
+
+        rc = ut_init(test_logs);
+        if (rc != 0) {
+                exit(1);
+        }
+
+        struct test_case test_list[] = {
+                ut_test_case(test_ns_init),
+                ut_test_case(test_ns_scan),
+                ut_test_case(test_ns_create),
+                ut_test_case(test_ns_delete),
+                ut_test_case(test_ns_fini),
+        };
+
+        int test_count = 5;
+        int test_failed = 0;
+
+        test_failed = ut_run(test_list, test_count);
+
+        ut_fini();
+
+        printf("Tests failed = %d", test_failed);
+
+        return 0;
 }

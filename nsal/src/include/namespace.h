@@ -61,19 +61,19 @@ int ns_delete(struct namespace *ns);
 
 /** gives next namespace id.
  *
- *  @param nsobj_id[out]: next namespace object id.
+ *  @param ns_id[out]: next namespace object id.
  *
  *  @return 0 if successful, a negative "-errno" value in case of failure.
  */
-int ns_next_id(uint32_t *nsobj_id);
+int ns_next_id(uint32_t *ns_id);
 
 /** scans the namespace table.
  * Callback needs to copy the buffer containing ns, as it will be deleted in
  * the next iteration.
  * @param : function pointer.
- *  @return 0 if successful, a negative "-errno" value in case of failure.
+ * @return 0 if successful, a negative "-errno" value in case of failure.
  */
-int ns_scan(void (*cb)(struct namespace *, size_t ns_size));
+int ns_scan(void (*ns_scan_cb)(struct namespace *, size_t ns_size));
 
 /** get namespace's name as str256_t obj.
  * For given str256_t obj, memory is not allocated by the caller,
@@ -87,7 +87,7 @@ int ns_scan(void (*cb)(struct namespace *, size_t ns_size));
 void ns_get_name(struct namespace *ns, str256_t **name);
 
 /** get namespace's index.
- * 
+ *
  * namespace's buffer is assigned to index obj.
  * Caller need-not free index obj.
  * @param ns[in]: namespace obj.
@@ -95,5 +95,5 @@ void ns_get_name(struct namespace *ns, str256_t **name);
  *
  * @return void.
  */
-void ns_get_nsobj_index(struct namespace *ns, struct kvs_idx **nsobj_index);
+void ns_get_ns_index(struct namespace *ns, struct kvs_idx **ns_index);
 #endif /* _NAMESPACE_H_ */
