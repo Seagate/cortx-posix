@@ -75,11 +75,19 @@ int efs_init(const char *config_path)
 	}
 
 	rc = log_init(log_path, log_level_no(log_level));
+<<<<<<< HEAD
         if (rc != 0) {
+=======
+	
+	//TODO add more for Utils_init().
+	rc = utils_init();
+	if (rc != 0) {
+>>>>>>> EOS-5762: changes in initialization of efs_init and efs_fini.
                 rc = -EINVAL;
                 goto err;
         }
 
+<<<<<<< HEAD
 	rc = utils_init(cfg_items);
 	if (rc != 0) {
 		log_err("utils_init failed, rc=%d", rc);
@@ -90,6 +98,16 @@ int efs_init(const char *config_path)
                 log_err("nsal_init failed, rc=%d", rc);
                 goto err2;
         }
+=======
+	//TODO add more for nsal_init().
+	rc = nsal_init();
+        if (rc) {
+                log_err("nsal_init failed");
+                goto err;
+        }
+	
+	//TODO add more for dsal_init().
+>>>>>>> EOS-5762: changes in initialization of efs_init and efs_fini.
 	rc = dsal_init(cfg_items, 0);
 	if (rc) {
 		log_err("dsal_init failed, rc=%d", rc);
