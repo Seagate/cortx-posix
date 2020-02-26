@@ -85,9 +85,11 @@ int efs_init(const char *config_path)
                 log_err("nsal_init failed");
                 goto err;
         }
+	
+	//TODO add more for dsal_init().
 	rc = dsal_init(cfg_items, 0);
 	if (rc) {
-		log_err("dstore_init failed. rc=%d", rc);
+		log_err("dsal_init failed");
 		goto err;
 	}
 	item = NULL;
@@ -170,4 +172,14 @@ int efs_fs_fini(void)
 	//TODO call for Control-Server fini
 	//management_fini();
         return rc;
+	efs_fs_fini();
+	// TODO dsal_fini.	
+	dsal_fini();
+	nsal_fini();
+	RC_WRAP(kvstor->kvstore_ops->fini);
+	free_ini_config_errors(cfg_items);
+	//TODO Utils_fini	
+	utils_fini();
+	
+	return 0;
 }
