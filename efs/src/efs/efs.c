@@ -90,6 +90,8 @@ int efs_init(const char *config_path)
                 log_err("nsal_init failed, rc=%d", rc);
                 goto err2;
         }
+	
+	//TODO add more for dsal_init().
 	rc = dsal_init(cfg_items, 0);
 	if (rc) {
 		log_err("dsal_init failed, rc=%d", rc);
@@ -177,14 +179,6 @@ int efs_fs_init(void)
 {
 	int rc = 0;
 
-	//TODO call for Control-Server init
-	/*rc = management_init();
-	if (rc) {
-                log_err("management_init failed");
-                goto err;
-        }
-err:
-        log_debug("rc=%d ", rc);*/
         return rc;
 }
 
