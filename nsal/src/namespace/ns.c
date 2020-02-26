@@ -20,7 +20,7 @@
 #include "common/log.h" /*logging*/
 
 struct namespace {
-        uint64_t ns_id; /*namespace object id, monotonically increments*/
+        uint16_t ns_id; /*namespace object id, monotonically increments*/
         str256_t ns_name; /*namespace name*/
         kvs_fid_t ns_fid; /*namespace object fid*/
 	struct kvs_idx ns_index; /*namespace object index*/
@@ -41,12 +41,12 @@ typedef enum ns_key_type {
 /* namespace key */
 struct ns_key {
         struct key_prefix ns_prefix;
-        uint32_t ns_meta_id;
+        uint16_t ns_id;
 } __attribute((packed));
 
-#define NS_KEY_INIT(_key, _ns_meta_id, _ktype)               \
+#define NS_KEY_INIT(_key, _ns_id, _ktype)               \
 {                                                       \
-	_key->ns_meta_id = _ns_meta_id,                           \
+	_key->ns_id = _ns_id,                           \
 	_key->ns_prefix.k_type = _ktype,                \
 	_key->ns_prefix.k_version = NS_VERSION_0;       \
 }
@@ -73,7 +73,7 @@ void ns_get_ns_index(struct namespace *ns, struct kvs_idx **ns_index)
 	*ns_index = &ns->ns_index;
 }
 
-int ns_scan(void (*ns_scan_cb)(struct namespace *, size_t ))
+int ns_scan(void (*ns_scan_cb)(struct namespace *ns, size_t ns_size))
 {
 	int rc = 0;
 	struct kvs_itr *kvs_iter = NULL;
@@ -108,18 +108,18 @@ int ns_scan(void (*ns_scan_cb)(struct namespace *, size_t ))
 
 out:
 	kvs_itr_fini(kvstor, kvs_iter);
-	log_debug("rc = %d", rc);
+	log_debug("rc=%d", rc);
 
 	return rc;
 }
 
-int ns_next_id(uint32_t *ns_id)
+int ns_next_id(uint16_t *ns_id)
 {
 	int rc = 0;
 	size_t buf_size = 0;
 	struct key_prefix *key_prefix = NULL;
-	uint32_t *val_ptr = NULL;
-	uint32_t val = 0;
+	uint16_t *val_ptr = NULL;
+	uint16_t val = 0;
 	struct kvstore *kvstor = kvstore_get();
 
 	dassert(kvstor != NULL);
@@ -158,8 +158,8 @@ out:
 		kvs_free(kvstor, val_ptr);
 	}
 
-	log_debug("ctx=%p ns_meta_id=%lu rc=%d",
-			g_ns_meta_index.index_priv, (unsigned long int)*ns_id, rc);
+	log_debug("ctx=%p ns_id=%d rc=%d",
+			g_ns_meta_index.index_priv, *ns_id, rc);
 
 	return rc;
 }
@@ -187,7 +187,7 @@ int ns_init(struct collection_item *cfg)
 	RC_WRAP_LABEL(rc, out, kvs_index_open, kvstor, &ns_meta_fid, &g_ns_meta_index);
 
 out:
-	log_debug("rc=%d\n", rc);
+	log_debug("rc=%d", rc);
 
 	return rc;
 }
@@ -202,13 +202,14 @@ int ns_fini()
 	RC_WRAP_LABEL(rc, out, kvs_index_close, kvstor, &g_ns_meta_index);
 
 out:
+	log_debug("rc=%d", rc);
 	return rc;
 }
 
 int ns_create(const str256_t *name, struct namespace **ret_ns, size_t *ns_size)
 {
 	int rc = 0;
-	uint32_t ns_id = 0;
+	uint16_t ns_id = 0;
 	struct namespace *ns = NULL;
 	struct kvs_idx ns_index;
 	kvs_fid_t ns_fid = {0};
@@ -244,6 +245,7 @@ int ns_create(const str256_t *name, struct namespace **ret_ns, size_t *ns_size)
 
 	*ret_ns = ns;
 	*ns_size = sizeof(struct namespace);
+	goto out;
 
 free_ns:
 	if (ns) {
@@ -256,7 +258,7 @@ free_key:
 	}
 
 out:
-	log_debug("ns_id=%d rc=%d\n", ns_id, rc);
+	log_debug("ns_id=%d rc=%d", ns_id, rc);
 
 	return rc;
 }
@@ -264,7 +266,7 @@ out:
 int ns_delete(struct namespace *ns)
 {
 	int rc = 0;
-	uint32_t ns_id;
+	uint16_t ns_id = 0;
 	struct ns_key *ns_key = NULL;
 	struct kvstore *kvstor = kvstore_get();
 
@@ -290,7 +292,7 @@ free_key:
 	}
 
 out:
-	log_debug("ns_id=%d rc = %d\n", ns_id, rc);
+	log_debug("ns_id=%d rc=%d\n", ns_id, rc);
 
 	return rc;
 }

@@ -65,7 +65,7 @@ int ns_delete(struct namespace *ns);
  *
  *  @return 0 if successful, a negative "-errno" value in case of failure.
  */
-int ns_next_id(uint32_t *ns_id);
+int ns_next_id(uint16_t *ns_id);
 
 /** scans the namespace table.
  * Callback needs to copy the buffer containing ns, as it will be deleted in
