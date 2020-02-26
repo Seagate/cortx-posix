@@ -13,18 +13,17 @@
  */
 
 #include <errno.h> /*error no*/
-#include <debug.h> /*dassert*/
-#include <ini_config.h> /*config*/
-#include <namespace.h> /*namespace*/
-#include <common.h> /*likely*/
-#include <common/helpers.h> /*RC_WRAP_LABEL*/
-#include <common/log.h> /*logging*/
+#include "debug.h" /*dassert*/
+#include "namespace.h" /*namespace*/
+#include "common.h" /*likely*/
+#include "common/helpers.h" /*RC_WRAP_LABEL*/
+#include "common/log.h" /*logging*/
 
 struct namespace {
-        uint64_t nsobj_id; /*namespace object id, monotonically increments*/
+        uint16_t ns_id; /*namespace object id, monotonically increments*/
         str256_t ns_name; /*namespace name*/
-        kvs_fid_t nsobj_fid; /*namespace object fid*/
-	struct kvs_idx nsobj_index; /*namespace object index*/
+        kvs_fid_t ns_fid; /*namespace object fid*/
+	struct kvs_idx ns_index; /*namespace object index*/
 };
 
 typedef enum ns_version {
@@ -42,7 +41,7 @@ typedef enum ns_key_type {
 /* namespace key */
 struct ns_key {
         struct key_prefix ns_prefix;
-        uint32_t ns_id;
+        uint16_t ns_id;
 } __attribute((packed));
 
 #define NS_KEY_INIT(_key, _ns_id, _ktype)               \
@@ -59,8 +58,8 @@ struct ns_key {
 }
 
 /* This is a global NS index which stores information about all the namespace */
-static struct kvs_idx g_ns_index;
-static char *ns_fid_str;
+static struct kvs_idx g_ns_meta_index;
+static char *ns_meta_fid_str;
 
 void ns_get_name(struct namespace *ns, str256_t **name)
 {
@@ -68,21 +67,26 @@ void ns_get_name(struct namespace *ns, str256_t **name)
 	*name = &ns->ns_name;
 }
 
-int ns_scan(void (*cb)(struct namespace *))
+void ns_get_ns_index(struct namespace *ns, struct kvs_idx **ns_index)
+{
+	dassert(ns);
+	*ns_index = &ns->ns_index;
+}
+
+int ns_scan(void (*ns_scan_cb)(struct namespace *ns, size_t ns_size))
 {
 	int rc = 0;
 	struct kvs_itr *kvs_iter = NULL;
 	size_t klen, vlen;
 	void *key = NULL;
 	struct namespace *ns = NULL;
+	struct ns_key prefix;
 	static const size_t psize = sizeof(struct key_prefix);
-
 	struct kvstore *kvstor = kvstore_get();
 
-	struct ns_key prefix;
 	NS_KEY_PREFIX_INIT((&prefix.ns_prefix), NS_KEY_TYPE_NS_INFO);
 
-	rc = kvs_itr_find(kvstor, &g_ns_index, &prefix, psize, &kvs_iter);
+	rc = kvs_itr_find(kvstor, &g_ns_meta_index, &prefix, psize, &kvs_iter);
 	if (rc) {
 		goto out;
 	}
@@ -95,25 +99,27 @@ int ns_scan(void (*cb)(struct namespace *))
 			continue;
 		}
 
-		cb(ns);
+		ns_scan_cb(ns, sizeof(struct namespace));
 	} while ((rc = kvs_itr_next(kvstor, kvs_iter)) == 0);
 
 	if (rc == -ENOENT) {
 		rc = 0;
 	}
+
 out:
 	kvs_itr_fini(kvstor, kvs_iter);
-	log_debug("rc = %d", rc);
+	log_debug("rc=%d", rc);
+
 	return rc;
 }
 
-int ns_next_id(uint32_t *nsobj_id)
+int ns_next_id(uint16_t *ns_id)
 {
 	int rc = 0;
 	size_t buf_size = 0;
 	struct key_prefix *key_prefix = NULL;
-	uint32_t *val_ptr = NULL;
-	uint32_t val = 0;
+	uint16_t *val_ptr = NULL;
+	uint16_t val = 0;
 	struct kvstore *kvstor = kvstore_get();
 
 	dassert(kvstor != NULL);
@@ -123,7 +129,7 @@ int ns_next_id(uint32_t *nsobj_id)
 
 	NS_KEY_PREFIX_INIT(key_prefix, NS_KEY_TYPE_NS_ID_NEXT);
 
-	rc = kvs_get(kvstor, &g_ns_index, key_prefix, sizeof(struct key_prefix),
+	rc = kvs_get(kvstor, &g_ns_meta_index, key_prefix, sizeof(struct key_prefix),
 			(void **)&val_ptr, &buf_size);
 
 	if (likely(rc == 0)) {
@@ -138,9 +144,9 @@ int ns_next_id(uint32_t *nsobj_id)
 	}
 
 	val++;
-	RC_WRAP_LABEL(rc, free_key, kvs_set, kvstor, &g_ns_index, key_prefix,
+	RC_WRAP_LABEL(rc, free_key, kvs_set, kvstor, &g_ns_meta_index, key_prefix,
 			sizeof(struct key_prefix), (void *)&val, sizeof(val));
-	*nsobj_id = val;
+	*ns_id = val;
 
 free_key:
 	if (key_prefix) {
@@ -152,8 +158,8 @@ out:
 		kvs_free(kvstor, val_ptr);
 	}
 
-	log_debug("ctx=%p ns_id=%lu rc=%d",
-			g_ns_index.index_priv, (unsigned long int)*nsobj_id, rc);
+	log_debug("ctx=%p ns_id=%d rc=%d",
+			g_ns_meta_index.index_priv, *ns_id, rc);
 
 	return rc;
 }
@@ -161,7 +167,7 @@ out:
 int ns_init(struct collection_item *cfg)
 {
 	int rc = 0;
-	kvs_fid_t ns_fid;
+	kvs_fid_t ns_meta_fid;
 	struct collection_item *item;
 	struct kvstore *kvstor = kvstore_get();
 
@@ -173,15 +179,15 @@ int ns_init(struct collection_item *cfg)
 	}
 
 	item = NULL;
-	rc = get_config_item("kvstore", "ns_fid", cfg, &item);
-	ns_fid_str = get_string_config_value(item, NULL);
-	RC_WRAP_LABEL(rc, out, kvs_fid_from_str, ns_fid_str, &ns_fid);
+	rc = get_config_item("kvstore", "ns_meta_fid", cfg, &item);
+	ns_meta_fid_str = get_string_config_value(item, NULL);
+	RC_WRAP_LABEL(rc, out, kvs_fid_from_str, ns_meta_fid_str, &ns_meta_fid);
 
-	/* open g_ns_index */
-	RC_WRAP_LABEL(rc, out, kvs_index_open, kvstor, &ns_fid, &g_ns_index);
+	/* open g_ns_meta_index */
+	RC_WRAP_LABEL(rc, out, kvs_index_open, kvstor, &ns_meta_fid, &g_ns_meta_index);
 
 out:
-	log_debug("rc=%d\n", rc);
+	log_debug("rc=%d", rc);
 
 	return rc;
 }
@@ -193,19 +199,20 @@ int ns_fini()
 
 	dassert(kvstor != NULL);
 
-	RC_WRAP_LABEL(rc, out, kvs_index_close, kvstor, &g_ns_index);
+	RC_WRAP_LABEL(rc, out, kvs_index_close, kvstor, &g_ns_meta_index);
 
 out:
+	log_debug("rc=%d", rc);
 	return rc;
 }
 
-int ns_create(str256_t *name, struct namespace **ret_ns)
+int ns_create(const str256_t *name, struct namespace **ret_ns, size_t *ns_size)
 {
 	int rc = 0;
-	uint32_t nsobj_id = 0;
+	uint16_t ns_id = 0;
 	struct namespace *ns = NULL;
-	struct kvs_idx nsobj_index;
-	kvs_fid_t nsobj_fid = {0};
+	struct kvs_idx ns_index;
+	kvs_fid_t ns_fid = {0};
 	struct ns_key *ns_key = NULL;
 	struct kvstore *kvstor = kvstore_get();
 
@@ -213,30 +220,37 @@ int ns_create(str256_t *name, struct namespace **ret_ns)
 
 	RC_WRAP_LABEL(rc, out, str256_isalphanum, name);
 
-	/* Get next nsobj_id */
-	RC_WRAP_LABEL(rc, out, ns_next_id, &nsobj_id);
+	/* Get next ns_id */
+	RC_WRAP_LABEL(rc, out, ns_next_id, &ns_id);
 	/* prepare for namespace obj index */
-	RC_WRAP_LABEL(rc, out, kvs_fid_from_str, ns_fid_str, &nsobj_fid);
-	nsobj_fid.f_lo = nsobj_id;
+	RC_WRAP_LABEL(rc, out, kvs_fid_from_str, ns_meta_fid_str, &ns_fid);
+	ns_fid.f_lo = ns_id;
 
 	/* Create namespace obj index */
-	RC_WRAP_LABEL(rc, out, kvs_index_create, kvstor, &nsobj_fid, &nsobj_index);
+	RC_WRAP_LABEL(rc, out, kvs_index_create, kvstor, &ns_fid, &ns_index);
 
 	/* dump namespace in kvs */
 	RC_WRAP_LABEL(rc, out, kvs_alloc, kvstor, (void **)&ns, sizeof(*ns));
-	ns->nsobj_id = nsobj_id;
+	ns->ns_id = ns_id;
 	ns->ns_name = *name;
-	ns->nsobj_fid = nsobj_fid;
-	ns->nsobj_index = nsobj_index;
+	ns->ns_fid = ns_fid;
+	ns->ns_index = ns_index;
 
-	RC_WRAP_LABEL(rc, out, kvs_alloc, kvstor, (void **)&ns_key, sizeof(*ns_key));
+	RC_WRAP_LABEL(rc, free_ns, kvs_alloc, kvstor, (void **)&ns_key, sizeof(*ns_key));
 
-	NS_KEY_INIT(ns_key, nsobj_id, NS_KEY_TYPE_NS_INFO);
+	NS_KEY_INIT(ns_key, ns_id, NS_KEY_TYPE_NS_INFO);
 
-	RC_WRAP_LABEL(rc, free_key, kvs_set, kvstor, &g_ns_index, ns_key,
+	RC_WRAP_LABEL(rc, free_key, kvs_set, kvstor, &g_ns_meta_index, ns_key,
 			sizeof(struct ns_key), ns, sizeof(struct namespace));
 
 	*ret_ns = ns;
+	*ns_size = sizeof(struct namespace);
+	goto out;
+
+free_ns:
+	if (ns) {
+		kvs_free(kvstor, ns);
+	}
 
 free_key:
 	if (ns_key) {
@@ -244,7 +258,7 @@ free_key:
 	}
 
 out:
-	log_debug("nsobj_id=%d rc=%d\n", nsobj_id, rc);
+	log_debug("ns_id=%d rc=%d", ns_id, rc);
 
 	return rc;
 }
@@ -252,21 +266,23 @@ out:
 int ns_delete(struct namespace *ns)
 {
 	int rc = 0;
-	uint32_t nsobj_id;
+	uint16_t ns_id = 0;
 	struct ns_key *ns_key = NULL;
 	struct kvstore *kvstor = kvstore_get();
 
 	dassert(ns != NULL);
 
-	nsobj_id = ns->nsobj_id;
+	ns_id = ns->ns_id;
+
 	RC_WRAP_LABEL(rc, out, kvs_alloc, kvstor, (void **)&ns_key, sizeof(*ns_key));
 
-	NS_KEY_INIT(ns_key, nsobj_id, NS_KEY_TYPE_NS_INFO);
+	NS_KEY_INIT(ns_key, ns_id, NS_KEY_TYPE_NS_INFO);
 
-	RC_WRAP_LABEL(rc, free_key, kvs_del, kvstor, &g_ns_index, ns_key,
+	RC_WRAP_LABEL(rc, free_key, kvs_del, kvstor, &g_ns_meta_index, ns_key,
 			sizeof(struct ns_key));
+
 	/* Delete namespace object index */
-	RC_WRAP_LABEL(rc, out, kvs_index_delete, kvstor, &(ns->nsobj_fid));
+	RC_WRAP_LABEL(rc, out, kvs_index_delete, kvstor, &ns->ns_fid);
 
 	kvs_free(kvstor, ns);
 
@@ -276,8 +292,7 @@ free_key:
 	}
 
 out:
-	log_debug("nsobj_id=%d rc = %d\n", nsobj_id, rc);
+	log_debug("ns_id=%d rc=%d\n", ns_id, rc);
 
 	return rc;
 }
-

@@ -1,14 +1,27 @@
 cmake_minimum_required(VERSION 2.6.3)
 
-add_executable(iter_test iter_test.c)
-target_link_libraries( iter_test
+include_directories(include)
+include_directories("/usr/include/mero")
+
+find_library(HAVE_CMOCKA cmocka)
+
+if((NOT HAVE_CMOCKA))
+        message (FATAL ERROR "Conannot find cmocka")
+endif((NOT HAVE_CMOCKA))
+
+add_executable(test_ns test_ns.c)
+add_executable(iter iter_test.c)
+
+link_directories(${LIBKVSTORE})
+set(CMAKE_INSTALL_RPATH "${LIBKVSTORE}")
+
+target_link_libraries(test_ns
 	eos-utils
 	eos-nsal
 	${STORE_LIBRARY}
 )
 
-add_executable(ns_test ns_test.c)
-target_link_libraries( ns_test
+target_link_libraries(iter
 	eos-utils
 	eos-nsal
 	${STORE_LIBRARY}
