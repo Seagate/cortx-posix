@@ -75,24 +75,29 @@ int efs_init(const char *config_path)
 	}
 
 	rc = log_init(log_path, log_level_no(log_level));
+	
+	//TODO add more for Utils_init().
+	rc = utils_init();
 	if (rc != 0) {
-		rc = -EINVAL;
-		goto err;
-	}
+                rc = -EINVAL;
+                goto err;
+        }
 
-	rc = dstore_init(cfg_items, 0);
+	//TODO add more for nsal_init().
+	rc = nsal_init();
+        if (rc) {
+                log_err("nsal_init failed");
+                goto err;
+        }
+	
+	//TODO add more for dsal_init().
+	rc = dsal_init(cfg_items, 0);
 	if (rc) {
 		log_err("dstore_init failed. rc=%d", rc);
 		goto err;
 	}
 	item = NULL;
-
-	rc = kvs_init(kvstore, cfg_items);
-	if (rc) {
-		log_err("kvs_init failed. rc=%d", rc);
-		goto err;
-	}
-
+	
 	rc = efs_fs_init(cfg_items);
 	if (rc) {
 		log_err("efs_fs_init failed. rc=%d", rc);
@@ -122,8 +127,14 @@ int efs_fini(void)
 	struct kvstore *kvstor = kvstore_get();
 
 	assert(kvstor != NULL);
-
+	efs_fs_fini();
+	// TODO dsal_fini.	
+	dsal_fini();
+	nsal_fini();
 	RC_WRAP(kvstor->kvstore_ops->fini);
 	free_ini_config_errors(cfg_items);
+	//TODO Utils_fini	
+	utils_fini();
+	
 	return 0;
 }
