@@ -700,19 +700,17 @@ int efs_tree_has_children(efs_fs_ctx_t fs_ctx,
 
 	index.index_priv = fs_ctx;
 
-	result = kvs_itr_find(kvstor, &index, &prefix, efs_dentry_key_psize, &iter);
+	rc = kvs_itr_find(kvstor, &index, &prefix, efs_dentry_key_psize, &iter);
+	result = (rc == 0);
 
 	/* Check if we got an unexpected error from KVS */
-	if ((iter == NULL) || (iter->inner_rc != 0 && iter->inner_rc != -ENOENT)) {
-		if (iter) {
-			rc = iter->inner_rc;
-		} else {
-			rc = result;
-		}
+	if (rc != 0 && rc != -ENOENT) {
 		goto out;
+	} else {
+		rc = 0;
 	}
 
-	if (result) {
+	if (iter) {
 		kvs_itr_fini(kvstor, iter);
 	}
 
