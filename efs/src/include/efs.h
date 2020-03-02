@@ -24,7 +24,7 @@
 #include <str.h> /* str256_t */
 #include <object.h> /* obj_id_t */
 
-//forword declations
+/* forword declations */
 struct kvs_idx;
 
 /**
