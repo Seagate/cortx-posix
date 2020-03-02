@@ -10,7 +10,7 @@ if((NOT HAVE_CMOCKA))
 endif((NOT HAVE_CMOCKA))
 
 add_executable(test_ns test_ns.c)
-add_executable(iter iter_test.c)
+add_executable(test_iter iter_test.c)
 
 link_directories(${LIBKVSTORE})
 set(CMAKE_INSTALL_RPATH "${LIBKVSTORE}")
@@ -21,7 +21,7 @@ target_link_libraries(test_ns
 	${STORE_LIBRARY}
 )
 
-target_link_libraries(iter
+target_link_libraries(test_iter
 	eos-utils
 	eos-nsal
 	${STORE_LIBRARY}

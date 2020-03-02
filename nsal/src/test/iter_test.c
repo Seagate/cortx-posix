@@ -151,7 +151,7 @@ out:
 
 void test_iterator_with_prefix()
 {
-	int rc = 0, i = 0;
+	int rc = 0;
 	struct kvs_itr *iter;
 	bool has_next = true;
 	void *key, *value;
@@ -169,22 +169,20 @@ void test_iterator_with_prefix()
 		goto out;
 	}
 
-	for (i = 0; has_next; ++i) {
+	while (has_next) {
 		kvs_itr_get(kvstor, iter, &key, &klen, &value, &vlen);
 
 		printf("key=%s,  value=%s \n", (char *)key, (char*)value);
 		rc = kvs_itr_next(kvstor, iter);
 		has_next = (rc == 0);
 	}
-	if (!has_next) {
-		rc = rc == -ENOENT ? 0 : rc;
-	} else {
+out:
+	if (rc == -ENOENT) {
 		rc = 0;
 	}
 
-out:
 	kvs_itr_fini(kvstor, iter);
-	printf("\n\nrc value in with prefix =%d\n\n", rc);
+	printf("with_prefix rc = %d\n", rc);
 	ut_assert_int_equal(rc,0);
 }
 
@@ -203,22 +201,20 @@ void test_iterator_no_prefix()
 		iter->inner_rc = rc;
 		goto out;
 	}
-	int i;
-    for (i = 0; has_next; ++i) {
+
+	while (has_next) {
 		kvs_itr_get(kvstor, iter, &key, &klen, &value, &vlen);
 		printf("key=%s,  value=%s \n", (char *)key, (char*)value);
 		rc = kvs_itr_next(kvstor, iter);
 		has_next = (rc == 0);
 	}
-	if (!has_next) {
-		rc = rc == -ENOENT ? 0 : rc;
-	} else {
+out:
+	if (rc == -ENOENT) {
 		rc = 0;
 	}
 
-out:
 	kvs_itr_fini(kvstor, iter);
-	printf("\n\nrc value in no prefix =%d\n\n", rc);
+	printf("no prefix rc = %d\n", rc);
 	ut_assert_int_equal(rc,0);
 }
 
