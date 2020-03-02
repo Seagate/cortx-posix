@@ -60,3 +60,4 @@ int nsal_fini()
 err:
         log_debug("rc=%d ", rc);
         return rc;
+}
