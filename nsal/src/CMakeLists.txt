@@ -175,12 +175,16 @@ set(METADATA metadata)
 add_subdirectory(namespace)
 set(NAMESPACE namespace)
 
+add_subdirectory(nsal)
+set(NSAL nsal)
+
 add_library(eos-nsal SHARED
 		$<TARGET_OBJECTS:${BASE_KVSTORE}>
 		$<TARGET_OBJECTS:${EOS_KVSTORE}>
 		${REDIS_TARGET_OBJECT}
 		$<TARGET_OBJECTS:${METADATA}>
 		$<TARGET_OBJECTS:${NAMESPACE}>
+		$<TARGET_OBJECTS:${NSAL}>
 	)
 
 target_link_libraries(eos-nsal
