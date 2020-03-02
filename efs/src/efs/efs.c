@@ -25,6 +25,7 @@
 #include <common/helpers.h>
 #include <eos/eos_kvstore.h>
 #include <dstore.h>
+#include <dsal.h>
 #include <efs.h>
 #include <fs.h>
 #include <debug.h>
@@ -40,9 +41,7 @@ int efs_init(const char *config_path)
 	int rc = 0;
 	struct collection_item *item = NULL;
 	char *log_path = NULL;
-	char *log_level = NULL;
 	efs_ctx_t ctx = EFS_NULL_FS_CTX;
-	struct kvstore *kvstore = kvstore_get();
 
 	/** only initialize efs once */
 	if (__sync_fetch_and_add(&efs_initialized, 1)) {
@@ -76,21 +75,16 @@ int efs_init(const char *config_path)
 
 	rc = log_init(log_path, log_level_no(log_level));
 	
-	//TODO add more for Utils_init().
-	rc = utils_init();
+	rc = utils_init(cfg_items);
 	if (rc != 0) {
                 rc = -EINVAL;
                 goto err;
         }
-
-	//TODO add more for nsal_init().
 	rc = nsal_init();
         if (rc) {
                 log_err("nsal_init failed");
                 goto err;
         }
-	
-	//TODO add more for dsal_init().
 	rc = dsal_init(cfg_items, 0);
 	if (rc) {
 		log_err("dsal_init failed");
@@ -132,16 +126,45 @@ err:
 int efs_fini(void)
 {
 	struct kvstore *kvstor = kvstore_get();
-
+	int rc = 0;
 	assert(kvstor != NULL);
-	efs_fs_fini();
-	// TODO dsal_fini.	
-	dsal_fini();
-	nsal_fini();
+	rc = efs_fs_fini();
+	if (rc) {
+                log_err("efs_fs_fini failed");
+                goto err;
+        }
+	rc = dsal_fini();
+	if (rc) {
+                log_err("dsal_fini failed");
+                goto err;
+        }
+	rc = nsal_fini();
+	if (rc) {
+                log_err("nsal_fini failed");
+                goto err;
+        }
 	RC_WRAP(kvstor->kvstore_ops->fini);
 	free_ini_config_errors(cfg_items);
-	//TODO Utils_fini	
-	utils_fini();
-	
-	return 0;
+	rc = utils_fini();
+	if (rc) {
+        	log_err("utils_fini failed");
+                goto err;
+        }
+err:
+        log_debug("rc=%d ", rc);
+        return rc;
+}
+
+//TODO complete efs_fs_init .
+int efs_fs_init(void)
+{
+	int rc = 0;
+	return rc;
+}
+
+//TODO complete efs_fs_fini .
+int efs_fs_fini(void)
+{
+        int rc = 0;
+        return rc;
 }
