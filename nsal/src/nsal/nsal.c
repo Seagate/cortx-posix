@@ -1,6 +1,6 @@
 /*
  * Filename: nsal.c
- * Description: Implementation of Namesapce.
+ * Description: Implementation of NSAL.
  *
  * Do NOT modify or remove this copyright and confidentiality notice!
  * Copyright (c) 2019, Seagate Technology, LLC.
@@ -9,31 +9,49 @@
  * or disclosure of this code, for any reason, not expressly authorized is
  * prohibited. All other rights are expressly reserved by Seagate Technology, LLC.
  *
- *  Author: Satendra Singh <satendra.singh@seagate.com>
  */
 
 #include <namespace.h> /*namespace*/
 #include <common/log.h> /*logging*/
 
-//TODO nsal_init is only placeholder, needs to be re-visit.
-int nsal_init() 
+int nsal_init(void) 
 {
 	int rc = 0;
-	struct collection_item *item;
+	struct collection_item *item = NULL;
 	struct kvstore *kvstor = kvstore_get();
 
 	dassert(kvstor != NULL);
-	//TODO kvstore_init needs to be finalize.
-        kvstore_init(kvstor, items);
-	ns_init();
+	rc = kvs_init(kvstor, item);
+	if (rc) {
+                log_err("kvs_init failed");
+                goto err;
+        }
+	rc = ns_init(item);
+	if (rc) {
+                log_err("ns_init failed");
+                goto err;
+        }
+err:
+        log_debug("rc=%d ", rc);
 	return rc;
 }
 
-//TODO nsal_fini is only placeholder, needs to be re-visit.
 int nsal_fini()
 {
 	int rc = 0;
-	ns_fini();
-	kvstore_fini();
-	return rc;
+	struct kvstore *kvstor = kvstore_get();
+        dassert(kvstor != NULL);
+	rc = ns_fini();
+	if (rc) {
+                log_err("ns_fini failed");
+                goto err;
+        }
+	rc = kvs_fini(kvstor);
+	if (rc) {
+                log_err("kvs_fini failed");
+                goto err;
+        }
+err:
+        log_debug("rc=%d ", rc);
+        return rc;
 }
