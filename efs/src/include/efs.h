@@ -23,6 +23,7 @@
 #include <sys/stat.h>
 #include <str.h> /* str256_t */
 #include <object.h> /* obj_id_t */
+#include "namespace.h"
 
 /**
  * Start the efs library. This should be done by every thread using the library
@@ -30,14 +31,13 @@
  * @note: this function will allocate required resources and set useful
  * variables to their initial value. As the programs ends efs_init() should be
  * invoked to perform all needed cleanups.
- * In this version of the API, it takes no parameter, but this may change in
- * later versions.
  *
- * @param: none (void param)
+ * @param: const char *config.
  * @return 0 if successful, a negative "-errno" value in case of failure
  */
 int efs_init(const char *config);
 
+int efs_fs_init(void);
 /**
  * Finalizes the efs library.
  * This should be done by every thread using the library
@@ -49,6 +49,7 @@ int efs_init(const char *config);
  */
 int efs_fini(void);
 
+int efs_fs_fini(void);
 /**
  * @todo : This is s/efs_fs_ctx_t/efs_fs_ctx_t
  * We need to comeup with proper efs_fs_ctx_t object.
