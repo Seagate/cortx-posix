@@ -21,9 +21,11 @@
 #include <stdbool.h>
 #include <utils.h>
 #include <sys/stat.h>
-#include <eos/eos_kvstore.h>
 #include <str.h> /* str256_t */
 #include <object.h> /* obj_id_t */
+
+//forword declations
+struct kvs_idx;
 
 /**
  * Start the efs library. This should be done by every thread using the library

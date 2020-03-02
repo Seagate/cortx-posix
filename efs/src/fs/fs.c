@@ -12,14 +12,13 @@
  * Author: Satendra Singh <satendra.singh@seagate.com>
 */
 
-#include <errno.h>
-#include <string.h>
-#include "efs.h"
-#include "common.h" /*container_of*/
-#include "fs.h"
-#include "debug.h"
-#include "common/helpers.h"
-#include "common/log.h"
+#include <errno.h> /* errono */
+#include <string.h> /* memcpy */
+#include "efs.h" /* efs_tree_create_root */
+#include "common.h" /* container_of */
+#include "fs.h" /* fs interface */
+#include "common/helpers.h" /* RC_WRAP_LABEL */
+#include "common/log.h" /* logging */
 
 /*data types*/
 

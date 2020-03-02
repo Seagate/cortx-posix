@@ -22,6 +22,7 @@
 #include <ini_config.h>
 #include <common/log.h>
 #include <common/helpers.h>
+#include <eos/eos_kvstore.h>
 #include <dstore.h>
 #include <efs.h>
 #include <debug.h>
