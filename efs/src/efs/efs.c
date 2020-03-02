@@ -40,6 +40,7 @@ int efs_init(const char *config_path)
 	struct collection_item *errors = NULL;
 	int rc = 0;
 	struct collection_item *item = NULL;
+	char *log_path = NULL;
 	efs_ctx_t ctx = EFS_NULL_FS_CTX;
 
 	/** only initialize efs once */
@@ -85,8 +86,6 @@ int efs_init(const char *config_path)
                 log_err("nsal_init failed");
                 goto err;
         }
-	
-	//TODO add more for dsal_init().
 	rc = dsal_init(cfg_items, 0);
 	if (rc) {
 		log_err("dsal_init failed");
@@ -178,8 +177,12 @@ int efs_fs_fini(void)
 	nsal_fini();
 	RC_WRAP(kvstor->kvstore_ops->fini);
 	free_ini_config_errors(cfg_items);
-	//TODO Utils_fini	
-	utils_fini();
-	
-	return 0;
+	rc = utils_fini();
+	if (rc) {
+        	log_err("utils_fini failed");
+                goto err;
+        }
+err:
+        log_debug("rc=%d ", rc);
+        return rc;
 }

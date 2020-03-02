@@ -26,10 +26,11 @@
 #include <md_common.h> /* MD_XATTR_SIZE_MAX */
 
 #define EFS_XATTR_SIZE_MAX MD_XATTR_SIZE_MAX
+=======
+#include "namespace.h"
 
 /* forword declations */
 struct kvs_idx;
-#include "namespace.h"
 
 /**
  * Start the efs library. This should be done by every thread using the library
