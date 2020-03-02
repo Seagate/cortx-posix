@@ -276,13 +276,11 @@ int md_xattr_list(struct kvs_idx *idx, const obj_id_t *oid, void *buf,
 			  offset, (int) has_next, rc, *count);
 	}
 
-	if (!has_next) {
-		rc = rc == -ENOENT ? 0 : rc;
-	} else {
+out:
+	if (rc == -ENOENT) {
 		rc = 0;
 	}
 
-out:
 	if (*size == 0) {
 		rc = -ERANGE;
 	}
