@@ -43,7 +43,8 @@ int efs_init(const char *config_path)
 	struct collection_item *item = NULL;
         char *log_path = NULL;
         char *log_level = NULL;
-	
+	efs_ctx_t ctx = EFS_NULL_FS_CTX;
+
 	/** only initialize efs once */
 	if (__sync_fetch_and_add(&efs_initialized, 1)) {
 		return 0;
@@ -75,19 +76,10 @@ int efs_init(const char *config_path)
 	}
 
 	rc = log_init(log_path, log_level_no(log_level));
-<<<<<<< HEAD
         if (rc != 0) {
-=======
-	
-	//TODO add more for Utils_init().
-	rc = utils_init();
-	if (rc != 0) {
->>>>>>> EOS-5762: changes in initialization of efs_init and efs_fini.
                 rc = -EINVAL;
                 goto err;
         }
-
-<<<<<<< HEAD
 	rc = utils_init(cfg_items);
 	if (rc != 0) {
 		log_err("utils_init failed, rc=%d", rc);
@@ -98,16 +90,6 @@ int efs_init(const char *config_path)
                 log_err("nsal_init failed, rc=%d", rc);
                 goto err2;
         }
-=======
-	//TODO add more for nsal_init().
-	rc = nsal_init();
-        if (rc) {
-                log_err("nsal_init failed");
-                goto err;
-        }
-	
-	//TODO add more for dsal_init().
->>>>>>> EOS-5762: changes in initialization of efs_init and efs_fini.
 	rc = dsal_init(cfg_items, 0);
 	if (rc) {
 		log_err("dsal_init failed, rc=%d", rc);
@@ -179,6 +161,28 @@ int efs_fini(void)
                 log_err("log_fini failed, rc=%d ", rc);
                 goto err;
         }
+	RC_WRAP(kvstor->kvstore_ops->fini);
+	free_ini_config_errors(cfg_items);
+	rc = utils_fini();
+	if (rc) {
+        	log_err("utils_fini failed");
+                goto err;
+        }
 err:
+        log_debug("rc=%d ", rc);
+        return rc;
+}
+
+//TODO complete efs_fs_init .
+int efs_fs_init(void)
+{
+	int rc = 0;
+	return rc;
+}
+
+//TODO complete efs_fs_fini .
+int efs_fs_fini(void)
+{
+        int rc = 0;
         return rc;
 }
