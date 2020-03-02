@@ -12,10 +12,13 @@
  * Author: Satendra Singh <satendra.singh@seagate.com>
 */
 
-#include "kvsns/kvsns.h"
-#include "common.h" /*container_of*/
-#include "fs.h"
-#include "debug.h"
+#include <errno.h> /* errono */
+#include <string.h> /* memcpy */
+#include "efs.h" /* efs_tree_create_root */
+#include "common.h" /* container_of */
+#include "fs.h" /* fs interface */
+#include "common/helpers.h" /* RC_WRAP_LABEL */
+#include "common/log.h" /* logging */
 
 /*data types*/
 
@@ -159,7 +162,7 @@ int efs_fs_create(const str256_t *fs_name)
 	fs_node->efs_fs.ns = malloc(ns_size);
 	memcpy(fs_node->efs_fs.ns, ns, ns_size);
 
-	RC_WRAP_LABEL(rc, out, kvsns_tree_create_root, ns_index);
+	RC_WRAP_LABEL(rc, out, efs_tree_create_root, ns_index);
         LIST_INSERT_HEAD(&fs_list, fs_node, link);
 	goto out;
 
@@ -194,7 +197,7 @@ int efs_fs_delete(const str256_t *fs_name)
 
 	/* delete the ns_index */
 	ns_get_ns_index(fs->ns, &ns_index);
-	RC_WRAP_LABEL(rc, out, kvsns_tree_delete_root, ns_index);
+	RC_WRAP_LABEL(rc, out, efs_tree_delete_root, ns_index);
 
 	/* Remove fs from the efs list */
 	fs_node = container_of(fs, struct efs_fs_node, efs_fs);
