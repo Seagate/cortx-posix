@@ -46,7 +46,7 @@ void test_efs_fs_init()
 	ut_assert_int_equal(rc, 0);
 }
 
-void test_efs_cb(struct efs_fs *fs)
+void test_efs_cb(const struct efs_fs *fs)
 {
 	str256_t *fs_name = NULL;
 	efs_fs_get_name(fs, &fs_name);
