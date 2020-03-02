@@ -21,6 +21,7 @@
 #include <stdbool.h>
 #include <utils.h>
 #include <sys/stat.h>
+#include <eos/eos_kvstore.h>
 #include <str.h> /* str256_t */
 #include <object.h> /* obj_id_t */
 
@@ -98,6 +99,24 @@ typedef struct efs_cred__ {
         uid_t uid;
         gid_t gid;
 } efs_cred_t;
+
+/**
+ * Create the root of the namespace.
+ *
+ * @param index - File system index.
+ *
+ * @return 0 if successful, a negative "-errno" value in case of failure
+ */
+int efs_tree_create_root(struct kvs_idx *index);
+
+/**
+ * Delete the root of the namespace.
+ *
+ * @param index - File system index.
+ *
+ * @return 0 if successful, a negative "-errno" value in case of failure
+ */
+int efs_tree_delete_root(struct kvs_idx *index);
 
 int efs_access_check(const efs_cred_t *cred, const struct stat *stat,
                      int flags);
