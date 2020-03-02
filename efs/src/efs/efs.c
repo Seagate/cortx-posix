@@ -90,8 +90,6 @@ int efs_init(const char *config_path)
                 log_err("nsal_init failed, rc=%d", rc);
                 goto err2;
         }
-	
-	//TODO add more for dsal_init().
 	rc = dsal_init(cfg_items, 0);
 	if (rc) {
 		log_err("dsal_init failed, rc=%d", rc);
