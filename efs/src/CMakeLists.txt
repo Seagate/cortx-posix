@@ -80,7 +80,7 @@ set(EFS efs)
 add_subdirectory(fs)
 set(FS fs)
 
-add_subdirectory(test)
+#add_subdirectory(test)
 
 add_library(eos-efs SHARED
 		$<TARGET_OBJECTS:${EFS}>
