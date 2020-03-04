@@ -172,7 +172,7 @@ fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
 					    myself->pnfs_param.pnfs_enabled;
 
 	struct kvs_idx index;
-	kvsns_fs_ctx_t fs_ctx = NULL;
+	efs_ctx_t fs_ctx = NULL;
 
 	retval = kvsns_fs_open(fsid, &index);
 	if (retval != 0) {
@@ -182,7 +182,7 @@ fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
 	}
 
 	fs_ctx = index.index_priv;
-	myself->index_context = fs_ctx;
+	myself->efs_ctx = fs_ctx;
 	myself->fs_id = fsid;
 
 	/* TODO:PORTING: pNFS support */

@@ -54,8 +54,8 @@ struct kvsfs_fsal_export {
 	/* base */
 	struct fsal_export export;
 
-	/** A filesystem in Open state */
-	struct kvsfs_fsal_index_context *index_context;
+	/** An EFS filesystem in Open state */
+	efs_ctx_t *efs_ctx;
 
 	/* TODO: This field should be a property of a FS object */
 	uint64_t fs_id;
@@ -76,7 +76,7 @@ fsal_status_t kvsfs_lookup_path(struct fsal_export *exp_hdl,
 
 /**Open a filesystem and get its descriptor. */
 int kvsfs_export_to_kvsns_ctx(struct fsal_export *exp_hdl,
-			      kvsns_fs_ctx_t *fs_ctx);
+			      efs_ctx_t *fs_ctx);
 
 /** Create a file handle within the expecified NFS export. */
 fsal_status_t kvsfs_create_handle(struct fsal_export *exp_hdl,
@@ -114,8 +114,8 @@ fsal_status_t kvsfs_lookup_path(struct fsal_export *exp_hdl,
  */
 
 /* Helper Methods */
-int kvsfs_get_fsid(const struct fsal_obj_handle *hdl, kvsns_fsid_t *fs_id);
-int kvsfs_obj_to_kvsns_ctx(const struct fsal_obj_handle *hdl, kvsns_fs_ctx_t *fs_ctx);
+int kvsfs_get_fsid(const struct fsal_obj_handle *hdl, efs_fsid_t *fs_id);
+int kvsfs_obj_to_efs_ctx(const struct fsal_obj_handle *hdl, efs_ctx_t *fs_ctx);
 
 	/* I/O management */
 fsal_status_t kvsfs_open(struct fsal_obj_handle *obj_hdl,
