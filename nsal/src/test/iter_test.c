@@ -57,7 +57,7 @@ out:
 	return rc;
 }
 
-int nsal_init()
+int nsal_init(struct collection_item *cfg_item)
 {
 	int rc = 0;
 	struct kvstore *kvstor = kvstore_get();
@@ -67,7 +67,7 @@ int nsal_init()
 
 	dassert(kvstor != NULL);
 
-	rc = get_config_item("mero", "kvs_fid", cfg_items, &item);
+	rc = get_config_item("mero", "kvs_fid", cfg_item, &item);
 	fid_str = get_string_config_value(item, NULL);
 	rc = kvs_fid_from_str(fid_str, &fid);
 
@@ -240,7 +240,7 @@ int main(int argc, char *argv[])
 		goto out;
 	}
 
-	rc = nsal_init();
+	rc = nsal_init(cfg_items);
 	if (rc) {
 		log_err("Failed nsal_init");
 		goto out;
