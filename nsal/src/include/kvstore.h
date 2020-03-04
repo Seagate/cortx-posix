@@ -32,7 +32,7 @@
 #define KLEN (256)
 #define VLEN (256)
 
-typedef obj_id_t kvs_fid_t;
+typedef obj_id_t kvs_idx_fid_t;
 
 /* Forward declarations */
 struct kvstore_ops;
@@ -57,7 +57,7 @@ struct kvstore {
 struct kvstore *kvstore_get(void);
 
 /* TODO: Can be moved to utils*/
-int kvs_fid_from_str(const char *fid_str, kvs_fid_t *out_fid);
+int kvs_fid_from_str(const char *fid_str, kvs_idx_fid_t *out_fid);
 
 int kvs_alloc(struct kvstore *kvstore, void **ptr, size_t size);
 void kvs_free(struct kvstore *kvstore, void *ptr);
@@ -66,10 +66,10 @@ int kvs_begin_transaction(struct kvstore *kvstore, struct kvs_idx *index);
 int kvs_end_transaction(struct kvstore *kvstore, struct kvs_idx *index);
 int kvs_discard_transaction(struct kvstore *kvstore, struct kvs_idx *index);
 
-int kvs_index_create(struct kvstore *kvstore, const kvs_fid_t *fid,
+int kvs_index_create(struct kvstore *kvstore, const kvs_idx_fid_t *fid,
                      struct kvs_idx *index);
-int kvs_index_delete(struct kvstore *kvstore, const kvs_fid_t *fid);
-int kvs_index_open(struct kvstore *kvstore, const kvs_fid_t *fid,
+int kvs_index_delete(struct kvstore *kvstore, const kvs_idx_fid_t *fid);
+int kvs_index_open(struct kvstore *kvstore, const kvs_idx_fid_t *fid,
                    struct kvs_idx *index);
 int kvs_index_close(struct kvstore *kvstore, struct kvs_idx *index);
 
@@ -79,6 +79,7 @@ int kvs_get(struct kvstore *kvstore, struct kvs_idx *index, void *k, const size_
 int kvs_set(struct kvstore *kvstore, struct kvs_idx *index, void *k, const size_t klen,
             void *v, const size_t vlen);
 int kvs_del(struct kvstore *kvstore, struct kvs_idx *index, const void *k, size_t klen);
+int kvs_idx_gen_fid(struct kvstore *kvstore, kvs_idx_fid_t *index_fid);
 
 /* Key-Value iterator API
  *
@@ -125,10 +126,11 @@ struct kvstore_ops {
 	int (*discard_transaction) (struct kvs_idx *index);
 
 	/* Index operations */
-	int (*index_create) (const kvs_fid_t *fid, struct kvs_idx *index);
-	int (*index_delete) (const kvs_fid_t *fid);
-	int (*index_open) (const kvs_fid_t *fid, struct kvs_idx *index);
+	int (*index_create) (const kvs_idx_fid_t *fid, struct kvs_idx *index);
+	int (*index_delete) (const kvs_idx_fid_t *fid);
+	int (*index_open) (const kvs_idx_fid_t *fid, struct kvs_idx *index);
 	int (*index_close) (struct kvs_idx *index);
+	int (*index_gen_fid) (kvs_idx_fid_t *index_fid);
 
 	/* Key-Value operations */
 	int (*get_bin) (struct kvs_idx *index, void *k, const size_t klen,
@@ -154,7 +156,7 @@ int kvs_init(struct kvstore *kvstore, struct collection_item *cfg);
 int kvs_fini(struct kvstore *kvstore);
 
 struct kvs_idx {
-	kvs_fid_t index_fid;
+	kvs_idx_fid_t index_fid;
 	void *index_priv;
 };
 
