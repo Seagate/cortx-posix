@@ -29,11 +29,11 @@ struct collection_item;
 
 /** Initialize nsal.
  *
- *  @param void. 
+ *  @param "struct collection_item *cfg_items". 
  *   
  *  @return 0 if successful, a negative "-errno" value in case of failure.
  */
-int nsal_init(void);
+int nsal_init(struct collection_item *cfg_items);
 
 /** finalize nsal.
  *  
