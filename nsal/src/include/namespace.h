@@ -91,9 +91,9 @@ void ns_get_name(struct namespace *ns, str256_t **name);
  * namespace's buffer is assigned to index obj.
  * Caller need-not free index obj.
  * @param ns[in]: namespace obj.
- * @param ns_index[out]: namespace's index.
+ * @param ns_fid[out]: namespace's fid.
  *
  * @return void.
  */
-void ns_get_ns_index(struct namespace *ns, struct kvs_idx **ns_index);
+void ns_get_fid(struct namespace *ns, kvs_idx_fid_t *ns_fid);
 #endif /* _NAMESPACE_H_ */

@@ -12,36 +12,35 @@
  *  Author: Jatinder Kumar <jatinder.kumar@seagate.com>
  */
 
-#include <errno.h> /*error no*/
-#include "debug.h" /*dassert*/
-#include "namespace.h" /*namespace*/
-#include "common.h" /*likely*/
-#include "common/helpers.h" /*RC_WRAP_LABEL*/
-#include "common/log.h" /*logging*/
+#include <errno.h> /* error no */
+#include "debug.h" /* dassert */
+#include "namespace.h" /* namespace */
+#include "common.h" /* likely */
+#include "common/helpers.h" /* RC_WRAP_LABEL */
+#include "common/log.h" /* logging */
 
 struct namespace {
-        uint16_t ns_id; /*namespace object id, monotonically increments*/
-        str256_t ns_name; /*namespace name*/
-        kvs_fid_t ns_fid; /*namespace object fid*/
-	struct kvs_idx ns_index; /*namespace object index*/
+	uint16_t ns_id; /*namespace object id, monotonically increments*/
+	str256_t ns_name; /*namespace name*/
+	kvs_idx_fid_t ns_fid; /*namespace index fid*/
 };
 
 typedef enum ns_version {
-        NS_VERSION_0 = 0,
-        NS_VERSION_INVALID,
+	NS_VERSION_0 = 0,
+	NS_VERSION_INVALID,
 } ns_version_t;
 
 /* namespace key types associated with particular version of ns. */
 typedef enum ns_key_type {
-        NS_KEY_TYPE_NS_INFO = 1, /* Key for storing namespace information. */
-        NS_KEY_TYPE_NS_ID_NEXT,  /* Key for storing id of namespace. */
-        NS_KEY_TYPE_INVALID,
+	NS_KEY_TYPE_NS_INFO = 1, /* Key for storing namespace information. */
+	NS_KEY_TYPE_NS_ID_NEXT,  /* Key for storing id of namespace. */
+	NS_KEY_TYPE_INVALID,
 } ns_key_type_t;
 
 /* namespace key */
 struct ns_key {
-        struct key_prefix ns_prefix;
-        uint16_t ns_id;
+	struct key_prefix ns_prefix;
+	uint16_t ns_id;
 } __attribute((packed));
 
 #define NS_KEY_INIT(_key, _ns_id, _ktype)               \
@@ -67,10 +66,10 @@ void ns_get_name(struct namespace *ns, str256_t **name)
 	*name = &ns->ns_name;
 }
 
-void ns_get_ns_index(struct namespace *ns, struct kvs_idx **ns_index)
+void ns_get_fid(struct namespace *ns, kvs_idx_fid_t *ns_fid)
 {
 	dassert(ns);
-	*ns_index = &ns->ns_index;
+	*ns_fid = ns->ns_fid;
 }
 
 int ns_scan(void (*ns_scan_cb)(struct namespace *ns, size_t ns_size))
@@ -102,11 +101,11 @@ int ns_scan(void (*ns_scan_cb)(struct namespace *ns, size_t ns_size))
 		ns_scan_cb(ns, sizeof(struct namespace));
 	} while ((rc = kvs_itr_next(kvstor, kvs_iter)) == 0);
 
+out:
 	if (rc == -ENOENT) {
 		rc = 0;
 	}
 
-out:
 	kvs_itr_fini(kvstor, kvs_iter);
 	log_debug("rc=%d", rc);
 
@@ -167,7 +166,7 @@ out:
 int ns_init(struct collection_item *cfg)
 {
 	int rc = 0;
-	kvs_fid_t ns_meta_fid;
+	kvs_idx_fid_t ns_meta_fid;
 	struct collection_item *item;
 	struct kvstore *kvstor = kvstore_get();
 
@@ -212,7 +211,7 @@ int ns_create(const str256_t *name, struct namespace **ret_ns, size_t *ns_size)
 	uint16_t ns_id = 0;
 	struct namespace *ns = NULL;
 	struct kvs_idx ns_index;
-	kvs_fid_t ns_fid = {0};
+	kvs_idx_fid_t index_fid = {0};
 	struct ns_key *ns_key = NULL;
 	struct kvstore *kvstor = kvstore_get();
 
@@ -222,19 +221,16 @@ int ns_create(const str256_t *name, struct namespace **ret_ns, size_t *ns_size)
 
 	/* Get next ns_id */
 	RC_WRAP_LABEL(rc, out, ns_next_id, &ns_id);
-	/* prepare for namespace obj index */
-	RC_WRAP_LABEL(rc, out, kvs_fid_from_str, ns_meta_fid_str, &ns_fid);
-	ns_fid.f_lo = ns_id;
+	/* prepare for namespace index */
+	RC_WRAP_LABEL(rc, out, kvs_idx_gen_fid, kvstor, &index_fid);
 
-	/* Create namespace obj index */
-	RC_WRAP_LABEL(rc, out, kvs_index_create, kvstor, &ns_fid, &ns_index);
-
+	/* Create namespace index */
+	RC_WRAP_LABEL(rc, out, kvs_index_create, kvstor, &index_fid, &ns_index);
 	/* dump namespace in kvs */
 	RC_WRAP_LABEL(rc, out, kvs_alloc, kvstor, (void **)&ns, sizeof(*ns));
 	ns->ns_id = ns_id;
 	ns->ns_name = *name;
-	ns->ns_fid = ns_fid;
-	ns->ns_index = ns_index;
+	ns->ns_fid = index_fid;
 
 	RC_WRAP_LABEL(rc, free_ns, kvs_alloc, kvstor, (void **)&ns_key, sizeof(*ns_key));
 

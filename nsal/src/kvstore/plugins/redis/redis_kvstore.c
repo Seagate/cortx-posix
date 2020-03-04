@@ -236,21 +236,21 @@ int redis_discard_transaction(struct kvs_idx *index)
 
 #endif
 
-int redis_index_create(const kvs_fid_t *fid, struct kvs_idx *index)
+int redis_index_create(const kvs_idx_fid_t *fid, struct kvs_idx *index)
 {
 	index->index_priv = rediscontext;
 	return 0;
 }
 
-int redis_index_delete(const kvs_fid_t *fid)
+int redis_index_delete(const kvs_idx_fid_t *fid)
 {
 	return 0;
 }
 
-int redis_index_open(const kvs_fid_t *fid, struct kvs_idx *index)
+int redis_index_open(const kvs_idx_fid_t *fid, struct kvs_idx *index)
 {
        if (rediscontext == NULL) {
-       return 1;
+		return 1;
        }
 
        index->index_priv = rediscontext;

@@ -95,7 +95,7 @@ int kvs_fini(struct kvstore *kvstore)
 	return kvstore->kvstore_ops->fini();
 }
 
-int kvs_fid_from_str(const char *fid_str, kvs_fid_t *out_fid)
+int kvs_fid_from_str(const char *fid_str, kvs_idx_fid_t *out_fid)
 {
 	return eos_kvs_fid_from_str(fid_str, out_fid);
 }
@@ -130,20 +130,20 @@ int kvs_discard_transaction(struct kvstore *kvstore, struct kvs_idx *index)
 	return kvstore->kvstore_ops->discard_transaction(index);
 }
 
-int kvs_index_create(struct kvstore *kvstore, const kvs_fid_t *fid,
+int kvs_index_create(struct kvstore *kvstore, const kvs_idx_fid_t *fid,
 	                 struct kvs_idx *index)
 {
 	dassert(kvstore);
 	return kvstore->kvstore_ops->index_create(fid, index);
 }
 
-int kvs_index_delete(struct kvstore *kvstore, const kvs_fid_t *fid)
+int kvs_index_delete(struct kvstore *kvstore, const kvs_idx_fid_t *fid)
 {
 	dassert(kvstore);
 	return kvstore->kvstore_ops->index_delete(fid);
 }
 
-int kvs_index_open(struct kvstore *kvstore, const kvs_fid_t *fid,
+int kvs_index_open(struct kvstore *kvstore, const kvs_idx_fid_t *fid,
 			       struct kvs_idx *index)
 {
 	dassert(kvstore);
@@ -175,6 +175,12 @@ int kvs_del(struct kvstore *kvstore, struct kvs_idx *index, const void *k,
 {
 	dassert(kvstore);
 	return kvstore->kvstore_ops->del_bin(index, k, klen);
+}
+
+int kvs_idx_gen_fid(struct kvstore *kvstore, kvs_idx_fid_t *index_fid)
+{
+	dassert(kvstore);
+	return kvstore->kvstore_ops->index_gen_fid(index_fid);
 }
 
 /* Key-Value iterator API */

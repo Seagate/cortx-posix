@@ -26,7 +26,7 @@ void eos_kvs_free(void *ptr);
 
 const char *eos_kvs_get_gfid(void);
 
-int eos_kvs_fid_from_str(const char *fid_str, kvs_fid_t *out_fid);
+int eos_kvs_fid_from_str(const char *fid_str, kvs_idx_fid_t *out_fid);
 
 int eos_kvs_get_list_size(void *ctx, char *pattern, size_t plen);
 

@@ -61,7 +61,7 @@ int nsal_init()
 {
 	int rc = 0;
 	struct kvstore *kvstor = kvstore_get();
-	kvs_fid_t fid;
+	kvs_idx_fid_t fid;
 	struct collection_item *item;
 	const char *fid_str;
 
