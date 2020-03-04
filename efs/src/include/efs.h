@@ -97,6 +97,28 @@ typedef unsigned long long int efs_ino_t;
 #define EFS_ACCESS_EXEC       4
 #define EFS_ACCESS_SETATTR    8
 
+/** Access level required to create an object in a directory
+ * (in other words, to link an inode into a directory).
+ */
+#define EFS_ACCESS_CREATE_ENTITY \
+	(EFS_ACCESS_WRITE | EFS_ACCESS_EXEC)
+
+/** Access level required to delete an object in a directory
+ * (i.e., to unlink an inode from it).
+ */
+#define EFS_ACCESS_DELETE_ENTITY \
+	(EFS_ACCESS_WRITE | EFS_ACCESS_EXEC)
+
+/** Access level required to list objecs in a directory (READDIR). */
+#define EFS_ACCESS_LIST_DIR \
+	(EFS_ACCESS_EXEC)
+
+enum efs_file_type {
+	EFS_FT_DIR = 1,
+	EFS_FT_FILE = 2,
+	EFS_FT_SYMLINK = 3
+};
+
 typedef struct efs_cred__ {
         uid_t uid;
         gid_t gid;
@@ -130,12 +152,23 @@ typedef void *efs_fs_ctx_t;
  * All below APIs need to be moved to internal headers
  * once all migration of efs completes.
  */
-int efs_get_stat(efs_fs_ctx_t ctx, const efs_ino_t *ino,
-                 struct stat **bufstat);
+/* Inode Attributes API */
+int efs_get_stat(efs_ctx_t ctx, const efs_ino_t *ino,
+		 struct stat **bufstat);
 int efs_set_stat(efs_fs_ctx_t ctx, const efs_ino_t *ino,
-                 struct stat *bufstat);
+		 struct stat *bufstat);
 int efs_del_stat(efs_fs_ctx_t ctx, const efs_ino_t *ino);
 int efs_update_stat(efs_fs_ctx_t ctx, const efs_ino_t *ini, int flags);
+int efs_get_symlink(efs_fs_ctx_t ctx, const efs_ino_t *ino,
+		    void **buf, size_t *buf_size);
+int efs_set_symlink(efs_fs_ctx_t ctx, const efs_ino_t *ino,
+		    void *buf, size_t buf_size);
+int efs_del_symlink(efs_fs_ctx_t ctx, const efs_ino_t *ino);
+int efs_amend_stat(struct stat *stat, int flags);
+
+int efs_create_entry(efs_ctx_t *ctx, efs_cred_t *cred, efs_ino_t *parent,
+                     char *name, char *lnk, mode_t mode,
+                     efs_ino_t *new_entry, enum efs_file_type type);
 
 /******************************************************************************/
 /* Tree API:
@@ -202,7 +235,7 @@ int efs_tree_lookup(efs_fs_ctx_t fs_ctx,
 		    const str256_t *name,
 		    efs_ino_t *ino);
 
-/** A callback to be used in kvsns_readddir.
+/** A callback to be used in efs_readddir.
  * @retval true continue iteration.
  * @retval false stop iteration.
  */
@@ -243,6 +276,8 @@ typedef enum efs_key_type {
 } efs_key_type_t;
 
 typedef unsigned long int efs_fsid_t;
+
+typedef struct efs_inode_attr_key efs_inode_kfid_key_t;
 
 struct efs_fs_attr {
         efs_fsid_t fs_id;
@@ -290,6 +325,220 @@ struct efs_inode_attr_key {
 
 /* Max number of hardlinks for an object. */
 #define EFS_MAX_LINK UINT32_MAX
+
+/* EFS operations */
+/**
+ * Gets attributes for a known inode.
+ *
+ * @note: the call is similar to stat() call in libc. It uses the structure
+ * "struct stat" defined in the libC.
+ * @param ctx - Filesystem context
+ * @param cred - pointer to user's credentials
+ * @param ino - pointer to current inode
+ * @param stat - [OUT] points to inode's stat
+ *
+ * @return 0 if successful, a negative "-errno" value in case of failure
+ */
+int efs_getattr(efs_ctx_t ctx, const efs_cred_t *cred,
+		const efs_ino_t *ino, struct stat *stat);
+
+/**
+ * Sets attributes for a known inode.
+ *
+ * This call uses a struct stat structure as input. This structure will
+ * contain the values to be set. More than one can be set in a single call.
+ * The parameter "statflags: indicates which fields are to be considered:
+ *  STAT_MODE_SET: sets mode
+ *  STAT_UID_SET: sets owner
+ *  STAT_GID_SET: set group owner
+ *  STAT_SIZE_SET: set size (aka truncate but without unmapping)
+ *  STAT_ATIME_SET: sets atime
+ *  STAT_MTIME_SET: sets mtime
+ *  STAT_CTIME_SET: set ctime
+ *
+ * @param ctx - Filesystem context
+ * @param cred - pointer to user's credentials
+ * @param ino - pointer to current inode
+ * @param setstat - a stat structure containing the new values
+ * @param statflags - a bitmap that tells which attributes are to be set
+ *
+ * @return 0 if successful, a negative "-errno" value in case of failure
+ */
+int efs_setattr(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *ino,
+		struct stat *setstat, int statflag);
+/**
+ * Check is a given user can access an inode.
+ *
+ * @note: this call is similar to POSIX's access() call. It behaves the same.
+ *
+ * @param ctx - File system context
+ * @param cred - pointer to user's credentials
+ * @param ino - pointer to inode whose access is to be checked.
+ * @params flags - access to be tested. The flags are the same as those used
+ * by libc's access() function.
+ *
+ * @return 0 if access is granted, a negative value means an error. -EPERM
+ * is returned when access is not granted
+ */
+int efs_access(efs_ctx_t ctx, const efs_cred_t *cred,
+               const efs_ino_t *ino, int flags);
+
+/** A callback to be used in efs_readddir.
+ * @retval true continue iteration.
+ * @retval false stop iteration.
+ */
+typedef bool (*efs_readdir_cb_t)(void *ctx, const char *name,
+				 const efs_ino_t *ino);
+
+/** Walk over a directory "dir_ino" and call cb(cb_ctx, entry_name, entry_ino)
+ * for each dentry.
+ * @param fs_ctx - File system context
+ * @param cred -  pointer to user's credentials
+ * @param dir_no - pointer to directory inode
+ * @param cb - Readdir callback to be called for each dir entry
+ * @param cb_ctx - Callback context
+ * @retval 0 on success, errno on error.
+ */
+int efs_readdir(efs_ctx_t fs_ctx, const efs_cred_t *cred,
+		const efs_ino_t *dir_ino,
+		efs_readdir_cb_t cb,
+		void *cb_ctx);
+/**
+ * Creates a directory.
+ *
+ * @param ctx - pointer to filesystem context
+ * @param cred - pointer to user's credentials
+ * @param parent - pointer to parent directory's inode.
+ * @param name - name of the directory to be created
+ * @param mode - Unix mode for the new entry
+ * @paran newdir - [OUT] if successfuly, will point to newly created inode
+ *
+ * @return 0 if successful, a negative "-errno" value in case of failure
+ */
+int efs_mkdir(efs_ctx_t *ctx, efs_cred_t *cred, efs_ino_t *parent, char *name,
+	      mode_t mode, efs_ino_t *newdir);
+
+/**
+ * Finds the inode of an entry whose parent and name are known. This is the
+ * basic "lookup" operation every filesystem implements.
+ *
+ * @param ctx - Filesystem context
+ * @param cred - pointer to user's credentials
+ * @param parent - pointer to parent directory's inode.
+ * @param name - name of the entry to be found.
+ * @paran myino - [OUT] points to the found ino if successful.
+ *
+ * @return 0 if successful, a negative "-errno" value in case of failure
+ */
+int efs_lookup(efs_ctx_t *ctx, efs_cred_t *cred, efs_ino_t *parent,
+               char *name, efs_ino_t *ino);
+
+/** Hints for "efs_rename" call.
+ */
+struct efs_rename_flags {
+	/** Destination file is open. Rename should not remove such an object
+	 * from the filesystems. The object will be unliked from the tree
+	 * instead of being destroyed.
+	 */
+	bool is_dst_open:1;
+};
+#define EFS_RENAME_FLAGS_INIT  { .is_dst_open = false, }
+
+/**
+ * Renames an entry in a filesystem.
+ * NOTE: The call has 3 optional paramters (psrc, pdst, flags) which
+ * allows it to avoid redundant lookup() calls and could change its behavior.
+ *
+ * @param[in] fs_ctx - A context associated with the filesystem.
+ * @param[in] cred - User's credentials.
+ * @param[in] sino - Inode of the source dir.
+ * @param[in] sname - Name of the entry within `sino`.
+ * @param[in, opt] psrc - Inode of the source object. When NULL is specified,
+ *                      the function does a lookup() call internally.
+ * @param[in] dino - Inode of the destination dir.
+ * @param[in] dname - Name of the entry within `dino`.
+ * @param[in, opt] pdst - Inode of the destination object. When NULL is specified,
+ *                      the function does a lookup() call internally.
+ * @return 0 if successfull, otherwise -errno.
+ */
+int efs_rename(efs_fs_ctx_t fs_ctx, efs_cred_t *cred,
+		efs_ino_t *sino_dir, char *sname, const efs_ino_t *psrc,
+		efs_ino_t *dino_dir, char *dname, const efs_ino_t *pdst,
+		const struct efs_rename_flags *pflags);
+
+
+/**
+ * Removes a directory. It won't be deleted if not empty.
+ * @param ctx - A context associated with a filesystem
+ * @param cred - pointer to user's credentials
+ * @param parent - pointer to parent directory's inode.
+ * @param name - name of the directory to be remove.
+ *
+ * @return 0 if successful, a negative "-errno" value in case of failure
+ */
+int efs_rmdir(efs_ctx_t *ctx, efs_cred_t *cred, efs_ino_t *parent,
+              char *name);
+
+/**
+ * Removes a file or a symbolic link.
+ * Destroys the link between 'dir' and 'fino' and removes
+ * the 'fino' object from the namespace if it has no links.
+ *
+ * @param[in] fs_ctx - A context associated with the filesystem.
+ * @param[in] cred - User's credentials.
+ * @param[in] dir - Inode of the parent directory.
+ * @param[in, opt] fino - Inode of the object to be removed. If NULL is set
+ *                        then efs_unlink() will do an extra lookup() call.
+ * @param[in] name - Name of the entry to be removed.
+ * @return 0 if successfull, otherwise -errno.
+ *
+ * @see ::efs_destroy_orphaned_file and ::efs_detach.
+ */
+int efs_unlink(efs_ctx_t *ctx, efs_cred_t *cred, efs_ino_t *dir,
+               efs_ino_t *fino, char *name);
+
+/** Removes a link between the parent inode and a filesystem object
+ * linked into it with the dentry name.
+ */
+int efs_detach(efs_fs_ctx_t fs_ctx, const efs_cred_t *cred,
+               const efs_ino_t *parent, const efs_ino_t *obj,
+               const char *name);
+
+/**
+ * Creates a symbolic link
+ *
+ * @param fs_ctx - A context associated with the filesystem.
+ * @param cred - pointer to user's credentials
+ * @param parent - pointer to parent directory's inode.
+ * @param name - name of the directory to be created
+ * @param content - the content of the symbolic link to be created
+ * @paran newlnk - [OUT] if successfuly, will point to newly created inode
+ *
+ * @return 0 if successful, a negative "-errno" value in case of failure
+ */
+int efs_symlink(efs_fs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *parent,
+		char *name, char *content, efs_ino_t *newlnk);
+
+/**
+ * Creates a file's hardlink
+ *
+ * @note: this call will failed if not performed on a file.
+ *
+ * @param fs_ctx - A context associated with the filesystem.
+ * @param cred - pointer to user's credentials
+ * @param ino - pointer to current inode.
+ * @param dino - pointer to destination directory's inode
+ * @param dname - name of the new entry in dino
+ *
+ * @return 0 if successful, a negative "-errno" value in case of failure
+ */
+int efs_link(efs_ctx_t fs_ctx, efs_cred_t *cred, efs_ino_t *ino,
+	     efs_ino_t *dino, char *dname);
+
+/** Destroys a file or a symlink object if it has no links in the file system.
+ * NOTE: It does nothing if the object has one or more links.
+ */
+int efs_destroy_orphaned_file(efs_fs_ctx_t fs_ctx, const efs_ino_t *ino);
 
 #endif
 

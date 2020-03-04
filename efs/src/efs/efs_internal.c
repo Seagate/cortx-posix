@@ -27,6 +27,7 @@
 #include <efs.h>
 #include <debug.h>
 #include <common.h> /* likely */
+#include <inttypes.h> /* PRIx64 */
 
 /** Get pointer to a const C-string owned by kvsns_name string. */
 static inline const char *efs_name_as_cstr(const str256_t *kname)
@@ -347,11 +348,8 @@ int efs_amend_stat(struct stat *stat, int flags)
 
 	dassert(stat);
 
-	if (gettimeofday(&t, NULL) != 0) {
-		rc = -errno;
-		RC_WRAP_SET(rc);
-		goto out;
-	}
+	rc = gettimeofday(&t, NULL);
+	dassert(rc == 0);
 
 	if (flags & STAT_ATIME_SET) {
 		stat->st_atim.tv_sec = t.tv_sec;
@@ -395,7 +393,30 @@ int efs_amend_stat(struct stat *stat, int flags)
 out:
 	return rc;
 }
-/******************************************************************************/
+
+int efs_get_symlink(efs_fs_ctx_t ctx, const efs_ino_t *ino,
+		    void **buf, size_t *buf_size)
+{
+	int rc;
+	*buf_size = 0;
+	RC_WRAP_LABEL(rc, out, efs_ns_get_inode_attr, ctx, ino, EFS_KEY_TYPE_SYMLINK,
+		      buf, buf_size);
+	dassert(*buf_size < INT_MAX);
+out:
+	return rc;
+}
+
+int efs_set_symlink(efs_fs_ctx_t ctx, const efs_ino_t *ino,
+		  void *buf, size_t buf_size)
+{
+	return efs_ns_set_inode_attr(ctx, ino, EFS_KEY_TYPE_SYMLINK,
+				     buf, buf_size);
+}
+
+int efs_del_symlink(efs_fs_ctx_t ctx, const efs_ino_t *ino)
+{
+	return efs_ns_del_inode_attr(ctx, ino, EFS_KEY_TYPE_SYMLINK);
+}
 
 int efs_tree_create_root(struct kvs_idx *index)
 {
@@ -481,7 +502,6 @@ out:
         return rc;
 }
 
-/******************************************************************************/
 int efs_tree_detach(efs_fs_ctx_t fs_ctx,
 		    const efs_ino_t *parent_ino,
 		    const efs_ino_t *ino,
@@ -546,7 +566,6 @@ out:
 	return rc;
 }
 
-/******************************************************************************/
 int efs_tree_attach(efs_fs_ctx_t fs_ctx,
 		    const efs_ino_t *parent_ino,
 		    const efs_ino_t *ino,
@@ -624,7 +643,6 @@ out:
 	return rc;
 }
 
-/******************************************************************************/
 int efs_tree_rename_link(efs_fs_ctx_t fs_ctx,
 			 const efs_ino_t *parent_ino,
 			 const efs_ino_t *ino,
@@ -675,7 +693,6 @@ out:
 	return rc;
 }
 
-/******************************************************************************/
 /* TODO:PERF: Callers can use stat.nlink (usually it is available) instead
  * of requesting an iteration over the dentries. This will allow us to eliminate
  * the extra call to the KVS.
@@ -722,7 +739,6 @@ out:
 	return rc;
 }
 
-/******************************************************************************/
 int efs_tree_lookup(efs_fs_ctx_t fs_ctx,
 		    const efs_ino_t *parent_ino,
 		    const str256_t *name,
@@ -766,7 +782,6 @@ out:
 	return rc;
 }
 
-/******************************************************************************/
 int efs_tree_iter_children(efs_fs_ctx_t fs_ctx,
 			   const efs_ino_t *ino,
 			   efs_readdir_cb_t cb,
@@ -834,4 +849,231 @@ out:
 	return rc;
 }
 
-/******************************************************************************/
+static int efs_create_check_name(const char *name, size_t len)
+{
+	const char *parent = "..";
+
+	if (len > NAME_MAX) {
+		log_debug("Name too long %s", name);
+		return  -E2BIG;
+	}
+
+	if (len == 1 && (name[0] == '.' || name[0] == '/')) {
+		log_debug("File already exists: %s", name);
+		return -EEXIST;
+	}
+
+	if (len == 2 && (strncmp(name, parent, 2) == 0)) {
+		log_debug("File already exists: %s", name);
+		return -EEXIST;
+	}
+
+	return 0;
+}
+
+int efs_next_inode(efs_ctx_t *ctx, efs_ino_t *ino)
+{
+	int rc;
+	efs_ino_t parent_ino = EFS_ROOT_INODE;
+	efs_ino_t *val_ptr = NULL;
+	size_t val_size = 0;
+
+	dassert(ino != NULL);
+
+	RC_WRAP_LABEL(rc, out, efs_ns_get_inode_attr, ctx, &parent_ino,
+		      EFS_KEY_TYPE_INO_NUM_GEN, (void **)&val_ptr, &val_size);
+
+	*val_ptr += 1;
+
+	*ino = *val_ptr;
+
+	RC_WRAP_LABEL(rc, out, efs_ns_set_inode_attr, ctx, &parent_ino,
+                      EFS_KEY_TYPE_INO_NUM_GEN, val_ptr, sizeof(val_ptr));
+out:
+	return rc;
+}
+
+int efs_create_entry(efs_ctx_t *ctx, efs_cred_t *cred, efs_ino_t *parent,
+		     char *name, char *lnk, mode_t mode,
+		     efs_ino_t *new_entry, enum efs_file_type type)
+{
+	int	rc;
+	struct	stat bufstat;
+	struct	timeval t;
+	size_t	namelen;
+	str256_t k_name;
+	struct  stat *parent_stat = NULL;
+	struct kvstore *kvstor = kvstore_get();
+	struct kvs_idx index;
+
+	dassert(kvstor);
+	index.index_priv = ctx;
+
+	dassert(cred && parent && name && new_entry);
+
+	namelen = strlen(name);
+	if (namelen == 0)
+		return -EINVAL;
+
+	/* check if name is not '.' or '..' or '/' */
+	rc = efs_create_check_name(name, namelen);
+	if (rc != 0)
+		return rc;
+
+	if ((type == EFS_FT_SYMLINK) && (lnk == NULL))
+		return -EINVAL;
+
+	/* Return if file/dir/symlink already exists. */
+	rc = efs_lookup(ctx, cred, parent, name, new_entry);
+	if (rc == 0)
+		return -EEXIST;
+
+	RC_WRAP(efs_next_inode, ctx, new_entry);
+	RC_WRAP_LABEL(rc, errfree, efs_get_stat, ctx, parent, &parent_stat);
+
+	RC_WRAP(kvs_begin_transaction, kvstor, &index);
+
+	/* @todo: Alloc mero bufvecs and use it for key to avoid extra mem copy
+	RC_WRAP_LABEL(rc, errfree, efs_alloc_dirent_key, namelen, &d_key); */
+
+	str256_from_cstr(k_name, name, strlen(name));
+	RC_WRAP_LABEL(rc, errfree, efs_tree_attach, ctx, parent, new_entry, &k_name);
+
+	/* Set the stats of the new file */
+	memset(&bufstat, 0, sizeof(struct stat));
+	bufstat.st_uid = cred->uid;
+	bufstat.st_gid = cred->gid;
+	bufstat.st_ino = *new_entry;
+
+	if (gettimeofday(&t, NULL) != 0) {
+		rc = -1;
+		goto errfree;
+	}
+
+	bufstat.st_atim.tv_sec = t.tv_sec;
+	bufstat.st_atim.tv_nsec = 1000 * t.tv_usec;
+
+	bufstat.st_mtim.tv_sec = bufstat.st_atim.tv_sec;
+	bufstat.st_mtim.tv_nsec = bufstat.st_atim.tv_nsec;
+
+	bufstat.st_ctim.tv_sec = bufstat.st_atim.tv_sec;
+	bufstat.st_ctim.tv_nsec = bufstat.st_atim.tv_nsec;
+
+	switch (type) {
+	case EFS_FT_DIR:
+		bufstat.st_mode = S_IFDIR | mode;
+		bufstat.st_nlink = 2;
+		break;
+
+	case EFS_FT_FILE:
+		bufstat.st_mode = S_IFREG | mode;
+		bufstat.st_nlink = 1;
+		break;
+
+	case EFS_FT_SYMLINK:
+		bufstat.st_mode = S_IFLNK | mode;
+		bufstat.st_nlink = 1;
+		break;
+
+	default:
+		/* Should never happen */
+		dassert(0);
+		/* Handle error, since dasserts can be disabled in release */
+		rc = -EINVAL;
+		goto errfree;
+	}
+	RC_WRAP_LABEL(rc, errfree, efs_set_stat, ctx, new_entry, &bufstat);
+
+	if (type == EFS_FT_SYMLINK) {
+		RC_WRAP_LABEL(rc, errfree, efs_set_symlink, ctx, new_entry,
+		(void *)lnk, strlen(lnk));
+	}
+
+	if (type == EFS_FT_DIR) {
+		/* Child dir has a "hardlink" to the parent ("..") */
+		RC_WRAP_LABEL(rc, errfree, efs_amend_stat, parent_stat,
+			      STAT_CTIME_SET | STAT_MTIME_SET | STAT_INCR_LINK);
+	} else {
+		RC_WRAP_LABEL(rc, errfree, efs_amend_stat, parent_stat,
+			      STAT_CTIME_SET | STAT_MTIME_SET);
+	}
+	RC_WRAP_LABEL(rc, errfree, efs_set_stat, ctx, parent, parent_stat);
+
+	RC_WRAP(kvs_end_transaction, kvstor, &index);
+	return 0;
+
+errfree:
+	kvs_free(kvstor, parent_stat);
+	log_trace("Exit rc=%d", rc);
+	kvs_discard_transaction(kvstor, &index);
+	return rc;
+}
+
+#define INODE_KFID_KEY_INIT INODE_ATTR_KEY_PTR_INIT
+
+int efs_ino_to_oid(efs_ctx_t *ctx, const efs_ino_t *ino, dstore_oid_t *oid)
+{
+	int rc;
+	efs_inode_kfid_key_t  *kfid_key = NULL;
+	uint64_t kfid_size = 0;
+	dstore_oid_t *oid_val = NULL;
+	struct kvstore *kvstor = kvstore_get();
+	struct kvs_idx index;
+
+	dassert(kvstor != NULL);
+
+	index.index_priv = ctx;
+
+	dassert(ino != NULL);
+	dassert(oid != NULL);
+
+	RC_WRAP_LABEL(rc, out, kvs_alloc, kvstor, (void **)&kfid_key,
+		      sizeof(*kfid_key));
+
+	INODE_KFID_KEY_INIT(kfid_key, ino, EFS_KEY_TYPE_INODE_KFID);
+
+	RC_WRAP_LABEL(rc, free_key, kvs_get, kvstor, &index, kfid_key,
+		      sizeof(efs_inode_kfid_key_t), (void **)&oid_val,
+		      &kfid_size);
+
+	*oid = *oid_val;
+	kvs_free(kvstor, oid_val);
+
+free_key:
+	kvs_free(kvstor, kfid_key);
+
+out:
+	log_trace("ctx=%p, *ino=%llu oid=%" PRIx64 ":%" PRIx64 " rc=%d, kfid_size=%" PRIu64 "",
+		   ctx, *ino, oid->f_hi, oid->f_lo, rc, kfid_size);
+	return rc;
+}
+
+int efs_del_oid(efs_ctx_t *ctx, const efs_ino_t *ino)
+{
+	int rc;
+	efs_inode_kfid_key_t *kfid_key = NULL;
+	struct kvstore *kvstor = kvstore_get();
+	struct kvs_idx index;
+
+	dassert(kvstor != NULL);
+
+	index.index_priv = ctx;
+
+	dassert(ino != NULL);
+
+	RC_WRAP_LABEL(rc, out, kvs_alloc, kvstor, (void **)&kfid_key,
+		      sizeof(*kfid_key));
+
+	INODE_KFID_KEY_INIT(kfid_key, ino, EFS_KEY_TYPE_INODE_KFID);
+
+	RC_WRAP_LABEL(rc, free_key, kvs_del, kvstor, &index, kfid_key,
+		      sizeof(*kfid_key));
+
+free_key:
+	kvs_free(kvstor, kfid_key);
+
+out:
+	log_trace("ctx=%p, ino=%llu, rc=%d", ctx, *ino, rc);
+	return rc;
+}
+
