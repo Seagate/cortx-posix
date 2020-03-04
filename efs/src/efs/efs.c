@@ -69,7 +69,7 @@ int efs_init(const char *config_path)
                 rc = -EINVAL;
                 goto err;
         }
-	rc = nsal_init();
+	rc = nsal_init(cfg_items);
         if (rc) {
                 log_err("nsal_init failed");
                 goto err;
