@@ -14,19 +14,18 @@
 #include <namespace.h> /*namespace*/
 #include <common/log.h> /*logging*/
 
-int nsal_init(void) 
+int nsal_init(struct collection_item *cfg_items) 
 {
 	int rc = 0;
-	struct collection_item *item = NULL;
 	struct kvstore *kvstor = kvstore_get();
 
 	dassert(kvstor != NULL);
-	rc = kvs_init(kvstor, item);
+	rc = kvs_init(kvstor, cfg_items);
 	if (rc) {
                 log_err("kvs_init failed");
                 goto err;
         }
-	rc = ns_init(item);
+	rc = ns_init(cfg_items);
 	if (rc) {
                 log_err("ns_init failed");
                 goto err;
