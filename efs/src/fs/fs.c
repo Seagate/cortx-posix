@@ -138,7 +138,9 @@ int efs_fs_create(const str256_t *fs_name)
         int rc = 0;
 	struct namespace *ns;
 	struct efs_fs_node *fs_node;
-	struct kvs_idx *ns_index;
+	kvs_idx_fid_t ns_fid;
+	struct kvs_idx ns_index;
+	struct kvstore *kvstor = kvstore_get();
 	size_t ns_size = 0;
 
 	rc = efs_fs_lookup(fs_name, NULL);
@@ -158,13 +160,19 @@ int efs_fs_create(const str256_t *fs_name)
         }
 	RC_WRAP_LABEL(rc, free_fs_node, ns_create, fs_name, &ns, &ns_size);
 
-	ns_get_ns_index(ns, &ns_index);
 	fs_node->efs_fs.ns = malloc(ns_size);
 	memcpy(fs_node->efs_fs.ns, ns, ns_size);
+	ns_get_fid(fs_node->efs_fs.ns, &ns_fid);
 
-	RC_WRAP_LABEL(rc, out, efs_tree_create_root, ns_index);
-        LIST_INSERT_HEAD(&fs_list, fs_node, link);
-	goto out;
+	/* open namespace index */
+	RC_WRAP_LABEL(rc, out, kvs_index_open, kvstor, &ns_fid, &ns_index);
+	rc = efs_tree_create_root(&ns_index);
+	kvs_index_close(kvstor, &ns_index);
+
+	if (rc == 0) {
+		LIST_INSERT_HEAD(&fs_list, fs_node, link);
+		goto out;
+	}
 
 free_fs_node:
 	if (fs_node) {
@@ -181,7 +189,9 @@ int efs_fs_delete(const str256_t *fs_name)
 	int rc = 0;
 	struct efs_fs *fs;
 	struct efs_fs_node *fs_node = NULL;
-	struct kvs_idx *ns_index;
+	kvs_idx_fid_t ns_fid;
+	struct kvstore *kvstor = kvstore_get();
+	struct kvs_idx ns_index;
 
 	rc = efs_fs_lookup(fs_name, &fs);
 	if (rc != 0) {
@@ -195,9 +205,10 @@ int efs_fs_delete(const str256_t *fs_name)
 		goto out;
 	}
 
-	/* delete the ns_index */
-	ns_get_ns_index(fs->ns, &ns_index);
-	RC_WRAP_LABEL(rc, out, efs_tree_delete_root, ns_index);
+	ns_get_fid(fs->ns, &ns_fid);
+	/* open namespace index */
+	RC_WRAP_LABEL(rc, out, kvs_index_open, kvstor, &ns_fid, &ns_index);
+	RC_WRAP_LABEL(rc, close_index, efs_tree_delete_root, &ns_index);
 
 	/* Remove fs from the efs list */
 	fs_node = container_of(fs, struct efs_fs_node, efs_fs);
@@ -205,6 +216,10 @@ int efs_fs_delete(const str256_t *fs_name)
 
 	RC_WRAP_LABEL(rc, out, ns_delete, fs->ns);
 	fs->ns = NULL;
+
+close_index:
+	kvs_index_close(kvstor, &ns_index);
+	goto out;
 
 out:
 	log_info("fs_name=" STR256_F " rc=%d", STR256_P(fs_name), rc);

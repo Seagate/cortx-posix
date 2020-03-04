@@ -23,7 +23,6 @@ target_link_libraries(ut
 	eos-utils
 	eos-nsal
 	eos-efs
-	kvsns
 	efs_tests
 	${STORE_LIBRARY}
 )
