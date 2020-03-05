@@ -40,7 +40,6 @@ int efs_init(const char *config_path)
 	struct collection_item *errors = NULL;
 	int rc = 0;
 	struct collection_item *item = NULL;
-	char *log_path = NULL;
 	efs_ctx_t ctx = EFS_NULL_FS_CTX;
 
 	/** only initialize efs once */
