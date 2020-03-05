@@ -38,7 +38,6 @@ int efs_init(const char *config_path)
 	struct collection_item *errors = NULL;
 	int rc = 0;
 	struct collection_item *item = NULL;
-	char *log_path = NULL;
 	efs_ctx_t ctx = EFS_NULL_FS_CTX;
 
 	/** only initialize efs once */
@@ -54,14 +53,6 @@ int efs_init(const char *config_path)
 		goto err;
 	}
 
-	RC_WRAP(get_config_item, "log", "path", cfg_items, &item);
-
-	/** Path not specified, use default */
-	if (item == NULL) {
-		log_path = "/var/log/eos/efs/efs.log";
-	} else {
-		log_path = get_string_config_value(item, NULL);
-	}
 	rc = utils_init(cfg_items);
 	if (rc != 0) {
                 rc = -EINVAL;
