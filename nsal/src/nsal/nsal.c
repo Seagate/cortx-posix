@@ -25,7 +25,7 @@ int nsal_init(struct collection_item *cfg_items)
                 log_err("kvs_init failed");
                 goto err;
         }
-	rc = ns_init(cfg_items);
+	//rc = ns_init(cfg_items);
 	if (rc) {
                 log_err("ns_init failed");
                 goto err;
