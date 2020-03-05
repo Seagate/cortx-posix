@@ -152,12 +152,23 @@ err:
 int efs_fs_init(void)
 {
 	int rc = 0;
-	return rc;
+
+	//TODO call for Control-Server init
+	/*rc = management_init();
+	if (rc) {
+                log_err("management_init failed");
+                goto err;
+        }
+err:
+        log_debug("rc=%d ", rc);*/
+        return rc;
 }
 
 //TODO complete efs_fs_fini .
 int efs_fs_fini(void)
 {
         int rc = 0;
+	//TODO call for Control-Server fini
+	//management_fini();
         return rc;
 }
