@@ -169,7 +169,6 @@ int efs_fs_fini(void)
         int rc = 0;
 	//TODO call for Control-Server fini
 	//management_fini();
-        return rc;
 	efs_fs_fini();
 	// TODO dsal_fini.	
 	dsal_fini();
