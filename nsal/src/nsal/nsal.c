@@ -13,6 +13,7 @@
 
 #include <namespace.h> /*namespace*/
 #include <common/log.h> /*logging*/
+#include <common/helpers.h>   /*RC_WRAP_LABEL*/
 
 static int nsal_initialized;
 
@@ -55,6 +56,7 @@ int nsal_fini()
                 log_err("kvs_fini failed");
                 goto err;
         }
+	RC_WRAP(kvstor->kvstore_ops->fini);
 err:
         log_debug("rc=%d ", rc);
         return rc;
