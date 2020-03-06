@@ -17,8 +17,6 @@
 
 static int nsal_initialized;
 
-static int nsal_initialized;
-
 int nsal_init(struct collection_item *cfg_items) 
 {
 	int rc = 0;
