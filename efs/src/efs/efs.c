@@ -109,7 +109,6 @@ int efs_fini(void)
                 log_err("nsal_fini failed");
                 goto err;
         }
-	RC_WRAP(kvstor->kvstore_ops->fini);
 	free_ini_config_errors(cfg_items);
 	rc = utils_fini();
 	if (rc) {
