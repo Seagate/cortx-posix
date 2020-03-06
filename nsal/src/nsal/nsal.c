@@ -14,11 +14,16 @@
 #include <namespace.h> /*namespace*/
 #include <common/log.h> /*logging*/
 
+static int nsal_initialized;
+
 int nsal_init(struct collection_item *cfg_items) 
 {
 	int rc = 0;
+	/** only initialize nsal once */
+        if (__sync_fetch_and_add(&nsal_initialized, 1)) {
+                return 0;
+        }
 	struct kvstore *kvstor = kvstore_get();
-
 	dassert(kvstor != NULL);
 	rc = kvs_init(kvstor, cfg_items);
 	if (rc) {
