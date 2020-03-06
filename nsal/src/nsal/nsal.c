@@ -18,8 +18,6 @@
 
 static int nsal_initialized;
 
-static int nsal_initialized;
-
 int nsal_init(struct collection_item *cfg_items) 
 {
 	int rc = 0;
@@ -57,6 +55,7 @@ int nsal_fini()
                 log_err("kvs_fini failed, rc=%d", rc);
                 goto err;
         }
+	RC_WRAP(kvstor->kvstore_ops->fini);
 err:
         return rc;
 }
