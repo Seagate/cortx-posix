@@ -161,7 +161,6 @@ int efs_fini(void)
                 log_err("log_fini failed, rc=%d ", rc);
                 goto err;
         }
-	RC_WRAP(kvstor->kvstore_ops->fini);
 	free_ini_config_errors(cfg_items);
 	rc = utils_fini();
 	if (rc) {
