@@ -8,6 +8,7 @@ INDEX_DIR=/tmp
 KVS_GLOBAL_FID='<0x780000000000000b:1>'
 # DEFAULT FSID 2
 KVS_DEFAULT_FS_FID='<0x780000000000000b:2>'
+KVS_NS_META_FID='<0x780000000000000b:2>'
 DEFAULT_FSID='2'
 DEFAULT_FS='kvsns'
 LOC_EXPORT_ID='@tcp:12345:44:301'
@@ -84,6 +85,7 @@ level = LEVEL_INFO
 
 [kvstore]
 type = eos
+ns_meta_fid = $KVS_NS_META_FID
 
 [dstore]
 type = eos
