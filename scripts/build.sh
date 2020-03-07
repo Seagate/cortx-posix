@@ -383,7 +383,7 @@ Where action is one of the following:
 
     rpm-gen       - Generate RPMs.
     rpm-install   - Install the generated RPMs.
-    rpm-unintsall - Uninstall the RPMs.
+    rpm-uninstall - Uninstall the RPMs.
     reinstall     - Generate/Uninstall/Install RPMs.
 
     <component> <action> - Perform action on a sub-component.
