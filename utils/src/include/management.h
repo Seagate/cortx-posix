@@ -142,9 +142,10 @@ struct server {
  */
 int server_main(int argc, char *argv[]);
 int server_init(struct server *server, struct params *params);
-int server_cleanup(struct server *server);
 int server_start(struct server *server);
-int server_stop(struct server *server);
+int server_cleanup(struct server *server);
+int management_init(void);
+int management_fini(void);
 
 /**
  * Control server thread APIs.
@@ -210,5 +211,10 @@ struct params {
  */
 struct params* params_parse(int argc, char* argv[]);
 void params_free(struct params *params);
+
+/**
+ * Utility functions.
+ */
+int errno_to_http_code(int err_code);
 
 #endif
