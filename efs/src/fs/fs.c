@@ -123,13 +123,13 @@ int efs_fs_fini()
 	return rc;
 }
 
-void efs_fs_scan(void (*fs_scan_cb)(const struct efs_fs *))
+void efs_fs_scan(void (*fs_scan_cb)(const struct efs_fs *, void *args), void *args)
 {
 	struct efs_fs_node *fs_node = NULL;
 
 	LIST_FOREACH(fs_node, &fs_list, link) {
 		dassert(fs_node != NULL);
-		fs_scan_cb(&fs_node->efs_fs);
+		fs_scan_cb(&fs_node->efs_fs, args);
 	}
 }
 

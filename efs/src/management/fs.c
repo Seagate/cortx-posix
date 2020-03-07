@@ -1,0 +1,791 @@
+/**
+ * Filename: fs.c
+ * Description: Echo controller.
+ *
+ * Do NOT modify or remove this copyright and confidentiality notice!
+ * Copyright (c) 2019, Seagate Technology, LLC.
+ * The code contained herein is CONFIDENTIAL to Seagate Technology, LLC.
+ * Portions are also trade secret. Any use, duplication, derivation, distribution
+ * or disclosure of this code, for any reason, not expressly authorized is
+ * prohibited. All other rights are expressly reserved by Seagate Technology, LLC.
+ * 
+ * Author: Yogesh Lahane <yogesh.lahane@seagate.com>
+ *
+ */
+
+#include <stdio.h> /* sprintf */
+#include <stdlib.h>
+#include <json/json.h> /* for json_object */
+#include <management.h>
+#include <common/log.h>
+#include <str.h>
+#include <debug.h>
+#include "controller.h"
+#include "fs.h"
+
+/**
+ * ##############################################################
+ * #		FS CREATE API'S					#
+ * ##############################################################
+ */
+struct fs_options {
+	char			* key;
+	char			* val;
+	LIST_ENTRY(fs_options)    entries;  /* Link. */
+};
+
+struct fs_create_api_req {
+	const char		* fs_name;
+	/* Request headers. */
+	LIST_HEAD(options,
+	fs_options)		  fs_options;
+	/* ... */
+};
+
+struct fs_create_api_resp {
+	/* ... */
+};
+
+struct fs_create_api {
+	struct fs_create_api_req  req;
+	struct fs_create_api_resp resp;
+};
+
+static int fs_create_send_responce(struct controller_api *fs_create, void *args)
+{
+	int resp_code = 0;
+	int resp_size = 0;
+	char str_resp_size[16];
+	const char *str_resp = NULL;
+	struct request *request = NULL;
+	struct json_object *json_obj = NULL;
+	struct json_object *json_resp_obj = NULL;
+	
+	request = fs_create->request;
+
+	if (request->err_code != 0) {
+		resp_code = errno_to_http_code(request->err_code);
+
+		/* Send error response message. */
+		request_set_out_header(request, "Content-Type", "application/json");
+		request_set_out_header(request, "Accept", "application/json");
+
+		/* Create json object */
+		json_resp_obj = json_object_new_object();
+		json_obj = json_object_new_int(request->err_code);
+		json_object_object_add(json_resp_obj, "rc", json_obj);
+
+		str_resp = json_object_to_json_string(json_resp_obj);
+		resp_size = strlen(str_resp);
+		sprintf(str_resp_size, "%d", resp_size);
+
+		request_set_out_header(request, "Content-Length", str_resp_size);
+		request->out_content_len = resp_size;
+
+		request->out_buffer = evbuffer_new();
+		evbuffer_add(request->out_buffer, str_resp, resp_size);
+	} else {
+		/* Resource got created. */
+		resp_code = EVHTP_RES_CREATED;
+	}	   
+
+	log_debug("err_code : %d", resp_code);
+
+	request_send_responce(request, resp_code);
+	return 0;
+}
+
+static int fs_create_process_data(struct controller_api *fs_create)
+{
+	int rc = 0;
+	str256_t fs_name;
+	int fs_name_len = 0;
+	struct request *request = NULL;
+	struct fs_create_api *fs_create_api = NULL;
+	struct json_object *json_obj = NULL;
+	struct json_object *json_fs_options_obj = NULL;
+
+	request = fs_create->request;
+
+	/**
+	 * Process the fs_create data.
+	 * 1. Parse JSON request data.
+	 * 2. Compose efs_fs_create api params.
+	 * 3. Send create fs request
+	 * 4. Get responce.
+	 */
+	rc = request_accept_data(request);
+	if (rc != 0) {
+		/**
+		 * Internal error.
+		 */
+		request->err_code = rc;
+		fs_create_send_responce(fs_create, NULL);
+		goto error;
+	}
+
+	/* 1. Parse JSON requst data. */
+	fs_create_api = (struct fs_create_api*)fs_create->priv;
+
+	json_object_object_get_ex(request->in_json_req_obj,
+				  "name",
+				  &json_obj);
+
+	fs_create_api->req.fs_name = json_object_get_string(json_obj);	
+
+	log_debug("Creating FS : %s.", fs_create_api->req.fs_name);
+	
+	json_object_object_get_ex(request->in_json_req_obj,
+				  "fs-options",
+				  &json_fs_options_obj);
+	
+	/* 2. Compose efs_fs_create api params. */
+	fs_name_len = strlen(fs_create_api->req.fs_name);
+	str256_from_cstr(fs_name,
+			 fs_create_api->req.fs_name,
+			 fs_name_len);
+
+	/* 3. Send create fs request */
+	rc = efs_fs_create(&fs_name);
+	request->err_code = -rc;
+	log_debug("FS create status code : %d.", request->err_code);
+
+	request_next_action(fs_create);
+
+error:
+	return rc;
+}
+
+static int fs_create_process_request(struct controller_api *fs_create, void *args)
+{
+	int rc = 0;
+	struct request *request = NULL;
+
+	request = fs_create->request;
+
+	rc = request_validate_headers(request);
+	if (rc != 0) {
+		/**
+		 * Internal error.
+		 */
+		request->err_code = rc;
+		fs_create_send_responce(fs_create, NULL);
+		goto error;
+	}
+	
+	if (request->in_content_len == 0) {
+		/**
+		 * Expecting create request fs info.
+		 */
+		request->err_code = EINVAL;
+		fs_create_send_responce(fs_create, NULL);
+		goto error;
+	} 
+
+	/* Set read data call back. */
+	request->read_cb = fs_create_process_data;
+
+error:
+	return rc;
+}
+
+
+static controller_api_action_func default_fs_create_actions[] =
+{
+	fs_create_process_request,
+	fs_create_send_responce,
+};
+
+static int fs_create_init(struct controller *controller,
+		   struct request *request,
+		   struct controller_api **api)
+{
+	int rc = 0;
+	struct controller_api *fs_create = NULL;
+
+	fs_create = malloc(sizeof(struct controller_api));
+	if (fs_create == NULL) {
+		rc = ENOMEM;
+		log_err("Internal error: No memmory.\n");
+		goto error;
+	}
+		
+	/* Init. */
+	fs_create->request = request;
+	fs_create->controller = controller;
+
+	fs_create->name = "CREATE";
+	fs_create->type = FS_CREATE_ID;
+	fs_create->action_next = 0;
+	fs_create->action_table = default_fs_create_actions;
+
+	fs_create->priv = calloc(1, sizeof(struct fs_create_api));
+	if (fs_create->priv == NULL) {
+		rc = ENOMEM;
+		free(fs_create);
+		fs_create = NULL;
+		log_err("Internal error: No memmory.\n");
+	}
+
+	/* Assign InOut parameter value. */
+	*api = fs_create;
+error:
+	return rc;
+}
+
+static void fs_create_fini(struct controller_api *fs_create)
+{
+	if (fs_create->priv) {
+		free(fs_create->priv);
+	}
+
+	if (fs_create) {
+		free(fs_create);
+	}
+}
+
+/**
+ * ##############################################################
+ * #		FS DELETE API'S					#
+ * ##############################################################
+ */
+struct fs_delete_api_req {
+	const char * fs_name;
+	/* ... */
+};
+
+struct fs_delete_api_resp {
+	int status;
+	/* ... */
+};
+
+struct fs_delete_api {
+	struct fs_delete_api_req  req;
+	struct fs_delete_api_resp resp;
+};
+
+static int fs_delete_send_responce(struct controller_api *fs_delete, void *args)
+{
+	int rc = 0;
+	int resp_code = 0;
+	int resp_size = 0;
+	char str_resp_size[16];
+	const char *str_resp = NULL;
+	struct request *request = NULL;
+	struct json_object *json_obj = NULL;
+	struct json_object *json_resp_obj = NULL;
+	
+	request = fs_delete->request;
+
+	if (request->err_code != 0) {
+		/* Send error response message. */
+		resp_code = errno_to_http_code(request->err_code);
+
+		request_set_out_header(request, "Content-Type", "application/json");
+		request_set_out_header(request, "Accept", "application/json");
+
+		/* Create json object */
+		json_resp_obj = json_object_new_object();
+		json_obj = json_object_new_int(request->err_code);
+		json_object_object_add(json_resp_obj, "rc", json_obj);
+	
+		str_resp = json_object_to_json_string(json_resp_obj);
+		resp_size = strlen(str_resp);
+		sprintf(str_resp_size, "%d", resp_size);
+
+		request_set_out_header(request, "Content-Length", str_resp_size);
+		request->out_content_len = resp_size;
+
+		request->out_buffer = evbuffer_new();
+		evbuffer_add(request->out_buffer, str_resp, resp_size);
+	} else {
+		resp_code = EVHTP_RES_200;
+	}	
+	
+	request_send_responce(request, resp_code);
+	return rc;
+}
+
+static int fs_delete_process_request(struct controller_api *fs_delete, void *args)
+{
+	int rc = 0;
+	str256_t fs_name;
+	int fs_name_len = 0;
+	struct request *request = NULL;
+	struct fs_delete_api *fs_delete_api = NULL;
+
+	request = fs_delete->request;
+
+	rc = request_validate_headers(request);
+	if (rc != 0) {
+		/**
+		 * Internal error.
+		 */
+		request->err_code = rc;
+		fs_delete_send_responce(fs_delete, NULL);
+		goto error;
+	}
+	
+	if (request->in_content_len != 0) {
+		/**
+		 * FS delete request doesn't expect any payload data.
+		 */
+		request->err_code = EINVAL;
+		fs_delete_send_responce(fs_delete, NULL);
+		goto error;
+	} 
+
+
+	/**
+	 * Get the FS delete api info.
+	 */ 
+	fs_delete_api = (struct fs_delete_api*)fs_delete->priv;
+	fs_delete_api->req.fs_name = request->api_file;
+
+	/* Compose efs_fs_delete api params. */
+	log_debug("Deleting FS : %s.", fs_delete_api->req.fs_name);
+
+	fs_name_len = strlen(fs_delete_api->req.fs_name);
+	str256_from_cstr(fs_name,
+			 fs_delete_api->req.fs_name,
+			 fs_name_len);
+
+
+	/**
+	 * Send fs delete request to the backend.
+	 */
+	rc = efs_fs_delete(&fs_name);
+	request->err_code = -rc;
+
+	log_debug("FS delete return code: %d.", request->err_code);
+
+	request_next_action(fs_delete);
+
+error:
+	return rc;
+}
+
+static controller_api_action_func default_fs_delete_actions[] =
+{
+	fs_delete_process_request,
+	fs_delete_send_responce,
+};
+
+static int fs_delete_init(struct controller *controller,
+		  struct request *request,
+		  struct controller_api **api)
+{
+	int rc = 0;
+	struct controller_api *fs_delete = NULL;
+
+	fs_delete = malloc(sizeof(struct controller_api));
+	if (fs_delete == NULL) {
+		rc = ENOMEM;
+		log_err("Internal error: No memmory.\n");
+		goto error;
+	}
+
+	/* Init. */
+	fs_delete->request = request;
+	fs_delete->controller = controller;
+
+	fs_delete->name = "DELETE";
+	fs_delete->type = FS_DELETE_ID;
+	fs_delete->action_next = 0;
+	fs_delete->action_table = default_fs_delete_actions;
+
+	fs_delete->priv = calloc(1, sizeof(struct fs_delete_api));
+	if (fs_delete->priv == NULL) {
+		rc = ENOMEM;
+		free(fs_delete);
+		fs_delete = NULL;
+		log_err("Internal error: No memmory.\n");
+		goto error;
+	}
+
+	/* Assign InOut Parameter value. */
+	*api = fs_delete;
+error:
+	return rc;
+}
+
+static void fs_delete_fini(struct controller_api *fs_delete)
+{
+	if (fs_delete->priv) {
+		free(fs_delete->priv);
+	}
+
+	if (fs_delete) {
+		free(fs_delete);
+	}
+}
+
+/**
+ * ##############################################################
+ * #		FS LIST API'S					#
+ * ##############################################################
+ */
+struct fs_list_entry {
+	char			*name;
+	LIST_HEAD(efs_fs_options,
+	fs_options)		 options;
+	/* ... */
+	LIST_ENTRY(fs_list_entry) entries;  /* Link. */
+};
+
+struct fs_list_api_req {
+	const char		*fs_name;
+	/* ... */
+};
+
+struct fs_list_api_resp {
+	LIST_HEAD(fs_list,
+	fs_list_entry)		fs_list;
+	/* ... */
+};
+
+struct fs_list_api {
+	struct fs_list_api_req  req;
+	struct fs_list_api_resp resp;
+};
+
+static int fs_list_send_responce(struct controller_api *fs_list, void *args)
+{
+	int resp_code = 0;
+	int resp_size = 0;
+	char str_resp_size[16];
+	const char *str_resp = NULL;
+	struct fs_list_entry *fs_node = NULL;
+	struct request *request = NULL;
+	struct fs_list_api *fs_list_api = NULL;
+	struct json_object *json_obj = NULL;
+	struct json_object *json_resp_obj = NULL;
+
+	request = fs_list->request;
+	fs_list_api = (struct fs_list_api*)fs_list->priv;
+
+	if (request->err_code != 0) {
+		resp_code = errno_to_http_code(request->err_code);
+
+		/* Send error response message. */
+		request_set_out_header(request, "Content-Type", "application/json");
+		request_set_out_header(request, "Accept", "application/json");
+
+		/* Create json object */
+		json_resp_obj = json_object_new_object();
+		json_obj = json_object_new_int(request->err_code);
+		json_object_object_add(json_resp_obj, "rc", json_obj);
+
+		str_resp = json_object_to_json_string(json_resp_obj);
+		resp_size = strlen(str_resp);
+		sprintf(str_resp_size, "%d", resp_size);
+
+		request_set_out_header(request, "Content-Length", str_resp_size);
+		request->out_content_len = resp_size;
+
+		request->out_buffer = evbuffer_new();
+		evbuffer_add(request->out_buffer, str_resp, resp_size);
+	} else {
+		if (LIST_EMPTY(&fs_list_api->resp.fs_list)) {
+			resp_code = EVHTP_RES_NOCONTENT;
+		} else {
+			json_resp_obj = json_object_new_array();
+
+			LIST_FOREACH(fs_node, &fs_list_api->resp.fs_list, entries) {
+				log_debug("FS entry:%s", fs_node->name);
+
+				/* Create json object */
+				json_obj = json_object_new_string(fs_node->name);
+				json_object_array_add(json_resp_obj, json_obj);
+			}
+
+			str_resp = json_object_to_json_string(json_resp_obj);
+			resp_size = strlen(str_resp);
+			sprintf(str_resp_size, "%d", resp_size);
+
+			request_set_out_header(request, "Content-Length", str_resp_size);
+			request->out_content_len = resp_size;
+
+			request->out_buffer = evbuffer_new();
+			evbuffer_add(request->out_buffer, str_resp, resp_size);
+
+			resp_code = EVHTP_RES_200;
+		}
+	}
+
+	log_debug("err_code : %d", resp_code);
+
+	request_send_responce(request, resp_code);
+	return 0;
+}
+
+static void fs_list_add_entry(const struct efs_fs *fs, void *args)
+{
+	str256_t *fs_name = NULL;
+	struct fs_list_entry *fs_node;
+	struct fs_list_api *fs_list_api = NULL;
+
+	fs_list_api = (struct fs_list_api *)args;
+
+	efs_fs_get_name(fs, &fs_name);
+
+	fs_node = malloc(sizeof(struct fs_list_entry));
+	fs_node->name = malloc(sizeof(char) *256);
+	strcpy(fs_node->name, fs_name->s_str);
+
+	log_debug("FS scan cb : fs entry : %s", fs_node->name);
+
+	LIST_INSERT_HEAD(&fs_list_api->resp.fs_list, fs_node, entries);
+}
+
+static int fs_list_process_request(struct controller_api *fs_list, void *args)
+{
+	int rc = 0;
+	str256_t fs_name;
+	int fs_name_len = 0;
+	struct request *request = NULL;
+	struct fs_list_api *fs_list_api = NULL;
+
+	request = fs_list->request;
+
+	rc = request_validate_headers(request);
+	if (rc != 0) {
+		/**
+		 * Internal error.
+		 */
+		request->err_code = rc;
+		fs_list_send_responce(fs_list, NULL);
+		goto error;
+	}
+
+	if (request->in_content_len != 0) {
+		/**
+		 * FS delete request doesn't expect any payload data.
+		 */
+		request->err_code = EINVAL;
+		fs_list_send_responce(fs_list, NULL);
+		goto error;
+	}
+
+
+	/**
+	 * Get the FS list api info.
+	 */
+	fs_list_api = (struct fs_list_api*)fs_list->priv;
+	fs_list_api->req.fs_name = request->api_file;
+
+	if (fs_list_api->req.fs_name) {
+		/* Compose efs_fs_list api params. */
+		log_debug("Getting FS : %s. info", fs_list_api->req.fs_name);
+
+		fs_name_len = strlen(fs_list_api->req.fs_name);
+		str256_from_cstr(fs_name,
+			 	 fs_list_api->req.fs_name,
+			 	 fs_name_len);
+	}
+
+	/**
+	 * Send fs delete request to the backend.
+	 */
+
+	LIST_INIT(&(fs_list_api->resp.fs_list));
+
+	log_debug("Getting FS list.");
+
+	efs_fs_scan(fs_list_add_entry, fs_list_api);
+
+	request->err_code = 0;
+
+	log_debug("FS list return code: %d.", request->err_code);
+
+	request_next_action(fs_list);
+
+error:
+	return rc;
+}
+
+static controller_api_action_func default_fs_list_actions[] =
+{
+	fs_list_process_request,
+	fs_list_send_responce,
+};
+
+static int fs_list_init(struct controller *controller,
+		   struct request *request,
+		   struct controller_api **api)
+{
+	int rc = 0;
+	struct controller_api *fs_list = NULL;
+
+	fs_list = malloc(sizeof(struct controller_api));
+	if (fs_list == NULL) {
+		rc = ENOMEM;
+		log_err("Internal error: No memmory.\n");
+		goto error;
+	}
+		
+	/* Init. */
+	fs_list->request = request;
+	fs_list->controller = controller;
+
+	fs_list->name = "LIST";
+	fs_list->type = FS_CREATE_ID;
+	fs_list->action_next = 0;
+	fs_list->action_table = default_fs_list_actions;
+
+	fs_list->priv = calloc(1, sizeof(struct fs_list_api));
+	if (fs_list->priv == NULL) {
+		rc = ENOMEM;
+		free(fs_list);
+		fs_list = NULL;
+		log_err("Internal error: No memmory.\n");
+	}
+
+	/* Assign InOut parameter value. */
+	*api = fs_list;
+error:
+	return rc;
+}
+
+static void fs_list_fini(struct controller_api *fs_list)
+{
+	if (fs_list->priv) {
+		free(fs_list->priv);
+	}
+
+	if (fs_list) {
+		free(fs_list);
+	}
+}
+
+/**
+ * ##############################################################
+ * #		FS CONTROLLER API'S				#
+ * ##############################################################
+ */
+#define FS_NAME	"fs"
+#define FS_API_URI	"/fs"
+
+static char *default_fs_api_list[] =
+{ 
+#define XX(uc, lc, _)	#lc,
+	FS_API_MAP(XX)
+#undef XX
+};
+
+static struct controller_api_table fs_api_table [] =
+{
+#define XX(uc, lc, method)	{ #lc, #method, FS_ ## uc ## _ID },
+	FS_API_MAP(XX)
+#undef XX
+};
+
+static int fs_api_name_to_id(char *api_name, enum fs_api_id *api_id)
+{
+	int rc = EINVAL;
+	int idx = 0;
+
+	for (idx = 0; idx < FS_API_COUNT; idx++) {
+		if (!strcmp(fs_api_table[idx].method, api_name)) {
+			*api_id = fs_api_table[idx].id;
+			rc = 0;
+			break;
+		}
+	}
+
+	return rc;
+}
+
+static int fs_api_init(char *api_name,
+	       struct controller *controller,
+	       struct request *request,
+	       struct controller_api **api)
+{
+	int rc = 0;
+	enum fs_api_id api_id;
+	struct controller_api *fs_api = NULL;	
+
+	rc = fs_api_name_to_id(api_name, &api_id);
+	if (rc != 0) {
+		log_err("Unknown fs api : %s.\n", api_name);
+		goto error;
+	}
+
+	switch(api_id) {
+#define XX(uc, lc, _)								\
+	case FS_ ## uc ## _ID:							\
+		rc = fs_ ## lc ## _init(controller, request, &fs_api);		\
+		break;
+		FS_API_MAP(XX)
+#undef XX
+	default:
+		log_err("Not supported api : %s", api_name);
+	}
+
+	/* Assign the InOut variable api value. */
+	*api = fs_api;
+
+error:
+	return rc;
+}
+
+static void fs_api_fini(struct controller_api *fs_api)
+{
+	char *api_name = NULL;
+	enum fs_api_id api_id;
+
+	api_name = fs_api->name;
+	api_id = fs_api->type;
+
+	switch(api_id) {
+#define XX(uc, lc, _)								\
+	case FS_ ## uc ## _ID:							\
+		fs_ ## lc ## _fini(fs_api);					\
+		break;
+		FS_API_MAP(XX)
+#undef XX
+	default:
+		log_err("Not supported api : %s", api_name);
+	}
+}
+
+static struct controller default_fs_controller =
+{
+	.name	  = FS_NAME,
+	.type	  = CONTROLLER_FS_ID,
+	.api_uri  = FS_API_URI,
+	.api_list = default_fs_api_list,
+	.api_init = fs_api_init,
+	.api_fini = fs_api_fini,
+};
+
+int ctl_fs_init(struct server *server, struct controller **controller)
+{
+	int rc = 0;
+
+	struct controller *fs_controller = NULL;
+
+	fs_controller = malloc(sizeof(struct controller));
+	if (fs_controller == NULL) {
+		rc = ENOMEM;
+		goto error;
+	}
+
+	/* Init fs_controller. */
+	*fs_controller = default_fs_controller;
+	fs_controller->server = server;
+
+	/* Assign the return valure. */
+	*controller = fs_controller;
+
+error:
+	return rc;
+}
+
+void ctl_fs_fini(struct controller *fs_controller)
+{
+	free(fs_controller);
+	fs_controller = NULL;
+}
+
+
