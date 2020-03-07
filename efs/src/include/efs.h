@@ -23,6 +23,9 @@
 #include <sys/stat.h>
 #include <str.h> /* str256_t */
 #include <object.h> /* obj_id_t */
+#include <md_common.h> /* MD_XATTR_SIZE_MAX */
+
+#define EFS_XATTR_SIZE_MAX MD_XATTR_SIZE_MAX
 
 /* forword declations */
 struct kvs_idx;
