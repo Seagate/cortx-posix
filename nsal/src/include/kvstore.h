@@ -78,6 +78,8 @@ int kvs_get(struct kvstore *kvstore, struct kvs_idx *index, void *k, const size_
             void **v, size_t *vlen);
 int kvs_set(struct kvstore *kvstore, struct kvs_idx *index, void *k, const size_t klen,
             void *v, const size_t vlen);
+int kvs_set4(struct kvstore *kvstore, void *k, const size_t klen, void *v,
+	     const size_t vlen);
 int kvs_del(struct kvstore *kvstore, struct kvs_idx *index, const void *k, size_t klen);
 int kvs_idx_gen_fid(struct kvstore *kvstore, kvs_idx_fid_t *index_fid);
 

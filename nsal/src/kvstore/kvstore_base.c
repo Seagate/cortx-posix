@@ -170,6 +170,13 @@ int kvs_set(struct kvstore *kvstore, struct kvs_idx *index, void *k, const size_
 	return kvstore->kvstore_ops->set_bin(index, k, klen, v, vlen);
 }
 
+int kvs_set4(struct kvstore *kvstore, void *k, const size_t klen,
+	        void *v, const size_t vlen)
+{
+	dassert(kvstore);
+	return kvstore->kvstore_ops->set4_bin(k, klen, v, vlen);
+}
+
 int kvs_del(struct kvstore *kvstore, struct kvs_idx *index, const void *k,
             size_t klen)
 {
