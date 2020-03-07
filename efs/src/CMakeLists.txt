@@ -80,11 +80,13 @@ set(EFS efs)
 add_subdirectory(fs)
 set(FS fs)
 
-add_subdirectory(test)
+add_subdirectory(management)
+set(MANAGEMENT management)
 
 add_library(eos-efs SHARED
 		$<TARGET_OBJECTS:${EFS}>
 		$<TARGET_OBJECTS:${FS}>
+		$<TARGET_OBJECTS:${MANAGEMENT}>
 	)
 
 target_link_libraries(eos-efs
@@ -93,6 +95,8 @@ target_link_libraries(eos-efs
   eos-dsal
   eos-nsal
 )
+
+add_subdirectory(test)
 
 # CPack / rpmbuild specific stuff
 set(CPACK_PACKAGE_FILE_NAME "eos-efs-Source" )

@@ -25,4 +25,19 @@ target_link_libraries(ut
 	eos-efs
 	efs_tests
 	${STORE_LIBRARY}
+	)
+
+set(CMAKE_EV_LIB /usr/local/lib)
+link_directories(${CMAKE_EV_LIB})
+
+add_executable(test-management test-management.c)
+
+target_link_libraries(test-management
+	eos-efs
+	json
+	event
+	ssl
+	crypto
+	event_openssl
+	evhtp
 )

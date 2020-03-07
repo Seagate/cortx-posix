@@ -26,7 +26,9 @@
 #include <eos/eos_kvstore.h>
 #include <dstore.h>
 #include <efs.h>
+#include <fs.h>
 #include <debug.h>
+#include <management.h>
 
 static struct collection_item *cfg_items;
 
@@ -87,6 +89,18 @@ int efs_init(const char *config_path)
 	rc = kvs_init(kvstore, cfg_items);
 	if (rc) {
 		log_err("kvs_init failed");
+		goto err;
+	}
+
+	rc = efs_fs_init(cfg_items);
+	if (rc) {
+		log_err("efs_fs_init failed");
+		goto err;
+	}
+
+	rc = management_init();
+	if (rc) {
+		log_err("management_init failed");
 		goto err;
 	}
 
