@@ -1,15 +1,14 @@
 #!/bin/bash
-
 # Variables
 PROFILE='<0x7000000000000001:0>'
 PROC_FID='<0x7200000000000000:0>'
 INDEX_DIR=/tmp
 # Global idx (meta index)
 KVS_GLOBAL_FID='<0x780000000000000b:1>'
-# DEFAULT FSID 2
-KVS_DEFAULT_FS_FID='<0x780000000000000b:2>'
+# DEFAULT FSID 1
+KVS_DEFAULT_FS_FID='<0x780000000000000b:1>'
 KVS_NS_META_FID='<0x780000000000000b:2>'
-DEFAULT_FSID='2'
+DEFAULT_FSID='1'
 DEFAULT_FS='kvsns'
 LOC_EXPORT_ID='@tcp:12345:44:301'
 HA_EXPORT_ID='@tcp:12345:45:1'
@@ -17,8 +16,7 @@ KVSNS_INI=/etc/kvsns.d/kvsns.ini
 KVSNS_INI_BAK=${KVSNS_INI}.$$
 GANESHA_CONF=/etc/ganesha/ganesha.conf
 GANESHA_CONF_BAK=${GANESHA_CONF}.$$
-KVSNS_FS_CREATE=/usr/bin/kvsns_fs_create
-KVSNS_FS_DELETE=/usr/bin/kvsns_fs_delete
+KVSNS_INIT=/usr/bin/kvsns_init
 NFS_INITIALIZED=/var/lib/nfs/nfs_initialized
 TMP_FILE=/tmp/nfs_tmp_file
 NFS_SETUP_LOG=/var/log/nfs_setup.log
@@ -54,8 +52,11 @@ function get_ip {
 function clovis_init {
 	log "Initializing Clovis..."
 
-	# Create Clovis global idx
-	run m0clovis -l $ip_add$LOC_EXPORT_ID -h $ip_add$HA_EXPORT_ID -p $PROFILE -f $PROC_FID index create "$KVS_GLOBAL_FID"
+	# Create Clovis global(default fs) idx
+	run m0clovis -l $ip_add$LOC_EXPORT_ID -h $ip_add$HA_EXPORT_ID -p $PROFILE -f $PROC_FID index create "$KVS_DEFAULT_FS_FID"
+	# Create Clovis fs_meta idx
+	run m0clovis -l $ip_add$LOC_EXPORT_ID -h $ip_add$HA_EXPORT_ID -p $PROFILE -f $PROC_FID index create "$KVS_NS_META_FID"
+
 	[ $? -ne 0 ] && die "Failed to Initialise Clovis Global index"
 }
 
@@ -103,7 +104,7 @@ EOM
 	touch $NFS_INITIALIZED
 
 	# Create default FS
-	run $KVSNS_FS_CREATE $DEFAULT_FS
+	run $KVSNS_INIT 1
 	[ $? -ne 0 ] && die "Failed to initialise kvsns for $DEFAULT_FS"
 }
 
@@ -122,7 +123,7 @@ EXPORT {
 	Export_Id = 12345;
 
 	# Exported path (mandatory)
-	Path = 2;
+	Path = kvsns;
 
 	# Pseudo Path (required for NFSv4 or if mount_path_pseudo = true)
 	Pseudo = /kvsns;
@@ -233,7 +234,7 @@ function eos_nfs_cleanup {
 
 	# Drop index if previosly created
 	run m0clovis -l $ip_add$LOC_EXPORT_ID -h $ip_add$HA_EXPORT_ID -p $PROFILE -f $PROC_FID index drop "$KVS_DEFAULT_FS_FID"
-	run m0clovis -l $ip_add$LOC_EXPORT_ID -h $ip_add$HA_EXPORT_ID -p $PROFILE -f $PROC_FID index drop "$KVS_GLOBAL_FID"
+	run m0clovis -l $ip_add$LOC_EXPORT_ID -h $ip_add$HA_EXPORT_ID -p $PROFILE -f $PROC_FID index drop "$KVS_NS_META_FID"
 
 	rm -f $NFS_INITIALIZED
 	rm -rf $LOG_DIR_PATH
@@ -262,7 +263,7 @@ EOF
 
 cmd=$1; shift 1
 
-getopt --options "hfpP:F:k:e:E:" --name nfs_setup 
+getopt --options "hfpP:F:k:e:E:" --name nfs_setup
 [[ $? -ne 0 ]] && usage
 
 while [ ! -z $1 ]; do

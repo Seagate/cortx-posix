@@ -38,6 +38,7 @@
 #include "fsal_internal.h"
 #include "kvsfs_methods.h"
 #include <efs.h>
+#include <fs.h>
 
 static struct config_item ds_array_params[] = {
 	CONF_MAND_IP_ADDR("DS_Addr", "127.0.0.1",
@@ -120,9 +121,9 @@ fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
 	fsal_status_t status = { ERR_FSAL_NO_ERROR, 0 };
 	int retval = 0;
 	fsal_errors_t fsal_error = ERR_FSAL_INVAL;
-	/* NOTE: "Path" in ganesha.conf is fsid for us */
-	uint64_t fsid = strtoull(op_ctx->ctx_export->fullpath,
-				 NULL, 0);
+
+	uint16_t fsid =	op_ctx->ctx_export->export_id;
+	LogEvent(COMPONENT_FSAL, "export id %d", (int)fsid);
 
 	myself = gsh_calloc(1, sizeof(struct kvsfs_fsal_export));
 
@@ -145,15 +146,19 @@ fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
 	} else {
 		LogEvent(COMPONENT_FSAL, "EFS API is running");
 	}
-	/* @todo FS mgmt work will replace/reuse this call here */
-	retval = kvsns_set_fid(fsid);
-	if (retval != 0) {
-		LogMajor(COMPONENT_FSAL, "Can't set FSID:%"PRIu64" index",
-			 fsid);
-		goto errout;
-	} else
-		LogEvent(COMPONENT_FSAL, "FSID:%"PRIu64" FID set",
-			 fsid);
+	/* @todo: remove this block once new fs mgmt tested */
+	if (memcmp(op_ctx->ctx_export->fullpath, "kvsns", 5) == 0) {
+		fsid = 1;
+		retval = efs_fs_set_fid(fsid);
+		if (retval != 0) {
+			LogMajor(COMPONENT_FSAL, "Can't set FSID:%"PRIu16" index",
+					fsid);
+			goto errout;
+		} else {
+			LogEvent(COMPONENT_FSAL, "FSID:%"PRIu16" FID set",
+					fsid);
+		}
+	}
 
 	retval = fsal_attach_export(fsal_hdl, &myself->export.exports);
 	if (retval != 0)
@@ -174,10 +179,10 @@ fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
 	struct kvs_idx index;
 	efs_ctx_t fs_ctx = NULL;
 
-	retval = kvsns_fs_open(fsid, &index);
+	retval = efs_fs_open(op_ctx->ctx_export->fullpath, &index);
 	if (retval != 0) {
-		LogMajor(COMPONENT_FSAL, "FS open failed, FSID:<%"PRIu64,
-			 fsid);
+		LogMajor(COMPONENT_FSAL, "FS open failed :%s",
+			 op_ctx->ctx_export->fullpath);
 		goto errout;
 	}
 
