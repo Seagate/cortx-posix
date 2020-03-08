@@ -17,6 +17,7 @@
 
 #include <sys/queue.h> /* list */
 #include <str.h> /* str256_t */
+#include "efs.h" /* efs_tree_create_root */
 #include "namespace.h" /* namespace methods */
 
 //Forward declaration.
@@ -86,4 +87,40 @@ void efs_fs_scan(void (*fs_scan_cb)(const struct efs_fs *fs, void *args),
  * return void.
  */
 void efs_fs_get_name(const struct efs_fs *fs, str256_t **name);
+
+/**
+ * High level API: Open a fs context for the passed fs id.
+ * @param fs_name[in]: Filesystem name
+ * @param index[out]: Initialized index for that fs_name.
+ *
+ * @return 0 if successful, a negative "-errno" value in case of failure
+ */
+int efs_fs_open(const char *fs_name, struct kvs_idx *index);
+
+/**
+ * High level API: Close a fs context.
+ * @param fs_ctx: fs_ctx to be finalized
+ */
+void efs_fs_close(efs_fs_ctx_t fs_ctx);
+
+/* @todo after fs mgmt is tested remove efs_fs_set_fid and efs_fs_get_fid*/
+
+/**
+ * @param[in] fs_id - FSID of a filesystem.
+ * @return 0 (succ), -ENOMEM (failed to allocate memory), -errno other errors.
+ */
+int efs_fs_set_fid(efs_fsid_t fs_id);
+
+/**
+ * Find FID of a efs  filesystem using its FSID as a key.
+ * The functions looks up the global table to get
+ * the FID of a filesystem associated with the given FSID.
+ * If there is no a filesystem associated with this FSID
+ * then the function returns -ENOENT
+ *
+ * @param[in] fs_id - FSID of a filesystem.
+ * @param[out] fid - Found FID of this filesystem.
+ * @return 0 (succ), -ENOENT (no FS found), -errno other errors.
+ */
+int efs_fs_get_fid(efs_fsid_t fs_id, kvs_idx_fid_t *fid);
 #endif /* _FS_H_ */

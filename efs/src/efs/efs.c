@@ -73,6 +73,7 @@ int efs_init(const char *config_path)
 	} else {
 		log_level = get_string_config_value(item, NULL);
 	}
+
 	rc = log_init(log_path, log_level_no(log_level));
 	if (rc != 0) {
 		rc = -EINVAL;
@@ -81,26 +82,26 @@ int efs_init(const char *config_path)
 
 	rc = dstore_init(cfg_items, 0);
 	if (rc) {
-		log_err("dstore_init failed");
+		log_err("dstore_init failed. rc=%d", rc);
 		goto err;
 	}
 	item = NULL;
 
 	rc = kvs_init(kvstore, cfg_items);
 	if (rc) {
-		log_err("kvs_init failed");
+		log_err("kvs_init failed. rc=%d", rc);
 		goto err;
 	}
 
 	rc = efs_fs_init(cfg_items);
 	if (rc) {
-		log_err("efs_fs_init failed");
+		log_err("efs_fs_init failed. rc=%d", rc);
 		goto err;
 	}
 
 	rc = management_init();
 	if (rc) {
-		log_err("management_init failed");
+		log_err("management_init failed. rc=%d", rc);
 		goto err;
 	}
 
@@ -126,4 +127,3 @@ int efs_fini(void)
 	free_ini_config_errors(cfg_items);
 	return 0;
 }
-

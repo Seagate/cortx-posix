@@ -48,7 +48,7 @@ static inline const char *efs_key_type_to_str(efs_key_type_t ktype)
 		return "link";
 	case EFS_KEY_TYPE_INODE_KFID:
 		return "oid";
-	case EFS_KEY_TYPE_GI_INDEX:
+	case EFS_KEY_TYPE_GI_INDEX: /* @todo remove when default fs is gone */
 		return "index";
         case EFS_KEY_TYPE_FS_ID_FID:
                 return "fid";

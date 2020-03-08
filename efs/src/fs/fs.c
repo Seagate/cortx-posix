@@ -14,11 +14,11 @@
 
 #include <errno.h> /* errono */
 #include <string.h> /* memcpy */
-#include "efs.h" /* efs_tree_create_root */
 #include "common.h" /* container_of */
 #include "fs.h" /* fs interface */
 #include "common/helpers.h" /* RC_WRAP_LABEL */
 #include "common/log.h" /* logging */
+#include <eos/eos_kvstore.h> /* remove this */
 
 /*data types*/
 
@@ -200,7 +200,8 @@ int efs_fs_delete(const str256_t *fs_name)
 		goto out;
 	}
 
-	if ((rc=efs_fs_is_empty(fs)) != 0) {
+	rc = efs_fs_is_empty(fs);
+	if (rc != 0) {
 		log_err("Can not delete FS %s. It is not empty");
 		goto out;
 	}
@@ -230,4 +231,110 @@ void efs_fs_get_name(const struct efs_fs *fs, str256_t **name)
 {
 	dassert(fs);
 	ns_get_name(fs->ns, name);
+}
+
+int efs_fs_open(const char *fs_name, struct kvs_idx *index)
+{
+	int rc;
+	struct kvstore *kvstor = kvstore_get();
+	struct efs_fs *fs = NULL;
+	kvs_idx_fid_t ns_fid;
+	str256_t name;
+
+	dassert(kvstor != NULL);
+	/* @todo remvoe the if block once fs mgmt is tested */
+	if (memcmp(fs_name, "kvsns", 5) == 0) {
+		RC_WRAP_LABEL(rc, error, efs_fs_get_fid, 1, &ns_fid);
+	} else {
+		str256_from_cstr(name, fs_name, strlen(fs_name));
+		rc = efs_fs_lookup(&name, &fs);
+		if (rc != 0) {
+			log_err(STR256_F " invaild fs rc=%d\n",
+					STR256_P(&name), rc);
+			rc = -EINVAL;
+			goto error;
+		}
+
+		ns_get_fid(fs->ns, &ns_fid);
+	}
+
+	RC_WRAP_LABEL(rc, error, kvs_index_open, kvstor, &ns_fid, index);
+
+error:
+	if (rc != 0) {
+		log_err("Cannot open fid for fs_name=%s, rc:%d", fs_name, rc);
+	}
+
+	return rc;
+}
+
+void efs_fs_close(efs_fs_ctx_t fs_ctx)
+{
+	struct kvstore *kvstor = kvstore_get();
+	struct kvs_idx index;
+
+	dassert(kvstor != NULL);
+
+	index.index_priv = fs_ctx;
+
+	kvs_index_close(kvstor, &index);
+}
+
+/* @todo will revmoe both function and get4_ */
+int efs_fs_set_fid(efs_fsid_t fs_id)
+{
+	struct efs_gi_index_key *fs_idx_key = NULL;
+	char vfid[VLEN];
+	const char *temp = eos_kvs_get_gfid();
+	char *vfid_str = strdup(temp);
+	int vlen = 0;
+	int rc = 0;
+	struct kvstore *kvstor = kvstore_get();
+
+	dassert(kvstor != NULL && vfid_str != NULL);
+
+	RC_WRAP_LABEL(rc, free_key, kvs_alloc, kvstor,
+		      (void **)&fs_idx_key, sizeof(*fs_idx_key));
+
+	/* Setup key */
+	fs_idx_key->md.type = EFS_KEY_TYPE_GI_INDEX;
+	fs_idx_key->md.version = EFS_VERSION_0;
+	fs_idx_key->fs_id = fs_id;
+
+	/* Setup value */
+	vlen = snprintf(vfid, VLEN, "%s:%llu>", strtok(vfid_str, ":"),
+		 (unsigned long long) fs_id);
+
+	/* Set fid */
+	rc =  kvs_set4(kvstor, fs_idx_key, sizeof(struct efs_gi_index_key),
+ 		       &vfid, vlen + 1);
+
+	if (rc != 0) {
+		log_err("Cannot set fid for fs_id:%llu, rc:%d",
+			(unsigned long long) fs_id, rc);
+	}
+		log_err("notv Cannot set fid for fs_id:%llu, rc:%d",
+			(unsigned long long) fs_id, rc);
+
+free_key:
+	free(vfid_str);
+	if (fs_idx_key) {
+		kvs_free(kvstor, fs_idx_key);
+	}
+
+	log_debug("rc=%d", rc);
+	return rc;
+}
+
+int efs_fs_get_fid(efs_fsid_t fs_id, kvs_idx_fid_t *fid)
+{
+	int rc = 0;
+	const char *vfid_str = eos_kvs_get_gfid();
+
+	rc = kvs_fid_from_str(vfid_str, fid);
+
+	fid->f_lo = fs_id;
+
+	log_debug("rc=%d", rc);
+	return rc;
 }
