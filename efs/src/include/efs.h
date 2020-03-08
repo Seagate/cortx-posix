@@ -295,6 +295,12 @@ struct efs_key_md {
 } __attribute__((packed));
 typedef struct efs_key_md efs_key_md_t;
 
+/* @todo remove this key structure when default fs is gone */
+struct efs_gi_index_key {
+	efs_key_md_t md;
+	uint64_t fs_id;
+} __attribute((packed));
+
 /* Key for parent -> child mapping.
  * Version 1: key = (parent, enrty_name), value = child.
  * NOTE: This key has variable size.
@@ -541,4 +547,3 @@ int efs_link(efs_ctx_t fs_ctx, efs_cred_t *cred, efs_ino_t *ino,
 int efs_destroy_orphaned_file(efs_fs_ctx_t fs_ctx, const efs_ino_t *ino);
 
 #endif
-
