@@ -16,7 +16,7 @@ mkdir ~/rpmbuild
 mkdir ~/rpmbuild/SOURCES
 mkdir ~/rpmbuild/SPECS
 cp $Package-$Tag.tar.gz ~/rpmbuild/SOURCES
-cp libevhtp.spec ~/rpmbuild/SPECS
+cp $PWD/scripts/libevhtp.spec ~/rpmbuild/SPECS
 
 # Build the libevhtp library.
 rpmbuild -ba ~/rpmbuild/SPECS/libevhtp.spec
