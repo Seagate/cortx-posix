@@ -243,7 +243,7 @@ int efs_fs_open(const char *fs_name, struct kvs_idx *index)
 
 	dassert(kvstor != NULL);
 	/* @todo remvoe the if block once fs mgmt is tested */
-	if (memcmp(fs_name, "kvsns", 5) == 0) {
+	if (memcmp(fs_name, "kvsns", strlen(fs_name)) == 0) {
 		RC_WRAP_LABEL(rc, error, efs_fs_get_fid, 1, &ns_fid);
 	} else {
 		str256_from_cstr(name, fs_name, strlen(fs_name));
@@ -313,8 +313,6 @@ int efs_fs_set_fid(efs_fsid_t fs_id)
 		log_err("Cannot set fid for fs_id:%llu, rc:%d",
 			(unsigned long long) fs_id, rc);
 	}
-		log_err("notv Cannot set fid for fs_id:%llu, rc:%d",
-			(unsigned long long) fs_id, rc);
 
 free_key:
 	free(vfid_str);
