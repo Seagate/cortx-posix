@@ -188,6 +188,7 @@ target_link_libraries(eos-nsal
   mero-helpers
   ini_config
   eos-utils
+  cmocka
   ${HIREDIS}
 )
 
