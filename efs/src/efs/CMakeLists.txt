@@ -15,6 +15,7 @@ SET(efs_LIB_SRCS
    efs_fh.c
    efs_internal.c
    efs_ops.c
+   efs_xattr.c
 )
 
 add_library(efs OBJECT ${efs_LIB_SRCS})
