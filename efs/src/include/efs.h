@@ -546,4 +546,91 @@ int efs_link(efs_ctx_t fs_ctx, efs_cred_t *cred, efs_ino_t *ino,
  */
 int efs_destroy_orphaned_file(efs_fs_ctx_t fs_ctx, const efs_ino_t *ino);
 
+/* Xattr APIs */
+/**
+ * Sets an xattr to an inode entry
+ * @note: xattr's name are zero-terminated strings.
+ *
+ * @param[in] fctx - File system ctx
+ * @param[in] cred - pointer to user's credentials
+ * @param[in] ino - entry's inode
+ * @param[in] name - xattr's name
+ * @param[in] value - buffer with xattr's value
+ * @param[in] size - size of previous buffer
+ * @param[in] flags - overwrite behavior, see "man 2 setxattr". Overwrite is
+ * prohibited if set to XATTR_CREATE. The valid values of flags are
+ * 0, XATTR_CREATE and XATTR_REPLACE
+ *
+ * @return 0 if successful, a negative "-errno" value in case of failure
+ */
+
+int efs_setxattr(efs_fs_ctx_t fctx, const efs_cred_t *cred,
+		 const efs_ino_t *ino, const char *name, char *value,
+		 size_t size, int flags);
+
+/**
+ * Gets an xattr for an entry
+ * @note: xattr's name is a zero-terminated string.
+ *
+ * @param[in] fctx - File system ctx
+ * @param[in] cred - pointer to user's credentials
+ * @param[in] ino - entry's inode
+ * @param[in] name - xattr's name
+ * @param[out] value - buffer in which xattr's value has been copied
+ * @param[in,out] size - in: Size of passed value buffer..
+ *			 out: A caller can estimate the size of xattr by setting
+ *			 this to zero to return the current size of the xattr.
+ *
+ * @return size of xattr if successful,a negative "-errno" value in case of
+ *         failure
+ */
+
+ssize_t efs_getxattr(efs_fs_ctx_t fctx, efs_cred_t *cred,
+		     const efs_ino_t *ino, const char *name, char *value,
+		     size_t *size);
+
+/**
+ * Fetches xattr names for a passed inode.
+ * @note: xattr's name is a zero-terminated string.
+ *
+ * @param[in] fctx - File system ctx
+ * @param[in] fid - 128 bit File (object) identifier.
+ * @param[out] buf - The list which has the set of (null-terminated)
+ *		     names, one after the other.
+ * @param[out] count - Count of extended attribute names in the buf
+ * @param[in] size -Size of buf. If the passed size is zero, the size is set to
+ *		    current size of the the fetched attribute name list
+ *	 [out] size - Size of the fetched attribute name list.
+ *
+ * @return zero for success, negative "-errno" value
+ *	    in case of failure
+ */
+int efs_listxattr(efs_ctx_t fs_ctx, const efs_cred_t *cred,
+		  const efs_ino_t *ino, void *buf, size_t *count,
+		  size_t *size);
+/**
+ * Removes an xattr
+ * @note: xattr's name are zero-terminated strings.
+ *
+ * @param fs_ctx - filesystem context pointer
+ * @param cred - pointer to user's credentials
+ * @param ino - entry's inode
+ * @param name - name of xattr to be removed
+ *
+ * @return 0 if successful, a negative "-errno" value in case of failure
+ */
+int efs_removexattr(efs_ctx_t fs_ctx, const efs_cred_t *cred,
+		    const efs_ino_t *ino, const char *name);
+
+/**
+ * Removes all xattr for an inode
+ *
+ * @param fs_ctx - filesystem context pointer
+ * @param cred - pointer to user's credentials
+ * @param ino - entry's inode
+ *
+ * @return 0 if successful, a negative "-errno" value in case of failure
+ */
+int efs_remove_all_xattr(efs_ctx_t fs_ctx, efs_cred_t *cred, efs_ino_t *ino);
+
 #endif
