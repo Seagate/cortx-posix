@@ -20,24 +20,21 @@ static int nsal_initialized;
 int nsal_init(struct collection_item *cfg_items) 
 {
 	int rc = 0;
-	/** only initialize nsal once */
-        if (__sync_fetch_and_add(&nsal_initialized, 1)) {
-                return 0;
-        }
+	dassert(nsal_initialized == 0);
+	nsal_initialized = nsal_initialized + 1;
 	struct kvstore *kvstor = kvstore_get();
 	dassert(kvstor != NULL);
 	rc = kvs_init(kvstor, cfg_items);
 	if (rc) {
-                log_err("kvs_init failed");
+                log_err("kvs_init failed, rc=%d", rc);
                 goto err;
         }
 	rc = ns_init(cfg_items);
 	if (rc) {
-                log_err("ns_init failed");
+                log_err("ns_init failed, rc=%d", rc);
                 goto err;
         }
 err:
-        log_debug("rc=%d ", rc);
 	return rc;
 }
 
@@ -48,16 +45,15 @@ int nsal_fini()
         dassert(kvstor != NULL);
 	rc = ns_fini();
 	if (rc) {
-                log_err("ns_fini failed");
+                log_err("ns_fini failed, rc=%d", rc);
                 goto err;
         }
 	rc = kvs_fini(kvstor);
 	if (rc) {
-                log_err("kvs_fini failed");
+                log_err("kvs_fini failed, rc=%d", rc);
                 goto err;
         }
 	RC_WRAP(kvstor->kvstore_ops->fini);
 err:
-        log_debug("rc=%d ", rc);
         return rc;
 }
