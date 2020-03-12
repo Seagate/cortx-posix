@@ -92,16 +92,7 @@ void fs_ns_scan_cb(struct namespace *ns, size_t ns_size)
 int efs_fs_init(struct collection_item *cfg)
 {
 	int rc = 0;
-
-	rc = ns_init(cfg);
-	if (rc != 0) {
-		log_err("efs_fs_init failed");
-		goto out;
-	}
-
 	rc = ns_scan(fs_ns_scan_cb);
-
-out:
 	log_debug("rc=%d\n", rc);
 	return rc;
 }
@@ -116,8 +107,6 @@ int efs_fs_fini()
 		free(fs_node->efs_fs.ns);
 		free(fs_node);
 	}
-
-	rc = ns_fini();
 
 	log_debug("rc=%d", rc);
 	return rc;
