@@ -39,8 +39,7 @@ int efs_init(const char *config_path)
 {
 	struct collection_item *errors = NULL;
 	int rc = 0;
-	struct collection_item *item = NULL;
-
+	
 	/** only initialize efs once */
 	if (__sync_fetch_and_add(&efs_initialized, 1)) {
 		return 0;
@@ -69,8 +68,6 @@ int efs_init(const char *config_path)
 		log_err("dsal_init failed, rc=%d", rc);
 		goto err;
 	}
-	item = NULL;
-	
 	rc = efs_fs_init(cfg_items);
 	if (rc) {
 		log_err("efs_fs_init failed, rc=%d", rc);
@@ -80,9 +77,8 @@ int efs_init(const char *config_path)
 	rc = management_init();
 	if (rc) {
 		log_err("management_init failed, rc=%d", rc);
-		goto err;
-	}
-
+                goto err;
+        }
 err:
 	if (rc) {
 		free_ini_config_errors(errors);
@@ -95,9 +91,7 @@ err:
 
 int efs_fini(void)
 {
-	struct kvstore *kvstor = kvstore_get();
 	int rc = 0;
-	assert(kvstor != NULL);
 	//TODO management_fini.
 	rc = efs_fs_fini();
 	if (rc) {
