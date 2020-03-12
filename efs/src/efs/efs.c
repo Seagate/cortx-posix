@@ -162,11 +162,6 @@ int efs_fini(void)
                 goto err;
         }
 	free_ini_config_errors(cfg_items);
-	rc = utils_fini();
-	if (rc) {
-        	log_err("utils_fini failed");
-                goto err;
-        }
 err:
         log_debug("rc=%d ", rc);
         return rc;
