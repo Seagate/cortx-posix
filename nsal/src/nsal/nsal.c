@@ -55,7 +55,6 @@ int nsal_fini()
                 log_err("kvs_fini failed, rc=%d", rc);
                 goto err;
         }
-	RC_WRAP(kvstor->kvstore_ops->fini);
 err:
         return rc;
 }
