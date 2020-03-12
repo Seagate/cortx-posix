@@ -42,7 +42,6 @@ struct kvs_idx;
  */
 int efs_init(const char *config);
 
-int efs_fs_init(void);
 /**
  * Finalizes the efs library.
  * This should be done by every thread using the library
@@ -54,7 +53,6 @@ int efs_fs_init(void);
  */
 int efs_fini(void);
 
-int efs_fs_fini(void);
 /**
  * @todo : This is s/efs_fs_ctx_t/efs_fs_ctx_t
  * We need to comeup with proper efs_fs_ctx_t object.
