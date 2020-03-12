@@ -21,7 +21,7 @@ int nsal_init(struct collection_item *cfg_items)
 {
 	int rc = 0;
 	dassert(nsal_initialized == 0);
-	nsal_initialized = nsal_initialized + 1;
+	nsal_initialized++;
 	struct kvstore *kvstor = kvstore_get();
 	dassert(kvstor != NULL);
 	rc = kvs_init(kvstor, cfg_items);
@@ -32,6 +32,7 @@ int nsal_init(struct collection_item *cfg_items)
 	rc = ns_init(cfg_items);
 	if (rc) {
                 log_err("ns_init failed, rc=%d", rc);
+		kvs_fini(kvstor);
                 goto err;
         }
 err:
@@ -53,7 +54,6 @@ int nsal_fini()
                 log_err("kvs_fini failed, rc=%d", rc);
                 goto err;
         }
-	RC_WRAP(kvstor->kvstore_ops->fini);
 err:
         return rc;
 }
