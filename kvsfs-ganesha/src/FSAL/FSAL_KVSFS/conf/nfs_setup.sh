@@ -104,7 +104,7 @@ EOM
 	touch $NFS_INITIALIZED
 
 	# Create default FS
-	run $KVSNS_INIT 1
+	run $KVSNS_INIT $DEFAULT_FS
 	[ $? -ne 0 ] && die "Failed to initialise kvsns for $DEFAULT_FS"
 }
 

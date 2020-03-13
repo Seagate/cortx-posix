@@ -146,19 +146,6 @@ fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
 	} else {
 		LogEvent(COMPONENT_FSAL, "EFS API is running");
 	}
-	/* @todo: remove this block once new fs mgmt tested */
-	if (memcmp(op_ctx->ctx_export->fullpath, "kvsns", 5) == 0) {
-		fsid = 1;
-		retval = efs_fs_set_fid(fsid);
-		if (retval != 0) {
-			LogMajor(COMPONENT_FSAL, "Can't set FSID:%"PRIu16" index",
-					fsid);
-			goto errout;
-		} else {
-			LogEvent(COMPONENT_FSAL, "FSID:%"PRIu16" FID set",
-					fsid);
-		}
-	}
 
 	retval = fsal_attach_export(fsal_hdl, &myself->export.exports);
 	if (retval != 0)
