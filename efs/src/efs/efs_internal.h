@@ -19,10 +19,13 @@
 #include <efs.h>
 #include <dstore.h>
 
+/** Set the extstore object identifier (kfid) with kvsns inode as the key */
+int efs_set_ino_oid(efs_ctx_t ctx, efs_ino_t *ino, dstore_oid_t *oid);
+
 /** Get the extstore object identifier for the passed efs inode */
-int efs_ino_to_oid(efs_ctx_t *ctx, const efs_ino_t *ino, dstore_oid_t *oid);
+int efs_ino_to_oid(efs_ctx_t ctx, const efs_ino_t *ino, dstore_oid_t *oid);
 
 /** Delete the ino-kfid key-val pair from the kvs. Called during unlink/rm. */
-int efs_del_oid(efs_ctx_t *ctx, const efs_ino_t *ino);
+int efs_del_oid(efs_ctx_t ctx, const efs_ino_t *ino);
 
 #endif

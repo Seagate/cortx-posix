@@ -116,6 +116,17 @@ typedef unsigned long long int efs_ino_t;
 #define EFS_ACCESS_LIST_DIR \
 	(EFS_ACCESS_EXEC)
 
+typedef struct efs_open_owner_ {
+        int pid;
+        int tid;
+} efs_open_owner_t;
+
+typedef struct efs_file_open_ {
+        efs_ino_t ino;
+        efs_open_owner_t owner;
+        int flags;
+} efs_file_open_t;
+
 enum efs_file_type {
 	EFS_FT_DIR = 1,
 	EFS_FT_FILE = 2,
@@ -169,7 +180,7 @@ int efs_set_symlink(efs_fs_ctx_t ctx, const efs_ino_t *ino,
 int efs_del_symlink(efs_fs_ctx_t ctx, const efs_ino_t *ino);
 int efs_amend_stat(struct stat *stat, int flags);
 
-int efs_create_entry(efs_ctx_t *ctx, efs_cred_t *cred, efs_ino_t *parent,
+int efs_create_entry(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *parent,
                      char *name, char *lnk, mode_t mode,
                      efs_ino_t *new_entry, enum efs_file_type type);
 
@@ -424,7 +435,7 @@ int efs_readdir(efs_ctx_t fs_ctx, const efs_cred_t *cred,
  *
  * @return 0 if successful, a negative "-errno" value in case of failure
  */
-int efs_mkdir(efs_ctx_t *ctx, efs_cred_t *cred, efs_ino_t *parent, char *name,
+int efs_mkdir(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *parent, char *name,
 	      mode_t mode, efs_ino_t *newdir);
 
 /**
@@ -439,7 +450,7 @@ int efs_mkdir(efs_ctx_t *ctx, efs_cred_t *cred, efs_ino_t *parent, char *name,
  *
  * @return 0 if successful, a negative "-errno" value in case of failure
  */
-int efs_lookup(efs_ctx_t *ctx, efs_cred_t *cred, efs_ino_t *parent,
+int efs_lookup(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *parent,
                char *name, efs_ino_t *ino);
 
 /** Hints for "efs_rename" call.
@@ -485,7 +496,7 @@ int efs_rename(efs_fs_ctx_t fs_ctx, efs_cred_t *cred,
  *
  * @return 0 if successful, a negative "-errno" value in case of failure
  */
-int efs_rmdir(efs_ctx_t *ctx, efs_cred_t *cred, efs_ino_t *parent,
+int efs_rmdir(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *parent,
               char *name);
 
 /**
@@ -503,8 +514,97 @@ int efs_rmdir(efs_ctx_t *ctx, efs_cred_t *cred, efs_ino_t *parent,
  *
  * @see ::efs_destroy_orphaned_file and ::efs_detach.
  */
-int efs_unlink(efs_ctx_t *ctx, efs_cred_t *cred, efs_ino_t *dir,
+int efs_unlink(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *dir,
                efs_ino_t *fino, char *name);
+
+/**
+ * Reads the content of a symbolic link
+ *
+ * @param fs_ctx - A context associated with the filesystem.
+ * @param cred - pointer to user's credentials
+ * @param link - pointer to the symlink's inode
+ * @param content - [OUT] buffer containing the read content.
+ * @param size[in, out] - Content size. The caller must put the size of 'content'
+ *			  buffer. The function then fills in the actual size
+ *			  of the symlink content. If the buffer is too small,
+ *			  then the correponding error is returned.
+ * @return 0 if successful, a negative "-errno" value in case of failure
+ */
+int efs_readlink(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *link,
+		 char *content, size_t *size);
+
+/**
+ * Creates a file.
+ *
+ * @param cred - pointer to user's credentials
+ * @param parent - pointer to parent directory's inode.
+ * @param name - name of the file to be created
+ * @param mode - Unix mode for the new entry
+ * @paran newino - [OUT] if successfuly, will point to newly created inode
+ *
+ * @return 0 if successful, a negative "-errno" value in case of failure
+ */
+int efs_creat(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *parent,
+	      char *name, mode_t mode, efs_ino_t *newfile);
+
+/* Atomic file creation.
+ * The functions create a new file, sets new attributes, gets them back
+ * to the caller. That's all must be done within a transaction because we
+ * cannot leave the file in the storage if we cannot set/get its stats.
+ * TODO: This operations is not atomic yet but will be eventually.
+ * @param[in] stat_in - New stats to be set.
+ * @param[in] stat_in_flags - Defines which stat values must be set.
+ * @param[out] stat_out - Final stat values of the created file.
+ * @param[out] newfile - The inode number of the created file.
+ */
+int efs_creat_ex(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *parent,
+		 char *name, mode_t mode, struct stat *stat_in,
+		 int stat_in_flags, efs_ino_t *newfile,
+		 struct stat *stat_out);
+
+/**
+ * Writes data to an opened fd
+ *
+ * @param ctx - filesystem context pointer
+ * @param cred - pointer to user's credentials
+ * @param fd - handle to opened file
+ * @param buf - write data
+ * @param count - size of buffer to be read
+ * @param offset - write offset
+ *
+ * @return write size or a negative "-errno" in case of failure
+ */
+ssize_t efs_write(efs_ctx_t ctx, efs_cred_t *cred, efs_file_open_t *fd,
+		  void *buf, size_t count, off_t offset);
+
+/**
+ * Reads data from an opened fd
+ *
+ * @param ctx - filesystem context pointer
+ * @param cred - pointer to user's credentials
+ * @param fd - handle to opened file
+ * @param buf - [OUT] read data
+ * @param count - size of buffer to be read
+ * @param offset - read offset
+ *
+ * @return read size or a negative "-errno" in case of failure
+ */
+ssize_t efs_read(efs_ctx_t ctx, efs_cred_t *cred, efs_file_open_t *fd,
+		 void *buf, size_t count, off_t offset);
+
+/** Change size of a file.
+ * Changes the size unmapping unused storage space in case of truncation.
+ * The function is able to apply a set of new stat values along with
+ * the new file size value.
+ * @param ctx - Filesystem context.
+ * @param ino - Inode of the file.
+ * @param new_stat - A set of stat values to be set.
+ * @param new_stat_flags - A set of flags which defines which stat values
+ *	  have to be updated. STAT_SIZE_SET is a required flag.
+ * @return 0 if successful, a negative "-errno" value in case of failure.
+ */
+int efs_truncate(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *ino,
+		 struct stat *new_stat, int new_stat_flags);
 
 /** Removes a link between the parent inode and a filesystem object
  * linked into it with the dentry name.

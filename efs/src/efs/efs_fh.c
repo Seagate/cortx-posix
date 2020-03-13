@@ -34,7 +34,7 @@
  * since *_key names are used by keys stored in kvs.
  */
 struct efs_fh_key {
-	void *fs;
+	efs_ctx_t fs;
 	uint64_t file;
 };
 
@@ -42,11 +42,7 @@ struct efs_fh_key {
  * This is the efs file handle.
  */
 struct efs_fh {
-	/** The filesystem where the object is located.
-	 * TODO: When kvsns_fs_t is fully developed this should be replaced
-	 * with kvsns_fs_t.
-	 */
-	void *fs;
+	efs_ctx_t fs;
 
 	/** Inode number of the FH.
 	 * TODO: will be be eliminated and stat->st_ino used instead
@@ -101,7 +97,7 @@ void efs_fh_init_key(struct efs_fh *fh)
 }
 
 /******************************************************************************/
-int efs_fh_from_ino(void *fs, const efs_ino_t *ino_num,
+int efs_fh_from_ino(efs_ctx_t fs, const efs_ino_t *ino_num,
 		    const struct stat *stat, struct efs_fh **fh)
 {
 	int rc;
@@ -110,13 +106,13 @@ int efs_fh_from_ino(void *fs, const efs_ino_t *ino_num,
 
 	dassert(kvstor);
 
-	RC_WRAP_LABEL(rc, out, kvstor->kvstore_ops->alloc, (void **) &newfh,
+	RC_WRAP_LABEL(rc, out, kvs_alloc, kvstor, (void **) &newfh,
 		      sizeof(struct efs_fh));
 	*newfh = EFS_FH_INIT;
 	if (stat == NULL) {
 		RC_WRAP_LABEL(rc, out, efs_get_stat, fs, ino_num, &newfh->stat);
 	} else {
-		RC_WRAP_LABEL(rc, out, kvstor->kvstore_ops->alloc,
+		RC_WRAP_LABEL(rc, out, kvs_alloc, kvstor,
 			      (void **) &newfh->stat, sizeof(struct stat));
 		memcpy(newfh->stat, stat, sizeof(struct stat));
 	}
@@ -153,7 +149,7 @@ int efs_fh_lookup(const efs_cred_t *cred, struct efs_fh *fh, const char *name,
 
 	str256_from_cstr(kname, name, strlen(name));
 
-	RC_WRAP_LABEL(rc, out, kvstor->kvstore_ops->alloc, (void **) &newfh,
+	RC_WRAP_LABEL(rc, out, kvs_alloc, kvstor, (void **) &newfh,
 		      sizeof(struct efs_fh));
 	*newfh = EFS_FH_INIT;
 	RC_WRAP_LABEL(rc, out, efs_tree_lookup, fh->fs, &fh->ino, &kname,
@@ -181,8 +177,8 @@ void efs_fh_destroy(struct efs_fh *fh)
 
 	/* support the free() semantic */
 	if (fh) {
-		kvstor->kvstore_ops->free(fh->stat);
-		kvstor->kvstore_ops->free(fh);
+		kvs_free(kvstor, fh->stat);
+		kvs_free(kvstor, fh);
 	}
 }
 
@@ -196,7 +192,7 @@ struct stat *efs_fh_stat(struct efs_fh *fh)
 	return fh->stat;
 }
 
-int efs_fh_getroot(void *fs, const efs_cred_t *cred, struct efs_fh **pfh)
+int efs_fh_getroot(efs_ctx_t fs, const efs_cred_t *cred, struct efs_fh **pfh)
 {
 	int rc;
 	struct efs_fh *fh = NULL;
@@ -237,7 +233,7 @@ out:
 	return rc;
 }
 
-int efs_fh_deserialize(void *fs,
+int efs_fh_deserialize(efs_ctx_t fs,
 		       const efs_cred_t *cred,
 		       const void* buffer, size_t buffer_size,
 		       struct efs_fh** pfh)
