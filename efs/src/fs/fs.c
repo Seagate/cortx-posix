@@ -280,50 +280,7 @@ void efs_fs_close(efs_fs_ctx_t fs_ctx)
 	kvs_index_close(kvstor, &index);
 }
 
-/* @todo will revmoe both function and get4_ */
-int efs_fs_set_fid(efs_fsid_t fs_id)
-{
-	struct efs_gi_index_key *fs_idx_key = NULL;
-	char vfid[VLEN];
-	const char *temp = eos_kvs_get_gfid();
-	char *vfid_str = strdup(temp);
-	int vlen = 0;
-	int rc = 0;
-	struct kvstore *kvstor = kvstore_get();
-
-	dassert(kvstor != NULL && vfid_str != NULL);
-
-	RC_WRAP_LABEL(rc, free_key, kvs_alloc, kvstor,
-		      (void **)&fs_idx_key, sizeof(*fs_idx_key));
-
-	/* Setup key */
-	fs_idx_key->md.type = EFS_KEY_TYPE_GI_INDEX;
-	fs_idx_key->md.version = EFS_VERSION_0;
-	fs_idx_key->fs_id = fs_id;
-
-	/* Setup value */
-	vlen = snprintf(vfid, VLEN, "%s:%llu>", strtok(vfid_str, ":"),
-		 (unsigned long long) fs_id);
-
-	/* Set fid */
-	rc =  kvs_set4(kvstor, fs_idx_key, sizeof(struct efs_gi_index_key),
- 		       &vfid, vlen + 1);
-
-	if (rc != 0) {
-		log_err("Cannot set fid for fs_id:%llu, rc:%d",
-			(unsigned long long) fs_id, rc);
-	}
-
-free_key:
-	free(vfid_str);
-	if (fs_idx_key) {
-		kvs_free(kvstor, fs_idx_key);
-	}
-
-	log_debug("rc=%d", rc);
-	return rc;
-}
-
+/* @todo depend of defauil fs. */
 int efs_fs_get_fid(efs_fsid_t fs_id, kvs_idx_fid_t *fid)
 {
 	int rc = 0;
