@@ -78,8 +78,6 @@ int kvs_get(struct kvstore *kvstore, struct kvs_idx *index, void *k, const size_
             void **v, size_t *vlen);
 int kvs_set(struct kvstore *kvstore, struct kvs_idx *index, void *k, const size_t klen,
             void *v, const size_t vlen);
-int kvs_set4(struct kvstore *kvstore, void *k, const size_t klen, void *v,
-	     const size_t vlen);
 int kvs_del(struct kvstore *kvstore, struct kvs_idx *index, const void *k, size_t klen);
 int kvs_idx_gen_fid(struct kvstore *kvstore, kvs_idx_fid_t *index_fid);
 
@@ -141,8 +139,6 @@ struct kvstore_ops {
 		 /* TODO: Remove get4_bin interface */
 	int (*set_bin) (struct kvs_idx *index, void *k, const size_t klen,
 	                void *v, const size_t vlen);
-	int (*set4_bin) (void *k, const size_t klen, void *v,
-	                 const size_t vlen); /* TODO: Remove set4_bin interface */
 	int (*del_bin) (struct kvs_idx *index, const void *k, size_t klen);
 
 	/* Key-Value search */
