@@ -24,6 +24,8 @@
 #include <kvstore.h>
 #include <object.h>
 
+#define MD_XATTR_SIZE_MAX 4096
+
 #define MD_DASSERT(cond) assert(cond)
 
 #define MD_RC_WRAP(__function, ...) ({\
