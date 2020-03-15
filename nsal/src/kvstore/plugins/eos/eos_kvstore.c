@@ -335,7 +335,6 @@ struct kvstore_ops eos_kvs_ops = {
 	.get_bin = eos_kvs_get_bin,
 	.get4_bin = eos_kvs4_get_bin,
 	.set_bin = eos_kvs_set_bin,
-	.set4_bin = eos_kvs4_set_bin,
 	.del_bin = eos_kvs_del_bin,
 
 	.kv_find = eos_kvs_prefix_iter_find,
