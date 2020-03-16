@@ -64,6 +64,8 @@
 #include <fsal_convert.h> /* posix2fsal */
 #include <FSAL/fsal_commonlib.h> /* FSAL methods */
 #include <efs_fh.h>
+#include <nfs_exports.h> /* EXPORT_OPTION_DISABLE_ACL */
+#include <debug.h>	/* dassert */
 
 #include <../FSAL/Stackable_FSALs/FSAL_MDCACHE/mdcache_int.h>
 #include <../FSAL/Stackable_FSALs/FSAL_MDCACHE/mdcache_hash.h>
@@ -144,6 +146,15 @@ kvsfs_fh_to_ino(struct efs_fh *kvsfs_fh)
 
 #define T_ENTER0 T_ENTER(">>> %s", "()");
 #define T_EXIT0(__rcval)  T_EXIT("<<< rc=%d", __rcval);
+
+/* The name of the ACL extended attribute in EFS */
+static const char* acl_xattr_name = "nfs.acl";
+
+/* Enable/Disable the ACL functionality with the ganesha conf parameter. */
+static inline bool kvsfs_is_acl_enabled()
+{
+	return (!op_ctx_export_has_option(EXPORT_OPTION_DISABLE_ACL));
+}
 
 /******************************************************************************/
 /* Global variable imported from main.c */
@@ -920,6 +931,119 @@ out:
 
 }
 
+static int kvsfs_xattr_to_acl_entries(void *buf, size_t buflen,
+				      uint32_t *naces_out,
+				      fsal_ace_t **aces_out)
+{
+	int rc = 0;
+	void *offset;
+	fsal_ace_t *aces = NULL;
+	uint32_t naces;
+
+	dassert(buf != NULL);
+	dassert(aces_out != NULL);
+	dassert(naces_out != NULL);
+	dassert(buflen > sizeof(naces))
+
+	if (buflen > EFS_XATTR_SIZE_MAX) {
+		rc = -ERANGE;
+		goto out;
+	}
+
+	offset = buf;
+	/* The first 4 bytes are number of acl entries in the acl. */
+	memcpy(&naces, offset, sizeof(naces));
+	if (naces == 0) {
+		T_TRACE("%s", "No ACEs found!");
+		goto out;
+	}
+
+	offset = offset + sizeof(naces);
+	if ((offset - buf) + naces * sizeof(*aces) > buflen) {
+		rc = -EINVAL;
+		T_TRACE("Incorrect buffer len!! buflen=%zu, naces=%"PRIu32"",
+			buflen, naces);
+		goto out;
+	}
+	aces = (fsal_ace_t *)nfs4_ace_alloc(naces);
+	memcpy(aces, offset, naces * sizeof(*aces));
+
+out:
+	*aces_out = aces;
+	*naces_out = naces;
+	T_EXIT("buf=%p, buflen=%zu, naces_out=%"PRIu32", *aces_out=%p, rc=%d",
+		buf, buflen, *naces_out, *aces_out, rc);
+	return rc;
+}
+
+static fsal_status_t kvsfs_getacl(struct kvsfs_fsal_obj_handle *obj,
+				  efs_cred_t *cred,
+				  fsal_acl_t **acl_out)
+{
+	char *buf = NULL;
+	int rc;
+	uint32_t naces;
+	size_t buflen = EFS_XATTR_SIZE_MAX;
+	ssize_t readlen;
+	fsal_acl_data_t acl_data;
+	fsal_acl_t *acl = NULL;
+	fsal_acl_status_t acl_status;
+	fsal_status_t result = {ERR_FSAL_NO_ERROR, 0};
+
+	dassert(obj != NULL);
+	dassert(cred != NULL);
+
+	T_ENTER("Enter, obj=%p", obj);
+	buf = gsh_malloc(buflen);
+
+	/* @TODO: Optimize this by calling efs_getxattr with "zero" buflen for
+           getting the size of buffer and then call it again with the that size.
+	   This will avoid allocating the buffer EFS_XATTR_SIZE_MAX, but will
+	   result in multiple calls to getxattr */
+	rc = efs_getxattr(obj->fs_ctx, cred, kvsfs_fh_to_ino(obj->handle),
+			    acl_xattr_name, buf, &buflen);
+	if (rc < 0) {
+		/* No ACLS for this file/dir. Valid case. */
+		if (rc == -ENOENT) {
+			rc = 0;
+		}
+		T_TRACE("fs_ctx=%p, ino=%p, buf=%p, rc=%d", obj->fs_ctx,
+			 kvsfs_fh_to_ino(obj->handle), buf, rc);
+		result = fsalstat(posix2fsal_error(-rc), -rc);
+		goto out;
+	}
+
+	readlen = (ssize_t)rc;
+	dassert(readlen <= EFS_XATTR_SIZE_MAX);
+
+	/* Deserialize the buffer into acl_data. */
+	rc = kvsfs_xattr_to_acl_entries(buf, readlen, &acl_data.naces,
+					&acl_data.aces);
+	if (rc < 0) {
+		T_TRACE("XATTR buf to aces failed, rc=%d", rc);
+		result = fsalstat(posix2fsal_error(-rc), -rc);
+		goto out;
+	}
+
+	/* Add a entry to acl cache and get the handle to the actual acl. */
+	acl = nfs4_acl_new_entry(&acl_data, &acl_status);
+	if (!acl) {
+		T_TRACE("Unable to add to acl cache, naces=%" PRIu32 ", aces=%p"
+			", acl_status=%d", acl_data.naces, acl_data.aces,
+			acl_status);
+		result = fsalstat(ERR_FSAL_FAULT, acl_status);
+		goto out;
+	}
+	fsal_print_acl(COMPONENT_FSAL, NIV_DEBUG, acl);
+	*acl_out = acl;
+
+out:
+	gsh_free(buf);
+	T_EXIT("fs_ctx=%p, ino=%p, acl_out=%p, rc=%d", obj->fs_ctx,
+	        kvsfs_fh_to_ino(obj->handle), *acl_out, rc);
+	return result;
+}
+
 /******************************************************************************/
 /* FSAL.getattr */
 static fsal_status_t kvsfs_getattrs(struct fsal_obj_handle *obj_hdl,
@@ -927,9 +1051,9 @@ static fsal_status_t kvsfs_getattrs(struct fsal_obj_handle *obj_hdl,
 {
 	struct kvsfs_fsal_obj_handle *myself;
 	struct stat stat;
-	fsal_errors_t fsal_error = ERR_FSAL_NO_ERROR;
 	int retval = 0;
 	efs_cred_t cred = EFS_CRED_INIT_FROM_OP;
+	fsal_status_t result;
 
 	T_ENTER(">>> (%p)", obj_hdl);
 
@@ -943,16 +1067,28 @@ static fsal_status_t kvsfs_getattrs(struct fsal_obj_handle *obj_hdl,
 
 	retval = efs_getattr(myself->fs_ctx, &cred,
 			     kvsfs_fh_to_ino(myself->handle), &stat);
-	if (retval < 0) {
+
+	result = fsalstat(posix2fsal_error(-retval), retval);
+	if (FSAL_IS_ERROR(result)) {
 		goto out;
 	}
 
 	posix2fsal_attributes_all(&stat, attrs_out);
+	if (kvsfs_is_acl_enabled()) {
+		fsal_acl_t *acl = NULL;
+		result = kvsfs_getacl(myself, &cred, &acl);
+		if (FSAL_IS_ERROR(result)) {
+			T_TRACE("kvsfs_getacl failed, ino=%p",
+				  kvsfs_fh_to_ino(myself->handle));
+			goto out;
+		}
+		attrs_out->acl = acl;
+		FSAL_SET_MASK(attrs_out->valid_mask, ATTR_ACL);
+	}
 
 out:
-	fsal_error = posix2fsal_error(-retval);
-	T_EXIT0(-retval);
-	return fsalstat(fsal_error, -retval);
+	T_EXIT0(result.major);
+	return result;
 }
 
 /******************************************************************************/
@@ -1034,6 +1170,81 @@ static fsal_status_t kvsfs_ftruncate(struct fsal_obj_handle *obj,
 				     struct state_t *state, bool bypass,
 				     struct stat *new_stat, int new_stat_flags);
 
+static int kvsfs_acl_entries_to_xattr(uint32_t naces, fsal_ace_t *aces,
+				      void *buf, size_t buflen)
+{
+	void *offset = NULL;
+	int rc = 0;
+
+	dassert(buf != NULL);
+	dassert(aces != NULL);
+	dassert(buflen == naces * sizeof(*aces) + sizeof(naces));
+
+	if (buflen > EFS_XATTR_SIZE_MAX) {
+		rc = -ERANGE;
+		goto out;
+	}
+
+	if ((naces == 0) || (buflen == 0)) {
+		rc = -EINVAL;
+		goto out;
+	}
+
+	offset = buf;
+	memcpy(offset, &naces, sizeof(naces));
+	offset = offset + sizeof(naces);
+	memcpy(offset, aces, buflen - sizeof(naces));
+out:
+	T_TRACE("buf = %p, buflen=%zu, aces=%p, naces=%"PRIu32", rc=%d",
+		buf, buflen, aces, naces, rc);
+	return rc;
+}
+
+static fsal_status_t kvsfs_setacl(struct kvsfs_fsal_obj_handle *obj,
+				  efs_cred_t *cred, fsal_acl_t *acl)
+{
+	void *buf = NULL;
+	int rc;
+	uint32_t naces;
+	size_t buflen;
+	fsal_status_t status;
+
+	T_TRACE( ">> Enter obj=%p, acl=%p", obj, acl);
+
+	fsal_print_acl(COMPONENT_FSAL, NIV_DEBUG, acl);
+	naces = acl->naces;
+	if (naces == 0) {
+		rc = 0;
+		T_TRACE("%s", "No ACEs to be set");
+		goto out;
+	}
+
+	buflen = naces * sizeof(fsal_ace_t) + sizeof(acl->naces);
+	if (buflen > EFS_XATTR_SIZE_MAX) {
+		rc = -ERANGE;
+		T_TRACE( "ACL too large! size = %zu", buflen);
+		goto out;
+	}
+
+	buf = gsh_malloc(buflen);
+
+	/* Serialize the aces into xattr buffer */
+	rc = kvsfs_acl_entries_to_xattr(naces, acl->aces, buf, buflen);
+	if (rc != 0) {
+		T_TRACE("ACL to buffer serialization failed rc = %d", rc);
+		goto out;
+	}
+
+	rc  = efs_setxattr(obj->fs_ctx, cred,
+			     kvsfs_fh_to_ino(obj->handle), acl_xattr_name,
+		             buf, buflen, 0);
+
+out:
+	gsh_free(buf);
+	T_EXIT("Exit, rc = %d", rc);
+	return fsalstat(posix2fsal_error(-rc), -rc);
+}
+
 /* FSAL.setattrs2 */
 fsal_status_t kvsfs_setattrs(struct fsal_obj_handle *obj_hdl,
 			     bool bypass,
@@ -1057,6 +1268,48 @@ fsal_status_t kvsfs_setattrs(struct fsal_obj_handle *obj_hdl,
 		goto out;
 	}
 
+	if (kvsfs_is_acl_enabled()) {
+		fsal_acl_data_t acl_data;
+		if (FSAL_TEST_MASK(attrs->valid_mask, ATTR_MODE) &&
+		    !FSAL_TEST_MASK(attrs->valid_mask, ATTR_ACL)) {
+		/*
+		@TODO: Set  ACL from mode attributes.
+			-Get ACL using getattrs and set the ACL from
+			 mode.  Sec RFC 7530 sec 6.4.1.1
+		*/
+		}
+		/*
+		If ATTR_ACL is set, mode needs to be set always. See RFC 7530
+		se 6.4.1.2 and 6.4.1.3.
+		*/
+		else {
+			result = fsal_acl_to_mode(attrs);
+		}
+
+		if (FSAL_IS_ERROR(result)) {
+			T_TRACE("Unable to set mode from acl, obj=%p", obj_hdl);
+			goto out;
+		}
+
+		if (FSAL_TEST_MASK(attrs->valid_mask, ATTR_ACL)) {
+			if ((obj_hdl->type != REGULAR_FILE) &&
+			    (obj_hdl->type != DIRECTORY)) {
+				T_TRACE("Setting ACL on non-regular file not"
+					"allowed, %d", obj_hdl->type);
+				result = fsalstat(ERR_FSAL_INVAL, EINVAL);
+				goto out;
+		}
+			else {
+				result = kvsfs_setacl(obj, &cred, attrs->acl);
+				if (FSAL_IS_ERROR(result)) {
+					T_TRACE( "%s", "Set Acl failed");
+					goto out;
+				}
+			}
+		}
+
+	} /* if(kvsfs_is_acl_enabled()) */
+
 	if (FSAL_TEST_MASK(attrs->valid_mask, ATTR_SIZE)) {
 		if (obj_hdl->type != REGULAR_FILE) {
 			LogFullDebug(COMPONENT_FSAL,
@@ -1069,7 +1322,7 @@ fsal_status_t kvsfs_setattrs(struct fsal_obj_handle *obj_hdl,
 		result = kvsfs_ftruncate(obj_hdl, state, bypass, &stats, flags);
 	} else {
 		/* If the size does not need to be change, then
-		 * we can simply update the stats associated with the inode
+		 * we can simply update the stats associated with the inode.
 		 */
 		rc = efs_setattr(obj->fs_ctx, &cred,
 				 kvsfs_fh_to_ino(obj->handle),

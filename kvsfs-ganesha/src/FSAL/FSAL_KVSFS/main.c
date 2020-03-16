@@ -34,8 +34,9 @@
 #include <kvsns/kvsns.h> /* maxlink */
 #include <efs.h>
 
-/* TODO:ACL: ATTR_ACL and ATTR4_SEC_LABEL are not supported yet. */
-#define KVSFS_SUPPORTED_ATTRIBUTES (ATTRS_POSIX)
+
+/* TODO:ATTR4_SEC_LABEL are not supported yet. */
+#define KVSFS_SUPPORTED_ATTRIBUTES ((const attrmask_t) (ATTRS_POSIX | ATTR_ACL ))
 
 #define KVSFS_LINK_MAX KVSNS_MAX_LINK
 
