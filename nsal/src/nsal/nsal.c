@@ -13,7 +13,8 @@
 
 #include <namespace.h> /*namespace*/
 #include <common/log.h> /*logging*/
-#include <common/helpers.h>   /*RC_WRAP_LABEL*/
+#include <common/helpers.h> /*RC_WRAP_LABEL*/
+#include <nsal.h> /*nsal*/
 
 static int nsal_initialized;
 
