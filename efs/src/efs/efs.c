@@ -40,6 +40,9 @@ int efs_init(const char *config_path)
 {
 	struct collection_item *errors = NULL;
 	int rc = 0;
+	struct collection_item *item = NULL;
+        char *log_path = NULL;
+        char *log_level = NULL;
 	
 	/** only initialize efs once */
 	if (__sync_fetch_and_add(&efs_initialized, 1)) {
@@ -54,41 +57,66 @@ int efs_init(const char *config_path)
 		goto err;
 	}
 
+	RC_WRAP(get_config_item, "log", "path", cfg_items, &item);
+
+        /** Path not specified, use default */
+        if (item == NULL) {
+                log_path = "/var/log/eos/efs/efs.log";
+        } else {
+                log_path = get_string_config_value(item, NULL);
+        }
+        item = NULL;
+
+        RC_WRAP(get_config_item, "log", "level", cfg_items, &item);
+        if (item == NULL) {
+                log_level = "LEVEL_INFO";
+        } else {
+                log_level = get_string_config_value(item, NULL);
+        }
+
+        rc = log_init(log_path, log_level_no(log_level));
+        if (rc != 0) {
+                rc = -EINVAL;
+                goto err;
+        }
+
 	rc = utils_init(cfg_items);
 	if (rc != 0) {
 		log_err("utils_init failed, rc=%d", rc);
-                goto err;
+                goto err1;
         }
 	rc = nsal_init(cfg_items);
         if (rc) {
                 log_err("nsal_init failed, rc=%d", rc);
-                goto err1;
+                goto err2;
         }
 	rc = dsal_init(cfg_items, 0);
 	if (rc) {
 		log_err("dsal_init failed, rc=%d", rc);
-		goto err2;
+		goto err3;
 	}
 	rc = efs_fs_init(cfg_items);
 	if (rc) {
 		log_err("efs_fs_init failed, rc=%d", rc);
-		goto err3;
+		goto err4;
 	}
 
 	rc = management_init();
 	if (rc) {
 		log_err("management_init failed, rc=%d", rc);
-                goto err4;
+                goto err5;
         }
 	goto err;
-err4:
+err5:
 	efs_fs_fini();
-err3:
+err4:
 	dsal_fini();
-err2:
+err3:
 	nsal_fini();
-err1:
+err2:
 	utils_fini();
+err1:
+	log_fini();
 err:
 	if (rc) {
 		free_ini_config_errors(errors);
@@ -122,6 +150,11 @@ int efs_fini(void)
 	rc = utils_fini();
 	if (rc) {
         	log_err("utils_fini failed, rc=%d", rc);
+                goto err;
+        }
+	rc = log_fini();
+	if (rc) {
+                log_err("log_fini failed, rc=%d ", rc);
                 goto err;
         }
 err:
