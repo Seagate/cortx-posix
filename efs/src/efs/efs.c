@@ -82,27 +82,35 @@ int efs_init(const char *config_path)
 	rc = nsal_init(cfg_items);
         if (rc) {
                 log_err("nsal_init failed, rc=%d", rc);
-                goto err;
+                goto err1;
         }
 	rc = dsal_init(cfg_items, 0);
 	if (rc) {
 		log_err("dsal_init failed, rc=%d", rc);
-		goto err;
+		goto err2;
 	}
 	item = NULL;
 	
 	rc = efs_fs_init(cfg_items);
 	if (rc) {
 		log_err("efs_fs_init failed, rc=%d", rc);
-		goto err;
+		goto err3;
 	}
 
 	rc = management_init();
 	if (rc) {
 		log_err("management_init failed, rc=%d", rc);
-		goto err;
-	}
-
+                goto err4;
+        }
+	goto err;
+err4:
+	efs_fs_fini();
+err3:
+	dsal_fini();
+err2:
+	nsal_fini();
+err1:
+	utils_fini();
 err:
 	if (rc) {
 		free_ini_config_errors(errors);
