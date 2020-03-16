@@ -18,7 +18,6 @@ GANESHA_CONF=/etc/ganesha/ganesha.conf
 GANESHA_CONF_BAK=${GANESHA_CONF}.$$
 KVSNS_INIT=/usr/bin/kvsns_init
 NFS_INITIALIZED=/var/lib/nfs/nfs_initialized
-TMP_FILE=/tmp/nfs_tmp_file
 NFS_SETUP_LOG=/var/log/nfs_setup.log
 LOG_DIR_PATH=/var/log/eos/efs
 
@@ -41,12 +40,9 @@ function log {
 
 function get_ip {
 	# Get ip address
-	ifconfig | grep broadcast | sed 's/  netmask.*//' > $TMP_FILE
-	sed -i 's/inet //g' $TMP_FILE
-	sed -i 's/^[ \t]*//' $TMP_FILE
-
-	echo $(cat $TMP_FILE)
-	rm -f $TMP_FILE
+	v1=$(lctl list_nids 2> /dev/null)
+	v2=${v1::-4}
+        echo "$v2"
 }
 
 function clovis_init {
@@ -226,9 +222,6 @@ function eos_nfs_init {
 }
 
 function eos_nfs_cleanup {
-	# Getip address
-	ip_add=$(get_ip)
-
 	# Stop nfs-ganesha service if running
 	systemctl status nfs-ganesha > /dev/null && systemctl stop nfs-ganesha
 
@@ -280,6 +273,11 @@ while [ ! -z $1 ]; do
 	esac
 	shift 1
 done
+
+# Getip address
+ip_add=$(get_ip)
+#check for lent
+[ -z $ip_add ] && die "Could not determine IP address. Please ensure lnet is configured !!!"
 
 case $cmd in
 	init    ) check_prerequisites; eos_nfs_init;;
