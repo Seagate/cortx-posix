@@ -27,22 +27,6 @@ struct collection_item;
 /******************************************************************************/
 /* Methods */
 
-/** Initialize nsal.
- *
- *  @param "struct collection_item *cfg_items". 
- *   
- *  @return 0 if successful, a negative "-errno" value in case of failure.
- */
-int nsal_init(struct collection_item *cfg_items);
-
-/** finalize nsal.
- *  
- *  @param void.
- *  
- *  @return 0 if successful, a negative "-errno" value in case of failure.
- */
-int nsal_fini(void);
-
 /** Initialize namespace.
  *
  *  @param cfg[in] - collection item.
