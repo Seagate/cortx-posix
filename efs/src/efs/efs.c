@@ -30,6 +30,7 @@
 #include <fs.h>
 #include <debug.h>
 #include <management.h>
+#include <nsal.h>
 
 static struct collection_item *cfg_items;
 
