@@ -871,7 +871,7 @@ static int efs_create_check_name(const char *name, size_t len)
 	return 0;
 }
 
-int efs_next_inode(efs_ctx_t *ctx, efs_ino_t *ino)
+int efs_next_inode(efs_ctx_t ctx, efs_ino_t *ino)
 {
 	int rc;
 	efs_ino_t parent_ino = EFS_ROOT_INODE;
@@ -893,7 +893,7 @@ out:
 	return rc;
 }
 
-int efs_create_entry(efs_ctx_t *ctx, efs_cred_t *cred, efs_ino_t *parent,
+int efs_create_entry(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *parent,
 		     char *name, char *lnk, mode_t mode,
 		     efs_ino_t *new_entry, enum efs_file_type type)
 {
@@ -1011,7 +1011,36 @@ errfree:
 
 #define INODE_KFID_KEY_INIT INODE_ATTR_KEY_PTR_INIT
 
-int efs_ino_to_oid(efs_ctx_t *ctx, const efs_ino_t *ino, dstore_oid_t *oid)
+int efs_set_ino_oid(efs_ctx_t ctx, efs_ino_t *ino, dstore_oid_t *oid)
+{
+	int rc;
+	efs_inode_kfid_key_t *kfid_key = NULL;
+	struct kvstore *kvstor = kvstore_get();
+	struct kvs_idx index;
+
+	dassert(kvstor != NULL);
+
+	index.index_priv = ctx;
+
+	RC_WRAP_LABEL(rc, out, kvs_alloc, kvstor, (void **)&kfid_key,
+		      sizeof(*kfid_key));
+
+	INODE_KFID_KEY_INIT(kfid_key, ino, EFS_KEY_TYPE_INODE_KFID);
+
+	RC_WRAP_LABEL(rc, free_key, kvs_set, kvstor, &index, kfid_key,
+		      sizeof(efs_inode_kfid_key_t), oid,
+		      sizeof(efs_fid_t));
+
+free_key:
+	kvs_free(kvstor, kfid_key);
+
+out:
+	log_trace("ctx=%p ino=%llu oid=%" PRIx64 ":%" PRIx64 " rc=%d",
+		   ctx, *ino, oid->f_hi, oid->f_lo, rc);
+	return rc;
+}
+
+int efs_ino_to_oid(efs_ctx_t ctx, const efs_ino_t *ino, dstore_oid_t *oid)
 {
 	int rc;
 	efs_inode_kfid_key_t  *kfid_key = NULL;
@@ -1048,7 +1077,7 @@ out:
 	return rc;
 }
 
-int efs_del_oid(efs_ctx_t *ctx, const efs_ino_t *ino)
+int efs_del_oid(efs_ctx_t ctx, const efs_ino_t *ino)
 {
 	int rc;
 	efs_inode_kfid_key_t *kfid_key = NULL;

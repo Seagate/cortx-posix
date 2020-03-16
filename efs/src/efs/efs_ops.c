@@ -149,7 +149,7 @@ out:
 	return rc;
 }
 
-int efs_mkdir(efs_ctx_t *ctx, efs_cred_t *cred, efs_ino_t *parent, char *name,
+int efs_mkdir(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *parent, char *name,
 	      mode_t mode, efs_ino_t *newdir)
 {
 	RC_WRAP(efs_access, ctx, cred, parent, EFS_ACCESS_WRITE);
@@ -158,7 +158,7 @@ int efs_mkdir(efs_ctx_t *ctx, efs_cred_t *cred, efs_ino_t *parent, char *name,
 			mode, newdir, EFS_FT_DIR);
 }
 
-int efs_lookup(efs_ctx_t *ctx, efs_cred_t *cred, efs_ino_t *parent,
+int efs_lookup(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *parent,
 	       char *name, efs_ino_t *ino)
 
 {
@@ -491,7 +491,7 @@ out:
 	return rc;
 }
 
-int efs_rmdir(efs_ctx_t *ctx, efs_cred_t *cred, efs_ino_t *parent, char *name)
+int efs_rmdir(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *parent, char *name)
 {
 	int rc;
 	efs_ino_t ino = 0LL;
@@ -551,7 +551,7 @@ out:
 	return rc;
 }
 
-int efs_unlink(efs_ctx_t *ctx, efs_cred_t *cred, efs_ino_t *dir,
+int efs_unlink(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *dir,
 	       efs_ino_t *fino, char *name)
 {
 	int rc;

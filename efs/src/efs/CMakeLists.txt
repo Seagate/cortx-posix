@@ -15,6 +15,7 @@ SET(efs_LIB_SRCS
    efs_fh.c
    efs_internal.c
    efs_ops.c
+   efs_fops.c
    efs_xattr.c
 )
 
