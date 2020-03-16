@@ -95,14 +95,11 @@ int efs_init(const char *config_path)
 		log_err("dsal_init failed, rc=%d", rc);
 		goto err3;
 	}
-	item = NULL;
-	
 	rc = efs_fs_init(cfg_items);
 	if (rc) {
 		log_err("efs_fs_init failed, rc=%d", rc);
 		goto err4;
 	}
-
 	rc = management_init();
 	if (rc) {
 		log_err("management_init failed, rc=%d", rc);
