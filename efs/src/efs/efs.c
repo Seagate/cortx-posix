@@ -83,27 +83,35 @@ int efs_init(const char *config_path)
 	rc = nsal_init(cfg_items);
         if (rc) {
                 log_err("nsal_init failed, rc=%d", rc);
-                goto err;
+                goto err1;
         }
 	rc = dsal_init(cfg_items, 0);
 	if (rc) {
 		log_err("dsal_init failed, rc=%d", rc);
-		goto err;
+		goto err2;
 	}
 	item = NULL;
 	
 	rc = efs_fs_init(cfg_items);
 	if (rc) {
 		log_err("efs_fs_init failed, rc=%d", rc);
-		goto err;
+		goto err3;
 	}
 
 	rc = management_init();
 	if (rc) {
 		log_err("management_init failed, rc=%d", rc);
-		goto err;
-	}
-
+                goto err4;
+        }
+	goto err;
+err4:
+	efs_fs_fini();
+err3:
+	dsal_fini();
+err2:
+	nsal_fini();
+err1:
+	utils_fini();
 err:
 	if (rc) {
 		free_ini_config_errors(errors);
@@ -139,44 +147,6 @@ int efs_fini(void)
 	rc = utils_fini();
 	if (rc) {
         	log_err("utils_fini failed, rc=%d", rc);
-                goto err;
-        }
-err:
-        log_debug("rc=%d ", rc);
-        return rc;
-}
-
-//TODO complete efs_fs_init .
-int efs_fs_init(void)
-{
-	int rc = 0;
-
-	//TODO call for Control-Server init
-	/*rc = management_init();
-	if (rc) {
-                log_err("management_init failed");
-                goto err;
-        }
-err:
-        log_debug("rc=%d ", rc);*/
-        return rc;
-}
-
-//TODO complete efs_fs_fini .
-int efs_fs_fini(void)
-{
-        int rc = 0;
-	//TODO call for Control-Server fini
-	//management_fini();
-	efs_fs_fini();
-	// TODO dsal_fini.	
-	dsal_fini();
-	nsal_fini();
-	RC_WRAP(kvstor->kvstore_ops->fini);
-	free_ini_config_errors(cfg_items);
-	rc = utils_fini();
-	if (rc) {
-        	log_err("utils_fini failed");
                 goto err;
         }
 err:
