@@ -15,6 +15,7 @@ RUN yum install -y \
         openssl-devel
 
 # TODO: Use libevhtp from the right place.
+# See http://gitlab.mero.colo.seagate.com/eos/fs/eos-fs/issues/2
+# for details.
 RUN yum install -y \
-	http://ci-storage.mero.colo.seagate.com/releases/eos/uploads/nfs_uploads/libevhtp-1.2.18-2.el7.x86_64.rpm \
-	http://ci-storage.mero.colo.seagate.com/releases/eos/uploads/nfs_uploads/libevhtp-devel-1.2.18-2.el7.x86_64.rpm
+	http://ci-storage.mero.colo.seagate.com/releases/eos/uploads/nfs_uploads/libevhtp{,-devel}-1.2.18-2.el7.x86_64.rpm
