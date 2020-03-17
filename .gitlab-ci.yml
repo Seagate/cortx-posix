@@ -34,7 +34,7 @@ build:
     # TODO: replace BCURRENT with BLATEST when it's ready
     export LATEST_RELEASE_DIR="$(readlink -f /releases/eos/BCURRENT)"
     yum install -y $LATEST_RELEASE_DIR/mero{,-devel}-[0-9]*.rpm
-    time QA_RPATHS=255 ./jenkins/build.sh -p /root/nfs-ganesha -v $(cat VERSION) -b 0
+    time QA_RPATHS=255 ./jenkins/build.sh -p /root/nfs-ganesha-eos -v $(cat VERSION) -b 0
 
 
 # Docker images ----------------------------------------------------------- {{{1
