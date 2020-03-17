@@ -128,35 +128,27 @@ err:
 
 int efs_fini(void)
 {
-	struct kvstore *kvstor = kvstore_get();
 	int rc = 0;
-	assert(kvstor != NULL);
 	//TODO management_fini.
 	rc = efs_fs_fini();
 	if (rc) {
                 log_err("efs_fs_fini failed, rc=%d", rc);
-                goto err;
         }
 	rc = dsal_fini();
 	if (rc) {
                 log_err("dsal_fini failed, rc=%d", rc);
-                goto err;
         }
 	rc = nsal_fini();
 	if (rc) {
                 log_err("nsal_fini failed, rc=%d", rc);
-                goto err;
         }
-	free_ini_config_errors(cfg_items);
 	rc = utils_fini();
 	if (rc) {
         	log_err("utils_fini failed, rc=%d", rc);
-                goto err;
         }
 	rc = log_fini();
 	if (rc) {
                 log_err("log_fini failed, rc=%d ", rc);
-                goto err;
         }
 	free_ini_config_errors(cfg_items);
 err:
