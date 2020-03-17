@@ -57,40 +57,40 @@ out:
 	return rc;
 }
 
-int nsal_init(struct collection_item *cfg_item)
+int iter_init()
 {
-	int rc = 0;
-	struct kvstore *kvstor = kvstore_get();
-	kvs_idx_fid_t fid;
-	struct collection_item *item;
-	const char *fid_str;
+        int rc = 0;
+        struct kvstore *kvstor = kvstore_get();
+        kvs_idx_fid_t fid;
+        struct collection_item *item;
+        const char *fid_str;
 
-	dassert(kvstor != NULL);
+        dassert(kvstor != NULL);
 
-	rc = get_config_item("mero", "kvs_fid", cfg_item, &item);
-	fid_str = get_string_config_value(item, NULL);
-	rc = kvs_fid_from_str(fid_str, &fid);
+        rc = get_config_item("mero", "kvs_fid", cfg_items, &item);
+        fid_str = get_string_config_value(item, NULL);
+        rc = kvs_fid_from_str(fid_str, &fid);
 
-	rc = kvs_index_open(kvstor, &fid, &kv_index);
-	if (rc != 0) {
-		log_err("Look for idx failed, rc = %d", rc);
-		return rc;
-	}
-	return rc;
+        rc = kvs_index_open(kvstor, &fid, &kv_index);
+        if (rc != 0) {
+                log_err("Look for idx failed, rc = %d", rc);
+                return rc;
+        }
+        return rc;
 }
 
-int nsal_fini()
+int iter_fini()
 {
-	int rc = 0;
-	struct kvstore *kvstor = kvstore_get();
+        int rc = 0;
+        struct kvstore *kvstor = kvstore_get();
 
-	dassert(kvstor != NULL);
-	rc = kvs_index_close(kvstor, &kv_index);
+        dassert(kvstor != NULL);
+        rc = kvs_index_close(kvstor, &kv_index);
 
-	kvs_fini(kvstor);
-	free_ini_config_errors(cfg_items);
+        kvs_fini(kvstor);
+        free_ini_config_errors(cfg_items);
 
-	return rc;
+        return rc;
 }
 
 char *key_list[] = {
@@ -236,9 +236,9 @@ int main(int argc, char *argv[])
 		goto out;
 	}
 
-	rc = nsal_init(cfg_items);
+	rc = iter_init(cfg_items);
 	if (rc) {
-		log_err("Failed nsal_init");
+		log_err("Failed iter_init");
 		goto out;
 	}
 
@@ -258,9 +258,9 @@ int main(int argc, char *argv[])
 
 	test_failed = ut_run(test_list, test_count);
 
-	rc = nsal_fini();
+	rc = iter_fini();
 	if (rc) {
-		log_err("Failed nsal_fini");
+		log_err("Failed iter_fini");
 		goto out;
 	}
 out:
