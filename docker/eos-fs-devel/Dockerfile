@@ -6,4 +6,15 @@ RUN yum install -y \
         jemalloc-devel \
         libcmocka \
         libcmocka-devel \
-        libini_config-devel
+        libini_config-devel \
+        json-c \
+        json-c-devel \
+        libevent \
+        libevent-devel \
+        openssl \
+        openssl-devel
+
+# TODO: Use libevhtp from the right place.
+RUN yum install -y \
+	http://ci-storage.mero.colo.seagate.com/releases/eos/uploads/nfs_uploads/libevhtp-1.2.18-2.el7.x86_64.rpm \
+	http://ci-storage.mero.colo.seagate.com/releases/eos/uploads/nfs_uploads/libevhtp-devel-1.2.18-2.el7.x86_64.rpm
