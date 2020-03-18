@@ -232,22 +232,17 @@ int efs_fs_open(const char *fs_name, struct kvs_idx *index)
 	str256_t name;
 
 	dassert(kvstor != NULL);
-	/* @todo remvoe the if block once fs mgmt is tested */
-	if (memcmp(fs_name, "kvsns", strlen(fs_name)) == 0) {
-		RC_WRAP_LABEL(rc, error, efs_fs_get_fid, 1, &ns_fid);
-	} else {
-		str256_from_cstr(name, fs_name, strlen(fs_name));
-		rc = efs_fs_lookup(&name, &fs);
-		if (rc != 0) {
-			log_err(STR256_F " invaild fs rc=%d\n",
-					STR256_P(&name), rc);
-			rc = -EINVAL;
-			goto error;
-		}
 
-		ns_get_fid(fs->ns, &ns_fid);
+	str256_from_cstr(name, fs_name, strlen(fs_name));
+	rc = efs_fs_lookup(&name, &fs);
+	if (rc != 0) {
+		log_err(STR256_F " invaild fs rc=%d\n",
+				STR256_P(&name), rc);
+		rc = -EINVAL;
+		goto error;
 	}
 
+	ns_get_fid(fs->ns, &ns_fid);
 	RC_WRAP_LABEL(rc, error, kvs_index_open, kvstor, &ns_fid, index);
 
 error:
@@ -268,18 +263,4 @@ void efs_fs_close(efs_fs_ctx_t fs_ctx)
 	index.index_priv = fs_ctx;
 
 	kvs_index_close(kvstor, &index);
-}
-
-/* @todo depend of defauil fs. */
-int efs_fs_get_fid(efs_fsid_t fs_id, kvs_idx_fid_t *fid)
-{
-	int rc = 0;
-	const char *vfid_str = eos_kvs_get_gfid();
-
-	rc = kvs_fid_from_str(vfid_str, fid);
-
-	fid->f_lo = fs_id;
-
-	log_debug("rc=%d", rc);
-	return rc;
 }

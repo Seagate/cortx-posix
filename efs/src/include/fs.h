@@ -103,24 +103,4 @@ int efs_fs_open(const char *fs_name, struct kvs_idx *index);
  */
 void efs_fs_close(efs_fs_ctx_t fs_ctx);
 
-/* @todo after fs mgmt is tested remove efs_fs_set_fid and efs_fs_get_fid*/
-
-/**
- * @param[in] fs_id - FSID of a filesystem.
- * @return 0 (succ), -ENOMEM (failed to allocate memory), -errno other errors.
- */
-int efs_fs_set_fid(efs_fsid_t fs_id);
-
-/**
- * Find FID of a efs  filesystem using its FSID as a key.
- * The functions looks up the global table to get
- * the FID of a filesystem associated with the given FSID.
- * If there is no a filesystem associated with this FSID
- * then the function returns -ENOENT
- *
- * @param[in] fs_id - FSID of a filesystem.
- * @param[out] fid - Found FID of this filesystem.
- * @return 0 (succ), -ENOENT (no FS found), -errno other errors.
- */
-int efs_fs_get_fid(efs_fsid_t fs_id, kvs_idx_fid_t *fid);
 #endif /* _FS_H_ */
