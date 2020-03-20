@@ -190,16 +190,56 @@ Where action is one of the following:
 
         reinstall - Build RPMs, remove old pkgs and install new pkgs.
         rpm-gen - Build RPMs.
-        rpm-install - Install RPMs build by rpm-gen.
-        rpm-uninstall - Uninstall pkgs.
+        rpm-install [y] - Install RPMs build by rpm-gen.
+        rpm-uninstall [y] - Uninstall pkgs.
 
         kvssh   - Run KVSNS Shell from build folder.
 
 An example of a typical workflow:
     $0 config -- Generates out-of-tree cmake build folder.
     $0 make -j -- Compiles files in it.
-    $0 reinstall -- Generates and re-installs RPMs.
+    $0 reinstall -y -- Generates and re-installs RPMs automaticaly
+                        (without recompiling of the source code).
 "
+}
+
+
+###############################################################################
+nfs_ganesha_rpm_gen()
+{
+    local rpm_dir="$HOME/rpmbuild/RPMS/x86_64"
+
+    if [ -d $rpm_dir ]; then
+        find "$rpm_dir" -name "nfs-ganesha-*" -exec rm -f "{}" ';'
+        find "$rpm_dir" -name "libntirpc-*" -exec rm -f "{}" ';'
+    fi
+
+    nfs_ganesha_make rpm
+}
+
+nfs_ganesha_rpm_install()
+{
+    local yes="$1"
+    local rpm_dir="$HOME/rpmbuild/RPMS/x86_64"
+
+    pushd $rpm_dir &>/dev/null
+
+    sudo yum install "$yes" ./libntirpc-*.rpm ./nfs-ganesha*.rpm
+
+    popd &>/dev/null
+}
+
+nfs_ganesha_rpm_uninstall()
+{
+    local yes="$1"
+    sudo yum remove $yes nfs-ganesha-* libntirpc libntirpc-devel
+}
+
+nfs_ganesha_rpm_reinstall()
+{
+    local yes="$1"
+    nfs_ganesha_rpm_uninstall $yes
+    nfs_ganesha_rpm_install $yes
 }
 
 ###############################################################################
@@ -218,16 +258,13 @@ case $1 in
         shift
         nfs_ganesha_make "$@" ;;
     rpm-gen)
-        nfs_ganesha_make rpm;;
+        nfs_ganesha_rpm_gen;;
     rpm-install)
-        echo "Not implemented: Please install RPMs manually."
-        exit 1;;
+        nfs_ganesha_rpm_install "$2";;
     rpm-uninstall)
-        echo "Not implemented: Please uninstall RPMs manually."
-        exit 1;;
+        nfs_ganesha_rpm_uninstall "$2";;
     reinstall)
-        echo "Not implemented: Plesae re-install local RPMs manually."
-        exit 1;;
+        nfs_ganesha_rpm_reinstall "$2";;
     *)
         nfs_ganesha_usage;;
 esac

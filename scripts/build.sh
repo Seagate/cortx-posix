@@ -32,7 +32,7 @@ Examples:
     $0 -v 1.0.1 -b 99 -- Builds packages with version 1.0.1-99_<commit>.
     $0 -k redis -- Builds EOS-FS with Redis as a KVS.
 "
-	exit 1;
+    exit 1;
 }
 
 eosfs_parse_cmd() {
@@ -159,6 +159,11 @@ _efs_build() {
 _nfs_ganesha_build() {
     echo "NFS_GANESHA_BUILD: $@"
     ./scripts/build-nfs-ganesha.sh "$@"
+}
+
+_libevhtp_build() {
+    echo "LIBEVHTP_BUILD: $@"
+    ./scripts/build-libevhtp.sh "$@"
 }
 
 ###############################################################################
@@ -373,6 +378,7 @@ Dev workflow:
 Sub-component examples:
     $0 kvsfs make -j -- Build KVSFS only.
     $0 nfs-ganesha rpm-gen -- Generate NFS Ganesha RPMs.
+    $0 libevhtp auto -- Build and install libevhtp.
 
 External sources:
     NFS Ganesha.
@@ -426,9 +432,9 @@ case $1 in
         eosfs_set_env
         _dsal_build "$@";;
     efs)
-	shift
-	eosfs_set_env
-	_efs_build "$@";;
+        shift
+        eosfs_set_env
+        _efs_build "$@";;
     kvsfs)
         shift
         eosfs_set_env
@@ -437,6 +443,14 @@ case $1 in
         shift
         eosfs_set_env
         _nfs_ganesha_build "$@";;
+    libevhtp)
+        shift
+        # NOTE: eosfs_set_env is called here
+        # because libevhtp does not depend
+        # on any EOS-FS-related environment,
+        # and it has a bit different set
+        # of commands.
+        _libevhtp_build "$@";;
     *)
         eosfs_usage;;
 esac

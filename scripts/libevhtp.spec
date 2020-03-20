@@ -11,9 +11,10 @@ Source0:	%{name}-1.2.18.tar.gz
 
 BuildRequires:	gcc, make, redhat-rpm-config
 BuildRequires:	doxygen openssl-devel libevent
+BuildRequires:  cmake3, libevent-devel
 
-%define _evhtp_include_install_dir	local/include/
-%define _evhtp_lib_install_dir		local/lib/
+%define _evhtp_include_install_dir	include/
+%define _evhtp_lib_install_dir		lib64/
 
 %description
 Create extremely-fast and secure embedded HTTP servers with ease.
@@ -33,13 +34,14 @@ install %{name}-devel.
 
 %build
 cd build
-cmake3 -DBUILD_SHARED_LIBS=ON ..
+cmake3 -DBUILD_SHARED_LIBS=ON -DCMAKE_INSTALL_PREFIX:PATH=/usr ..
 make %{?_smp_mflags} || make %{?_smp_mflags} || make
 
 %install
 rm -rf $RPM_BUILD_ROOT
 cd build
 make DESTDIR=$RPM_BUILD_ROOT install
+mv $RPM_BUILD_ROOT/usr/lib $RPM_BUILD_ROOT/usr/lib64
 
 %clean
 rm -rf $RPM_BUILD_ROOT
