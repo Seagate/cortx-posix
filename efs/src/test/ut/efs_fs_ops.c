@@ -1,6 +1,6 @@
 /*
- * Filename: test_efs.c
- * Description: Executes efs_fs test
+  Filename: efs_fs.c
+ * Description: mplementation tests for efs_fs
  *
  * Do NOT modify or remove this copyright and confidentiality notice!
  * Copyright (c) 2020, Seagate Technology, LLC.
@@ -12,9 +12,63 @@
  * Author: Jatinder Kumar <jatinder.kumar@seagate.com>
  */
 
-#include "test_efs.h"
+#include "efs_fs.h"
 
-int ut_efs_init()
+struct collection_item *cfg_items;
+
+static void test_efs_fs_create()
+{
+	int rc = 0;
+	char *name = "efs";
+	str256_t fs_name;
+	str256_from_cstr(fs_name, name, strlen(name));
+	rc = efs_fs_create(&fs_name);
+
+	ut_assert_int_equal(rc, 0);
+}
+
+static void test_efs_fs_delete()
+{
+	int rc = 0;
+	char *name = "efs";
+	str256_t fs_name;
+	str256_from_cstr(fs_name, name, strlen(name));
+	rc =  efs_fs_delete(&fs_name);
+
+	ut_assert_int_equal(rc, 0);
+}
+
+static void test_efs_fs_init()
+{
+        int rc = 0;
+        rc = efs_fs_init(cfg_items);
+
+	ut_assert_int_equal(rc, 0);
+}
+
+static void test_efs_cb(const struct efs_fs *fs, void *args)
+{
+	str256_t *fs_name = NULL;
+	efs_fs_get_name(fs, &fs_name);
+
+	printf("CB efs name = %s\n", fs_name->s_str);
+}
+
+static void test_efs_fs_scan()
+{
+	efs_fs_scan(test_efs_cb, NULL);
+}
+
+static void test_efs_fs_fini()
+{
+	int rc = 0;
+
+	rc = efs_fs_fini();
+
+	ut_assert_int_equal(rc, 0);
+}
+
+static int ut_efs_init()
 {
 	struct collection_item *errors = NULL;
 	int rc = 0;
@@ -29,7 +83,7 @@ int ut_efs_init()
 	}
 
 	rc = config_from_file("libkvsns", DEFAULT_CONFIG, &cfg_items,
-							INI_STOP_ON_ERROR, &errors);
+				INI_STOP_ON_ERROR, &errors);
 	if (rc) {
 		log_debug("Can't load config rc = %d", rc);
 		rc = -rc;
@@ -54,13 +108,13 @@ out:
 int main(int argc, char *argv[])
 {
 	int rc = 0;
-	char *test_logs = "/var/log/eos/fs/test.logs";
+	char *test_log = "/var/log/eos/ut/efs/efs_fs.logs";
 
 	if (argc > 1) {
-		test_logs = argv[1];
+		test_log = argv[1];
 	}
 
-	rc = ut_init(test_logs);
+	rc = ut_init(test_log);
 	if (rc != 0) {
 		exit(1);
 	}
@@ -77,16 +131,19 @@ int main(int argc, char *argv[])
 		ut_test_case(test_efs_fs_delete),
 		ut_test_case(test_efs_fs_scan),
 		ut_test_case(test_efs_fs_fini),
+
 	};
 
-	int test_count = 5;
+	int test_count = sizeof(test_list)/sizeof(test_list[0]);
 	int test_failed = 0;
 
 	test_failed = ut_run(test_list, test_count);
 
 	ut_fini();
 
-	printf("Tests failed = %d", test_failed);
+	printf("Total tests  = %d\n", test_count);
+	printf("Tests passed = %d\n", test_count-test_failed);
+	printf("Tests failed = %d\n", test_failed);
 
 	return 0;
 }

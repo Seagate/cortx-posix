@@ -1,5 +1,5 @@
 /*
- * Filename: test_efs.h
+ * Filename: efs_fs.h
  * Description:  Declararions of functions used to test efs_fs
  *
  * Do NOT modify or remove this copyright and confidentiality notice!
@@ -17,50 +17,33 @@
 
 #include <string.h>
 #include <errno.h>
+#include <dstore.h>
 #include "str.h"
 #include "fs.h"
 #include "namespace.h"
 #include "ut.h"
+#include "efs.h"
 
 #define DEFAULT_CONFIG "/etc/kvsns.d/kvsns.ini"
+
+struct ut_efs_params {
+	efs_fs_ctx_t fs_ctx;
+	efs_cred_t cred;
+	efs_ino_t file_inode, current_inode, parent_inode;
+	struct kvstore *kvstor;
+	char *file_name;
+	char *fs_name;
+};
 
 struct collection_item *cfg_items;
 
 /**
- * Does required efs initialization to execute unit tests
+ * Initialization for NS tests
  */
-int ut_efs_init();
+int ut_efs_fs_setup();
 
-/**
- * Finishes nsal initialization
- */
-void ut_efs_fini(void);
-
-
-// efs_fs Tests
-
-/**
- * Test for efs_fs initialization.
- */
-void test_efs_fs_init();
-
-/**
- *Test for efs_fs finish initialization.
- */
-void test_efs_fs_fini();
-
-/**
- * Test for efs_fs create.
- */
-void test_efs_fs_create();
-
-/**
- * Test for efs_fs delete.
- */
-void test_efs_fs_delete();
-
-/**
- * Test for efs_fs list.
- */
-void test_efs_fs_scan();
+/*
+ * Finishes initialization done for NS tests
+ */ 
+int ut_efs_fs_teardown();
 #endif /* TEST_EFS_FS_H */

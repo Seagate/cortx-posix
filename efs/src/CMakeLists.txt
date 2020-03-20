@@ -94,6 +94,7 @@ target_link_libraries(eos-efs
   eos-utils
   eos-dsal
   eos-nsal
+  cmocka
 )
 
 add_subdirectory(test)
