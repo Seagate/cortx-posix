@@ -48,13 +48,10 @@ int nsal_fini()
 	rc = ns_fini();
 	if (rc) {
                 log_err("ns_fini failed, rc=%d", rc);
-                goto err;
         }
 	rc = kvs_fini(kvstor);
 	if (rc) {
                 log_err("kvs_fini failed, rc=%d", rc);
-                goto err;
         }
-err:
         return rc;
 }
