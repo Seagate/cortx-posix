@@ -59,38 +59,45 @@ out:
 
 int iter_init()
 {
-        int rc = 0;
-        struct kvstore *kvstor = kvstore_get();
-        kvs_idx_fid_t fid;
-        struct collection_item *item;
-        const char *fid_str;
+	int rc = 0;
+	struct kvstore *kvstor = kvstore_get();
+	kvs_idx_fid_t fid;
+	struct collection_item *item;
+	const char *fid_str;
 
-        dassert(kvstor != NULL);
+	dassert(kvstor != NULL);
 
-        rc = get_config_item("mero", "kvs_fid", cfg_items, &item);
-        fid_str = get_string_config_value(item, NULL);
-        rc = kvs_fid_from_str(fid_str, &fid);
+	rc = get_config_item("mero", "kvs_fid", cfg_items, &item);
+	fid_str = get_string_config_value(item, NULL);
+	rc = kvs_fid_from_str(fid_str, &fid);
 
-        rc = kvs_index_open(kvstor, &fid, &kv_index);
-        if (rc != 0) {
-                log_err("Look for idx failed, rc = %d", rc);
-                return rc;
-        }
-        return rc;
+	rc = kvs_index_open(kvstor, &fid, &kv_index);
+	if (rc != 0) {
+		log_err("Look for idx failed, rc = %d", rc);
+		return rc;
+	}
+	return rc;
 }
 
 int iter_fini()
 {
-        int rc = 0;
-        struct kvstore *kvstor = kvstore_get();
+	int rc = 0;
+	struct kvstore *kvstor = kvstore_get();
 
-        dassert(kvstor != NULL);
-        rc = kvs_index_close(kvstor, &kv_index);
+	dassert(kvstor != NULL);
+	rc = kvs_index_close(kvstor, &kv_index);
+	if (rc != 0) {
+		log_err("kvs_index_close failed, rc = %d", rc);
+	}
 
-        kvs_fini(kvstor);
-        free_ini_config_errors(cfg_items);
+	rc = kvs_fini(kvstor);
+	if (rc != 0) {
+		log_err("kvs_fini failed, rc = %d", rc);
+	}
 
-        return rc;
+	free_ini_config_errors(cfg_items);
+
+	return rc;
 }
 
 char *key_list[] = {
