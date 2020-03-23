@@ -9,7 +9,7 @@
 #include "str.h"
 #include <ut.h>
 
-#define DEFAULT_CONFIG "/etc/kvsns.d/kvsns.ini"
+#define DEFAULT_CONFIG "/etc/efs/efs.conf"
 
 struct test_key {
 	char type;

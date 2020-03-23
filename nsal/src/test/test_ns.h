@@ -24,7 +24,7 @@
 #include "namespace.h"
 #include "ut.h"
 
-#define DEFAULT_CONFIG "/etc/kvsns.d/kvsns.ini"
+#define DEFAULT_CONFIG "/etc/efs/efs.conf"
 
 struct collection_item *cfg_items;
 
