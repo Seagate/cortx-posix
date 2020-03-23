@@ -67,7 +67,7 @@ typedef void *efs_ctx_t;
  */
 #define EFS_NULL_FS_CTX (NULL)
 
-#define EFS_DEFAULT_CONFIG "/etc/kvsns.d/kvsns.ini"
+#define EFS_DEFAULT_CONFIG "/etc/efs/efs.conf"
 
 #define EFS_ROOT_INODE 2LL
 #define EFS_ROOT_UID 0

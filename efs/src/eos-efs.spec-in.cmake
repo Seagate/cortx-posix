@@ -45,14 +45,14 @@ mkdir -p %{buildroot}%{_bindir}
 mkdir -p %{buildroot}%{_libdir}
 mkdir -p %{buildroot}%{_libdir}/pkgconfig
 mkdir -p %{buildroot}%{_includedir}/efs
-mkdir -p %{buildroot}%{_sysconfdir}/efs.d
+mkdir -p %{buildroot}%{_sysconfdir}/efs
 mkdir -p %{buildroot}/opt/seagate/eos/efs/bin
 install -m 644 include/efs.h  %{buildroot}%{_includedir}/efs
 install -m 644 include/efs_fh.h  %{buildroot}%{_includedir}/efs
 install -m 744 libeos-efs.so %{buildroot}%{_libdir}
+install -m 644 efs.conf %{buildroot}%{_sysconfdir}/efs
 install -m 644 eos-efs.pc  %{buildroot}%{_libdir}/pkgconfig
 install -m 755 efscli/efscli.py %{buildroot}/opt/seagate/eos/efs/bin/efscli
-
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -60,6 +60,7 @@ rm -rf $RPM_BUILD_ROOT
 %files
 %defattr(-,root,root)
 %{_libdir}/libeos-efs.so*
+%config(noreplace) %{_sysconfdir}/efs/efs.conf
 /opt/seagate/eos/efs/bin/efscli
 
 %files devel
