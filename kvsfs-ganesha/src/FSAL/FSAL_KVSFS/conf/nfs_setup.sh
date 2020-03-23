@@ -12,8 +12,8 @@ DEFAULT_FSID='1'
 DEFAULT_FS='kvsns'
 LOC_EXPORT_ID='@tcp:12345:44:301'
 HA_EXPORT_ID='@tcp:12345:45:1'
-KVSNS_INI=/etc/kvsns.d/kvsns.ini
-KVSNS_INI_BAK=${KVSNS_INI}.$$
+EFS_CONF=/etc/efs/efs.conf
+EFS_CONF_BAK=${EFS_CONF}.$$
 GANESHA_CONF=/etc/ganesha/ganesha.conf
 GANESHA_CONF_BAK=${GANESHA_CONF}.$$
 KVSNS_INIT=/usr/bin/kvsns_init
@@ -65,17 +65,17 @@ function log_dir_setup {
 function kvsns_init {
 	log "Initializing KVSNS..."
 
-	# Backup kvsns.ini file
-	[ ! -e $KVSNS_INI_BAK ] && run cp $KVSNS_INI $KVSNS_INI_BAK
+	# Backup efs.conf file
+	[ ! -e $EFS_CONF_BAK ] && run cp $EFS_CONF $EFS_CONF_BAK
 
 	# Modify kvsns.ini
-	tmp_var=$(sed -n '/kvstore/=' $KVSNS_INI)
-	[ $? -ne 0 ] && die "Failed to access kvsns.ini file"
+	tmp_var=$(sed -n '/kvstore/=' $EFS_CONF)
+	[ $? -ne 0 ] && die "Failed to access efs.conf file"
 
-	run sed -i "$tmp_var,\$d" $KVSNS_INI
-	[ $? -ne 0 ] && die "Failed to edit kvsns.ini file"
+	run sed -i "$tmp_var,\$d" $EFS_CONF
+	[ $? -ne 0 ] && die "Failed to edit efs.conf file"
 
-	cat >> $KVSNS_INI << EOM
+	cat >> $EFS_CONF << EOM
 [log]
 path = /var/log/eos/efs/efs.log
 level = LEVEL_INFO
@@ -127,7 +127,7 @@ EXPORT {
 	# Exporting FSAL
 	FSAL {
 		Name  = KVSFS;
-		kvsns_config = $KVSNS_INI;
+		efs_config = $EFS_CONF;
 	}
 
 	# Allowed security types for this export

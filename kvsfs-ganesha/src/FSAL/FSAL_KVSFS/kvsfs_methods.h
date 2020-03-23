@@ -61,7 +61,7 @@ struct kvsfs_fsal_export {
 	uint64_t fs_id;
 
 	/** Export config. */
-	char *kvsns_config;
+	char *efs_config;
 
 	bool pnfs_ds_enabled;
 	bool pnfs_mds_enabled;

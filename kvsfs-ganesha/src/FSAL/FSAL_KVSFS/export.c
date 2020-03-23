@@ -84,8 +84,8 @@ static int kvsfs_conf_pnfs_commit(void *node,
 
 static struct config_item export_params[] = {
 	CONF_ITEM_NOOP("name"),
-	CONF_ITEM_STR("kvsns_config", 0, MAXPATHLEN, NULL,
-		      kvsfs_fsal_export, kvsns_config),
+	CONF_ITEM_STR("efs_config", 0, MAXPATHLEN, NULL,
+		      kvsfs_fsal_export, efs_config),
 	CONF_ITEM_BLOCK("PNFS", pnfs_params,
 			noop_conf_init, kvsfs_conf_pnfs_commit,
 			kvsfs_fsal_export, pnfs_param),
