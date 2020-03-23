@@ -202,7 +202,8 @@ int efs_fs_delete(const str256_t *fs_name)
 
 	rc = efs_fs_is_empty(fs);
 	if (rc != 0) {
-		log_err("Can not delete FS %s. It is not empty");
+		log_err("Can not delete FS " STR256_F ". It is not empty",
+			STR256_P(fs_name));
 		goto out;
 	}
 
