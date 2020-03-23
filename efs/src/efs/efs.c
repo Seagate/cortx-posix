@@ -25,12 +25,12 @@
 #include <common/helpers.h>
 #include <eos/eos_kvstore.h>
 #include <dstore.h>
-#include <dsal.h>
+#include <dsal.h> /* dsal_init,fini */
 #include <efs.h>
 #include <fs.h>
 #include <debug.h>
 #include <management.h>
-#include <nsal.h>
+#include <nsal.h> /* nsal_init,fini */
 
 static struct collection_item *cfg_items;
 
@@ -55,7 +55,7 @@ int efs_init(const char *config_path)
 	if (rc) {
 		free_ini_config_errors(errors);
 		rc = -rc;
-		goto err;
+		goto out;
 	}
 
 	RC_WRAP(get_config_item, "log", "path", cfg_items, &item);
@@ -78,45 +78,45 @@ int efs_init(const char *config_path)
 	rc = log_init(log_path, log_level_no(log_level));
         if (rc != 0) {
                 rc = -EINVAL;
-                goto err;
+                goto out;
         }
 	rc = utils_init(cfg_items);
 	if (rc != 0) {
 		log_err("utils_init failed, rc=%d", rc);
-                goto err1;
+                goto log_cleanup;
         }
 	rc = nsal_init(cfg_items);
         if (rc) {
                 log_err("nsal_init failed, rc=%d", rc);
-                goto err2;
+                goto utils_cleanup;
         }
 	rc = dsal_init(cfg_items, 0);
 	if (rc) {
 		log_err("dsal_init failed, rc=%d", rc);
-		goto err3;
+		goto nsal_cleanup;
 	}
 	rc = efs_fs_init(cfg_items);
 	if (rc) {
 		log_err("efs_fs_init failed, rc=%d", rc);
-		goto err4;
+		goto dsal_cleanup;
 	}
 	rc = management_init();
 	if (rc) {
 		log_err("management_init failed, rc=%d", rc);
-                goto err5;
+                goto efs_fs_cleanup;
         }
-	goto err;
-err5:
+	goto out;
+efs_fs_cleanup:
 	efs_fs_fini();
-err4:
+dsal_cleanup:
 	dsal_fini();
-err3:
+nsal_cleanup:
 	nsal_fini();
-err2:
+utils_cleanup:
 	utils_fini();
-err1:
+log_cleanup:
 	log_fini();
-err:
+out:
 	if (rc) {
 		free_ini_config_errors(errors);
 		return rc;
