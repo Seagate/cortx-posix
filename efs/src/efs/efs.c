@@ -43,7 +43,6 @@ int efs_init(const char *config_path)
 	struct collection_item *item = NULL;
         char *log_path = NULL;
         char *log_level = NULL;
-	efs_ctx_t ctx = EFS_NULL_FS_CTX;
 
 	/** only initialize efs once */
 	if (__sync_fetch_and_add(&efs_initialized, 1)) {
@@ -151,24 +150,5 @@ int efs_fini(void)
                 log_err("log_fini failed, rc=%d ", rc);
         }
 	free_ini_config_errors(cfg_items);
-err:
-        log_debug("rc=%d ", rc);
-        return rc;
-}
-
-//TODO complete efs_fs_init .
-int efs_fs_init(void)
-{
-	int rc = 0;
-
-        return rc;
-}
-
-//TODO complete efs_fs_fini .
-int efs_fs_fini(void)
-{
-        int rc = 0;
-	//TODO call for Control-Server fini
-	//management_fini();
         return rc;
 }
