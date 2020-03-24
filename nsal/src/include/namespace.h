@@ -22,6 +22,7 @@
 
 /* Forward declaration */
 struct namespace;
+struct collection_item;
 
 /******************************************************************************/
 /* Methods */

@@ -57,7 +57,7 @@ out:
 	return rc;
 }
 
-int nsal_init()
+int iter_init()
 {
 	int rc = 0;
 	struct kvstore *kvstor = kvstore_get();
@@ -79,15 +79,22 @@ int nsal_init()
 	return rc;
 }
 
-int nsal_fini()
+int iter_fini()
 {
 	int rc = 0;
 	struct kvstore *kvstor = kvstore_get();
 
 	dassert(kvstor != NULL);
 	rc = kvs_index_close(kvstor, &kv_index);
+	if (rc != 0) {
+		log_err("kvs_index_close failed, rc = %d", rc);
+	}
 
-	kvs_fini(kvstor);
+	rc = kvs_fini(kvstor);
+	if (rc != 0) {
+		log_err("kvs_fini failed, rc = %d", rc);
+	}
+
 	free_ini_config_errors(cfg_items);
 
 	return rc;
@@ -236,9 +243,9 @@ int main(int argc, char *argv[])
 		goto out;
 	}
 
-	rc = nsal_init();
+	rc = iter_init(cfg_items);
 	if (rc) {
-		log_err("Failed nsal_init");
+		log_err("Failed iter_init");
 		goto out;
 	}
 
@@ -258,9 +265,9 @@ int main(int argc, char *argv[])
 
 	test_failed = ut_run(test_list, test_count);
 
-	rc = nsal_fini();
+	rc = iter_fini();
 	if (rc) {
-		log_err("Failed nsal_fini");
+		log_err("Failed iter_fini");
 		goto out;
 	}
 out:
