@@ -90,7 +90,6 @@ eosfs_parse_cmd() {
 # Env
 
 eosfs_set_env() {
-    export KVSNS_SOURCE_ROOT=$PWD/kvsns
     export KVSFS_SOURCE_ROOT=$PWD/kvsfs-ganesha
     export NSAL_SOURCE_ROOT=$PWD/nsal
     export DSAL_SOURCE_ROOT=$PWD/dsal
@@ -112,7 +111,6 @@ eosfs_set_env() {
 eosfs_print_env() {
     eosfs_set_env
     local myenv=(
-        KVSNS_SOURCE_ROOT
         KVSFS_SOURCE_ROOT
 	NSAL_SOURCE_ROOT
 	DSAL_SOURCE_ROOT
@@ -136,11 +134,6 @@ eosfs_print_env() {
 _kvsfs_build() {
     echo "KVSFS_BUILD: $@"
     $KVSFS_SOURCE_ROOT/scripts/build.sh "$@"
-}
-
-_kvsns_build() {
-    echo "KVSNS_BUILD: $@"
-    $KVSNS_SOURCE_ROOT/scripts/build.sh "$@"
 }
 
 _utils_build() {
@@ -188,12 +181,6 @@ eosfs_bootstrap() {
 	git submodule update --init --recursive $DSAL_SOURCE_ROOT
     else
         echo "Skipping bootstrap for DSAL: $DSAL_SOURCE_ROOT"
-    fi
-
-    if [ ! -f $KVSNS_SOURCE_ROOT/src/CMakeLists.txt ]; then
-        git submodule update --init --recursive $KVSNS_SOURCE_ROOT
-    else
-        echo "Skipping bootstrap for KVSNS: $KVSNS_SOURCE_ROOT"
     fi
 
     if [ ! -f $EFS_SOURCE_ROOT/src/CMakeLists.txt ]; then
@@ -246,18 +233,14 @@ eosfs_jenkins_build() {
         _dsal_build make -j all &&
 	_efs_build reconf &&
 	_efs_build make -j all &&
-        _kvsns_build reconf &&
-        _kvsns_build make -j all &&
         _kvsfs_build reconf &&
         _kvsfs_build make -j all &&
         _utils_build rpm-gen &&
         _nsal_build rpm-gen &&
         _dsal_build rpm-gen &&
 	_efs_build rpm-gen &&
-        _kvsns_build rpm-gen &&
         _kvsfs_build rpm-gen &&
         _kvsfs_build purge &&
-        _kvsns_build purge &&
 	_efs_build purge &&
         _nsal_build purge &&
         _dsal_build purge &&
@@ -274,7 +257,6 @@ eosfs_configure() {
     _nsal_build reconf &&
     _dsal_build reconf &&
     _efs_build reconf &&
-    _kvsns_build reconf &&
     _kvsfs_build reconf &&
     echo "OK"
 }
@@ -286,7 +268,6 @@ eosfs_make() {
         _nsal_build make "$@" &&
         _dsal_build make "$@" &&
 	_efs_build make "$@" &&
-        _kvsns_build make "$@" &&
         _kvsfs_build make "$@" &&
     echo "OK"
 }
@@ -301,7 +282,6 @@ eosfs_rpm_gen() {
     rm -fR "$rpms_dir/eos-nsal*"
     rm -fR "$rpms_dir/eos-dsal*"
     rm -fR "$rpms_dir/eos-efs*"
-    rm -fR "$rpms_dir/libkvsns*"
     rm -fR "$rpmn_dir/kvsfs-ganesha*"
 
     eosfs_set_env &&
@@ -310,7 +290,6 @@ eosfs_rpm_gen() {
         _nsal_build rpm-gen &&
         _dsal_build rpm-gen &&
 	_efs_build rpm-gen &&
-        _kvsns_build rpm-gen &&
         _kvsfs_build rpm-gen &&
     echo "OK"
 }
@@ -322,7 +301,6 @@ eosfs_rpm_install() {
     _nsal_build rpm-install
     _dsal_build rpm-install
     _efs_build rpm-install
-    _kvsns_build rpm-install
     _kvsfs_build rpm-install
 }
 
@@ -334,7 +312,6 @@ eosfs_rpm_uninstall() {
     _dsal_build rpm-uninstall
     _efs_build rpm-uninstall
     _kvsfs_build rpm-uninstall
-    _kvsns_build rpm-uninstall
 }
 
 eosfs_reinstall() {
@@ -345,19 +322,16 @@ eosfs_reinstall() {
     _nsal_build rpm-gen &&
     _dsal_build rpm-gen &&
     _efs_build rpm-gen &&
-    _kvsns_build rpm-gen &&
     _kvsfs_build rpm-gen &&
     _utils_build rpm-uninstall &&
     _nsal_build rpm-uninstall &&
     _dsal_build rpm-uninstall &&
     _efs_build rpm-uninstall &&
     _kvsfs_build rpm-uninstall &&
-    _kvsns_build rpm-uninstall &&
     _utils_build rpm-install &&
     _nsal_build rpm-install &&
     _dsal_build rpm-install &&
     _efs_build rpm-install &&
-    _kvsns_build rpm-install &&
     _kvsfs_build rpm-install
 }
 
@@ -387,7 +361,7 @@ Where action is one of the following:
     reinstall     - Generate/Uninstall/Install RPMs.
 
     <component> <action> - Perform action on a sub-component.
-     Available components: kvsns kvsfs nfs-ganesha.
+     Available components: kvsfs nfs-ganesha.
 
 Dev workflow:
     $0 bootstrap -- Download sources for EOS-FS components.
@@ -397,7 +371,6 @@ Dev workflow:
     $0 reinstall -- Install packages.
 
 Sub-component examples:
-    $0 kvsns config -- Configure KVSNS only.
     $0 kvsfs make -j -- Build KVSFS only.
     $0 nfs-ganesha rpm-gen -- Generate NFS Ganesha RPMs.
 
@@ -456,10 +429,6 @@ case $1 in
 	shift
 	eosfs_set_env
 	_efs_build "$@";;
-    kvsns)
-        shift
-        eosfs_set_env
-        _kvsns_build "$@";;
     kvsfs)
         shift
         eosfs_set_env
