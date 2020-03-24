@@ -985,7 +985,6 @@ static fsal_status_t kvsfs_getacl(struct kvsfs_fsal_obj_handle *obj,
 	int rc;
 	uint32_t naces;
 	size_t buflen = EFS_XATTR_SIZE_MAX;
-	ssize_t readlen;
 	fsal_acl_data_t acl_data;
 	fsal_acl_t *acl = NULL;
 	fsal_acl_status_t acl_status;
@@ -997,28 +996,20 @@ static fsal_status_t kvsfs_getacl(struct kvsfs_fsal_obj_handle *obj,
 	T_ENTER("Enter, obj=%p", obj);
 	buf = gsh_malloc(buflen);
 
-	/* @TODO: Optimize this by calling efs_getxattr with "zero" buflen for
-           getting the size of buffer and then call it again with the that size.
-	   This will avoid allocating the buffer EFS_XATTR_SIZE_MAX, but will
-	   result in multiple calls to getxattr */
 	rc = efs_getxattr(obj->efs_fs, cred, kvsfs_fh_to_ino(obj->handle),
 			    acl_xattr_name, buf, &buflen);
 	if (rc < 0) {
-		/* No ACLS for this file/dir. Valid case. */
-		if (rc == -ENOENT) {
-			rc = 0;
-		}
-		T_TRACE("fs_ctx=%p, ino=%p, buf=%p, rc=%d", obj->efs_fs,
-			 kvsfs_fh_to_ino(obj->handle), buf, rc);
+		T_TRACE("efs_fs=%p, ino=%p, buf=%p, buflen = %zu, rc=%d",
+			 obj->efs_fs, kvsfs_fh_to_ino(obj->handle), buf, buflen,
+			 rc);
 		result = fsalstat(posix2fsal_error(-rc), -rc);
 		goto out;
 	}
 
-	readlen = (ssize_t)rc;
-	dassert(readlen <= EFS_XATTR_SIZE_MAX);
+	dassert(buflen <= EFS_XATTR_SIZE_MAX);
 
 	/* Deserialize the buffer into acl_data. */
-	rc = kvsfs_xattr_to_acl_entries(buf, readlen, &acl_data.naces,
+	rc = kvsfs_xattr_to_acl_entries(buf, buflen, &acl_data.naces,
 					&acl_data.aces);
 	if (rc < 0) {
 		T_TRACE("XATTR buf to aces failed, rc=%d", rc);
@@ -1081,6 +1072,13 @@ static fsal_status_t kvsfs_getattrs(struct fsal_obj_handle *obj_hdl,
 		if (FSAL_IS_ERROR(result)) {
 			T_TRACE("kvsfs_getacl failed, ino=%p",
 				  kvsfs_fh_to_ino(myself->handle));
+			if (result.major == ENOENT) {
+				result = fsalstat(ERR_FSAL_NO_ERROR, 0);
+				T_TRACE("No aces or acl, ino=%p",
+					 kvsfs_fh_to_ino(myself->handle));
+				attrs_out->acl = NULL;
+				FSAL_SET_MASK(attrs_out->valid_mask, ATTR_ACL);
+			}
 			goto out;
 		}
 		attrs_out->acl = acl;
@@ -1211,6 +1209,19 @@ static fsal_status_t kvsfs_setacl(struct kvsfs_fsal_obj_handle *obj,
 	fsal_status_t status;
 
 	T_TRACE( ">> Enter obj=%p, acl=%p", obj, acl);
+
+	/* There are no more acl entries for these file/dir. Delete the acl.*/
+	if (!acl) {
+		T_TRACE("Deleting the ACL for %p", obj);
+		rc = efs_removexattr(obj->efs_fs, cred,
+				     kvsfs_fh_to_ino(obj->handle),
+				     acl_xattr_name);
+		/* Having no ACL is not a crime. */
+		if (rc == -ENOENT) {
+			rc = 0;
+		}
+		goto out;
+	}
 
 	fsal_print_acl(COMPONENT_FSAL, NIV_DEBUG, acl);
 	naces = acl->naces;
