@@ -72,6 +72,7 @@ mkdir -p %{buildroot}%{_includedir}/dsal
 mkdir -p %{buildroot}%{_includedir}/dsal/eos
 mkdir -p %{buildroot}%{_sysconfdir}/dsal.d
 install -m 644 include/dstore.h  %{buildroot}%{_includedir}/dsal
+install -m 644 include/dsal.h  %{buildroot}%{_includedir}/dsal
 install -m 644 include/eos/eos_dstore.h  %{buildroot}%{_includedir}/dsal/eos
 install -m 744 libeos-dsal.so %{buildroot}%{_libdir}
 install -m 644 eos-dsal.pc  %{buildroot}%{_libdir}/pkgconfig
@@ -87,6 +88,7 @@ rm -rf $RPM_BUILD_ROOT
 %defattr(-,root,root)
 %{_libdir}/pkgconfig/eos-dsal.pc
 %{_includedir}/dsal/dstore.h
+%{_includedir}/dsal/dsal.h
 %{_includedir}/dsal/eos/eos_dstore.h
 
 %changelog

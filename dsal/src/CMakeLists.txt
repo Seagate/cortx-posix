@@ -109,6 +109,10 @@ message(STATUS "USE_POSIX_OBJ=${USE_POSIX_OBJ}")
 add_subdirectory(dstore)
 set(DSTORE dstore)
 
+add_subdirectory(dsal)
+set(DSAL dsal)
+
+
 set(CMAKE_REQUIRED_INCLUDES ${EOSUTILSINC})
 
 CHECK_INCLUDE_FILES("fault.h" HAVE_EOS_UTILS_H)
@@ -129,6 +133,7 @@ link_directories(${LIBEOSUTILS})
 
 add_library(eos-dsal SHARED
 		$<TARGET_OBJECTS:${DSTORE}>
+		$<TARGET_OBJECTS:${DSAL}>
 	)
 
 target_link_libraries(eos-dsal
