@@ -289,7 +289,7 @@ def main(argv):
 
 		# Process the request
 		resp = client.process(request)
-		print(resp.status, resp.reason)
+		print(resp.reason)
 		if len(resp.body) != 0:
 			print(resp.body)
 		return 0
