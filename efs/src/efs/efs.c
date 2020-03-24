@@ -25,10 +25,12 @@
 #include <common/helpers.h>
 #include <eos/eos_kvstore.h>
 #include <dstore.h>
+#include <dsal.h> /* dsal_init,fini */
 #include <efs.h>
 #include <fs.h>
 #include <debug.h>
 #include <management.h>
+#include <nsal.h> /* nsal_init,fini */
 
 static struct collection_item *cfg_items;
 
@@ -39,10 +41,8 @@ int efs_init(const char *config_path)
 	struct collection_item *errors = NULL;
 	int rc = 0;
 	struct collection_item *item = NULL;
-	char *log_path = NULL;
-	char *log_level = NULL;
-	efs_ctx_t ctx = EFS_NULL_FS_CTX;
-	struct kvstore *kvstore = kvstore_get();
+        char *log_path = NULL;
+        char *log_level = NULL;
 
 	/** only initialize efs once */
 	if (__sync_fetch_and_add(&efs_initialized, 1)) {
@@ -54,7 +54,7 @@ int efs_init(const char *config_path)
 	if (rc) {
 		free_ini_config_errors(errors);
 		rc = -rc;
-		goto err;
+		goto out;
 	}
 
 	RC_WRAP(get_config_item, "log", "path", cfg_items, &item);
@@ -75,43 +75,51 @@ int efs_init(const char *config_path)
 	}
 
 	rc = log_init(log_path, log_level_no(log_level));
+        if (rc != 0) {
+                rc = -EINVAL;
+                goto out;
+        }
+	rc = utils_init(cfg_items);
 	if (rc != 0) {
-		rc = -EINVAL;
-		goto err;
-	}
-
-	rc = dstore_init(cfg_items, 0);
+		log_err("utils_init failed, rc=%d", rc);
+                goto log_cleanup;
+        }
+	rc = nsal_init(cfg_items);
+        if (rc) {
+                log_err("nsal_init failed, rc=%d", rc);
+                goto utils_cleanup;
+        }
+	rc = dsal_init(cfg_items, 0);
 	if (rc) {
-		log_err("dstore_init failed. rc=%d", rc);
-		goto err;
+		log_err("dsal_init failed, rc=%d", rc);
+		goto nsal_cleanup;
 	}
-	item = NULL;
-
-	rc = kvs_init(kvstore, cfg_items);
-	if (rc) {
-		log_err("kvs_init failed. rc=%d", rc);
-		goto err;
-	}
-
 	rc = efs_fs_init(cfg_items);
 	if (rc) {
-		log_err("efs_fs_init failed. rc=%d", rc);
-		goto err;
+		log_err("efs_fs_init failed, rc=%d", rc);
+		goto dsal_cleanup;
 	}
-
 	rc = management_init();
 	if (rc) {
-		log_err("management_init failed. rc=%d", rc);
-		goto err;
-	}
-
-err:
+		log_err("management_init failed, rc=%d", rc);
+                goto efs_fs_cleanup;
+        }
+	goto out;
+efs_fs_cleanup:
+	efs_fs_fini();
+dsal_cleanup:
+	dsal_fini();
+nsal_cleanup:
+	nsal_fini();
+utils_cleanup:
+	utils_fini();
+log_cleanup:
+	log_fini();
+out:
 	if (rc) {
 		free_ini_config_errors(errors);
 		return rc;
 	}
-
-	log_debug("rc=%d, fs_ctx=%p", rc, ctx);
 
 	/** @todo : remove all existing opened FD (crash recovery) */
 	return rc;
@@ -119,11 +127,28 @@ err:
 
 int efs_fini(void)
 {
-	struct kvstore *kvstor = kvstore_get();
-
-	assert(kvstor != NULL);
-
-	RC_WRAP(kvstor->kvstore_ops->fini);
+	int rc = 0;
+	//TODO management_fini.
+	rc = efs_fs_fini();
+	if (rc) {
+                log_err("efs_fs_fini failed, rc=%d", rc);
+        }
+	rc = dsal_fini();
+	if (rc) {
+                log_err("dsal_fini failed, rc=%d", rc);
+        }
+	rc = nsal_fini();
+	if (rc) {
+                log_err("nsal_fini failed, rc=%d", rc);
+        }
+	rc = utils_fini();
+	if (rc) {
+        	log_err("utils_fini failed, rc=%d", rc);
+        }
+	rc = log_fini();
+	if (rc) {
+                log_err("log_fini failed, rc=%d ", rc);
+        }
 	free_ini_config_errors(cfg_items);
-	return 0;
+        return rc;
 }

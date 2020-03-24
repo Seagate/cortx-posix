@@ -36,10 +36,8 @@ struct kvs_idx;
  * @note: this function will allocate required resources and set useful
  * variables to their initial value. As the programs ends efs_init() should be
  * invoked to perform all needed cleanups.
- * In this version of the API, it takes no parameter, but this may change in
- * later versions.
  *
- * @param: none (void param)
+ * @param: const char *config.
  * @return 0 if successful, a negative "-errno" value in case of failure
  */
 int efs_init(const char *config);
