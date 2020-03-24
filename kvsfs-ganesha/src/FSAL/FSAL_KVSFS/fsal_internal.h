@@ -21,7 +21,6 @@ void kvsfs_handle_ops_init(struct fsal_obj_ops *ops);
 
 #if 0
 #include  "fsal.h"
-#include <kvsns/kvsns.h>
 
 /* linkage to the exports and handle ops initializers
  */

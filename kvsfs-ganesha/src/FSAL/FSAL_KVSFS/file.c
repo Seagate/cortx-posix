@@ -61,7 +61,7 @@ static fsal_status_t kvsfs_create(struct fsal_obj_handle *dir_hdl,
 	efs_cred_t cred;
 	efs_ino_t object;
 	struct stat stat;
-	kvsns_fs_ctx_t fs_ctx = KVSNS_NULL_FS_CTX;
+	efs_fs_ctx_t fs_ctx = EFS_NULL_FS_CTX;
 
 	*handle = NULL;		/* poison it */
 	if (!fsal_obj_handle_is(dir_hdl, DIRECTORY)) {

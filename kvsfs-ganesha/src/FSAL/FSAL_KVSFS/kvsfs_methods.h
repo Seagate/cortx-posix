@@ -55,7 +55,7 @@ struct kvsfs_fsal_export {
 	struct fsal_export export;
 
 	/** An EFS filesystem in Open state */
-	efs_ctx_t *efs_ctx;
+	efs_ctx_t efs_ctx;
 
 	/* TODO: This field should be a property of a FS object */
 	uint64_t fs_id;
