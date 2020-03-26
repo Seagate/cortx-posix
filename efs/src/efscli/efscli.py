@@ -20,6 +20,8 @@ import json
 import argparse
 import os
 import logging
+import http
+from http import HTTPStatus
 import http.client
 import json
 
@@ -91,7 +93,7 @@ class Request:
 	def __init__(self, command):
 		self._command = command
 
-	def type(self):
+	def command(self):
 		return self._command.name()
 
 	def action(self):
@@ -105,16 +107,51 @@ class Response:
 	"""
 	Represents a response for the Request.
 	"""
-	def __init__(self, status, reason):
-		self.status = status
-		self.reason = reason
-		self.body = {}
+	codes = {
+		HTTPStatus.CONFLICT,
+		HTTPStatus.BAD_REQUEST,
+		HTTPStatus.UNAUTHORIZED,
+		HTTPStatus.CONFLICT,
+		HTTPStatus.REQUEST_TIMEOUT,
+		HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
+		HTTPStatus.INTERNAL_SERVER_ERROR,
+		HTTPStatus.NOT_IMPLEMENTED,
+		}
 
+	def __init__(self, resp):
+		self._resp = resp
+		self._body = None
+		self._errno = None
+
+	@property
+	def status(self):
+		return self._resp.status
+
+	@property
+	def reason(self):
+		return self._resp.reason
+
+	@property
 	def body(self):
-		self.body
+		if self._body == None:
+			self._body = self._resp.read()
+		return self._body
 
-	def set_body(self, body):
-		self.body = body
+	def iserror(self):
+		if self._resp.status in Response.codes:
+			return True
+		else:
+			return False
+
+	@property
+	def errno(self):
+		if self._body == None:
+			self._body = self._resp.read()
+			err_json = self._body.decode('utf8').replace("'", '"')
+			err_data = json.loads(err_json)
+			self._errno = err_data.get("rc")
+
+		return self._errno
 
 class HttpRequest(Request):
 	"""
@@ -131,7 +168,7 @@ class HttpRequest(Request):
 		super().__init__(command)
 
 		# Form HTTP Request parameters
-		self._url_base = "/" + self.type()
+		self._url_base = "/" + self.command
 		if self.action() not in HttpRequest.request_map.keys():
 			raise Exception('invalid command %s', self.action())
 		self._method = HttpRequest.request_map[self.action()]
@@ -143,6 +180,10 @@ class HttpRequest(Request):
 	@property
 	def args(self):
 		return super().args()
+
+	@property
+	def command(self):
+		return super().command()
 
 	@property
 	def method(self):
@@ -218,9 +259,7 @@ class RestClient(Client):
 
 	def recv(self):
 		rc = self.server.getresponse();
-		resp = Response(rc.status, rc.reason)
-		if self.request.method == 'GET' and rc.status != 204:
-			resp.body = rc.read()
+		resp = Response(rc)
 		return resp;
 
 	def compose(self, request):
@@ -267,18 +306,6 @@ class RestClient(Client):
 		resp = self.recv()
 		return resp;
 
-def http_code_to_errno(code):
-	error_map = {
-		400 : 22,
-		401 : 13,
-		404 : 2,
-		409 : 17,
-		413 : 27,
-		500 : -1,
-		501 : 134,
-	}
-	return error_map.get(code, 0)
-
 def main(argv):
 	"""
 	Parse and execute command line to obtain command structure.
@@ -301,10 +328,16 @@ def main(argv):
 
 		# Process the request
 		resp = client.process(request)
-		print(resp.reason)
-		if len(resp.body) != 0:
-			print(resp.body)
-		return http_code_to_errno(resp.reason)
+		if resp.iserror():
+			print(resp.reason)
+			rc = resp.errno
+		else:
+			rc = 0
+			print(resp.reason)
+			if request.command == 'fs' and request.method == 'GET':
+				# Parse resp body
+				print(resp.body)
+		return rc
 	except Exception as exception:
 		sys.stderr.write('%s\n' %exception)
 		return 1
