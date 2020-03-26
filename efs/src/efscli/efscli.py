@@ -147,7 +147,7 @@ class Response:
 	def errno(self):
 		if self._body == None:
 			self._body = self._resp.read()
-			err_json = self._body.decode('utf8').replace("'", '"')
+			err_json = self._body.decode('utf8')
 			err_data = json.loads(err_json)
 			self._errno = err_data.get("rc")
 
