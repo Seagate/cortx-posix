@@ -210,9 +210,9 @@ class RestClient(Client):
 	def send(self, req):
 		try:
 			self.server.request(req.method,
-						  req.url_base + "/" + req.url_path,
-						  req.content,
-						  req.headers)
+					    req.url_base + "/" + req.url_path,
+					    req.content,
+					    req.headers)
 		except Exception as e:
 			raise Exception("unable to send request to %s:%s. %s", self._host, self._port, e)
 
@@ -267,6 +267,18 @@ class RestClient(Client):
 		resp = self.recv()
 		return resp;
 
+def http_code_to_errno(code):
+	error_map = {
+		400 : 22,
+		401 : 13,
+		404 : 2,
+		409 : 17,
+		413 : 27,
+		500 : -1,
+		501 : 134,
+	}
+	return error_map.get(code, 0)
+
 def main(argv):
 	"""
 	Parse and execute command line to obtain command structure.
@@ -292,7 +304,7 @@ def main(argv):
 		print(resp.reason)
 		if len(resp.body) != 0:
 			print(resp.body)
-		return 0
+		return http_code_to_errno(resp.reason)
 	except Exception as exception:
 		sys.stderr.write('%s\n' %exception)
 		return 1
