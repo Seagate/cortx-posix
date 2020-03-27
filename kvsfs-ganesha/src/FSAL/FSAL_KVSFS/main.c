@@ -203,6 +203,13 @@ MODULE_FINI void kvsfs_unload(void)
 			"KVSFS FSAL module failed to unregister iself.");
 		return;
 	}
+	
+	retval = efs_fini();
+	if (retval != 0) {
+		LogCrit(COMPONENT_FSAL,
+			"efs_fini failed retval=%d", retval);
+		return;
+	}
 
 	LogDebug(COMPONENT_FSAL, "FSAL KVSFS deinitialized");
 }
