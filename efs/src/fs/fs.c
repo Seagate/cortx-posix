@@ -236,9 +236,9 @@ int efs_fs_open(const char *fs_name, struct kvs_idx *index)
 	str256_from_cstr(name, fs_name, strlen(fs_name));
 	rc = efs_fs_lookup(&name, &fs);
 	if (rc != 0) {
-		log_err(STR256_F " invaild fs rc=%d\n",
+		log_err(STR256_F " FS not found rc=%d\n",
 				STR256_P(&name), rc);
-		rc = -EINVAL;
+		rc = -ENOENT;
 		goto error;
 	}
 
