@@ -5,18 +5,16 @@ PROC_FID='<0x7200000000000000:0>'
 INDEX_DIR=/tmp
 # Global idx (meta index)
 KVS_GLOBAL_FID='<0x780000000000000b:1>'
-# DEFAULT FSID 1
-KVS_DEFAULT_FS_FID='<0x780000000000000b:1>'
 KVS_NS_META_FID='<0x780000000000000b:2>'
-DEFAULT_FSID='1'
-DEFAULT_FS='kvsns'
+DEFAULT_FS=''
+FS_PATH='nonexistent'
 LOC_EXPORT_ID='@tcp:12345:44:301'
 HA_EXPORT_ID='@tcp:12345:45:1'
 EFS_CONF=/etc/efs/efs.conf
 EFS_CONF_BAK=${EFS_CONF}.$$
 GANESHA_CONF=/etc/ganesha/ganesha.conf
 GANESHA_CONF_BAK=${GANESHA_CONF}.$$
-KVSNS_INIT=/usr/bin/kvsns_init
+EOS_FS_CLI=/opt/seagate/eos/efs/bin/efscli
 NFS_INITIALIZED=/var/lib/nfs/nfs_initialized
 NFS_SETUP_LOG=/var/log/nfs_setup.log
 LOG_DIR_PATH=/var/log/eos/efs
@@ -38,6 +36,12 @@ function log {
 	echo "$*" >> $NFS_SETUP_LOG
 }
 
+function create_fs {
+	echo -e "\nCreating default file system $DEFAULT_FS ..."
+	run $EOS_FS_CLI fs create $DEFAULT_FS
+	[ $? -ne 0 ] && die "Failed to create $DEFAULT_FS"
+}
+
 function get_ip {
 	# Get ip address
 	v1=$(lctl list_nids 2> /dev/null)
@@ -48,8 +52,8 @@ function get_ip {
 function clovis_init {
 	log "Initializing Clovis..."
 
-	# Create Clovis global(default fs) idx
-	run m0clovis -l $ip_add$LOC_EXPORT_ID -h $ip_add$HA_EXPORT_ID -p $PROFILE -f $PROC_FID index create "$KVS_DEFAULT_FS_FID"
+	# Create Clovis global idx
+	run m0clovis -l $ip_add$LOC_EXPORT_ID -h $ip_add$HA_EXPORT_ID -p $PROFILE -f $PROC_FID index create "$KVS_GLOBAL_FID"
 	# Create Clovis fs_meta idx
 	run m0clovis -l $ip_add$LOC_EXPORT_ID -h $ip_add$HA_EXPORT_ID -p $PROFILE -f $PROC_FID index create "$KVS_NS_META_FID"
 
@@ -62,13 +66,13 @@ function log_dir_setup {
 	[ $? -ne 0 ] && die "Failed to create log dir $LOG_DIR_PATH"
 }
 
-function kvsns_init {
-	log "Initializing KVSNS..."
+function efs_init {
+	log "Initializing EFS..."
 
 	# Backup efs.conf file
 	[ ! -e $EFS_CONF_BAK ] && run cp $EFS_CONF $EFS_CONF_BAK
 
-	# Modify kvsns.ini
+	# Modify efs.conf
 	tmp_var=$(sed -n '/kvstore/=' $EFS_CONF)
 	[ $? -ne 0 ] && die "Failed to access efs.conf file"
 
@@ -95,13 +99,11 @@ proc_fid = $PROC_FID
 index_dir = $INDEX_DIR
 kvs_fid = $KVS_GLOBAL_FID
 EOM
-	[ $? -ne 0 ] && die "Failed to configure kvsns.ini"
+	[ $? -ne 0 ] && die "Failed to configure efs.conf"
 
 	touch $NFS_INITIALIZED
 
-	# Create default FS
-	run $KVSNS_INIT $DEFAULT_FS
-	[ $? -ne 0 ] && die "Failed to initialise kvsns for $DEFAULT_FS"
+
 }
 
 function prepare_ganesha_conf {
@@ -119,10 +121,10 @@ EXPORT {
 	Export_Id = 12345;
 
 	# Exported path (mandatory)
-	Path = kvsns;
+	Path = $FS_PATH;
 
 	# Pseudo Path (required for NFSv4 or if mount_path_pseudo = true)
-	Pseudo = /kvsns;
+	Pseudo = /$FS_PATH;
 
 	# Exporting FSAL
 	FSAL {
@@ -202,13 +204,13 @@ function eos_nfs_init {
 	# Cleanup before initialization
 	eos_nfs_cleanup
 
-	# Initialize  clovis
+	# Initialize clovis
 	clovis_init
 
 	# log dir setup
 	log_dir_setup
-	# Prepare kvsns_init
-	kvsns_init
+
+	efs_init
 
 	# Prepare ganesha.conf
 	prepare_ganesha_conf
@@ -216,6 +218,12 @@ function eos_nfs_init {
 	# Start NFS Ganesha Server
 	systemctl restart nfs-ganesha || die "Failed to start NFS-Ganesha"
 	#[ $? -ne 0 ] && die "Failed to start NFS-Ganesha"
+
+	# Create default FS
+	if [ -n "$DEFAULT_FS" ]; then
+	create_fs
+	systemctl restart nfs-ganesha || die "Failed to start NFS-Ganesha"
+	fi
 
 	echo success > cat $NFS_INITIALIZED
 	echo -e "\nNFS setup is complete"
@@ -226,7 +234,7 @@ function eos_nfs_cleanup {
 	systemctl status nfs-ganesha > /dev/null && systemctl stop nfs-ganesha
 
 	# Drop index if previosly created
-	run m0clovis -l $ip_add$LOC_EXPORT_ID -h $ip_add$HA_EXPORT_ID -p $PROFILE -f $PROC_FID index drop "$KVS_DEFAULT_FS_FID"
+	run m0clovis -l $ip_add$LOC_EXPORT_ID -h $ip_add$HA_EXPORT_ID -p $PROFILE -f $PROC_FID index drop "$KVS_GLOBAL_FID"
 	run m0clovis -l $ip_add$LOC_EXPORT_ID -h $ip_add$HA_EXPORT_ID -p $PROFILE -f $PROC_FID index drop "$KVS_NS_META_FID"
 
 	rm -f $NFS_INITIALIZED
@@ -256,7 +264,7 @@ EOF
 
 cmd=$1; shift 1
 
-getopt --options "hfpP:F:k:e:E:" --name nfs_setup
+getopt --options "hfpP:F:k:e:E:d:" --name nfs_setup
 [[ $? -ne 0 ]] && usage
 
 while [ ! -z $1 ]; do
@@ -269,10 +277,14 @@ while [ ! -z $1 ]; do
 		-k ) KVS_GLOBAL_FID=$2; shift 1;;
 		-e ) LOC_EXPORT_ID=$2; shift 1;;
 		-E ) HA_EXPORT_ID=$2; shift 1;;
+		-d ) DEFAULT_FS=$2; shift 1;;
 		 * ) usage ;;
 	esac
 	shift 1
 done
+
+# Get path and Pseudo path
+[ -n "$DEFAULT_FS" ] && FS_PATH="$DEFAULT_FS"
 
 # Getip address
 ip_add=$(get_ip)
