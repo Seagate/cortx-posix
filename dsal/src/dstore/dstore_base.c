@@ -138,7 +138,7 @@ int dstore_obj_resize(struct dstore *dstore, void *ctx,
 		      dstore_oid_t *oid,
 		      size_t old_size, size_t new_size)
 {
-	assert(dstore && oid && old_size &&
+	assert(dstore && oid &&
 	       dstore->dstore_ops && dstore->dstore_ops->obj_resize);
 
 	return dstore->dstore_ops->obj_resize(dstore, ctx, oid, old_size,
