@@ -31,18 +31,17 @@
 #include <fsal_types.h>
 #include <FSAL/fsal_init.h>
 #include "fsal_internal.h"
-#include <kvsns/kvsns.h> /* maxlink */
 #include <efs.h>
 
 
 /* TODO:ATTR4_SEC_LABEL are not supported yet. */
 #define KVSFS_SUPPORTED_ATTRIBUTES ((const attrmask_t) (ATTRS_POSIX | ATTR_ACL ))
 
-#define KVSFS_LINK_MAX KVSNS_MAX_LINK
+#define KVSFS_LINK_MAX EFS_MAX_LINK
 
 const char module_name[] = "KVSFS";
 
-/* default parameters for KVSNS filesystem */
+/* default parameters for EFS filesystem */
 static const struct fsal_staticfsinfo_t default_kvsfs_info = {
 	.maxfilesize	= INT64_MAX,		/*< maximum allowed filesize     */
 	.maxlink	= KVSFS_LINK_MAX,	/*< maximum hard links on a file */

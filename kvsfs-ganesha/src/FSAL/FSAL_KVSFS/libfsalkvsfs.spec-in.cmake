@@ -4,15 +4,15 @@
 Name: kvsfs-ganesha
 Version: @KVSFS_GANESHA_BASE_VERSION@
 Release: %{dev_version}%{?dist}
-Summary: NFS-Ganesha FSAL for KVSNS
+Summary: NFS-Ganesha FSAL for EFS
 License: Seagate Proprietary
 URL: https://seagit.okla.seagate.com/seagate-eos/eos-fs
-Requires: libkvsns
+Requires: eos-efs
 Source: %{sourcename}.tar.gz
 Provides: %{name} = %{version}-%{release}
 
 %description
-NFS-Ganesha FSAL for KVSNS
+NFS-Ganesha FSAL for EFS
 
 %prep
 %setup -q -n %{sourcename}

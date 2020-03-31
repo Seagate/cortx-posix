@@ -2,7 +2,7 @@
 #define KVSFS_METHODS_H_
 
 #include <fsal_api.h>
-#include <kvsns/kvsns.h>
+#include <efs.h>
 #include <efs_fh.h>
 #include <gsh_list.h>
 #include <fsal_types.h>

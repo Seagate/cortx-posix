@@ -7,7 +7,7 @@ Release: %{dev_version}%{?dist}
 Summary: Test-Tools for KVSFS
 License: Seagate Proprietary
 URL: https://seagit.okla.seagate.com/seagate-eos/eos-fs
-Requires: libkvsns
+Requires: eos-efs
 Source: %{sourcename}.tar.gz
 Provides: %{name} = %{version}-%{release}
 

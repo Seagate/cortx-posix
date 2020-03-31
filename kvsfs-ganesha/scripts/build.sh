@@ -46,15 +46,6 @@ EOS_UTILS_SOURCE_ROOT=${EOS_UTILS_SOURCE_ROOT:-"$KVSFS_SOURCE_ROOT/../utils"}
 # Local: located inside eos-utils sources.
 EOS_UTILS_CMAKE_BUILD_ROOT=${EOS_FS_BUILD_ROOT:-"$KVSFS_SOURCE_ROOT/../utils"}
 
-# Optional, KVSNS source location.
-# Superproject: uses pre-defined location.
-# Local: searches in the top-level dir.
-KVSNS_SOURCE_ROOT=${KVSNS_SOURCE_ROOT:-"$KVSFS_SOURCE_ROOT/../kvsns"}
-
-# Optional, KVSNS build root location
-# Superproject: derived from EOS-FS build root.
-# Local: located inside kvsns sources.
-KVSNS_CMAKE_BUILD_ROOT=${EOS_FS_BUILD_ROOT:-"$KVSFS_SOURCE_ROOT/../kvsns"}
 
 NSAL_SOURCE_ROOT=${NSAL_SOURCE_ROOT:-"$KVSFS_SOURCE_ROOT/../nsal"}
 
@@ -67,12 +58,12 @@ EFS_CMAKE_BUILD_ROOT=${EOS_FS_BUILD_ROOT:-"$KVSFS_SOURCE_ROOT/../efs"}
 # Optional, EOS-UTILS source location.
 # Superproject: uses pre-defined location.
 # Local: searches in the top-level dir.
-EOS_UTILS_SOURCE_ROOT=${EOS_UTILS_SOURCE_ROOT:-"$KVSNS_SOURCE_ROOT/../utils"}
+EOS_UTILS_SOURCE_ROOT=${EOS_UTILS_SOURCE_ROOT:-"$KVSFS_SOURCE_ROOT/../utils"}
 
 # Optional, EOS-UTILS build root location
 # Superproject: derived from EOS-FS build root.
 # Local: located inside eos-utils sources.
-EOS_UTILS_CMAKE_BUILD_ROOT=${EOS_FS_BUILD_ROOT:-"$KVSNS_SOURCE_ROOT/../utils"}
+EOS_UTILS_CMAKE_BUILD_ROOT=${EOS_FS_BUILD_ROOT:-"$KVSFS_SOURCE_ROOT/../utils"}
 
 ###############################################################################
 # Locals
@@ -81,7 +72,6 @@ KVSFS_TEST_DIR=$KVSFS_SOURCE_ROOT/test
 KVSFS_TEST_BUILD=$KVSFS_CMAKE_BUILD_ROOT/build-kvsfs-test
 KVSFS_BUILD=$KVSFS_CMAKE_BUILD_ROOT/build-kvsfs
 KVSFS_SRC=$KVSFS_SOURCE_ROOT/src/FSAL/FSAL_KVSFS
-CAPI_INC=$KVSNS_SOURCE_ROOT/src/capi
 
 # Use either local header/lib or the files from libkvsns-devel package.
 
@@ -160,7 +150,6 @@ kvsfs_print_env() {
 	EOS_UTILS_INC
         KVSNS_LIB
         KVSNS_INC
-	CAPI_INC
 	EOS_UTILS_LIB
 	EOS_UTILS_INC
 	NSAL_LIB
@@ -224,13 +213,10 @@ kvsfs_configure() {
     local cmd="cmake \
 -DGANESHASRC:PATH=${GANESHA_SRC} \
 -DGANESHABUILD:PATH=${GANESHA_BUILD} \
--DKVSNSINC:PATH=${KVSNS_INC} \
--DLIBKVSNS:PATH=${KVSNS_LIB} \
 -DBASE_VERSION:STRING=${KVSFS_VERSION} \
 -DRELEASE_VER:STRING=${KVSFS_BUILD_VERSION} \
 -DLIBEOSUTILS:PATH=${EOS_UTILS_LIB} \
 -DEOSUTILSINC:PATH=${EOS_UTILS_INC} \
--DCAPIINC:PATH=${CAPI_INC} \
 -DNSALINC:PATH=${NSAL_INC} \
 -DLIBNSAL:PATH=${NSAL_LIB} \
 -DEFSINC:PATH=${EFS_INC} \

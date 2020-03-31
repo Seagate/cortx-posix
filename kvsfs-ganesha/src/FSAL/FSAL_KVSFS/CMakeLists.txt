@@ -16,8 +16,6 @@ set(NFS_SETUP_DIR ${CMAKE_SOURCE_DIR}/conf)
 
 set(DEFAULT_GANESHASRC "")
 set(DEFAULT_GANESHABUILD "")
-set(DEFAULT_KVSNSINC "")
-set(DEFAULT_LIBKVSNS "")
 set(DEFAULT_CAPIINC "")
 set(DEFAULT_NSALINC "")
 set(DEFAULT_LIBNSAL "")
@@ -37,8 +35,6 @@ set(LIBEOSUTILS ${DEFAULT_LIBEOSUTILS} CACHE PATH "Path to folder with libeos-ut
 
 set(GANESHASRC ${DEFAULT_GANESHASRC} CACHE PATH "Path to NFS-Ganesha Source (nfs-ganesha/src)")
 set(GANESHABUILD ${DEFAULT_GANESHABUILD} CACHE PATH "Path to NFS-Ganesha Build (nfs-ganesha/build)")
-set(KVSNSINC ${DEFAULT_KVSNSINC} CACHE PATH "Path to folder with kvsns.h")
-set(LIBKVSNS ${DEFAULT_LIBKVSNS} CACHE PATH "Path to folder with libkvsns.so")
 set(FSAL_DESTINATION "/usr/lib64/ganesha" CACHE PATH "Target directory for FSAL")
 set(CAPIINC ${DEFAULT_CAPIINC} CACHE PATH "Path to CAPI")
 set(NSALINC ${DEFAULT_NSALINC} CACHE PATH "Path to folder with nsal headers")
@@ -65,31 +61,6 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wno-unused-variable")
 # TODO: Wrap this with a check against build type
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g3")
 # set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fstack-protector-all")
-
-set(CMAKE_REQUIRED_INCLUDES ${KVSNSINC})
-
-CHECK_INCLUDE_FILES("kvsns/kvsns.h" HAVE_LIBKVSNS_H)
-
-# FIXME: This check is disabled to allow the top-level eos-fs build script
-# to run 'config' step even if kvsns is not build yet.
-# Ideally, we should add a flag to turn on/off this check depending
-# on the situation: by default this check is enabled but if we set the flag
-# then it will be bypassed.
-# CHECK_LIBRARY_EXISTS(kvsns kvsns_mkdir ${LIBKVSNS} HAVE_KVSNS_LIB)
-
-message(STATUS "HAVE_LIBKVSNS_H=${HAVE_LIBKVSNS_H}")
-
-if(NOT HAVE_LIBKVSNS_H)
- if(STRICT_PACKAGE)
-    message(FATAL_ERROR "STRICT_PACKAGE: Cannot find KVSNS runtime. Disabling KVSFS build")
- else(STRICT_PACKAGE)
-    message(WARNING "Cannot find KVSNS runtime. Disabling KVSFS build")
-    set(USE_FSAL_KVSFS OFF)
-  endif(STRICT_PACKAGE)
-endif(NOT HAVE_LIBKVSNS_H)
-
-include_directories(${KVSNSINC})
-link_directories(${LIBKVSNS})
 
 set(CMAKE_REQUIRED_INCLUDES ${EOSUTILSINC})
 
@@ -149,7 +120,6 @@ add_library(fsalkvsfs SHARED ${fsalkvsfs_LIB_SRCS})
 target_link_libraries(fsalkvsfs
   eos-utils
   eos-efs
-  kvsns
   ${SYSTEM_LIBRARIES}
 )
 
@@ -162,7 +132,7 @@ install(TARGETS fsalkvsfs COMPONENT fsal DESTINATION  ${FSAL_DESTINATION} )
 # rpmbuild specific stuff
 set(CPACK_PACKAGE_FILE_NAME "kvsfs-ganesha" )
 set(CPACK_PACKAGE_VENDOR "Seagate")
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "NFS-Ganesha FSAL for KVSNS")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "NFS-Ganesha FSAL for EFS")
 SET(CPACK_PACKAGE_VERSION_MAJOR ${KVSFS_GANESHA_MAJOR_VERSION})
 SET(CPACK_PACKAGE_VERSION_MINOR ${KVSFS_GANESHA_MINOR_VERSION})
 SET(CPACK_PACKAGE_VERSION_PATCH ${KVSFS_GANESHA_PATCH_LEVEL})
@@ -196,8 +166,6 @@ add_custom_command(TARGET rpm
 # A quick check of the dependencies of the library
 add_custom_target(check_ldd DEPENDS fsalkvsfs)
 add_custom_command(TARGET check_ldd
-	COMMAND env LD_LIBRARY_PATH=${LIBKVSNS} LD_PRELOAD=/usr/lib64/libganesha_nfsd.so /usr/bin/ldd -r ${CMAKE_BINARY_DIR}/libfsalkvsfs.so
+	COMMAND env LD_LIBRARY_PATH=${LIBEFS} LD_PRELOAD=/usr/lib64/libganesha_nfsd.so /usr/bin/ldd -r ${CMAKE_BINARY_DIR}/libfsalkvsfs.so
 	VERBATIM)
-
-
 
