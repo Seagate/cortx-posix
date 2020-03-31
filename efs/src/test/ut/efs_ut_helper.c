@@ -15,10 +15,36 @@
 #include "efs_fs.h"
 
 extern struct ut_efs_params ut_efs_obj;
+struct collection_item *cfg_items;
+
+static int get_ut_config(char **fs_name)
+{
+
+	int rc = 0;
+	char *ut_config_file = "efs_ut.ini";
+	struct collection_item *errors = NULL;
+	struct collection_item *item = NULL;
+
+	rc = config_from_file("libkvsns", ut_config_file, &cfg_items,
+				INI_STOP_ON_ERROR, &errors);
+	if (rc != 0) {
+		return rc;
+	}
+
+	rc = get_config_item("config", "fs", cfg_items, &item);
+	if (rc != 0) {
+		return rc;
+	}
+
+	*fs_name = get_string_config_value(item, NULL);
+
+	return rc;
+}
 
 int ut_efs_fs_setup()
 {
 	int rc = 0;
+
 
 	ut_efs_obj.fs_ctx = EFS_NULL_FS_CTX;
 
@@ -28,27 +54,35 @@ int ut_efs_fs_setup()
 	ut_efs_obj.current_inode = EFS_ROOT_INODE;
 	ut_efs_obj.parent_inode = EFS_ROOT_INODE;
 
+	ut_efs_obj.fs_name = NULL;
+
 	rc = efs_init(EFS_DEFAULT_CONFIG);
 	if (rc != 0) {
 		fprintf(stderr, "efs_init: err = %d\n", rc);
 		goto out;
 	}
 
-	char *name = "testfs";
+	rc = get_ut_config(&ut_efs_obj.fs_name);
+	if (rc != 0) {
+		fprintf(stderr, "Failed to get ut config: err = %d\n", rc);
+		goto out;
+	}
 
 	str256_t fs_name;
-	str256_from_cstr(fs_name, name, strlen(name));
+	str256_from_cstr(fs_name, ut_efs_obj.fs_name,
+				strlen(ut_efs_obj.fs_name));
 	rc = 0;
 	rc = efs_fs_create(&fs_name);
 
 	if (rc != 0) {
-		fprintf(stderr, "Failed to create FS %s, rc=%d\n", name, rc);
+		fprintf(stderr, "Failed to create FS %s, rc=%d\n",
+			ut_efs_obj.fs_name, rc);
 		goto out;
 	}
 
 	struct kvs_idx index;
 
-	rc = efs_fs_open(name, &index);
+	rc = efs_fs_open(ut_efs_obj.fs_name, &index);
 
 	if (rc != 0) {
 		fprintf(stderr, "Unable to open FS for fs_name:%s, rc=%d !\n",
@@ -65,14 +99,14 @@ int ut_efs_fs_teardown()
 {
 	efs_fs_close(ut_efs_obj.fs_ctx);
 
-	char * name = "testfs";
-
 	str256_t fs_name;
-	str256_from_cstr(fs_name, name, strlen(name));
+	str256_from_cstr(fs_name, ut_efs_obj.fs_name,
+				strlen(ut_efs_obj.fs_name));
 
 	efs_fs_delete(&fs_name);
 
-	efs_fini();
+	// To be uncommented after efs_fini is fixed
+	//efs_fini();
 
 	return 0;
 }
