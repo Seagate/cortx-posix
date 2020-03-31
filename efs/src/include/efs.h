@@ -678,8 +678,7 @@ int efs_setxattr(struct efs_fs *efs_fs, const efs_cred_t *cred,
  * @param[in] name - xattr's name
  * @param[out] value - buffer in which xattr's value has been copied
  * @param[in,out] size - in: Size of passed value buffer..
- *			 out: A caller can estimate the size of xattr by setting
- *			 this to zero to return the current size of the xattr.
+ *			 out: The size of the read xattr.
  *
  * @return size of xattr if successful,a negative "-errno" value in case of
  *         failure
@@ -688,7 +687,6 @@ int efs_setxattr(struct efs_fs *efs_fs, const efs_cred_t *cred,
 size_t efs_getxattr(struct efs_fs *efs_fs, efs_cred_t *cred,
 		     const efs_ino_t *ino, const char *name, char *value,
 		     size_t *size);
-
 /**
  * Fetches xattr names for a passed inode.
  * @note: xattr's name is a zero-terminated string.
