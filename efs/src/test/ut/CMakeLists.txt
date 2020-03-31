@@ -9,10 +9,15 @@ if((NOT HAVE_CMOCKA))
         message (FATAL ERROR "Connnot find cmocka")
 endif((NOT HAVE_CMOCKA))
 
-add_executable(fs_ops efs_fs_ops.c)
+configure_file(efs_ut.ini efs_ut.ini COPYONLY)
 
+add_executable(fs_ops_ut efs_fs_ops.c)
 add_executable(dir_ops_ut efs_dir_ops.c)
 add_executable(link_ops_ut efs_link_ops.c)
+add_executable(rename_ops_ut efs_rename_ops.c)
+add_executable(file_ops_ut efs_file_ops.c)
+add_executable(attr_ops_ut efs_attr_ops.c)
+add_executable(xattr_ops_ut efs_xattr_ops.c)
 
 link_directories(${LIBKVSTORE})
 set(CMAKE_INSTALL_RPATH "${LIBKVSTORE}")
@@ -29,7 +34,7 @@ target_link_libraries(efs_ut_helper
 	${STORE_LIBRARY}
 )
 
-target_link_libraries(fs_ops
+target_link_libraries(fs_ops_ut
 	eos-utils
 	eos-nsal
 	eos-efs
@@ -41,6 +46,22 @@ target_link_libraries(dir_ops_ut
 )
 
 target_link_libraries(link_ops_ut
+	efs_ut_helper
+)
+
+target_link_libraries(rename_ops_ut
+	efs_ut_helper
+)
+
+target_link_libraries(file_ops_ut
+	efs_ut_helper
+)
+
+target_link_libraries(attr_ops_ut
+	efs_ut_helper
+)
+
+target_link_libraries(xattr_ops_ut
 	efs_ut_helper
 )
 

@@ -40,7 +40,7 @@ static bool test_readdir_cb(void *ctx, const char *name, const efs_ino_t *ino)
 /**
  * Test for reading root directory content
  * Description: Read root directory.
- * Behavior:
+ * Strategy:
  *  1. Create a directory in root directory
  *  2. Read root directory
  *  3. Verify readdir content.
@@ -77,13 +77,16 @@ static void readdir_root_dir(void)
 
 	ut_assert_int_equal(rc, 0);
 
-	efs_rmdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred, &root_inode, dir_name);
+	rc = efs_rmdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred, &root_inode,
+			dir_name);
+
+	assert_int_equal(rc, 0);
 }
 
 /**
  * Test for reading sub directory content
  * Description: Read sub directory.
- * Behavior:
+ * Strategy:
  *  1. Create a directory d1 in root directory
  *  2. Create directory d2 inside d1
  *  3. Read root directory d1
@@ -127,17 +130,21 @@ static void readdir_sub_dir(void)
 
 	ut_assert_int_equal(rc, 0);
 
-	efs_rmdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred, &sub_dir_inode,
+	rc = efs_rmdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred, &sub_dir_inode,
 			inner_dir_name);
 
-	efs_rmdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred, &ut_efs_obj.parent_inode,
-			 sub_dir);
+	assert_int_equal(rc, 0);
+
+	rc = efs_rmdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+			&ut_efs_obj.parent_inode, sub_dir);
+
+	assert_int_equal(rc, 0);
 }
 
 /**
  * Test for reading directory content
  * Description: Read directory.
- * Behavior:
+ * Strategy:
  *  1. Create a directory d1 in root directory
  *  2. Create directory d2 inside d1
  *  3. Create file f1 inside d1
@@ -191,17 +198,21 @@ static void readdir_file_and_dir(void)
 		ut_assert_int_equal(rc, 0);
 	}
 
-	efs_unlink(ut_efs_obj.fs_ctx, &ut_efs_obj.cred, &ut_efs_obj.parent_inode,
-			NULL, file_dir_name[0]);
+	rc = efs_unlink(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+			&ut_efs_obj.parent_inode, NULL, file_dir_name[0]);
 
-	efs_rmdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred, &ut_efs_obj.parent_inode,
-			file_dir_name[1]);
+	assert_int_equal(rc, 0);
+
+	rc = efs_rmdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+			&ut_efs_obj.parent_inode, file_dir_name[1]);
+
+	assert_int_equal(rc, 0);
 }
 
 /**
  * Test for reading empty directory content
  * Description: Read empty directory.
- * Behavior:
+ * Strategy:
  *  1. Create a directory d1 in root directory
  *  2. Read d1 directory
  *  3. Verify readdir content to be nothing.
@@ -236,14 +247,16 @@ static void readdir_empty_dir(void)
 
 	ut_assert_int_equal(entry_cnt, 0);
 
-	efs_rmdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred, &ut_efs_obj.parent_inode,
-			 dir_name);
+	rc = efs_rmdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+			&ut_efs_obj.parent_inode, dir_name);
+
+	assert_int_equal(rc, 0);
 }
 
 /**
  * Test for reading directory which contains multpile directories
  * Description: Read nonempty directory.
- * Behavior:
+ * Strategy:
  *  1. Create a directory d0 in root directory
  *  2. Create directories d1 to d8 in d0
  *  3. Read d0 directory
@@ -306,23 +319,26 @@ static void readdir_multiple_dir(void)
 	}
 
 	for (i = 0; i<8; i ++) {
-		efs_rmdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred, &dir_inode,
+		rc = efs_rmdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred, &dir_inode,
 				inner_dir_name[i]);
+		assert_int_equal(rc, 0);
 	}
 
-	efs_rmdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred, &ut_efs_obj.parent_inode,
-			dir_name);
+	rc = efs_rmdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+			&ut_efs_obj.parent_inode, dir_name);
+
+	assert_int_equal(rc, 0);
 }
 
 /**
  * Test for directory creation.
  * Description: create a directory.
- * Behavior:
+ * Strategy:
  *  1. Check if directory exists
  *  2. Create a directory.
  *  3. Lookup for created directory.
  *  4. Verify output.
- * Expected ehavior:
+ * Expected behavior:
  *  1. No errors from EFS API.
  *  2. The lookup should verify directory creation.
  * Environment:
@@ -350,19 +366,21 @@ static void create_dir(void)
 
 	ut_assert_int_equal(rc, 0);
 
-	efs_rmdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_rmdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
 			&ut_efs_obj.parent_inode, dir_name);
+
+	assert_int_equal(rc, 0);
 }
 
 /**
  * Test for existing directory creation.
  * Description: create a existing directory.
- * Behavior:
+ * Strategy:
  *  1. Check if directory exists
  *  2. Create a directory.
  *  2. Verify directory creation with lookup.
  *  3. Create same existing directory.
- * Expected ehavior:
+ * Expected behavior:
  *  1. No errors from EFS API.
  *  2. Second time directory creation should fail with error directory exists.
  * Environment:
@@ -395,19 +413,21 @@ static void create_exist_dir(void)
 
 	ut_assert_int_equal(rc, -EEXIST);
 
-	efs_rmdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred, &ut_efs_obj.parent_inode,
-			dir_name);
+	rc = efs_rmdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+			&ut_efs_obj.parent_inode, dir_name);
+
+	assert_int_equal(rc, 0);
 }
 
 /**
  * Test for longname directory creation.
  * Description: create a longname directory.
- * Behavior:
+ * Strategy:
  *  1. Check if direcory exists.
  *  2. Create a longname directory.
  *  3. Lookup for created directory.
  *  4. Verify output.
- * Expected ehavior:
+ * Expected behavior:
  *  1. No errors from EFS API.
  *  2. Lookup should verify directory creation
  * Environment:
@@ -440,16 +460,18 @@ static void create_longname255_dir(void)
 
 	ut_assert_int_equal(rc, 0);
 
-	efs_rmdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred, &ut_efs_obj.parent_inode,
-			dir_name);
+	rc = efs_rmdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+			&ut_efs_obj.parent_inode, dir_name);
+
+	assert_int_equal(rc, 0);
 }
 
 /**
  * Test for current directory creation.
  * Description: Test mkdir fails with EXIST when the dentry name is ".".
- * Behavior:
+ * Strategy:
  *  1. Create a directory with dentry name ".".
- * Expected ehavior:
+ * Expected behavior:
  *  1. No errors from EFS API.
  *  2. Directory creation should fail with error directory exists
  */
@@ -469,9 +491,9 @@ static void create_current_dir(void)
 /**
  * Test for parent directory creation.
  * Description: Test if mkdir fails with EXIST when the dentry name is "..".
- * Behavior:
+ * Strategy:
  *  1. Create directory with dentry name "..".
- * Expected ehavior:
+ * Expected behavior:
  *  1. No errors from EFS API
  *  2. Directory creation should fail with error directory exists
  */
@@ -491,9 +513,9 @@ void create_parent_dir(void)
 /**
  * Test for root directory creation.
  * Description: create root directory.
- * Behavior:
+ * Strategy:
  *  1. Create a root directory.
- * Expected ehavior:
+ * Expected behavior:
  *  1. No errors from EFS API
  *  2. Directory creation should fail with error directory exists
  */
@@ -510,16 +532,12 @@ static void create_root_dir(void)
 	ut_assert_int_equal(rc, -EEXIST);
 }
 
-int main(int argc, char *argv[])
+int main(void)
 {
 	int rc = 0;
 	char *test_log = "/var/log/eos/test/ut/efs/dir_ops.log";
 
-	if (argc > 1) {
-		test_log = argv[1];
-	}
-
-	printf("Readdir tests\n");
+	printf("Directory tests\n");
 
 	rc = ut_init(test_log);
 	if (rc != 0) {
