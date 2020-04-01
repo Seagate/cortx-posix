@@ -77,8 +77,7 @@ int main(void)
 
 	test_failed = ut_run(test_list, test_count);
 
-	//To be uncommneted after efs_fini is fixed
-//	efs_fini();
+	efs_fini();
 
 	ut_fini();
 

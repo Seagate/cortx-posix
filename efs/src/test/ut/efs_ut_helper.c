@@ -105,8 +105,7 @@ int ut_efs_fs_teardown()
 
 	efs_fs_delete(&fs_name);
 
-	// To be uncommented after efs_fini is fixed
-	//efs_fini();
+	efs_fini();
 
 	return 0;
 }
