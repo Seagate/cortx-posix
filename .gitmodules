@@ -1,6 +1,3 @@
-[submodule "kvsns"]
-	path = kvsns
-	url = ../kvsns.git
 [submodule "kvsfs-ganesha"]
 	path = kvsfs-ganesha
 	url = ../kvsfs-ganesha.git
