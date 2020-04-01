@@ -21,7 +21,7 @@ static int get_ut_config(char **fs_name)
 {
 
 	int rc = 0;
-	char *ut_config_file = "efs_ut.ini";
+	char *ut_config_file = "/tmp/eos-fs/build-efs/test/ut/efs_ut.ini";
 	struct collection_item *errors = NULL;
 	struct collection_item *item = NULL;
 
