@@ -104,7 +104,7 @@ struct kvsfs_fsal_obj_handle {
 	 * by a call to struct efs_fh
 	 */
 	/* EFS Context */
-	efs_ctx_t fs_ctx;
+	struct efs_fs *efs_fs;
 
 	/* Global state is disabled because we don't support NFv3. */
 	/* struct kvsfs_file_state global_fd; */
@@ -182,13 +182,13 @@ static void construct_handle(struct fsal_export *export_base,
 	 * in the same as gsh_calloc() aborts execution if there is
 	 * not enough memory.
 	 */
-	rc = efs_fh_from_ino(export->efs_ctx, ino, stat, &result->handle);
+	rc = efs_fh_from_ino(export->efs_fs, ino, stat, &result->handle);
 	if (rc < 0) {
 		LogCrit(COMPONENT_FSAL, "Failed to create FH, rc: %d", rc);
 		abort();
 	}
 
-	result->fs_ctx = export->efs_ctx;
+	result->efs_fs = export->efs_fs;
 
 	fsal_obj_handle_init(&result->obj_handle,
 			     export_base,
@@ -229,7 +229,7 @@ static void fsal_obj_handle_from_efs_fh(struct fsal_export *export_base,
 	result = gsh_calloc(1, sizeof(*result));
 
 	result->handle = fh;
-	result->fs_ctx = export->efs_ctx;
+	result->efs_fs = export->efs_fs;
 
 	fsal_obj_handle_init(&result->obj_handle,
 			     export_base,
@@ -337,7 +337,7 @@ fsal_status_t kvsfs_lookup_path(struct fsal_export *exp_hdl,
 	myexport = container_of(op_ctx->fsal_export,
 				struct kvsfs_fsal_export, export);
 
-	rc = efs_fh_getroot(myexport->efs_ctx, &cred, &object);
+	rc = efs_fh_getroot(myexport->efs_fs, &cred, &object);
 	if (rc != 0) {
 		goto out;
 	}
@@ -385,14 +385,14 @@ static fsal_status_t kvsfs_mkdir(struct fsal_obj_handle *dir_hdl,
 	unix_mode = fsal2unix_mode(attrs_in->mode)
 		& ~op_ctx->fsal_export->exp_ops.fs_umask(op_ctx->fsal_export);
 
-	retval = efs_mkdir(myself->fs_ctx, &cred,
+	retval = efs_mkdir(myself->efs_fs, &cred,
 			   kvsfs_fh_to_ino(myself->handle),
 			   (char *) name, unix_mode, &object);
 	if (retval < 0) {
 		goto out;
 	}
 
-	retval = efs_getattr(myself->fs_ctx, &cred, &object, &stat);
+	retval = efs_getattr(myself->efs_fs, &cred, &object, &stat);
 	if (retval < 0) {
 		/* XXX:
 		 * We have created a directory but cannot get its attributes
@@ -448,7 +448,7 @@ static fsal_status_t kvsfs_makesymlink(struct fsal_obj_handle *dir_hdl,
 	myself = container_of(dir_hdl, struct kvsfs_fsal_obj_handle,
 			      obj_handle);
 
-	retval = efs_symlink(myself->fs_ctx, &cred,
+	retval = efs_symlink(myself->efs_fs, &cred,
 			     kvsfs_fh_to_ino(myself->handle),
 			     (char *)name, (char *)link_path, &object);
 	if (retval < 0) {
@@ -456,7 +456,7 @@ static fsal_status_t kvsfs_makesymlink(struct fsal_obj_handle *dir_hdl,
 		goto out;
 	}
 
-	retval = efs_getattr(myself->fs_ctx, &cred, &object, &stat);
+	retval = efs_getattr(myself->efs_fs, &cred, &object, &stat);
 	if (retval < 0) {
 		status = fsalstat(posix2fsal_error(-retval), -retval);
 		goto out;
@@ -533,7 +533,7 @@ static fsal_status_t kvsfs_readsymlink(struct fsal_obj_handle *obj_hdl,
 	link_content->len = fsal_default_linksize;
 	link_content->addr = gsh_malloc(link_content->len);
 
-	retval = efs_readlink(myself->fs_ctx, &cred,
+	retval = efs_readlink(myself->efs_fs, &cred,
 			      kvsfs_fh_to_ino(myself->handle),
 			      link_content->addr, &link_content->len);
 
@@ -579,7 +579,7 @@ static fsal_status_t kvsfs_linkfile(struct fsal_obj_handle *obj_hdl,
 	destdir = container_of(destdir_hdl, struct kvsfs_fsal_obj_handle,
 			       obj_handle);
 
-	retval = efs_link(destdir->fs_ctx, &cred,
+	retval = efs_link(destdir->efs_fs, &cred,
 			  kvsfs_fh_to_ino(myself->handle),
 			  kvsfs_fh_to_ino(destdir->handle),
 			  (char *) name);
@@ -674,7 +674,7 @@ static bool kvsfs_readdir_cb(void *ctx, const char *name,
 		int retval;
 		efs_ino_t object = *ino;
 
-		retval = efs_getattr(cb_ctx->parent->fs_ctx, &cred, &object,
+		retval = efs_getattr(cb_ctx->parent->efs_fs, &cred, &object,
 				     &stat);
 		if (retval < 0) {
 			cb_ctx->inner_rc = retval;
@@ -729,14 +729,15 @@ static fsal_status_t kvsfs_readdir(struct fsal_obj_handle *dir_hdl,
 		.parent = NULL,
 		.inner_rc = 0,
 	};
-	efs_ctx_t fs_ctx;
+
+	struct efs_fs *efs_fs = NULL;
 	int rc;
 
 	obj = container_of(dir_hdl, struct kvsfs_fsal_obj_handle, obj_handle);
 
 	T_ENTER("parent=%d", (int) *kvsfs_fh_to_ino(obj->handle));
 
-	fs_ctx = obj->fs_ctx;
+	efs_fs = obj->efs_fs;
 	readdir_ctx.parent = obj;
 
 	/* NOTE:PERF:
@@ -761,7 +762,7 @@ static fsal_status_t kvsfs_readdir(struct fsal_obj_handle *dir_hdl,
 	 *	Also, the new version will requite readdir_cb to call
 	 *	getattr().
 	 */
-	rc = efs_readdir(fs_ctx, &cred, kvsfs_fh_to_ino(obj->handle),
+	rc = efs_readdir(efs_fs, &cred, kvsfs_fh_to_ino(obj->handle),
 			 kvsfs_readdir_cb, &readdir_ctx);
 
 	if (rc < 0)
@@ -871,14 +872,14 @@ static fsal_status_t kvsfs_rename(struct fsal_obj_handle *obj_hdl,
 
 #if 1
 	/* TODO:PERF: Consider replacing with assert */
-	if (obj->fs_ctx != olddir->fs_ctx) {
+	if (obj->efs_fs != olddir->efs_fs) {
 		LogFatal(COMPONENT_FSAL,
 			 "obj fs_ctx does not match olddir fs_ctx "
 			 "'%p' != '%p'", obj_hdl, olddir_hdl);
 		rc = -EXDEV;
 		goto out;
 	}
-	if (obj->fs_ctx != newdir->fs_ctx) {
+	if (obj->efs_fs != newdir->efs_fs) {
 		LogFatal(COMPONENT_FSAL,
 			 "obj fs_ctx does not match newdir fs_ctx "
 			 "'%p' != '%p'", obj_hdl, newdir_hdl);
@@ -914,7 +915,7 @@ static fsal_status_t kvsfs_rename(struct fsal_obj_handle *obj_hdl,
 	flags.is_dst_open = kvsfs_fh_is_open(newobj);
 
 rename:
-	rc = efs_rename(obj->fs_ctx, &cred,
+	rc = efs_rename(obj->efs_fs, &cred,
 			kvsfs_fh_to_ino(olddir->handle), (char *) old_name,
 			kvsfs_fh_to_ino(obj->handle),
 			kvsfs_fh_to_ino(newdir->handle), (char *) new_name,
@@ -1000,14 +1001,14 @@ static fsal_status_t kvsfs_getacl(struct kvsfs_fsal_obj_handle *obj,
            getting the size of buffer and then call it again with the that size.
 	   This will avoid allocating the buffer EFS_XATTR_SIZE_MAX, but will
 	   result in multiple calls to getxattr */
-	rc = efs_getxattr(obj->fs_ctx, cred, kvsfs_fh_to_ino(obj->handle),
+	rc = efs_getxattr(obj->efs_fs, cred, kvsfs_fh_to_ino(obj->handle),
 			    acl_xattr_name, buf, &buflen);
 	if (rc < 0) {
 		/* No ACLS for this file/dir. Valid case. */
 		if (rc == -ENOENT) {
 			rc = 0;
 		}
-		T_TRACE("fs_ctx=%p, ino=%p, buf=%p, rc=%d", obj->fs_ctx,
+		T_TRACE("fs_ctx=%p, ino=%p, buf=%p, rc=%d", obj->efs_fs,
 			 kvsfs_fh_to_ino(obj->handle), buf, rc);
 		result = fsalstat(posix2fsal_error(-rc), -rc);
 		goto out;
@@ -1039,7 +1040,7 @@ static fsal_status_t kvsfs_getacl(struct kvsfs_fsal_obj_handle *obj,
 
 out:
 	gsh_free(buf);
-	T_EXIT("fs_ctx=%p, ino=%p, acl_out=%p, rc=%d", obj->fs_ctx,
+	T_EXIT("fs_ctx=%p, ino=%p, acl_out=%p, rc=%d", obj->efs_fs,
 	        kvsfs_fh_to_ino(obj->handle), *acl_out, rc);
 	return result;
 }
@@ -1065,7 +1066,7 @@ static fsal_status_t kvsfs_getattrs(struct fsal_obj_handle *obj_hdl,
 	myself =
 		container_of(obj_hdl, struct kvsfs_fsal_obj_handle, obj_handle);
 
-	retval = efs_getattr(myself->fs_ctx, &cred,
+	retval = efs_getattr(myself->efs_fs, &cred,
 			     kvsfs_fh_to_ino(myself->handle), &stat);
 
 	result = fsalstat(posix2fsal_error(-retval), retval);
@@ -1235,7 +1236,7 @@ static fsal_status_t kvsfs_setacl(struct kvsfs_fsal_obj_handle *obj,
 		goto out;
 	}
 
-	rc  = efs_setxattr(obj->fs_ctx, cred,
+	rc  = efs_setxattr(obj->efs_fs, cred,
 			     kvsfs_fh_to_ino(obj->handle), acl_xattr_name,
 		             buf, buflen, 0);
 
@@ -1324,7 +1325,7 @@ fsal_status_t kvsfs_setattrs(struct fsal_obj_handle *obj_hdl,
 		/* If the size does not need to be change, then
 		 * we can simply update the stats associated with the inode.
 		 */
-		rc = efs_setattr(obj->fs_ctx, &cred,
+		rc = efs_setattr(obj->efs_fs, &cred,
 				 kvsfs_fh_to_ino(obj->handle),
 				 &stats, flags);
 		result = fsalstat(posix2fsal_error(-rc), -rc);
@@ -1349,7 +1350,7 @@ static fsal_status_t kvsfs_unlink_reg(struct fsal_obj_handle *dir_hdl,
 	parent = container_of(dir_hdl, struct kvsfs_fsal_obj_handle, obj_handle);
 	obj = container_of(obj_hdl, struct kvsfs_fsal_obj_handle, obj_handle);
 
-	rc = efs_detach(parent->fs_ctx, &cred, kvsfs_fh_to_ino(parent->handle),
+	rc = efs_detach(parent->efs_fs, &cred, kvsfs_fh_to_ino(parent->handle),
 			  kvsfs_fh_to_ino(obj->handle), name);
 	if (rc != 0) {
 		goto out;
@@ -1365,7 +1366,7 @@ static fsal_status_t kvsfs_unlink_reg(struct fsal_obj_handle *dir_hdl,
 		rc = 0;
 	} else {
 		/* No share states detected  -> Delete file object */
-		rc = efs_destroy_orphaned_file(parent->fs_ctx,
+		rc = efs_destroy_orphaned_file(parent->efs_fs,
 					       kvsfs_fh_to_ino(obj->handle));
 	}
 	PTHREAD_RWLOCK_unlock(&obj->obj_handle.obj_lock);
@@ -1394,7 +1395,7 @@ static fsal_status_t kvsfs_rmsymlink(struct fsal_obj_handle *dir_hdl,
 	parent = container_of(dir_hdl, struct kvsfs_fsal_obj_handle, obj_handle);
 	obj = container_of(obj_hdl, struct kvsfs_fsal_obj_handle, obj_handle);
 
-	rc = efs_unlink(parent->fs_ctx, &cred,
+	rc = efs_unlink(parent->efs_fs, &cred,
 			  kvsfs_fh_to_ino(parent->handle),
 			  kvsfs_fh_to_ino(obj->handle),
 			  (char *) name);
@@ -1426,7 +1427,7 @@ static fsal_status_t kvsfs_rmdir(struct fsal_obj_handle *dir_hdl,
 	 * rmdir().
 	 */
 
-	rc = efs_rmdir(parent->fs_ctx, &cred,
+	rc = efs_rmdir(parent->efs_fs, &cred,
 		       kvsfs_fh_to_ino(parent->handle),
 		       (char *) name);
 	if (rc != 0) {
@@ -1593,7 +1594,7 @@ fsal_status_t kvsfs_create_handle(struct fsal_export *exp_hdl,
 	myexport = container_of(op_ctx->fsal_export,
 				struct kvsfs_fsal_export, export);
 
-	rc = efs_fh_deserialize(myexport->efs_ctx, &cred,
+	rc = efs_fh_deserialize(myexport->efs_fs, &cred,
 				hdl_desc->addr,
 				hdl_desc->len, &fh);
 	if (rc < 0) {
@@ -2028,7 +2029,7 @@ static fsal_status_t kvsfs_open2_by_handle(struct fsal_obj_handle *obj_hdl,
 	}
 
 	if (attrs_out != NULL) {
-		rc = efs_getattr(obj->fs_ctx, &cred,
+		rc = efs_getattr(obj->efs_fs, &cred,
 				 kvsfs_fh_to_ino(obj->handle), &stat);
 		if (rc < 0) {
 			status = fsalstat(posix2fsal_error(-rc), -rc);
@@ -2178,7 +2179,7 @@ kvsfs_create_unchecked(struct fsal_obj_handle *parent_obj_hdl, const char *name,
 		goto out;
 	}
 
-	rc = efs_creat_ex(parent_obj->fs_ctx, &cred,
+	rc = efs_creat_ex(parent_obj->efs_fs, &cred,
 			  kvsfs_fh_to_ino(parent_obj->handle),
 			  (char *) name,
 			  stat_in.st_mode,
@@ -2270,7 +2271,7 @@ kvsfs_create_exclusive40(struct fsal_obj_handle *parent_obj_hdl, const char *nam
 	parent_obj = container_of(parent_obj_hdl,
 				  struct kvsfs_fsal_obj_handle, obj_handle);
 
-	rc = efs_creat_ex(parent_obj->fs_ctx, &cred,
+	rc = efs_creat_ex(parent_obj->efs_fs, &cred,
 			  kvsfs_fh_to_ino(parent_obj->handle),
 			  (char *) name,
 			  stat_in.st_mode,
@@ -2604,7 +2605,7 @@ static fsal_status_t kvsfs_delete_on_close(struct fsal_obj_handle *obj_hdl)
 	 * we can cache this value in the FH in order to avoid getattr()
 	 * call inside this function.
 	 */
-	rc = efs_destroy_orphaned_file(obj->fs_ctx,
+	rc = efs_destroy_orphaned_file(obj->efs_fs,
 				       kvsfs_fh_to_ino(obj->handle));
 	if (rc != 0) {
 		LogCrit(COMPONENT_FSAL,
@@ -2758,7 +2759,7 @@ static void kvsfs_read2(struct fsal_obj_handle *obj_hdl,
 	buffer_size = read_arg->iov[0].iov_len;
 	offset = read_arg->offset;
 
-	nb_read = efs_read(obj->fs_ctx, &cred, &fd->efs_fd,
+	nb_read = efs_read(obj->efs_fs, &cred, &fd->efs_fd,
 			   buffer, buffer_size, offset);
 	if (nb_read < 0) {
 		result = fsalstat(posix2fsal_error(-nb_read), -nb_read);
@@ -2777,9 +2778,9 @@ out:
 
 /******************************************************************************/
 /* TODO:EFS: a dummy implementation of FSYNC call */
-static int efs_fsync(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *ino)
+static int efs_fsync(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *ino)
 {
-	(void) ctx;
+	(void) efs_fs;
 	(void) cred;
 	(void) ino;
 	return 0;
@@ -2817,7 +2818,7 @@ static fsal_status_t kvsfs_ftruncate(struct fsal_obj_handle *obj_hdl,
 
 	obj = container_of(obj_hdl, struct kvsfs_fsal_obj_handle, obj_handle);
 
-	rc = efs_truncate(obj->fs_ctx, &cred, &fd->efs_fd.ino,
+	rc = efs_truncate(obj->efs_fs, &cred, &fd->efs_fd.ino,
 			  new_stat, new_stat_flags);
 	if (rc != 0) {
 		result = fsalstat(posix2fsal_error(-rc), -rc);
@@ -2911,7 +2912,7 @@ static void kvsfs_write2(struct fsal_obj_handle *obj_hdl,
 	buffer_size = write_arg->iov[0].iov_len;
 	offset = write_arg->offset;
 
-	nb_write = efs_write(obj->fs_ctx, &cred, &fd->efs_fd,
+	nb_write = efs_write(obj->efs_fs, &cred, &fd->efs_fd,
 			     buffer, buffer_size, offset);
 	if (nb_write < 0) {
 		result = fsalstat(posix2fsal_error(-nb_write), -nb_write);
@@ -2921,7 +2922,7 @@ static void kvsfs_write2(struct fsal_obj_handle *obj_hdl,
 	write_arg->io_amount = nb_write;
 
 	if (write_arg->fsal_stable) {
-		nb_write = efs_fsync(obj->fs_ctx, &cred,
+		nb_write = efs_fsync(obj->efs_fs, &cred,
 				     kvsfs_fh_to_ino(obj->handle));
 		if (nb_write < 0) {
 			write_arg->fsal_stable = false;

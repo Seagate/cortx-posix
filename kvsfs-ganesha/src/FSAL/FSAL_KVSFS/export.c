@@ -163,18 +163,16 @@ fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
 					    fso_pnfs_mds_supported) &&
 					    myself->pnfs_param.pnfs_enabled;
 
-	struct kvs_idx index;
-	efs_ctx_t fs_ctx = NULL;
+	struct efs_fs *efs_fs = NULL;
 
-	retval = efs_fs_open(op_ctx->ctx_export->fullpath, &index);
+	retval = efs_fs_open(op_ctx->ctx_export->fullpath, &efs_fs);
 	if (retval != 0) {
 		LogMajor(COMPONENT_FSAL, "FS open failed :%s",
 			 op_ctx->ctx_export->fullpath);
 		goto errout;
 	}
 
-	fs_ctx = index.index_priv;
-	myself->efs_ctx = fs_ctx;
+	myself->efs_fs = efs_fs;
 	myself->fs_id = fsid;
 
 	/* TODO:PORTING: pNFS support */
