@@ -10,7 +10,7 @@ execute_ut_nsal () {
 	echo "NSAL Unit tests"
 
 	NSAL_TESTS_DIR=$BUILD_DIR/build-nsal/test
-	NSAL_TEST_LIST=(test_ns test_iter)
+	NSAL_TEST_LIST=(test_ns test_iter test_kvtree)
 
 	[ ! -d $NSAL_TESTS ] && echo "NSAL is not built" && exit 1
 
