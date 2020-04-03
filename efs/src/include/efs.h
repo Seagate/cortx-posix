@@ -30,6 +30,11 @@
 /* forword declations */
 struct kvs_idx;
 
+struct efs_fs {
+	struct namespace *ns; /*namespace object*/
+	struct kvtree *kvtree; /*kvtree object*/
+};
+
 /**
  * Start the efs library. This should be done by every thread using the library
  *
@@ -52,12 +57,6 @@ int efs_init(const char *config);
  * @return 0 if successful, a negative "-errno" value in case of failure
  */
 int efs_fini(void);
-
-/**
- * @todo : This is s/efs_fs_ctx_t/efs_fs_ctx_t
- * We need to comeup with proper efs_fs_ctx_t object.
- */
-typedef void *efs_ctx_t;
 
 /**
  * @todo : When efs_ctx_t is defined, EFS_NULL_FS_CTX,
@@ -143,7 +142,7 @@ typedef struct efs_cred__ {
  *
  * @return 0 if successful, a negative "-errno" value in case of failure
  */
-int efs_tree_create_root(struct kvs_idx *index);
+int efs_tree_create_root(struct efs_fs *efs_fs);
 
 /**
  * Delete the root of the namespace.
@@ -152,7 +151,7 @@ int efs_tree_create_root(struct kvs_idx *index);
  *
  * @return 0 if successful, a negative "-errno" value in case of failure
  */
-int efs_tree_delete_root(struct kvs_idx *index);
+int efs_tree_delete_root(struct efs_fs *efs_fs);
 
 int efs_access_check(const efs_cred_t *cred, const struct stat *stat,
                      int flags);
@@ -165,20 +164,20 @@ typedef void *efs_fs_ctx_t;
  * once all migration of efs completes.
  */
 /* Inode Attributes API */
-int efs_get_stat(efs_ctx_t ctx, const efs_ino_t *ino,
+int efs_get_stat(struct efs_fs *efs_fs, const efs_ino_t *ino,
 		 struct stat **bufstat);
-int efs_set_stat(efs_fs_ctx_t ctx, const efs_ino_t *ino,
+int efs_set_stat(struct efs_fs *efs_fs, const efs_ino_t *ino,
 		 struct stat *bufstat);
-int efs_del_stat(efs_fs_ctx_t ctx, const efs_ino_t *ino);
-int efs_update_stat(efs_fs_ctx_t ctx, const efs_ino_t *ini, int flags);
-int efs_get_symlink(efs_fs_ctx_t ctx, const efs_ino_t *ino,
+int efs_del_stat(struct efs_fs *efs_fs, const efs_ino_t *ino);
+int efs_update_stat(struct efs_fs *efs_fs, const efs_ino_t *ini, int flags);
+int efs_get_symlink(struct efs_fs *efs_fs, const efs_ino_t *ino,
 		    void **buf, size_t *buf_size);
-int efs_set_symlink(efs_fs_ctx_t ctx, const efs_ino_t *ino,
+int efs_set_symlink(struct efs_fs *efs_fs, const efs_ino_t *ino,
 		    void *buf, size_t buf_size);
-int efs_del_symlink(efs_fs_ctx_t ctx, const efs_ino_t *ino);
+int efs_del_symlink(struct efs_fs *efs_fs, const efs_ino_t *ino);
 int efs_amend_stat(struct stat *stat, int flags);
 
-int efs_create_entry(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *parent,
+int efs_create_entry(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *parent,
                      char *name, char *lnk, mode_t mode,
                      efs_ino_t *new_entry, enum efs_file_type type);
 
@@ -198,7 +197,7 @@ int efs_create_entry(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *parent,
  * associated with the given `ino`.
  * @return 0 if successful, otherwise -errno.
  */
-int efs_tree_detach(efs_fs_ctx_t fs_ctx,
+int efs_tree_detach(struct efs_fs *efs_fs,
 		    const efs_ino_t *parent_ino,
 		    const efs_ino_t *ino,
 		    const str256_t *node_name);
@@ -212,7 +211,7 @@ int efs_tree_detach(efs_fs_ctx_t fs_ctx,
  * associated with the given `ino`.
  * @return 0 if successful, otherwise -errno.
  */
-int efs_tree_attach(efs_fs_ctx_t ctx,
+int efs_tree_attach(struct efs_fs *efs_fs,
 		    const efs_ino_t *parent_ino,
 		    const efs_ino_t *ino,
 		    const str256_t *node_name);
@@ -222,7 +221,7 @@ int efs_tree_attach(efs_fs_ctx_t ctx,
 /** Change the name of a link between a parent node and a child node without
  * modifying the link itself.
  */
-int efs_tree_rename_link(efs_fs_ctx_t fs_ctx,
+int efs_tree_rename_link(struct efs_fs *efs_fs,
 			 const efs_ino_t *parent_ino,
 			 const efs_ino_t *ino,
 			 const str256_t *old_name,
@@ -230,7 +229,7 @@ int efs_tree_rename_link(efs_fs_ctx_t fs_ctx,
 
 /******************************************************************************/
 /** Check if the given inode has at least one child inode linked into it. */
-int efs_tree_has_children(efs_fs_ctx_t fs_ctx,
+int efs_tree_has_children(struct efs_fs *efs_fs,
 			  const efs_ino_t *ino,
 			  bool *has_children);
 
@@ -242,7 +241,7 @@ int efs_tree_has_children(efs_fs_ctx_t fs_ctx,
  * @return 0 if successfull, otherwise -errno, including -ENOENT
  * if the object does not exist.
  */
-int efs_tree_lookup(efs_fs_ctx_t fs_ctx,
+int efs_tree_lookup(struct efs_fs *efs_fs,
 		    const efs_ino_t *parent_ino,
 		    const str256_t *name,
 		    efs_ino_t *ino);
@@ -256,7 +255,7 @@ typedef bool (*efs_readdir_cb_t)(void *ctx, const char *name,
 
 /******************************************************************************/
 /** Walk over children (dentries) if an inode (directory). */
-int efs_tree_iter_children(efs_fs_ctx_t fs_ctx,
+int efs_tree_iter_children(struct efs_fs *efs_fs,
 			   const efs_ino_t *ino,
 			   efs_readdir_cb_t cb,
 			   void *cb_ctx);
@@ -357,7 +356,7 @@ struct efs_inode_attr_key {
  *
  * @return 0 if successful, a negative "-errno" value in case of failure
  */
-int efs_getattr(efs_ctx_t ctx, const efs_cred_t *cred,
+int efs_getattr(struct efs_fs *efs_fs, const efs_cred_t *cred,
 		const efs_ino_t *ino, struct stat *stat);
 
 /**
@@ -382,7 +381,7 @@ int efs_getattr(efs_ctx_t ctx, const efs_cred_t *cred,
  *
  * @return 0 if successful, a negative "-errno" value in case of failure
  */
-int efs_setattr(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *ino,
+int efs_setattr(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *ino,
 		struct stat *setstat, int statflag);
 /**
  * Check is a given user can access an inode.
@@ -398,7 +397,7 @@ int efs_setattr(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *ino,
  * @return 0 if access is granted, a negative value means an error. -EPERM
  * is returned when access is not granted
  */
-int efs_access(efs_ctx_t ctx, const efs_cred_t *cred,
+int efs_access(struct efs_fs *efs_fs, const efs_cred_t *cred,
                const efs_ino_t *ino, int flags);
 
 /** A callback to be used in efs_readddir.
@@ -417,7 +416,7 @@ typedef bool (*efs_readdir_cb_t)(void *ctx, const char *name,
  * @param cb_ctx - Callback context
  * @retval 0 on success, errno on error.
  */
-int efs_readdir(efs_ctx_t fs_ctx, const efs_cred_t *cred,
+int efs_readdir(struct efs_fs *efs_fs, const efs_cred_t *cred,
 		const efs_ino_t *dir_ino,
 		efs_readdir_cb_t cb,
 		void *cb_ctx);
@@ -433,7 +432,7 @@ int efs_readdir(efs_ctx_t fs_ctx, const efs_cred_t *cred,
  *
  * @return 0 if successful, a negative "-errno" value in case of failure
  */
-int efs_mkdir(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *parent, char *name,
+int efs_mkdir(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *parent, char *name,
 	      mode_t mode, efs_ino_t *newdir);
 
 /**
@@ -448,7 +447,7 @@ int efs_mkdir(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *parent, char *name,
  *
  * @return 0 if successful, a negative "-errno" value in case of failure
  */
-int efs_lookup(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *parent,
+int efs_lookup(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *parent,
                char *name, efs_ino_t *ino);
 
 /** Hints for "efs_rename" call.
@@ -479,7 +478,7 @@ struct efs_rename_flags {
  *                      the function does a lookup() call internally.
  * @return 0 if successfull, otherwise -errno.
  */
-int efs_rename(efs_fs_ctx_t fs_ctx, efs_cred_t *cred,
+int efs_rename(struct efs_fs *efs_fs, efs_cred_t *cred,
 		efs_ino_t *sino_dir, char *sname, const efs_ino_t *psrc,
 		efs_ino_t *dino_dir, char *dname, const efs_ino_t *pdst,
 		const struct efs_rename_flags *pflags);
@@ -494,7 +493,7 @@ int efs_rename(efs_fs_ctx_t fs_ctx, efs_cred_t *cred,
  *
  * @return 0 if successful, a negative "-errno" value in case of failure
  */
-int efs_rmdir(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *parent,
+int efs_rmdir(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *parent,
               char *name);
 
 /**
@@ -512,7 +511,7 @@ int efs_rmdir(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *parent,
  *
  * @see ::efs_destroy_orphaned_file and ::efs_detach.
  */
-int efs_unlink(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *dir,
+int efs_unlink(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *dir,
                efs_ino_t *fino, char *name);
 
 /**
@@ -528,7 +527,7 @@ int efs_unlink(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *dir,
  *			  then the correponding error is returned.
  * @return 0 if successful, a negative "-errno" value in case of failure
  */
-int efs_readlink(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *link,
+int efs_readlink(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *link,
 		 char *content, size_t *size);
 
 /**
@@ -542,7 +541,7 @@ int efs_readlink(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *link,
  *
  * @return 0 if successful, a negative "-errno" value in case of failure
  */
-int efs_creat(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *parent,
+int efs_creat(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *parent,
 	      char *name, mode_t mode, efs_ino_t *newfile);
 
 /* Atomic file creation.
@@ -555,7 +554,7 @@ int efs_creat(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *parent,
  * @param[out] stat_out - Final stat values of the created file.
  * @param[out] newfile - The inode number of the created file.
  */
-int efs_creat_ex(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *parent,
+int efs_creat_ex(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *parent,
 		 char *name, mode_t mode, struct stat *stat_in,
 		 int stat_in_flags, efs_ino_t *newfile,
 		 struct stat *stat_out);
@@ -572,7 +571,7 @@ int efs_creat_ex(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *parent,
  *
  * @return write size or a negative "-errno" in case of failure
  */
-ssize_t efs_write(efs_ctx_t ctx, efs_cred_t *cred, efs_file_open_t *fd,
+ssize_t efs_write(struct efs_fs *efs_fs, efs_cred_t *cred, efs_file_open_t *fd,
 		  void *buf, size_t count, off_t offset);
 
 /**
@@ -587,7 +586,7 @@ ssize_t efs_write(efs_ctx_t ctx, efs_cred_t *cred, efs_file_open_t *fd,
  *
  * @return read size or a negative "-errno" in case of failure
  */
-ssize_t efs_read(efs_ctx_t ctx, efs_cred_t *cred, efs_file_open_t *fd,
+ssize_t efs_read(struct efs_fs *efs_fs, efs_cred_t *cred, efs_file_open_t *fd,
 		 void *buf, size_t count, off_t offset);
 
 /** Change size of a file.
@@ -601,13 +600,13 @@ ssize_t efs_read(efs_ctx_t ctx, efs_cred_t *cred, efs_file_open_t *fd,
  *	  have to be updated. STAT_SIZE_SET is a required flag.
  * @return 0 if successful, a negative "-errno" value in case of failure.
  */
-int efs_truncate(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *ino,
+int efs_truncate(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *ino,
 		 struct stat *new_stat, int new_stat_flags);
 
 /** Removes a link between the parent inode and a filesystem object
  * linked into it with the dentry name.
  */
-int efs_detach(efs_fs_ctx_t fs_ctx, const efs_cred_t *cred,
+int efs_detach(struct efs_fs *efs_fs, const efs_cred_t *cred,
                const efs_ino_t *parent, const efs_ino_t *obj,
                const char *name);
 
@@ -623,7 +622,7 @@ int efs_detach(efs_fs_ctx_t fs_ctx, const efs_cred_t *cred,
  *
  * @return 0 if successful, a negative "-errno" value in case of failure
  */
-int efs_symlink(efs_fs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *parent,
+int efs_symlink(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *parent,
 		char *name, char *content, efs_ino_t *newlnk);
 
 /**
@@ -639,13 +638,13 @@ int efs_symlink(efs_fs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *parent,
  *
  * @return 0 if successful, a negative "-errno" value in case of failure
  */
-int efs_link(efs_ctx_t fs_ctx, efs_cred_t *cred, efs_ino_t *ino,
+int efs_link(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *ino,
 	     efs_ino_t *dino, char *dname);
 
 /** Destroys a file or a symlink object if it has no links in the file system.
  * NOTE: It does nothing if the object has one or more links.
  */
-int efs_destroy_orphaned_file(efs_fs_ctx_t fs_ctx, const efs_ino_t *ino);
+int efs_destroy_orphaned_file(struct efs_fs *efs_fs, const efs_ino_t *ino);
 
 /* Xattr APIs */
 /**
@@ -665,7 +664,7 @@ int efs_destroy_orphaned_file(efs_fs_ctx_t fs_ctx, const efs_ino_t *ino);
  * @return 0 if successful, a negative "-errno" value in case of failure
  */
 
-int efs_setxattr(efs_fs_ctx_t fctx, const efs_cred_t *cred,
+int efs_setxattr(struct efs_fs *efs_fs, const efs_cred_t *cred,
 		 const efs_ino_t *ino, const char *name, char *value,
 		 size_t size, int flags);
 
@@ -686,7 +685,7 @@ int efs_setxattr(efs_fs_ctx_t fctx, const efs_cred_t *cred,
  *         failure
  */
 
-ssize_t efs_getxattr(efs_fs_ctx_t fctx, efs_cred_t *cred,
+size_t efs_getxattr(struct efs_fs *efs_fs, efs_cred_t *cred,
 		     const efs_ino_t *ino, const char *name, char *value,
 		     size_t *size);
 
@@ -706,7 +705,7 @@ ssize_t efs_getxattr(efs_fs_ctx_t fctx, efs_cred_t *cred,
  * @return zero for success, negative "-errno" value
  *	    in case of failure
  */
-int efs_listxattr(efs_ctx_t fs_ctx, const efs_cred_t *cred,
+int efs_listxattr(struct efs_fs *efs_fs, const efs_cred_t *cred,
 		  const efs_ino_t *ino, void *buf, size_t *count,
 		  size_t *size);
 /**
@@ -720,7 +719,7 @@ int efs_listxattr(efs_ctx_t fs_ctx, const efs_cred_t *cred,
  *
  * @return 0 if successful, a negative "-errno" value in case of failure
  */
-int efs_removexattr(efs_ctx_t fs_ctx, const efs_cred_t *cred,
+int efs_removexattr(struct efs_fs *efs_fs, const efs_cred_t *cred,
 		    const efs_ino_t *ino, const char *name);
 
 /**
@@ -732,6 +731,6 @@ int efs_removexattr(efs_ctx_t fs_ctx, const efs_cred_t *cred,
  *
  * @return 0 if successful, a negative "-errno" value in case of failure
  */
-int efs_remove_all_xattr(efs_ctx_t fs_ctx, efs_cred_t *cred, efs_ino_t *ino);
+int efs_remove_all_xattr(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *ino);
 
 #endif

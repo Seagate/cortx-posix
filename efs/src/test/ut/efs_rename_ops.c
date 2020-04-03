@@ -39,12 +39,12 @@ static void rename_file(void)
 
 	efs_ino_t file_inode = 0LL;
 
-	rc = efs_creat(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_creat(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.current_inode, old_name, 0755, &file_inode);
 
 	ut_assert_int_equal(rc, 0);
 
-	 rc = efs_rename(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	 rc = efs_rename(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 				&ut_efs_obj.current_inode, old_name, NULL,
 				&ut_efs_obj.current_inode, new_name, NULL, NULL);
 
@@ -52,19 +52,19 @@ static void rename_file(void)
 
 	file_inode = 0LL;
 
-	rc = efs_lookup(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_lookup(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.parent_inode, new_name, &file_inode);
 
 	ut_assert_int_equal(rc, 0);
 
 	file_inode = 0LL;
 
-	rc = efs_lookup(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_lookup(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.parent_inode, old_name, &file_inode);
 
 	ut_assert_int_equal(rc, -ENOENT);
 
-	efs_unlink(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	efs_unlink(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.current_inode, NULL, new_name);
 }
 
@@ -91,24 +91,24 @@ static void rename_into_empty_dir(void)
 
 	efs_ino_t dir1_inode = 0LL, dir2_inode = 0LL;
 
-	rc = efs_mkdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_mkdir(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.current_inode, old_name, 0755, &dir1_inode);
 
 	ut_assert_int_equal(rc, 0);
 
-	rc = efs_mkdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_mkdir(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.current_inode, new_name, 0755, &dir2_inode);
 
 	ut_assert_int_equal(rc, 0);
 
-	rc = efs_rename(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_rename(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.current_inode, old_name, NULL,
 			&ut_efs_obj.current_inode, new_name, NULL, NULL);
 
 	ut_assert_int_equal(rc, 0);
 
 	dir2_inode = 0LL;
-	rc = efs_lookup(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_lookup(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.parent_inode, new_name, &dir2_inode);
 
 	ut_assert_int_equal(rc, 0);
@@ -117,12 +117,12 @@ static void rename_into_empty_dir(void)
 
 	dir2_inode = 0LL;
 
-	rc = efs_lookup(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_lookup(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.parent_inode, old_name, &dir2_inode);
 
 	ut_assert_int_equal(rc, -ENOENT);
 
-	efs_unlink(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	efs_unlink(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.current_inode, NULL, new_name);
 }
 
@@ -151,34 +151,34 @@ static void rename_into_nonempty_dir(void)
 
 	efs_ino_t d1_inode = 0LL, d2_inode = 0LL, d3_inode = 0LL;
 
-	rc = efs_mkdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_mkdir(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.current_inode, d1_name, 0755, &d1_inode);
 
 	ut_assert_int_equal(rc, 0);
 
-	rc = efs_mkdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_mkdir(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.current_inode, d2_name, 0755, &d2_inode);
 
 	ut_assert_int_equal(rc, 0);
 
-	rc = efs_mkdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred, &d2_inode,
+	rc = efs_mkdir(ut_efs_obj.efs_fs, &ut_efs_obj.cred, &d2_inode,
 			d2_name, 0755, &d3_inode);
 
 	ut_assert_int_equal(rc, 0);
 
-	rc = efs_rename(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_rename(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.current_inode, d1_name, NULL,
 			&ut_efs_obj.current_inode, d2_name, NULL, NULL);
 
 	ut_assert_int_equal(rc, -EEXIST);
 
-	efs_unlink(ut_efs_obj.fs_ctx, &ut_efs_obj.cred, &d2_inode, NULL,
+	efs_unlink(ut_efs_obj.efs_fs, &ut_efs_obj.cred, &d2_inode, NULL,
 			d3_name);
 
-	efs_unlink(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	efs_unlink(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.current_inode, NULL, d2_name);
 
-	efs_unlink(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	efs_unlink(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.current_inode, NULL, d1_name);
 }
 

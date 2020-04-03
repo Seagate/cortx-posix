@@ -22,8 +22,9 @@
 #include <errno.h> /* ERANGE */
 #include <string.h> /* memcpy */
 #include <sys/xattr.h> /* XATTR_CREATE */
+#include "kvtree.h"
 
-int efs_setxattr(efs_ctx_t fs_ctx, const efs_cred_t *cred,
+int efs_setxattr(struct efs_fs *efs_fs, const efs_cred_t *cred,
 		 const efs_ino_t *ino, const char *name, char *value,
 		 size_t size, int flags)
 {
@@ -39,13 +40,14 @@ int efs_setxattr(efs_ctx_t fs_ctx, const efs_cred_t *cred,
 		goto out;
 	}
 
-	RC_WRAP_LABEL(rc, out, efs_access, fs_ctx, cred, ino,
+	RC_WRAP_LABEL(rc, out, efs_access, efs_fs, cred, ino,
 		      EFS_ACCESS_WRITE);
 
-	RC_WRAP_LABEL(rc, out, efs_ino_to_oid, fs_ctx, ino, &oid);
+	RC_WRAP_LABEL(rc, out, efs_ino_to_oid, efs_fs, ino, &oid);
 
 	if ((flags == XATTR_CREATE) || (flags == XATTR_REPLACE)) {
-		RC_WRAP_LABEL(rc, out, md_xattr_exists, fs_ctx,
+		RC_WRAP_LABEL(rc, out, md_xattr_exists, &(efs_fs->kvtree->index)
+		,
 			     (obj_id_t *)&oid, name, &xattr_exists);
 
 		if (flags ==  XATTR_CREATE && xattr_exists) {
@@ -62,16 +64,16 @@ int efs_setxattr(efs_ctx_t fs_ctx, const efs_cred_t *cred,
 		}
 	}
 
-	RC_WRAP_LABEL(rc, out, md_xattr_set, fs_ctx, (obj_id_t *)&oid, name,
+	RC_WRAP_LABEL(rc, out, md_xattr_set, &(efs_fs->kvtree->index), (obj_id_t *)&oid, name,
 		      value, size);
 
 out:
 	log_trace("ctx=%p *ino=%llu oid=%" PRIx64 ":%" PRIx64 " rc=%d name=%s val=%p size=%lu",
-		   fs_ctx, *ino, oid.f_hi, oid.f_lo, rc, name, value, size);
+		   efs_fs, *ino, oid.f_hi, oid.f_lo, rc, name, value, size);
 	return rc;
 }
 
-ssize_t efs_getxattr(efs_fs_ctx_t fs_ctx, efs_cred_t *cred,
+size_t efs_getxattr(struct efs_fs *efs_fs, efs_cred_t *cred,
 		     const efs_ino_t *ino, const char *name, char *value,
 		     size_t *size)
 {
@@ -80,12 +82,12 @@ ssize_t efs_getxattr(efs_fs_ctx_t fs_ctx, efs_cred_t *cred,
 	void *read_val = NULL;
 	size_t size_val;
 
-	RC_WRAP_LABEL(rc, out, efs_access, fs_ctx, cred, ino,
+	RC_WRAP_LABEL(rc, out, efs_access, efs_fs, cred, ino,
 		      EFS_ACCESS_READ);
 
-	RC_WRAP_LABEL(rc, out, efs_ino_to_oid, fs_ctx, ino, &oid);
+	RC_WRAP_LABEL(rc, out, efs_ino_to_oid, efs_fs, ino, &oid);
 
-	RC_WRAP_LABEL(rc, out, md_xattr_get, fs_ctx, (obj_id_t *)&oid, name,
+	RC_WRAP_LABEL(rc, out, md_xattr_get, &(efs_fs->kvtree->index), (obj_id_t *)&oid, name,
 		      &read_val, &size_val);
 
 	/* The caller/client wants to estimate the size of "value" */
@@ -105,7 +107,7 @@ ssize_t efs_getxattr(efs_fs_ctx_t fs_ctx, efs_cred_t *cred,
 
 out:
 	log_trace("ctx=%p *ino=%llu oid=%" PRIx64 ":%" PRIx64 " rc=%d name=%s"
-		   " val=%p size=%lu", fs_ctx, *ino, oid.f_hi, oid.f_lo, rc,
+		   " val=%p size=%lu", efs_fs, *ino, oid.f_hi, oid.f_lo, rc,
 		   name, read_val, size_val);
 	if (read_val != NULL) {
 		md_xattr_free(read_val);
@@ -114,32 +116,32 @@ out:
 
 }
 
-int efs_removexattr(efs_ctx_t fs_ctx, const efs_cred_t *cred,
+int efs_removexattr(struct efs_fs *efs_fs, const efs_cred_t *cred,
 		    const efs_ino_t *ino, const char *name)
 {
 	int rc;
 	dstore_oid_t oid;
 
-	RC_WRAP_LABEL(rc, out, efs_access, fs_ctx, cred, ino,
+	RC_WRAP_LABEL(rc, out, efs_access, efs_fs, cred, ino,
 		      EFS_ACCESS_WRITE);
 
-	RC_WRAP_LABEL(rc, out, efs_ino_to_oid, fs_ctx, ino, &oid);
+	RC_WRAP_LABEL(rc, out, efs_ino_to_oid, efs_fs, ino, &oid);
 
-	RC_WRAP_LABEL(rc, out, md_xattr_delete, fs_ctx, (obj_id_t *)&oid,
+	RC_WRAP_LABEL(rc, out, md_xattr_delete, &(efs_fs->kvtree->index), (obj_id_t *)&oid,
 		      name);
 
 out:
 	log_trace("ctx=%p *ino=%llu oid=%" PRIx64 ":%" PRIx64 " rc=%d name=%s",
-		   fs_ctx, *ino, oid.f_hi, oid.f_lo, rc, name);
+		   efs_fs, *ino, oid.f_hi, oid.f_lo, rc, name);
 	return rc;
 }
 
-int efs_remove_all_xattr(efs_ctx_t fs_ctx, efs_cred_t *cred, efs_ino_t *ino)
+int efs_remove_all_xattr(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *ino)
 {
 	return 0;
 }
 
-int efs_listxattr(efs_ctx_t fs_ctx, const efs_cred_t *cred,
+int efs_listxattr(struct efs_fs *efs_fs, const efs_cred_t *cred,
 		  const efs_ino_t *ino, void *buf, size_t *count,
 		  size_t *size)
 {
@@ -152,17 +154,17 @@ int efs_listxattr(efs_ctx_t fs_ctx, const efs_cred_t *cred,
 	dassert(count != NULL);
 	dassert(size != NULL);
 
-	RC_WRAP_LABEL(rc, out, efs_access, fs_ctx, cred, ino,
+	RC_WRAP_LABEL(rc, out, efs_access, efs_fs, cred, ino,
 		      EFS_ACCESS_READ);
 
-	RC_WRAP_LABEL(rc, out, efs_ino_to_oid, fs_ctx, ino, &oid);
+	RC_WRAP_LABEL(rc, out, efs_ino_to_oid, efs_fs, ino, &oid);
 
-	RC_WRAP_LABEL(rc, out, md_xattr_list, fs_ctx, (obj_id_t *)&oid, buf,
+	RC_WRAP_LABEL(rc, out, md_xattr_list, &(efs_fs->kvtree->index), (obj_id_t *)&oid, buf,
 		      count, size);
 
 out:
 	log_trace("ctx=%p *ino=%llu oid=%" PRIx64 ":%" PRIx64 " rc=%d",
-		   fs_ctx, *ino, oid.f_hi, oid.f_lo, rc);
+		   efs_fs, *ino, oid.f_hi, oid.f_lo, rc);
 	return rc;
 }
 

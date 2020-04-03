@@ -11,10 +11,8 @@
  */
 
 #include <kvstore.h>
-#include <efs.h>
-#include <efs_fh.h>
-#include <efs.h>
-#include <efs_fh.h>
+#include "efs.h"
+#include "efs_fh.h"
 #include <debug.h>
 #include <string.h> /* strcmp() */
 #include <str.h> /* str256_t */
@@ -22,7 +20,6 @@
 #include <common/helpers.h> /* RC_WRAP_LABEL */
 #include <common.h> /* unlikely */
 #include <common/log.h> /* log_err() */
-
 
 /**
  * A unique key to be used in containers (maps, sets).
@@ -34,7 +31,7 @@
  * since *_key names are used by keys stored in kvs.
  */
 struct efs_fh_key {
-	efs_ctx_t fs;
+	struct efs_fs *fs;
 	uint64_t file;
 };
 
@@ -42,7 +39,7 @@ struct efs_fh_key {
  * This is the efs file handle.
  */
 struct efs_fh {
-	efs_ctx_t fs;
+	struct efs_fs *fs;
 
 	/** Inode number of the FH.
 	 * TODO: will be be eliminated and stat->st_ino used instead
@@ -97,7 +94,7 @@ void efs_fh_init_key(struct efs_fh *fh)
 }
 
 /******************************************************************************/
-int efs_fh_from_ino(efs_ctx_t fs, const efs_ino_t *ino_num,
+int efs_fh_from_ino(struct efs_fs *fs, const efs_ino_t *ino_num,
 		    const struct stat *stat, struct efs_fh **fh)
 {
 	int rc;
@@ -192,7 +189,7 @@ struct stat *efs_fh_stat(struct efs_fh *fh)
 	return fh->stat;
 }
 
-int efs_fh_getroot(efs_ctx_t fs, const efs_cred_t *cred, struct efs_fh **pfh)
+int efs_fh_getroot(struct efs_fs *fs, const efs_cred_t *cred, struct efs_fh **pfh)
 {
 	int rc;
 	struct efs_fh *fh = NULL;
@@ -233,7 +230,7 @@ out:
 	return rc;
 }
 
-int efs_fh_deserialize(efs_ctx_t fs,
+int efs_fh_deserialize(struct efs_fs *fs,
 		       const efs_cred_t *cred,
 		       const void* buffer, size_t buffer_size,
 		       struct efs_fh** pfh)

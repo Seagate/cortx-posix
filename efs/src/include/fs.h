@@ -95,12 +95,12 @@ void efs_fs_get_name(const struct efs_fs *fs, str256_t **name);
  *
  * @return 0 if successful, a negative "-errno" value in case of failure
  */
-int efs_fs_open(const char *fs_name, struct kvs_idx *index);
+int efs_fs_open(const char *fs_name, struct efs_fs **fs);
 
 /**
  * High level API: Close a fs context.
  * @param fs_ctx: fs_ctx to be finalized
  */
-void efs_fs_close(efs_fs_ctx_t fs_ctx);
+void efs_fs_close(struct efs_fs *efs_fs);
 
 #endif /* _FS_H_ */
