@@ -21,8 +21,9 @@
 #include <common/log.h> /* log_* */
 #include <common/helpers.h> /* RC_* */
 #include <sys/param.h> /* DEV_SIZE */
+#include "kvtree.h"
 
-int efs_creat(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *parent,
+int efs_creat(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *parent,
 	      char *name, mode_t mode, efs_ino_t *newfile)
 {
 	dstore_oid_t  oid;
@@ -33,21 +34,21 @@ int efs_creat(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *parent,
 	log_trace("ENTER: parent=%p name=%s file=%p mode=0x%X",
 		  parent, name, newfile, mode);
 
-	RC_WRAP(efs_access, ctx, cred, parent, EFS_ACCESS_WRITE);
+	RC_WRAP(efs_access, efs_fs, cred, parent, EFS_ACCESS_WRITE);
 	/* Create tree entries, get new inode */
-	RC_WRAP(efs_create_entry, ctx, cred, parent, name, NULL,
+	RC_WRAP(efs_create_entry, efs_fs, cred, parent, name, NULL,
 		mode, newfile, EFS_FT_FILE);
 	/* Get new unique extstore kfid */
 	RC_WRAP(dstore_get_new_objid, dstore, &oid);
 	/* Set the ino-kfid key-val in kvs */
-	RC_WRAP(efs_set_ino_oid, ctx, newfile, &oid);
+	RC_WRAP(efs_set_ino_oid, efs_fs, newfile, &oid);
 	/* Create the backend object with passed kfid */
-	RC_WRAP(dstore_obj_create, dstore, ctx, &oid);
+	RC_WRAP(dstore_obj_create, dstore, efs_fs, &oid);
 	log_trace("EXIT");
 	return 0;
 }
 
-int efs_creat_ex(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *parent,
+int efs_creat_ex(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *parent,
 		 char *name, mode_t mode, struct stat *stat_in,
 		 int stat_in_flags, efs_ino_t *newfile,
 		 struct stat *stat_out)
@@ -59,7 +60,7 @@ int efs_creat_ex(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *parent,
 
 	dassert(kvstor);
 
-	index.index_priv = ctx;
+	index = efs_fs->kvtree->index;
 
 	/* NOTE: The following operations must be done within a single
 	 * transaction.
@@ -67,11 +68,11 @@ int efs_creat_ex(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *parent,
 
 	RC_WRAP(kvs_begin_transaction, kvstor, &index);
 
-	RC_WRAP_LABEL(rc, out, efs_creat, ctx, cred, parent, name,
+	RC_WRAP_LABEL(rc, out, efs_creat, efs_fs, cred, parent, name,
 		      mode, &object);
-	RC_WRAP_LABEL(rc, out, efs_setattr, ctx, cred, &object, stat_in,
+	RC_WRAP_LABEL(rc, out, efs_setattr, efs_fs, cred, &object, stat_in,
 		      stat_in_flags);
-	RC_WRAP_LABEL(rc, out, efs_getattr, ctx, cred, &object, stat_out);
+	RC_WRAP_LABEL(rc, out, efs_getattr, efs_fs, cred, &object, stat_out);
 
 	RC_WRAP(kvs_end_transaction, kvstor, &index);
 
@@ -83,13 +84,13 @@ out:
 		/* We don't have transactions, so that let's just remove the
 		 * object.
 		 */
-		(void) efs_unlink(ctx, cred, parent, &object, name);
+		(void) efs_unlink(efs_fs, cred, parent, &object, name);
 		(void) kvs_discard_transaction(kvstor, &index);
 	}
 	return rc;
 }
 
-ssize_t efs_write(efs_ctx_t ctx, efs_cred_t *cred, efs_file_open_t *fd,
+ssize_t efs_write(struct efs_fs *efs_fs, efs_cred_t *cred, efs_file_open_t *fd,
 		  void *buf, size_t count, off_t offset)
 {
 	int rc;
@@ -106,9 +107,11 @@ ssize_t efs_write(efs_ctx_t ctx, efs_cred_t *cred, efs_file_open_t *fd,
 
 	memset(&wstat, 0, sizeof(wstat));
 
-	RC_WRAP_LABEL(rc, out, efs_ino_to_oid, ctx, &fd->ino, &oid);
+	RC_WRAP_LABEL(rc, out, efs_ino_to_oid, efs_fs, &fd->ino, &oid);
 
-	RC_WRAP(efs_access, ctx, cred, &fd->ino, EFS_ACCESS_WRITE);
+	RC_WRAP(efs_access, efs_fs, cred, &fd->ino, EFS_ACCESS_WRITE);
+
+	void *ctx = efs_fs->kvtree->index.index_priv;
 	write_amount = dstore_obj_write(dstore, ctx, &oid, offset,
 					count, buf, &stable,
 					&wstat);
@@ -117,7 +120,7 @@ ssize_t efs_write(efs_ctx_t ctx, efs_cred_t *cred, efs_file_open_t *fd,
 		goto out;
 	}
 
-	RC_WRAP(efs_getattr, ctx, cred, &fd->ino, &stat);
+	RC_WRAP(efs_getattr, efs_fs, cred, &fd->ino, &stat);
 	if (wstat.st_size > stat.st_size) {
 		stat.st_size = wstat.st_size;
 		stat.st_blocks = wstat.st_blocks;
@@ -125,14 +128,14 @@ ssize_t efs_write(efs_ctx_t ctx, efs_cred_t *cred, efs_file_open_t *fd,
 	stat.st_mtim = wstat.st_mtim;
 	stat.st_ctim = wstat.st_ctim;
 
-	RC_WRAP(efs_set_stat, ctx, &fd->ino, &stat);
+	RC_WRAP(efs_set_stat, efs_fs, &fd->ino, &stat);
 	rc = write_amount;
 out:
 	log_trace("EXIT rc=%d", rc);
 	return rc;
 }
 
-int efs_truncate(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *ino,
+int efs_truncate(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *ino,
 		 struct stat *new_stat, int new_stat_flags)
 {
 	int rc;
@@ -146,7 +149,7 @@ int efs_truncate(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *ino,
 	dassert((new_stat_flags & STAT_SIZE_SET) != 0);
 
 	/* TODO:PERF: The caller can pass the current size */
-	RC_WRAP_LABEL(rc, out, efs_getattr, ctx, cred, ino, &stat);
+	RC_WRAP_LABEL(rc, out, efs_getattr, efs_fs, cred, ino, &stat);
 
 	old_size = stat.st_size;
 	new_size = new_stat->st_size;
@@ -162,19 +165,19 @@ int efs_truncate(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *ino,
 		new_stat_flags |= (STAT_MTIME_SET | STAT_CTIME_SET);
 	}
 
-	RC_WRAP_LABEL(rc, out, efs_setattr, ctx, cred, ino, new_stat,
+	RC_WRAP_LABEL(rc, out, efs_setattr, efs_fs, cred, ino, new_stat,
 		      new_stat_flags);
 
 
-	RC_WRAP_LABEL(rc, out, efs_ino_to_oid, ctx, ino, &oid);
-	RC_WRAP_LABEL(rc, out, dstore_obj_resize, dstore, ctx,
+	RC_WRAP_LABEL(rc, out, efs_ino_to_oid, efs_fs, ino, &oid);
+	RC_WRAP_LABEL(rc, out, dstore_obj_resize, dstore, efs_fs,
 		      &oid, old_size, new_size);
 
 out:
 	return rc;
 }
 
-ssize_t efs_read(efs_ctx_t ctx, efs_cred_t *cred, efs_file_open_t *fd,
+ssize_t efs_read(struct efs_fs *efs_fs, efs_cred_t *cred, efs_file_open_t *fd,
 		 void *buf, size_t count, off_t offset)
 {
 	int rc;
@@ -188,16 +191,18 @@ ssize_t efs_read(efs_ctx_t ctx, efs_cred_t *cred, efs_file_open_t *fd,
 
 	log_trace("ENTER: ino=%llu fd=%p count=%lu offset=%ld", fd->ino, fd, count, (long)offset);
 
-	RC_WRAP_LABEL(rc, out, efs_ino_to_oid, ctx, &fd->ino, &oid);
-	RC_WRAP(efs_getattr, ctx, cred, &fd->ino, &stat);
-	RC_WRAP(efs_access, ctx, cred, &fd->ino, EFS_ACCESS_READ);
+	RC_WRAP_LABEL(rc, out, efs_ino_to_oid, efs_fs, &fd->ino, &oid);
+	RC_WRAP(efs_getattr, efs_fs, cred, &fd->ino, &stat);
+	RC_WRAP(efs_access, efs_fs, cred, &fd->ino, EFS_ACCESS_READ);
+	
+	void *ctx = efs_fs->kvtree->index.index_priv;
 	read_amount = dstore_obj_read(dstore, ctx, &oid, offset,
 				      count, buf, &eof, &stat);
 	if (read_amount < 0) {
 		rc = read_amount;
 		goto out;
 	}
-	RC_WRAP(efs_set_stat, ctx, &fd->ino, &stat);
+	RC_WRAP(efs_set_stat, efs_fs, &fd->ino, &stat);
 	rc = read_amount;
 out:
 	log_trace("EXIT rc=%d", rc);

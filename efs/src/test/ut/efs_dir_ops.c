@@ -63,11 +63,11 @@ static void readdir_root_dir(void)
 		.index = 0,
 	}};
 
-	rc = efs_mkdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred, &root_inode,
+	rc = efs_mkdir(ut_efs_obj.efs_fs, &ut_efs_obj.cred, &root_inode,
 			dir_name, 0755, &dir_inode);
 	ut_assert_int_equal(rc, 0);
 
-	rc = efs_readdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred, &root_inode,
+	rc = efs_readdir(ut_efs_obj.efs_fs, &ut_efs_obj.cred, &root_inode,
 				test_readdir_cb, readdir_ctx);
 	ut_assert_int_equal(rc, 0);
 
@@ -77,7 +77,7 @@ static void readdir_root_dir(void)
 
 	ut_assert_int_equal(rc, 0);
 
-	rc = efs_rmdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred, &root_inode,
+	rc = efs_rmdir(ut_efs_obj.efs_fs, &ut_efs_obj.cred, &root_inode,
 			dir_name);
 
 	assert_int_equal(rc, 0);
@@ -112,17 +112,17 @@ static void readdir_sub_dir(void)
 		.index = 0,
 	}};
 
-	rc = efs_mkdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_mkdir(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.current_inode, sub_dir, 0755, &sub_dir_inode);
 
 	ut_assert_int_equal(rc, 0);
 
-	rc = efs_mkdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred, &sub_dir_inode,
+	rc = efs_mkdir(ut_efs_obj.efs_fs, &ut_efs_obj.cred, &sub_dir_inode,
 			inner_dir_name, 0755, &inner_dir_inode);
 
 	ut_assert_int_equal(rc, 0);
 
-	rc = efs_readdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred, &sub_dir_inode,
+	rc = efs_readdir(ut_efs_obj.efs_fs, &ut_efs_obj.cred, &sub_dir_inode,
 				test_readdir_cb, readdir_ctx);
 	ut_assert_int_equal(entry_cnt, 1);
 
@@ -130,12 +130,12 @@ static void readdir_sub_dir(void)
 
 	ut_assert_int_equal(rc, 0);
 
-	rc = efs_rmdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred, &sub_dir_inode,
+	rc = efs_rmdir(ut_efs_obj.efs_fs, &ut_efs_obj.cred, &sub_dir_inode,
 			inner_dir_name);
 
 	assert_int_equal(rc, 0);
 
-	rc = efs_rmdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_rmdir(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.parent_inode, sub_dir);
 
 	assert_int_equal(rc, 0);
@@ -173,19 +173,19 @@ static void readdir_file_and_dir(void)
 		.index = 0,
 	}};
 
-	rc = efs_creat(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_creat(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.parent_inode, file_dir_name[0], 0755,
 			&file_inode);
 
 	ut_assert_int_equal(rc, 0);
 
-	rc = efs_mkdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_mkdir(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.parent_inode, file_dir_name[1], 0755,
 			&dir_inode);
 
 	ut_assert_int_equal(rc, 0);
 
-	rc = efs_readdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_readdir(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.parent_inode, test_readdir_cb, readdir_ctx);
 
 	ut_assert_int_equal(entry_cnt, 2);
@@ -198,12 +198,12 @@ static void readdir_file_and_dir(void)
 		ut_assert_int_equal(rc, 0);
 	}
 
-	rc = efs_unlink(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_unlink(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.parent_inode, NULL, file_dir_name[0]);
 
 	assert_int_equal(rc, 0);
 
-	rc = efs_rmdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_rmdir(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.parent_inode, file_dir_name[1]);
 
 	assert_int_equal(rc, 0);
@@ -235,19 +235,19 @@ static void readdir_empty_dir(void)
 		.index = 0,
 	}};
 
-	rc = efs_mkdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_mkdir(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.current_inode, dir_name, 0755, &dir_inode);
 
 	ut_assert_int_equal(rc, 0);
 
-	rc = efs_readdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred, &dir_inode,
+	rc = efs_readdir(ut_efs_obj.efs_fs, &ut_efs_obj.cred, &dir_inode,
 				test_readdir_cb, readdir_ctx);
 
 	ut_assert_int_equal(rc, 0);
 
 	ut_assert_int_equal(entry_cnt, 0);
 
-	rc = efs_rmdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_rmdir(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.parent_inode, dir_name);
 
 	assert_int_equal(rc, 0);
@@ -291,7 +291,7 @@ static void readdir_multiple_dir(void)
 		.index = 0,
 	}};
 
-	rc = efs_mkdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_mkdir(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.current_inode, dir_name, 0755, &dir_inode);
 
 	ut_assert_int_equal(rc, 0);
@@ -299,12 +299,12 @@ static void readdir_multiple_dir(void)
 	int i;
 	for (i = 0; i<8; i ++) {
 
-		rc = efs_mkdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred, &dir_inode,
+		rc = efs_mkdir(ut_efs_obj.efs_fs, &ut_efs_obj.cred, &dir_inode,
 				inner_dir_name[i], 0755, &inner_dir_inode);
 		ut_assert_int_equal(rc, 0);
 	}
 
-	rc = efs_readdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred, &dir_inode,
+	rc = efs_readdir(ut_efs_obj.efs_fs, &ut_efs_obj.cred, &dir_inode,
 				test_readdir_cb, readdir_ctx);
 
 	ut_assert_int_equal(entry_cnt, 8);
@@ -319,12 +319,12 @@ static void readdir_multiple_dir(void)
 	}
 
 	for (i = 0; i<8; i ++) {
-		rc = efs_rmdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred, &dir_inode,
+		rc = efs_rmdir(ut_efs_obj.efs_fs, &ut_efs_obj.cred, &dir_inode,
 				inner_dir_name[i]);
 		assert_int_equal(rc, 0);
 	}
 
-	rc = efs_rmdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_rmdir(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.parent_inode, dir_name);
 
 	assert_int_equal(rc, 0);
@@ -351,22 +351,22 @@ static void create_dir(void)
 
 	efs_ino_t dir_inode = 0LL;
 
-	rc = efs_lookup(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_lookup(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.parent_inode, dir_name, &dir_inode);
 
 	ut_assert_int_not_equal(rc, 0);
 
-	rc = efs_mkdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_mkdir(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.current_inode, dir_name, 0755, &dir_inode);
 
 	ut_assert_int_equal(rc, 0);
 
-	rc = efs_lookup(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_lookup(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.parent_inode, dir_name, &dir_inode);
 
 	ut_assert_int_equal(rc, 0);
 
-	rc = efs_rmdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_rmdir(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.parent_inode, dir_name);
 
 	assert_int_equal(rc, 0);
@@ -393,27 +393,27 @@ static void create_exist_dir(void)
 
 	efs_ino_t dir_inode = 0LL;
 
-	rc = efs_lookup(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_lookup(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.parent_inode, dir_name, &dir_inode);
 
 	ut_assert_int_not_equal(rc, 0);
 
-	rc = efs_mkdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_mkdir(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.current_inode, dir_name, 0755, &dir_inode);
 
 	ut_assert_int_equal(rc, 0);
 
-	rc = efs_lookup(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_lookup(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.parent_inode, dir_name, &dir_inode);
 
 	ut_assert_int_equal(rc, 0);
 
-	rc = efs_mkdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_mkdir(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.current_inode, dir_name, 0755, &dir_inode);
 
 	ut_assert_int_equal(rc, -EEXIST);
 
-	rc = efs_rmdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_rmdir(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.parent_inode, dir_name);
 
 	assert_int_equal(rc, 0);
@@ -445,22 +445,22 @@ static void create_longname255_dir(void)
 
 	ut_assert_int_equal(255, strlen(dir_name));
 
-	rc = efs_lookup(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_lookup(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.parent_inode, dir_name, &dir_inode);
 
 	ut_assert_int_not_equal(rc, 0);
 
-	rc = efs_mkdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_mkdir(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.current_inode, dir_name, 0755, &dir_inode);
 
 	ut_assert_int_equal(rc, 0);
 
-	rc = efs_lookup(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_lookup(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.parent_inode, dir_name, &dir_inode);
 
 	ut_assert_int_equal(rc, 0);
 
-	rc = efs_rmdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_rmdir(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.parent_inode, dir_name);
 
 	assert_int_equal(rc, 0);
@@ -482,7 +482,7 @@ static void create_current_dir(void)
 
 	efs_ino_t dir_inode = 0LL;
 
-	rc = efs_mkdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_mkdir(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.current_inode, dir_name, 0755, &dir_inode);
 
 	ut_assert_int_equal(rc, -EEXIST);
@@ -504,7 +504,7 @@ void create_parent_dir(void)
 
 	efs_ino_t dir_inode = 0LL;
 
-	rc = efs_mkdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_mkdir(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.current_inode, dir_name, 0755, &dir_inode);
 
 	ut_assert_int_equal(rc, -EEXIST);
@@ -526,7 +526,7 @@ static void create_root_dir(void)
 
 	efs_ino_t dir_inode = 0LL;
 
-	rc = efs_mkdir(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_mkdir(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.current_inode, dir_name, 0755, &dir_inode);
 
 	ut_assert_int_equal(rc, -EEXIST);

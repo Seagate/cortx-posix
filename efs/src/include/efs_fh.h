@@ -154,7 +154,7 @@ struct stat *efs_fh_stat(struct efs_fh *fh);
 int efs_fh_serialize(const struct efs_fh *fh, void* buffer, size_t max_size);
 
 /** Creates a new in-memory file handle from a serialized file handle */
-int efs_fh_deserialize(efs_ctx_t fs_ctx, const efs_cred_t *cred,
+int efs_fh_deserialize(struct efs_fs *fs_ctx, const efs_cred_t *cred,
 		       const void* buffer, size_t buffer_size,
 		       struct efs_fh** pfh);
 
@@ -213,7 +213,7 @@ int efs_fh_lookup(const efs_cred_t *cred, struct efs_fh *fh, const char *name,
  *	1. `fs` parameter type should be changed to `kvsns_fs_t` when
  *	the corresponding module is finished.
  */
-int efs_fh_getroot(efs_ctx_t fs, const efs_cred_t *cred, struct efs_fh **pfh);
+int efs_fh_getroot(struct efs_fs *fs, const efs_cred_t *cred, struct efs_fh **pfh);
 
 /******************************************************************************/
 /* Compatibility layer */
@@ -229,7 +229,7 @@ int efs_fh_getroot(efs_ctx_t fs, const efs_cred_t *cred, struct efs_fh **pfh);
  * @param[out] pfh - Pointer the created FH object.
  * @return 0 or -errno.
  */
-int efs_fh_from_ino(efs_ctx_t fs, const efs_ino_t *ino_num,
+int efs_fh_from_ino(struct efs_fs *fs, const efs_ino_t *ino_num,
 		    const struct stat *stat, struct efs_fh **fh);
 
 /* A temporary function to be used for serialization until kvsns_fh_get_fsid

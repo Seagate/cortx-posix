@@ -27,7 +27,7 @@
 #define DEFAULT_CONFIG "/etc/efs/efs.conf"
 
 struct ut_efs_params {
-	efs_fs_ctx_t fs_ctx;
+	struct efs_fs *efs_fs;
 	efs_cred_t cred;
 	efs_ino_t file_inode, current_inode, parent_inode;
 	struct kvstore *kvstor;

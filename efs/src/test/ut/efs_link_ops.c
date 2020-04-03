@@ -36,7 +36,7 @@ static void create_symlink(void)
 
 	efs_ino_t link_inode = 0LL;
 
-	rc = efs_symlink(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_symlink(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 				&ut_efs_obj.current_inode, link_name,
 				symlink_content, &link_inode);
 
@@ -45,7 +45,7 @@ static void create_symlink(void)
 	char buff[100];
 	size_t content_size = 100;
 
-	rc = efs_readlink(ut_efs_obj.fs_ctx, &ut_efs_obj.cred, &link_inode,
+	rc = efs_readlink(ut_efs_obj.efs_fs, &ut_efs_obj.cred, &link_inode,
 				buff, &content_size);
 
 	ut_assert_int_equal(rc, 0);
@@ -56,7 +56,7 @@ static void create_symlink(void)
 
 	ut_assert_int_equal(rc, 0);
 
-	rc = efs_unlink(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_unlink(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.current_inode, NULL, link_name);
 
 	ut_assert_int_equal(rc, 0);
@@ -89,7 +89,7 @@ static void create_longname255_symlink(void)
 
 	ut_assert_int_equal(255, strlen(long_name));
 
-	rc = efs_symlink(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_symlink(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 				&ut_efs_obj.current_inode, long_name,
 				symlink_content, &link_inode);
 
@@ -98,7 +98,7 @@ static void create_longname255_symlink(void)
 	char buff[100];
 	size_t content_size = 100;
 
-	rc = efs_readlink(ut_efs_obj.fs_ctx, &ut_efs_obj.cred, &link_inode,
+	rc = efs_readlink(ut_efs_obj.efs_fs, &ut_efs_obj.cred, &link_inode,
 				buff, &content_size);
 
 	ut_assert_int_equal(rc, 0);
@@ -109,7 +109,7 @@ static void create_longname255_symlink(void)
 
 	ut_assert_int_equal(rc, 0);
 
-	rc = efs_unlink(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_unlink(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.current_inode, NULL, long_name);
 
 	ut_assert_int_equal(rc, 0);
@@ -140,13 +140,13 @@ static void create_hardlink(void)
 	time_t cur_time;
 	time(&cur_time);
 
-	rc = efs_link(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_link(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.file_inode, &ut_efs_obj.current_inode,
 			link_name);
 
 	ut_assert_int_equal(rc, 0);
 
-	rc = efs_lookup(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_lookup(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.current_inode, link_name,
 			&file_inode);
 
@@ -154,7 +154,7 @@ static void create_hardlink(void)
 
 	ut_assert_int_equal(ut_efs_obj.file_inode, file_inode);
 
-	rc = efs_getattr(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_getattr(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.file_inode, &stat_out);
 
 	ut_assert_int_equal(rc, 0);
@@ -165,7 +165,7 @@ static void create_hardlink(void)
 		ut_assert_true(0);
 	} 
 
-	rc = efs_unlink(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_unlink(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.current_inode, NULL, link_name);
 
 	ut_assert_int_equal(rc, 0);
@@ -202,13 +202,13 @@ static void create_longname255_hardlink(void)
 
 	ut_assert_int_equal(255, strlen(long_name));
 
-	rc = efs_link(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_link(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.file_inode, &ut_efs_obj.current_inode,
 			long_name);
 
 	ut_assert_int_equal(rc, 0);
 
-	rc = efs_lookup(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_lookup(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.current_inode, long_name,
 			&file_inode);
 
@@ -216,7 +216,7 @@ static void create_longname255_hardlink(void)
 
 	ut_assert_int_equal(ut_efs_obj.file_inode, file_inode);
 
-	rc = efs_getattr(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_getattr(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.file_inode, &stat_out);
 
 	ut_assert_int_equal(rc, 0);
@@ -227,7 +227,7 @@ static void create_longname255_hardlink(void)
 		ut_assert_true(0);
 	} 
 
-	rc = efs_unlink(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_unlink(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.current_inode, NULL, long_name);
 
 	ut_assert_int_equal(rc, 0);
@@ -259,24 +259,24 @@ static void create_hardlink_delete_original(void)
 
 	time_t cur_time;
 
-	rc = efs_creat(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_creat(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.current_inode, file_name, 0755, &file_inode);
 
 	ut_assert_int_equal(rc, 0);
 
-	rc = efs_link(ut_efs_obj.fs_ctx, &ut_efs_obj.cred, &file_inode,
+	rc = efs_link(ut_efs_obj.efs_fs, &ut_efs_obj.cred, &file_inode,
 			&ut_efs_obj.current_inode, link_name);
 
 	ut_assert_int_equal(rc, 0);
 
-	rc = efs_lookup(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_lookup(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.current_inode, link_name, &link_inode);
 
 	ut_assert_int_equal(rc, 0);
 
 	ut_assert_int_equal(file_inode, link_inode);
 
-	rc = efs_unlink(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_unlink(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.current_inode, NULL, file_name);
 
 	ut_assert_int_equal(rc, 0);
@@ -286,7 +286,7 @@ static void create_hardlink_delete_original(void)
 	struct stat stat_out;
 	memset(&stat_out, 0, sizeof(stat_out));
 
-	rc = efs_getattr(ut_efs_obj.fs_ctx, &ut_efs_obj.cred, &file_inode,
+	rc = efs_getattr(ut_efs_obj.efs_fs, &ut_efs_obj.cred, &file_inode,
 				&stat_out);
 
 	ut_assert_int_equal(rc, 0);
@@ -297,7 +297,7 @@ static void create_hardlink_delete_original(void)
 		ut_assert_true(0);
 	}
 
-	rc = efs_unlink(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_unlink(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.current_inode, NULL, link_name);
 
 	ut_assert_int_equal(rc, 0);
@@ -325,12 +325,12 @@ static void create_hardlink_delete_link(void)
 
 	efs_ino_t file_inode = 0LL;
 
-	rc = efs_link(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_link(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.file_inode, &ut_efs_obj.current_inode,
 			link_name);
 	ut_assert_int_equal(rc, 0);
 
-	rc = efs_lookup(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_lookup(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.current_inode, link_name, &file_inode);
 
 	ut_assert_int_equal(rc, 0);
@@ -339,7 +339,7 @@ static void create_hardlink_delete_link(void)
 
 	time(&cur_time);
 
-	rc = efs_unlink(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_unlink(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.current_inode, NULL, link_name);
 
 	ut_assert_int_equal(rc, 0);
@@ -347,7 +347,7 @@ static void create_hardlink_delete_link(void)
 	struct stat stat_out;
 	memset(&stat_out, '0', sizeof(stat_out));
 
-	rc = efs_getattr(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_getattr(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 				&ut_efs_obj.file_inode, &stat_out);
 
 	ut_assert_int_equal(rc, 0);
@@ -377,7 +377,7 @@ int main(void)
 
 	ut_efs_obj.file_name = "test_hardlink_file";
 
-	rc = efs_creat(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_creat(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.current_inode, ut_efs_obj.file_name, 0755,
 			&ut_efs_obj.file_inode);
 	if (rc) {
@@ -399,7 +399,7 @@ int main(void)
 
 	test_failed = ut_run(test_list, test_count);
 
-	rc = efs_unlink(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_unlink(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.current_inode, NULL, ut_efs_obj.file_name);
 
 	if (rc) {

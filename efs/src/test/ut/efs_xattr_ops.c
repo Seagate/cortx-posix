@@ -34,7 +34,7 @@ static void set_nonexist_xattr(void)
 	char *xattr_name = "set.nonexist.xattr", *xattr_val = "1234567890";
 	size_t val_size = strlen(xattr_val), get_val_size = XATTR_VAL_SIZE_MAX;
 
-	rc = efs_setxattr(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_setxattr(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 				&ut_efs_obj.file_inode, xattr_name, xattr_val,
 				val_size, XATTR_CREATE);
 
@@ -42,7 +42,7 @@ static void set_nonexist_xattr(void)
 
 	char buf[XATTR_VAL_SIZE_MAX] = {0};
 
-	rc = efs_getxattr(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_getxattr(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 				&ut_efs_obj.file_inode, xattr_name, buf,
 				&get_val_size);
 
@@ -70,13 +70,13 @@ static void set_exist_xattr(void)
 		*xattr_new_val = strdup(xattr_val);
 	size_t val_size = strlen(xattr_val);
 
-	rc = efs_setxattr(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_setxattr(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 				&ut_efs_obj.file_inode, xattr_name, xattr_val,
 				val_size, XATTR_CREATE);
 
 	ut_assert_int_equal(rc, 0);
 
-	rc = efs_setxattr(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_setxattr(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 				&ut_efs_obj.file_inode, xattr_name,
 				xattr_new_val, val_size, XATTR_CREATE);
 
@@ -98,7 +98,7 @@ static void replace_nonexist_xattr(void)
 	char *xattr_name = "replace.nonexist.xattr", *xattr_val = "123456789";
 	size_t val_size = strlen(xattr_val);
 
-	rc = efs_setxattr(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_setxattr(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 				&ut_efs_obj.file_inode, xattr_name, xattr_val,
 				val_size, XATTR_REPLACE);
 
@@ -125,13 +125,13 @@ static void replace_exist_xattr(void)
 
 	size_t val_size = strlen(xattr_val), get_val_size = XATTR_VAL_SIZE_MAX;
 
-	rc = efs_setxattr(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_setxattr(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 				&ut_efs_obj.file_inode, xattr_name, xattr_val,
 				val_size, XATTR_CREATE);
 
 	ut_assert_int_equal(rc, 0);
 
-	rc = efs_setxattr(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_setxattr(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 				&ut_efs_obj.file_inode, xattr_name,
 				xattr_new_val, val_size, XATTR_REPLACE);
 
@@ -139,7 +139,7 @@ static void replace_exist_xattr(void)
 
 	char buf[XATTR_VAL_SIZE_MAX] = {0};
 
-	rc = efs_getxattr(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_getxattr(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 				&ut_efs_obj.file_inode, xattr_name, buf,
 				&get_val_size);
 
@@ -167,7 +167,7 @@ static void get_exist_xattr(void)
 	char *xattr_name = "get.exist.xattr", *xattr_set_val = "1234567890";
 	size_t xattr_set_size = strlen(xattr_set_val);
 
-	rc = efs_setxattr(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_setxattr(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 				&ut_efs_obj.file_inode, xattr_name,
 				xattr_set_val, xattr_set_size, XATTR_CREATE);
 
@@ -176,7 +176,7 @@ static void get_exist_xattr(void)
 	char xattr_val[XATTR_VAL_SIZE_MAX] = {0};
 	size_t val_size = XATTR_VAL_SIZE_MAX;
 
-	val_size = efs_getxattr(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	val_size = efs_getxattr(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 				&ut_efs_obj.file_inode, xattr_name, xattr_val,
 				&val_size);
 
@@ -204,7 +204,7 @@ static void get_nonexist_xattr(void)
 	char xattr_val[XATTR_VAL_SIZE_MAX] = {0};
 	size_t val_size = XATTR_VAL_SIZE_MAX;
 
-	rc = efs_getxattr(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_getxattr(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 				&ut_efs_obj.file_inode, xattr_name, xattr_val,
 				&val_size);
 
@@ -229,12 +229,12 @@ static void remove_exist_xattr(void)
 	char *xattr_name = "remove.exist.xattr", *xattr_set_val = "1234567890";
 	size_t xattr_set_size = strlen(xattr_set_val);
 
-	rc = efs_setxattr(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_setxattr(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 				&ut_efs_obj.file_inode, xattr_name,
 				xattr_set_val, xattr_set_size, XATTR_CREATE);
 	ut_assert_int_equal(rc, 0);
 
-	rc = efs_removexattr(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_removexattr(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 				&ut_efs_obj.file_inode, xattr_name);
 
 	ut_assert_int_equal(rc, 0);
@@ -242,7 +242,7 @@ static void remove_exist_xattr(void)
 	char xattr_val[XATTR_VAL_SIZE_MAX] = {0};
 	size_t val_size = XATTR_VAL_SIZE_MAX;
 
-	rc = efs_getxattr(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_getxattr(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 				&ut_efs_obj.file_inode, xattr_name, xattr_val,
 				&val_size);
 
@@ -263,7 +263,7 @@ static void remove_nonexist_xattr(void)
 	int rc = 0;
 	char *xattr_name = "remove.nonexist.xattr";
 
-	rc = efs_removexattr(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_removexattr(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 				&ut_efs_obj.file_inode, xattr_name);
 
 	ut_assert_int_equal(rc, -ENOENT);
@@ -291,7 +291,7 @@ static void listxattr_test(void)
 					strlen(xattr_set_val[1])};
 	efs_ino_t file_inode = 0LL;
 
-	rc = efs_creat(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_creat(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.current_inode, file_name, 0755, &file_inode);
 
 	ut_assert_int_equal(rc, 0);
@@ -299,7 +299,7 @@ static void listxattr_test(void)
 	int i, xattr_set_cnt = sizeof(xattr_set_size)/sizeof(xattr_set_size[0]);
 
 	for (i = 0; i<xattr_set_cnt; i ++) {
-		rc = efs_setxattr(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+		rc = efs_setxattr(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 					&file_inode, xattr_name[i],
 					xattr_set_val[i], xattr_set_size[i],
 					XATTR_CREATE);
@@ -312,7 +312,7 @@ static void listxattr_test(void)
 
 	buf = malloc(buf_size * sizeof(*buf));
 
-	rc = efs_listxattr(ut_efs_obj.fs_ctx, &ut_efs_obj.cred, &file_inode,
+	rc = efs_listxattr(ut_efs_obj.efs_fs, &ut_efs_obj.cred, &file_inode,
 				buf, &count, &buf_size);
 
 	ut_assert_int_equal(rc, 0);
@@ -332,7 +332,7 @@ static void listxattr_test(void)
 		p++;
 	}
 
-	efs_unlink(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	efs_unlink(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.current_inode, NULL, file_name);
 }
 
@@ -358,7 +358,7 @@ int main(void)
 
 	ut_efs_obj.file_inode = 0LL;
 
-	rc = efs_creat(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_creat(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.current_inode, ut_efs_obj.file_name, 0755,
 			&ut_efs_obj.file_inode);
 	if (rc) {
@@ -383,7 +383,7 @@ int main(void)
 
 	test_failed = ut_run(test_list, test_count);
 
-	efs_unlink(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	efs_unlink(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.current_inode, NULL, ut_efs_obj.file_name);
 
 	ut_efs_fs_teardown();

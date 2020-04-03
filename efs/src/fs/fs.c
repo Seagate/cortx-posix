@@ -19,13 +19,10 @@
 #include "common/helpers.h" /* RC_WRAP_LABEL */
 #include "common/log.h" /* logging */
 #include <eos/eos_kvstore.h> /* remove this */
+#include "kvtree.h"
+#include "kvnode.h"
 
 /*data types*/
-
-/*fs object*/
-struct efs_fs {
-	struct namespace *ns; /*namespace object*/
-};
 
 /*fs node : in memory data structure.*/
 struct efs_fs_node {
@@ -86,6 +83,9 @@ void fs_ns_scan_cb(struct namespace *ns, size_t ns_size)
 	}
 
 	memcpy(fs_node->efs_fs.ns, ns, ns_size);
+
+	fs_node->efs_fs.kvtree = NULL;
+
 	LIST_INSERT_HEAD(&fs_list, fs_node, link);
 }
 
@@ -127,9 +127,6 @@ int efs_fs_create(const str256_t *fs_name)
         int rc = 0;
 	struct namespace *ns;
 	struct efs_fs_node *fs_node;
-	kvs_idx_fid_t ns_fid;
-	struct kvs_idx ns_index;
-	struct kvstore *kvstor = kvstore_get();
 	size_t ns_size = 0;
 
 	rc = efs_fs_lookup(fs_name, NULL);
@@ -149,14 +146,44 @@ int efs_fs_create(const str256_t *fs_name)
         }
 	RC_WRAP_LABEL(rc, free_fs_node, ns_create, fs_name, &ns, &ns_size);
 
+	// Attach ns to efs
 	fs_node->efs_fs.ns = malloc(ns_size);
 	memcpy(fs_node->efs_fs.ns, ns, ns_size);
-	ns_get_fid(fs_node->efs_fs.ns, &ns_fid);
 
-	/* open namespace index */
-	RC_WRAP_LABEL(rc, out, kvs_index_open, kvstor, &ns_fid, &ns_index);
-	rc = efs_tree_create_root(&ns_index);
-	kvs_index_close(kvstor, &ns_index);
+	/* @TODO This whole code of index open-close, efs_tree_create_root is 
+	 * repetitive and will be removed in second phase of kvtree */ 
+
+
+	struct kvnode_info *root_node_info = NULL;
+	struct kvtree *kvtree = NULL;
+	struct stat bufstat;
+
+	/* Set stat */
+	memset(&bufstat, 0, sizeof(struct stat));
+	bufstat.st_mode = S_IFDIR|0777;
+	bufstat.st_ino = EFS_ROOT_INODE;
+	bufstat.st_nlink = 2;
+	bufstat.st_uid = 0;
+	bufstat.st_gid = 0;
+	bufstat.st_atim.tv_sec = 0;
+	bufstat.st_mtim.tv_sec = 0;
+	bufstat.st_ctim.tv_sec = 0;
+ 
+	/* intialize root_node_info with efs root stats */
+	RC_WRAP_LABEL(rc, free_info, kvnode_info_alloc, (void *)&bufstat, 
+	              sizeof(struct stat), &root_node_info);
+
+	RC_WRAP_LABEL(rc, free_info, kvtree_create, ns, root_node_info, &kvtree);
+
+	/* @TODO set inode num generator this FS after deletion of
+	 * efs_tree_create_root */
+
+	/* Attach kvtree pointer to efs struct */
+	fs_node->efs_fs.kvtree = kvtree;
+
+	rc = efs_tree_create_root(&fs_node->efs_fs);
+free_info:
+	kvnode_info_free(root_node_info);
 
 	if (rc == 0) {
 		LIST_INSERT_HEAD(&fs_list, fs_node, link);
@@ -178,9 +205,6 @@ int efs_fs_delete(const str256_t *fs_name)
 	int rc = 0;
 	struct efs_fs *fs;
 	struct efs_fs_node *fs_node = NULL;
-	kvs_idx_fid_t ns_fid;
-	struct kvstore *kvstor = kvstore_get();
-	struct kvs_idx ns_index;
 
 	rc = efs_fs_lookup(fs_name, &fs);
 	if (rc != 0) {
@@ -196,10 +220,11 @@ int efs_fs_delete(const str256_t *fs_name)
 		goto out;
 	}
 
-	ns_get_fid(fs->ns, &ns_fid);
-	/* open namespace index */
-	RC_WRAP_LABEL(rc, out, kvs_index_open, kvstor, &ns_fid, &ns_index);
-	RC_WRAP_LABEL(rc, close_index, efs_tree_delete_root, &ns_index);
+	RC_WRAP_LABEL(rc, out, efs_tree_delete_root, fs);
+
+	/* delete kvtree */
+	RC_WRAP_LABEL(rc, out, kvtree_delete, fs->kvtree);
+	fs->kvtree = NULL;
 
 	/* Remove fs from the efs list */
 	fs_node = container_of(fs, struct efs_fs_node, efs_fs);
@@ -207,10 +232,6 @@ int efs_fs_delete(const str256_t *fs_name)
 
 	RC_WRAP_LABEL(rc, out, ns_delete, fs->ns);
 	fs->ns = NULL;
-
-close_index:
-	kvs_index_close(kvstor, &ns_index);
-	goto out;
 
 out:
 	log_info("fs_name=" STR256_F " rc=%d", STR256_P(fs_name), rc);
@@ -223,7 +244,7 @@ void efs_fs_get_name(const struct efs_fs *fs, str256_t **name)
 	ns_get_name(fs->ns, name);
 }
 
-int efs_fs_open(const char *fs_name, struct kvs_idx *index)
+int efs_fs_open(const char *fs_name, struct efs_fs **ret_fs)
 {
 	int rc;
 	struct kvstore *kvstor = kvstore_get();
@@ -243,24 +264,27 @@ int efs_fs_open(const char *fs_name, struct kvs_idx *index)
 	}
 
 	ns_get_fid(fs->ns, &ns_fid);
-	RC_WRAP_LABEL(rc, error, kvs_index_open, kvstor, &ns_fid, index);
-
+	//RC_WRAP_LABEL(rc, error, kvs_index_open, kvstor, &ns_fid, index);
+	
+	if (fs->kvtree == NULL) {
+		fs->kvtree = malloc(sizeof(struct kvtree));
+		if (!fs->kvtree) {
+			rc = -ENOMEM;
+			goto out;
+		}
+	}
+	rc = kvtree_init(fs->ns, fs->kvtree);
+	*ret_fs = fs;
 error:
 	if (rc != 0) {
 		log_err("Cannot open fid for fs_name=%s, rc:%d", fs_name, rc);
 	}
-
+out:
 	return rc;
 }
 
-void efs_fs_close(efs_fs_ctx_t fs_ctx)
+void efs_fs_close(struct efs_fs *efs_fs)
 {
-	struct kvstore *kvstor = kvstore_get();
-	struct kvs_idx index;
+	kvtree_fini(efs_fs->kvtree);
 
-	dassert(kvstor != NULL);
-
-	index.index_priv = fs_ctx;
-
-	kvs_index_close(kvstor, &index);
 }

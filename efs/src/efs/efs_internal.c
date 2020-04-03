@@ -22,12 +22,13 @@
 #include <ini_config.h>
 #include <common/log.h>
 #include <common/helpers.h>
+#include "efs.h"
 #include <eos/eos_kvstore.h>
 #include <dstore.h>
-#include <efs.h>
 #include <debug.h>
 #include <common.h> /* likely */
 #include <inttypes.h> /* PRIx64 */
+#include "kvtree.h"
 
 /** Get pointer to a const C-string owned by kvsns_name string. */
 static inline const char *efs_name_as_cstr(const str256_t *kname)
@@ -104,7 +105,6 @@ static inline size_t efs_name_dsize(const str256_t *kname)
 	dassert(result <= sizeof(*kname));
 	return result;
 }
-
 
 /** Dynamic size of a dentry key, i.e. the amount of bytest to be stored in
  * the KVS storage.
@@ -199,7 +199,7 @@ int efs_access_check(const efs_cred_t *cred, const struct stat *stat,
 	return -EPERM;
 }
 
-static int efs_ns_get_inode_attr(efs_fs_ctx_t ctx,
+static int efs_ns_get_inode_attr(struct efs_fs *efs_fs,
 				 const efs_ino_t *ino,
 				 efs_key_type_t type,
 				 void **buf, size_t *buf_size)
@@ -211,7 +211,7 @@ static int efs_ns_get_inode_attr(efs_fs_ctx_t ctx,
 
 	dassert(kvstor);
 
-	index.index_priv = ctx;
+	index = efs_fs->kvtree->index;
 
 	RC_WRAP_LABEL(rc, out, kvs_alloc, kvstor, (void **)&key, sizeof (*key));
 
@@ -224,12 +224,12 @@ static int efs_ns_get_inode_attr(efs_fs_ctx_t ctx,
 
 out:
 	kvs_free(kvstor, key);
-	log_trace("GET %llu.%s = (%d), rc=%d ctx=%p", *ino,
-		  efs_key_type_to_str(type), (int) *buf_size, rc, ctx);
+	log_trace("GET %llu.%s = (%d), rc=%d efs_fs=%p", *ino,
+		  efs_key_type_to_str(type), (int) *buf_size, rc, efs_fs);
 	return rc;
 }
 
-static int efs_ns_set_inode_attr(efs_fs_ctx_t ctx,
+static int efs_ns_set_inode_attr(struct efs_fs *efs_fs,
 				 const efs_ino_t *ino,
 				 efs_key_type_t type,
 				 void *buf, size_t buf_size)
@@ -240,7 +240,7 @@ static int efs_ns_set_inode_attr(efs_fs_ctx_t ctx,
 	struct kvs_idx index;
 
 	dassert(kvstor != NULL);
-	index.index_priv = ctx;
+	index = efs_fs->kvtree->index;
 
 	RC_WRAP_LABEL(rc, out, kvs_alloc, kvstor, (void **)&key, sizeof (*key));
 
@@ -253,13 +253,13 @@ static int efs_ns_set_inode_attr(efs_fs_ctx_t ctx,
 
 out:
 	kvs_free(kvstor, key);
-	log_trace("SET %llu.%s = (%d), rc=%d ctx=%p", *ino,
-		  efs_key_type_to_str(type), (int) buf_size, rc, ctx);
+	log_trace("SET %llu.%s = (%d), rc=%d efs_fs=%p", *ino,
+		  efs_key_type_to_str(type), (int) buf_size, rc, efs_fs);
 	return rc;
 
 }
 
-static int efs_ns_del_inode_attr(efs_fs_ctx_t ctx,
+static int efs_ns_del_inode_attr(struct efs_fs *efs_fs,
 				 const efs_ino_t *ino,
 				 efs_key_type_t type)
 {
@@ -269,7 +269,7 @@ static int efs_ns_del_inode_attr(efs_fs_ctx_t ctx,
 	struct kvs_idx index;
 
 	dassert(kvstor != NULL);
-	index.index_priv = ctx;
+	index = efs_fs->kvtree->index;
 
 	dassert(ino);
 	RC_WRAP_LABEL(rc, out, kvs_alloc, kvstor, (void **)&key,
@@ -286,12 +286,12 @@ out:
 	return rc;
 }
 
-int efs_get_stat(efs_fs_ctx_t ctx, const efs_ino_t *ino,
+int efs_get_stat(struct efs_fs *efs_fs, const efs_ino_t *ino,
 		 struct stat **bufstat)
 {
 	int rc;
 	size_t buf_size = 0;
-	RC_WRAP_LABEL(rc, out, efs_ns_get_inode_attr, ctx, ino, EFS_KEY_TYPE_STAT,
+	RC_WRAP_LABEL(rc, out, efs_ns_get_inode_attr, efs_fs, ino, EFS_KEY_TYPE_STAT,
 		      (void **)bufstat, &buf_size);
 out:
 	if (rc == 0) {
@@ -300,7 +300,7 @@ out:
 	return rc;
 }
 
-int efs_set_stat(efs_fs_ctx_t ctx, const efs_ino_t *ino,
+int efs_set_stat(struct efs_fs *efs_fs, const efs_ino_t *ino,
 		    struct stat *bufstat)
 {
 	assert(bufstat != NULL);
@@ -310,18 +310,18 @@ int efs_set_stat(efs_fs_ctx_t ctx, const efs_ino_t *ino,
 		  bufstat->st_uid,
 		  bufstat->st_gid,
 		  bufstat->st_mode & 07777);
-	return efs_ns_set_inode_attr(ctx, ino, EFS_KEY_TYPE_STAT,
+	return efs_ns_set_inode_attr(efs_fs, ino, EFS_KEY_TYPE_STAT,
 				     bufstat, sizeof(*bufstat));
 }
 
-int efs_del_stat(efs_fs_ctx_t ctx, const efs_ino_t *ino)
+int efs_del_stat(struct efs_fs *efs_fs, const efs_ino_t *ino)
 {
-	return efs_ns_del_inode_attr(ctx, ino, EFS_KEY_TYPE_STAT);
+	return efs_ns_del_inode_attr(efs_fs, ino, EFS_KEY_TYPE_STAT);
 }
 
 int efs_amend_stat(struct stat *stat, int flags);
 
-int efs_update_stat(efs_fs_ctx_t ctx, const efs_ino_t *ino, int flags)
+int efs_update_stat(struct efs_fs *efs_fs, const efs_ino_t *ino, int flags)
 {
 	int rc;
 	struct stat *stat = NULL;
@@ -329,9 +329,9 @@ int efs_update_stat(efs_fs_ctx_t ctx, const efs_ino_t *ino, int flags)
 
 	dassert(ino && kvstor);
 
-	RC_WRAP_LABEL(rc, out, efs_get_stat, ctx, ino, &stat);
+	RC_WRAP_LABEL(rc, out, efs_get_stat, efs_fs, ino, &stat);
 	RC_WRAP_LABEL(rc, out, efs_amend_stat, stat, flags);
-	RC_WRAP_LABEL(rc, out, efs_set_stat, ctx, ino, stat);
+	RC_WRAP_LABEL(rc, out, efs_set_stat, efs_fs, ino, stat);
 
 out:
 	kvs_free(kvstor, stat);
@@ -394,42 +394,46 @@ out:
 	return rc;
 }
 
-int efs_get_symlink(efs_fs_ctx_t ctx, const efs_ino_t *ino,
+int efs_get_symlink(struct efs_fs *efs_fs, const efs_ino_t *ino,
 		    void **buf, size_t *buf_size)
 {
 	int rc;
 	*buf_size = 0;
-	RC_WRAP_LABEL(rc, out, efs_ns_get_inode_attr, ctx, ino, EFS_KEY_TYPE_SYMLINK,
+	RC_WRAP_LABEL(rc, out, efs_ns_get_inode_attr, efs_fs, ino, EFS_KEY_TYPE_SYMLINK,
 		      buf, buf_size);
 	dassert(*buf_size < INT_MAX);
 out:
 	return rc;
 }
 
-int efs_set_symlink(efs_fs_ctx_t ctx, const efs_ino_t *ino,
+int efs_set_symlink(struct efs_fs *efs_fs, const efs_ino_t *ino,
 		  void *buf, size_t buf_size)
 {
-	return efs_ns_set_inode_attr(ctx, ino, EFS_KEY_TYPE_SYMLINK,
+	return efs_ns_set_inode_attr(efs_fs, ino, EFS_KEY_TYPE_SYMLINK,
 				     buf, buf_size);
 }
 
-int efs_del_symlink(efs_fs_ctx_t ctx, const efs_ino_t *ino)
+int efs_del_symlink(struct efs_fs *efs_fs, const efs_ino_t *ino)
 {
-	return efs_ns_del_inode_attr(ctx, ino, EFS_KEY_TYPE_SYMLINK);
+	return efs_ns_del_inode_attr(efs_fs, ino, EFS_KEY_TYPE_SYMLINK);
 }
 
-int efs_tree_create_root(struct kvs_idx *index)
+int efs_tree_create_root(struct efs_fs *efs_fs)
 {
-        int rc = 0;
-        struct stat bufstat;
-        struct efs_parentdir_key *parent_key = NULL;
+	int rc = 0;
+	struct stat bufstat;
+	struct efs_parentdir_key *parent_key = NULL;
 	struct kvstore *kvstor = kvstore_get();
-        efs_ino_t ino;
-	efs_fs_ctx_t ctx;
+	efs_ino_t ino;
+	kvs_idx_fid_t ns_fid;
+	struct kvs_idx ns_index;
 
-        ino = EFS_ROOT_INODE;
-
-        efs_ino_t v = 0;
+	ns_get_fid(efs_fs->ns, &ns_fid);
+	RC_WRAP_LABEL(rc, out, kvs_index_open, kvstor, &ns_fid, &ns_index);
+	efs_fs->kvtree->index = ns_index;
+	
+	ino = EFS_ROOT_INODE;
+	efs_ino_t v = 0;
 
 	dassert(kvstor != NULL);
 
@@ -441,13 +445,12 @@ int efs_tree_create_root(struct kvs_idx *index)
 	/* number-of-links */
         v = 1;
 
-        RC_WRAP_LABEL(rc, free_key, kvs_set, kvstor, index, parent_key,
+        RC_WRAP_LABEL(rc, free_key, kvs_set, kvstor, &ns_index, parent_key,
 		      sizeof(*parent_key),(void *)&v, sizeof(v));
 
         v = EFS_ROOT_INODE + 1;
 
-	ctx = index->index_priv;
-        RC_WRAP_LABEL(rc, free_key, efs_ns_set_inode_attr, ctx,
+        RC_WRAP_LABEL(rc, free_key, efs_ns_set_inode_attr, efs_fs,
 		      (const efs_ino_t *)&ino, EFS_KEY_TYPE_INO_NUM_GEN,
                       &v, sizeof(v));
 
@@ -461,40 +464,46 @@ int efs_tree_create_root(struct kvs_idx *index)
         bufstat.st_atim.tv_sec = 0;
         bufstat.st_mtim.tv_sec = 0;
         bufstat.st_ctim.tv_sec = 0;
-        RC_WRAP(efs_set_stat, ctx, &ino, &bufstat);
+        RC_WRAP(efs_set_stat, efs_fs, &ino, &bufstat);
 
+		kvs_index_close(kvstor, &ns_index);
 free_key:
 	kvs_free(kvstor, parent_key);
 out:
         return rc;
 }
 
-int efs_tree_delete_root(struct kvs_idx *index)
+int efs_tree_delete_root(struct efs_fs *efs_fs)
 {
-        int rc = 0;
-        efs_ino_t ino;
-        ino = EFS_ROOT_INODE;
-	efs_fs_ctx_t ctx;
-        struct efs_parentdir_key *parent_key = NULL;
+	int rc = 0;
+	efs_ino_t ino;
+	ino = EFS_ROOT_INODE;
+	struct efs_parentdir_key *parent_key = NULL;
 	struct kvstore *kvstor = kvstore_get();
+	kvs_idx_fid_t ns_fid;
+	struct kvs_idx ns_index;
+
+	ns_get_fid(efs_fs->ns, &ns_fid);
+	RC_WRAP_LABEL(rc, out, kvs_index_open, kvstor, &ns_fid, &ns_index);
+	efs_fs->kvtree->index = ns_index;
 
 	dassert(kvstor != NULL);
 
-        RC_WRAP_LABEL(rc, out, kvs_alloc, kvstor, (void **)&parent_key,
+	RC_WRAP_LABEL(rc, out, kvs_alloc, kvstor, (void **)&parent_key,
 		      sizeof(struct efs_parentdir_key));
 
-        PARENTDIR_KEY_PTR_INIT(parent_key, &ino, &ino);
+	PARENTDIR_KEY_PTR_INIT(parent_key, &ino, &ino);
 
-        RC_WRAP_LABEL(rc, free_key, kvs_del, kvstor, index, parent_key,
-		      sizeof(struct efs_parentdir_key));
+	RC_WRAP_LABEL(rc, free_key, kvs_del, kvstor, &ns_index, parent_key,
+	               sizeof(struct efs_parentdir_key));
 
-	ctx = index->index_priv;
-        RC_WRAP_LABEL(rc, free_key, efs_ns_del_inode_attr, ctx,
+	RC_WRAP_LABEL(rc, free_key, efs_ns_del_inode_attr, efs_fs,
                      (const efs_ino_t *)&ino, EFS_KEY_TYPE_INO_NUM_GEN);
 
         /* Delete stat */
-        RC_WRAP(efs_del_stat, ctx, &ino);
+	RC_WRAP(efs_del_stat, efs_fs, &ino);
 
+	kvs_index_close(kvstor, &ns_index);
 free_key:
         kvs_free(kvstor, parent_key);
 
@@ -502,7 +511,7 @@ out:
         return rc;
 }
 
-int efs_tree_detach(efs_fs_ctx_t fs_ctx,
+int efs_tree_detach(struct efs_fs *efs_fs,
 		    const efs_ino_t *parent_ino,
 		    const efs_ino_t *ino,
 		    const str256_t *node_name)
@@ -516,7 +525,7 @@ int efs_tree_detach(efs_fs_ctx_t fs_ctx,
 
 	dassert(kvstor != NULL);
 
-	index.index_priv = fs_ctx;
+	index = efs_fs->kvtree->index;
 
 	// Remove dentry
 	RC_WRAP_LABEL(rc, out, kvs_alloc, kvstor, (void **)&dentry_key,
@@ -551,7 +560,7 @@ int efs_tree_detach(efs_fs_ctx_t fs_ctx,
 
 	kvs_free(kvstor, parent_value);
 	// Update stats
-	RC_WRAP_LABEL(rc, free_parent_key, efs_update_stat, fs_ctx,
+	RC_WRAP_LABEL(rc, free_parent_key, efs_update_stat, efs_fs,
 		      parent_ino, STAT_CTIME_SET|STAT_MTIME_SET);
 
 free_parent_key:
@@ -562,11 +571,11 @@ free_dentrykey:
 
 out:
 	log_debug("tree_detach(%p,pino=%llu,ino=%llu,n=%.*s) = %d",
-		  fs_ctx, *parent_ino, *ino, node_name->s_len, node_name->s_str, rc);
+		  efs_fs, *parent_ino, *ino, node_name->s_len, node_name->s_str, rc);
 	return rc;
 }
 
-int efs_tree_attach(efs_fs_ctx_t fs_ctx,
+int efs_tree_attach(struct efs_fs *efs_fs,
 		    const efs_ino_t *parent_ino,
 		    const efs_ino_t *ino,
 		    const str256_t *node_name)
@@ -583,7 +592,7 @@ int efs_tree_attach(efs_fs_ctx_t fs_ctx,
 
 	dassert(kvstor != NULL);
 
-	index.index_priv = fs_ctx;
+	index = efs_fs->kvtree->index;
 	// Add dentry
 	RC_WRAP_LABEL(rc, out, kvs_alloc, kvstor, (void **)&dentry_key,
 		      sizeof (*dentry_key));
@@ -628,7 +637,7 @@ int efs_tree_attach(efs_fs_ctx_t fs_ctx,
 		      (void *)&parent_value, sizeof(parent_value));
 
 	// Update stats
-	RC_WRAP_LABEL(rc, free_parentkey, efs_update_stat, fs_ctx, parent_ino,
+	RC_WRAP_LABEL(rc, free_parentkey, efs_update_stat, efs_fs, parent_ino,
 		      STAT_CTIME_SET|STAT_MTIME_SET);
 
 free_parentkey:
@@ -639,11 +648,11 @@ free_dentrykey:
 
 out:
 	log_debug("tree_attach(%p,pino=%llu,ino=%llu,n=%.*s) = %d",
-		  fs_ctx, *parent_ino, *ino, node_name->s_len, node_name->s_str, rc);
+		  efs_fs, *parent_ino, *ino, node_name->s_len, node_name->s_str, rc);
 	return rc;
 }
 
-int efs_tree_rename_link(efs_fs_ctx_t fs_ctx,
+int efs_tree_rename_link(struct efs_fs *efs_fs,
 			 const efs_ino_t *parent_ino,
 			 const efs_ino_t *ino,
 			 const str256_t *old_name,
@@ -657,7 +666,7 @@ int efs_tree_rename_link(efs_fs_ctx_t fs_ctx,
 
 	dassert(kvstor != NULL);
 
-	index.index_priv = fs_ctx;
+	index = efs_fs->kvtree->index;
 
 	RC_WRAP_LABEL(rc, out, kvs_alloc, kvstor,
 		      (void **)&dentry_key, sizeof (*dentry_key));
@@ -665,7 +674,7 @@ int efs_tree_rename_link(efs_fs_ctx_t fs_ctx,
 	DENTRY_KEY_PTR_INIT(dentry_key, parent_ino, old_name);
 
 	// The caller must ensure that the entry exists prior renaming */
-	dassert(efs_tree_lookup(fs_ctx, parent_ino, old_name, NULL) == 0);
+	dassert(efs_tree_lookup(efs_fs, parent_ino, old_name, NULL) == 0);
 
 	// Remove dentry
 	RC_WRAP_LABEL(rc, cleanup, kvs_del, kvstor, &index,
@@ -679,7 +688,7 @@ int efs_tree_rename_link(efs_fs_ctx_t fs_ctx,
 		      &dentry_value, sizeof(dentry_value));
 
 	// Update ctime stat
-	RC_WRAP_LABEL(rc, cleanup, efs_update_stat, fs_ctx, parent_ino,
+	RC_WRAP_LABEL(rc, cleanup, efs_update_stat, efs_fs, parent_ino,
 		      STAT_CTIME_SET);
 
 cleanup:
@@ -687,7 +696,7 @@ cleanup:
 
 out:
 	log_debug("tree_rename(%p,pino=%llu,ino=%llu,o=%.*s,n=%.*s) = %d",
-		  fs_ctx, *parent_ino, *ino,
+		  efs_fs, *parent_ino, *ino,
 		  old_name->s_len, old_name->s_str,
 		  new_name->s_len, new_name->s_str, rc);
 	return rc;
@@ -697,7 +706,7 @@ out:
  * of requesting an iteration over the dentries. This will allow us to eliminate
  * the extra call to the KVS.
  */
-int efs_tree_has_children(efs_fs_ctx_t fs_ctx,
+int efs_tree_has_children(struct efs_fs *efs_fs,
 			  const efs_ino_t *ino,
 			  bool *has_children)
 {
@@ -715,7 +724,7 @@ int efs_tree_has_children(efs_fs_ctx_t fs_ctx,
 	struct kvs_itr *iter = NULL;
 	struct kvs_idx index;
 
-	index.index_priv = fs_ctx;
+	index = efs_fs->kvtree->index;
 
 	rc = kvs_itr_find(kvstor, &index, &prefix, efs_dentry_key_psize, &iter);
 	result = (rc == 0);
@@ -739,7 +748,7 @@ out:
 	return rc;
 }
 
-int efs_tree_lookup(efs_fs_ctx_t fs_ctx,
+int efs_tree_lookup(struct efs_fs *efs_fs,
 		    const efs_ino_t *parent_ino,
 		    const str256_t *name,
 		    efs_ino_t *ino)
@@ -754,7 +763,7 @@ int efs_tree_lookup(efs_fs_ctx_t fs_ctx,
 
 	dassert(kvstor != NULL);
 
-	index.index_priv = fs_ctx;
+	index = efs_fs->kvtree->index;
 
 	dassert(parent_ino && name);
 	RC_WRAP_LABEL(rc, out, kvs_alloc, kvstor, (void **)&dkey, sizeof (*dkey));
@@ -782,7 +791,7 @@ out:
 	return rc;
 }
 
-int efs_tree_iter_children(efs_fs_ctx_t fs_ctx,
+int efs_tree_iter_children(struct efs_fs *efs_fs,
 			   const efs_ino_t *ino,
 			   efs_readdir_cb_t cb,
 			   void *cb_ctx)
@@ -807,7 +816,7 @@ int efs_tree_iter_children(efs_fs_ctx_t fs_ctx,
 	const efs_ino_t *value = NULL;
 	const char *dentry_name_str;
 
-	index.index_priv = fs_ctx;
+	index = efs_fs->kvtree->index;
 
 	if (kvs_itr_find(kvstor, &index, &prefix, efs_dentry_key_psize, &iter)) {
 		rc = iter->inner_rc;
@@ -871,7 +880,7 @@ static int efs_create_check_name(const char *name, size_t len)
 	return 0;
 }
 
-int efs_next_inode(efs_ctx_t ctx, efs_ino_t *ino)
+int efs_next_inode(struct efs_fs *efs_fs, efs_ino_t *ino)
 {
 	int rc;
 	efs_ino_t parent_ino = EFS_ROOT_INODE;
@@ -880,20 +889,20 @@ int efs_next_inode(efs_ctx_t ctx, efs_ino_t *ino)
 
 	dassert(ino != NULL);
 
-	RC_WRAP_LABEL(rc, out, efs_ns_get_inode_attr, ctx, &parent_ino,
+	RC_WRAP_LABEL(rc, out, efs_ns_get_inode_attr, efs_fs, &parent_ino,
 		      EFS_KEY_TYPE_INO_NUM_GEN, (void **)&val_ptr, &val_size);
 
 	*val_ptr += 1;
 
 	*ino = *val_ptr;
 
-	RC_WRAP_LABEL(rc, out, efs_ns_set_inode_attr, ctx, &parent_ino,
+	RC_WRAP_LABEL(rc, out, efs_ns_set_inode_attr, efs_fs, &parent_ino,
                       EFS_KEY_TYPE_INO_NUM_GEN, val_ptr, sizeof(val_ptr));
 out:
 	return rc;
 }
 
-int efs_create_entry(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *parent,
+int efs_create_entry(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *parent,
 		     char *name, char *lnk, mode_t mode,
 		     efs_ino_t *new_entry, enum efs_file_type type)
 {
@@ -907,7 +916,7 @@ int efs_create_entry(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *parent,
 	struct kvs_idx index;
 
 	dassert(kvstor);
-	index.index_priv = ctx;
+	index = efs_fs->kvtree->index;
 
 	dassert(cred && parent && name && new_entry);
 
@@ -924,12 +933,12 @@ int efs_create_entry(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *parent,
 		return -EINVAL;
 
 	/* Return if file/dir/symlink already exists. */
-	rc = efs_lookup(ctx, cred, parent, name, new_entry);
+	rc = efs_lookup(efs_fs, cred, parent, name, new_entry);
 	if (rc == 0)
 		return -EEXIST;
 
-	RC_WRAP(efs_next_inode, ctx, new_entry);
-	RC_WRAP_LABEL(rc, errfree, efs_get_stat, ctx, parent, &parent_stat);
+	RC_WRAP(efs_next_inode, efs_fs, new_entry);
+	RC_WRAP_LABEL(rc, errfree, efs_get_stat, efs_fs, parent, &parent_stat);
 
 	RC_WRAP(kvs_begin_transaction, kvstor, &index);
 
@@ -937,7 +946,7 @@ int efs_create_entry(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *parent,
 	RC_WRAP_LABEL(rc, errfree, efs_alloc_dirent_key, namelen, &d_key); */
 
 	str256_from_cstr(k_name, name, strlen(name));
-	RC_WRAP_LABEL(rc, errfree, efs_tree_attach, ctx, parent, new_entry, &k_name);
+	RC_WRAP_LABEL(rc, errfree, efs_tree_attach, efs_fs, parent, new_entry, &k_name);
 
 	/* Set the stats of the new file */
 	memset(&bufstat, 0, sizeof(struct stat));
@@ -982,10 +991,10 @@ int efs_create_entry(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *parent,
 		rc = -EINVAL;
 		goto errfree;
 	}
-	RC_WRAP_LABEL(rc, errfree, efs_set_stat, ctx, new_entry, &bufstat);
+	RC_WRAP_LABEL(rc, errfree, efs_set_stat, efs_fs, new_entry, &bufstat);
 
 	if (type == EFS_FT_SYMLINK) {
-		RC_WRAP_LABEL(rc, errfree, efs_set_symlink, ctx, new_entry,
+		RC_WRAP_LABEL(rc, errfree, efs_set_symlink, efs_fs, new_entry,
 		(void *)lnk, strlen(lnk));
 	}
 
@@ -997,7 +1006,7 @@ int efs_create_entry(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *parent,
 		RC_WRAP_LABEL(rc, errfree, efs_amend_stat, parent_stat,
 			      STAT_CTIME_SET | STAT_MTIME_SET);
 	}
-	RC_WRAP_LABEL(rc, errfree, efs_set_stat, ctx, parent, parent_stat);
+	RC_WRAP_LABEL(rc, errfree, efs_set_stat, efs_fs, parent, parent_stat);
 
 	RC_WRAP(kvs_end_transaction, kvstor, &index);
 	return 0;
@@ -1011,7 +1020,7 @@ errfree:
 
 #define INODE_KFID_KEY_INIT INODE_ATTR_KEY_PTR_INIT
 
-int efs_set_ino_oid(efs_ctx_t ctx, efs_ino_t *ino, dstore_oid_t *oid)
+int efs_set_ino_oid(struct efs_fs *efs_fs, efs_ino_t *ino, dstore_oid_t *oid)
 {
 	int rc;
 	efs_inode_kfid_key_t *kfid_key = NULL;
@@ -1020,7 +1029,7 @@ int efs_set_ino_oid(efs_ctx_t ctx, efs_ino_t *ino, dstore_oid_t *oid)
 
 	dassert(kvstor != NULL);
 
-	index.index_priv = ctx;
+	index = efs_fs->kvtree->index;
 
 	RC_WRAP_LABEL(rc, out, kvs_alloc, kvstor, (void **)&kfid_key,
 		      sizeof(*kfid_key));
@@ -1035,12 +1044,12 @@ free_key:
 	kvs_free(kvstor, kfid_key);
 
 out:
-	log_trace("ctx=%p ino=%llu oid=%" PRIx64 ":%" PRIx64 " rc=%d",
-		   ctx, *ino, oid->f_hi, oid->f_lo, rc);
+	log_trace("efs_fs=%p ino=%llu oid=%" PRIx64 ":%" PRIx64 " rc=%d",
+		   efs_fs, *ino, oid->f_hi, oid->f_lo, rc);
 	return rc;
 }
 
-int efs_ino_to_oid(efs_ctx_t ctx, const efs_ino_t *ino, dstore_oid_t *oid)
+int efs_ino_to_oid(struct efs_fs *efs_fs, const efs_ino_t *ino, dstore_oid_t *oid)
 {
 	int rc;
 	efs_inode_kfid_key_t  *kfid_key = NULL;
@@ -1051,7 +1060,7 @@ int efs_ino_to_oid(efs_ctx_t ctx, const efs_ino_t *ino, dstore_oid_t *oid)
 
 	dassert(kvstor != NULL);
 
-	index.index_priv = ctx;
+	index = efs_fs->kvtree->index;
 
 	dassert(ino != NULL);
 	dassert(oid != NULL);
@@ -1072,12 +1081,12 @@ free_key:
 	kvs_free(kvstor, kfid_key);
 
 out:
-	log_trace("ctx=%p, *ino=%llu oid=%" PRIx64 ":%" PRIx64 " rc=%d, kfid_size=%" PRIu64 "",
-		   ctx, *ino, oid->f_hi, oid->f_lo, rc, kfid_size);
+	log_trace("efs_fs=%p, *ino=%llu oid=%" PRIx64 ":%" PRIx64 " rc=%d, kfid_size=%" PRIu64 "",
+		   efs_fs, *ino, oid->f_hi, oid->f_lo, rc, kfid_size);
 	return rc;
 }
 
-int efs_del_oid(efs_ctx_t ctx, const efs_ino_t *ino)
+int efs_del_oid(struct efs_fs *efs_fs, const efs_ino_t *ino)
 {
 	int rc;
 	efs_inode_kfid_key_t *kfid_key = NULL;
@@ -1086,7 +1095,7 @@ int efs_del_oid(efs_ctx_t ctx, const efs_ino_t *ino)
 
 	dassert(kvstor != NULL);
 
-	index.index_priv = ctx;
+	index = efs_fs->kvtree->index;
 
 	dassert(ino != NULL);
 
@@ -1102,7 +1111,7 @@ free_key:
 	kvs_free(kvstor, kfid_key);
 
 out:
-	log_trace("ctx=%p, ino=%llu, rc=%d", ctx, *ino, rc);
+	log_trace("efs_fs=%p, ino=%llu, rc=%d", efs_fs, *ino, rc);
 	return rc;
 }
 

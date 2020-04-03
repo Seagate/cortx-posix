@@ -47,12 +47,12 @@ static void set_ctime(void)
 
 	stat_in.st_ctim.tv_sec = new_ctime;
 
-	rc = efs_setattr(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_setattr(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 				&ut_efs_obj.file_inode, &stat_in, flag);
 
 	ut_assert_int_equal(rc, 0);
 
-	rc = efs_getattr(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_getattr(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.file_inode, &stat_out);
 
 	ut_assert_int_equal(rc, 0);
@@ -94,12 +94,12 @@ static void set_mtime(void)
 
 	time(&cur_time);
 
-	rc = efs_setattr(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_setattr(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 				&ut_efs_obj.file_inode, &stat_in, flag);
 
 	ut_assert_int_equal(rc, 0);
 
-	rc = efs_getattr(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_getattr(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 				&ut_efs_obj.file_inode, &stat_out);
 
 	ut_assert_int_equal(rc, 0);
@@ -145,11 +145,11 @@ static void set_atime(void)
 
 	time(&cur_time);
 
-	rc = efs_setattr(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_setattr(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 				&ut_efs_obj.file_inode, &stat_in, flag);
 	ut_assert_int_equal(rc, 0);
 
-	rc = efs_getattr(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_getattr(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 				&ut_efs_obj.file_inode, &stat_out);
 
 	ut_assert_int_equal(rc, 0);
@@ -188,12 +188,12 @@ static void set_gid(void)
 
 	time(&cur_time);
 
-	rc = efs_setattr(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_setattr(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 				&ut_efs_obj.file_inode, &stat_in, flag);
 
 	ut_assert_int_equal(rc, 0);
 
-	rc = efs_getattr(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_getattr(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 				&ut_efs_obj.file_inode, &stat_out);
 
 	ut_assert_int_equal(rc, 0);
@@ -232,11 +232,11 @@ static void set_uid(void)
 
 	time(&cur_time);
 
-	rc = efs_setattr(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_setattr(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 				&ut_efs_obj.file_inode, &stat_in, flag);
 	ut_assert_int_equal(rc, 0);
 
-	rc = efs_getattr(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_getattr(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 				&ut_efs_obj.file_inode, &stat_out);
 
 	ut_assert_int_equal(rc, 0);
@@ -269,7 +269,7 @@ int main(void)
 	ut_efs_obj.file_name = "test_attr_file";
 	ut_efs_obj.file_inode = 0LL;
 
-	rc = efs_creat(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_creat(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.current_inode, ut_efs_obj.file_name, 0755,
 			&ut_efs_obj.file_inode);
 	if (rc) {
@@ -290,7 +290,7 @@ int main(void)
 
 	test_failed = ut_run(test_list, test_count);
 
-	rc = efs_unlink(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_unlink(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.current_inode, NULL, ut_efs_obj.file_name);
 
 	if (rc) {

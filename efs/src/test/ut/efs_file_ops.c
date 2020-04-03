@@ -36,22 +36,22 @@ static void create_file(void)
 
 	efs_ino_t file_inode = 0LL;
 
-	rc = efs_lookup(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_lookup(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.parent_inode, file_name, &file_inode);
 
 	ut_assert_int_equal(rc, -ENOENT);
 
-	rc = efs_creat(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_creat(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.current_inode, file_name, 0755, &file_inode);
 
 	ut_assert_int_equal(rc, 0);
 
-	rc = efs_lookup(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_lookup(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.parent_inode, file_name, &file_inode);
 
 	ut_assert_int_equal(rc, 0);
 
-	rc = efs_unlink(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_unlink(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.parent_inode, NULL, file_name);
 
 	ut_assert_int_equal(rc, 0);
@@ -83,22 +83,22 @@ static void create_longname255_file(void)
 
 	ut_assert_int_equal(255, strlen(file_name));
 
-	rc = efs_lookup(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_lookup(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.parent_inode, file_name, &file_inode);
 
 	ut_assert_int_equal(rc, -ENOENT);
 
-	rc = efs_creat(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_creat(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.current_inode, file_name, 0755, &file_inode);
 
 	ut_assert_int_equal(rc, 0);
 
-	rc = efs_lookup(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_lookup(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.parent_inode, file_name, &file_inode);
 
 	ut_assert_int_equal(rc, 0);
 
-	rc = efs_unlink(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_unlink(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.parent_inode, NULL, file_name);
 
 	ut_assert_int_equal(rc, 0);
@@ -125,27 +125,27 @@ static void create_exist_file(void)
 
 	efs_ino_t file_inode = 0LL;
 
-	rc = efs_lookup(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_lookup(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.parent_inode, file_name, &file_inode);
 
 	ut_assert_int_equal(rc, -ENOENT);
 
-	rc = efs_creat(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_creat(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.current_inode, file_name, 0755, &file_inode);
 
 	ut_assert_int_equal(rc, 0);
 
-	rc = efs_lookup(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_lookup(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.parent_inode, file_name, &file_inode);
 
 	ut_assert_int_equal(rc, 0);
 
-	rc = efs_creat(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_creat(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.current_inode, file_name, 0755, &file_inode);
 
 	ut_assert_int_equal(rc, -EEXIST);
 
-	rc = efs_unlink(ut_efs_obj.fs_ctx, &ut_efs_obj.cred,
+	rc = efs_unlink(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.parent_inode, NULL, file_name);
 
 	ut_assert_int_equal(rc, 0);

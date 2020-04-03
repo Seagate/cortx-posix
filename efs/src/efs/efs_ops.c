@@ -24,8 +24,9 @@
 #include <efs_fh.h> /* efs_fh */
 #include "efs_internal.h" /* dstore_obj_delete() */
 #include <common.h> /* likely */
+#include "kvtree.h"
 
-int efs_getattr(efs_ctx_t ctx, const efs_cred_t *cred,
+int efs_getattr(struct efs_fs *efs_fs, const efs_cred_t *cred,
 		const efs_ino_t *ino, struct stat *bufstat)
 {
 	int rc;
@@ -36,7 +37,7 @@ int efs_getattr(efs_ctx_t ctx, const efs_cred_t *cred,
 	dassert(ino != NULL);
 	dassert(kvstor != NULL);
 
-	RC_WRAP_LABEL(rc, out, efs_get_stat, ctx, ino, &stat);
+	RC_WRAP_LABEL(rc, out, efs_get_stat, efs_fs, ino, &stat);
 	memcpy(bufstat, stat, sizeof(struct stat));
 	kvs_free(kvstor, stat);
 out:
@@ -44,7 +45,7 @@ out:
 	return rc;
 }
 
-int efs_setattr(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *ino,
+int efs_setattr(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *ino,
 		struct stat *setstat, int statflag)
 {
 	struct stat bufstat;
@@ -65,8 +66,8 @@ int efs_setattr(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *ino,
 	rc = gettimeofday(&t, NULL);
 	dassert(rc == 0);
 
-	RC_WRAP_LABEL(rc, out, efs_getattr, ctx, cred, ino, &bufstat);
-	RC_WRAP_LABEL(rc, out, efs_access, ctx, cred, ino, EFS_ACCESS_SETATTR);
+	RC_WRAP_LABEL(rc, out, efs_getattr, efs_fs, cred, ino, &bufstat);
+	RC_WRAP_LABEL(rc, out, efs_access, efs_fs, cred, ino, EFS_ACCESS_SETATTR);
 	/* ctime is to be updated if md are changed */
 	bufstat.st_ctim.tv_sec = t.tv_sec;
 	bufstat.st_ctim.tv_nsec = 1000 * t.tv_usec;
@@ -107,13 +108,13 @@ int efs_setattr(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *ino,
 		bufstat.st_ctim.tv_sec = setstat->st_ctim.tv_sec;
 		bufstat.st_ctim.tv_nsec = setstat->st_ctim.tv_nsec;
 	}
-	RC_WRAP_LABEL(rc, out, efs_set_stat, ctx, ino, &bufstat);
+	RC_WRAP_LABEL(rc, out, efs_set_stat, efs_fs, ino, &bufstat);
 out:
 	log_debug("rc=%d", rc);
 	return rc;
 }
 
-int efs_access(efs_ctx_t ctx, const efs_cred_t *cred,
+int efs_access(struct efs_fs *efs_fs, const efs_cred_t *cred,
 	       const efs_ino_t *ino, int flags)
 {
 	int rc = 0;
@@ -121,13 +122,13 @@ int efs_access(efs_ctx_t ctx, const efs_cred_t *cred,
 
 	dassert(cred && ino);
 
-	RC_WRAP_LABEL(rc, out, efs_getattr, ctx, cred, ino, &stat);
+	RC_WRAP_LABEL(rc, out, efs_getattr, efs_fs, cred, ino, &stat);
 	RC_WRAP_LABEL(rc, out, efs_access_check, cred, &stat, flags);
 out:
 	return rc;
 }
 
-int efs_readdir(efs_ctx_t fs_ctx,
+int efs_readdir(struct efs_fs *efs_fs,
 		const efs_cred_t *cred,
 		const efs_ino_t *dir_ino,
 		efs_readdir_cb_t cb,
@@ -135,30 +136,30 @@ int efs_readdir(efs_ctx_t fs_ctx,
 {
 	int rc;
 
-	RC_WRAP_LABEL(rc, out, efs_access, fs_ctx, (efs_cred_t *) cred,
+	RC_WRAP_LABEL(rc, out, efs_access, efs_fs, (efs_cred_t *) cred,
 			(efs_ino_t *) dir_ino,
 			EFS_ACCESS_LIST_DIR);
 
-	RC_WRAP_LABEL(rc, out, efs_tree_iter_children, fs_ctx, dir_ino,
+	RC_WRAP_LABEL(rc, out, efs_tree_iter_children, efs_fs, dir_ino,
 			cb, cb_ctx);
 
-	RC_WRAP_LABEL(rc, out, efs_update_stat, fs_ctx, dir_ino,
+	RC_WRAP_LABEL(rc, out, efs_update_stat, efs_fs, dir_ino,
 			STAT_ATIME_SET);
 
 out:
 	return rc;
 }
 
-int efs_mkdir(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *parent, char *name,
+int efs_mkdir(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *parent, char *name,
 	      mode_t mode, efs_ino_t *newdir)
 {
-	RC_WRAP(efs_access, ctx, cred, parent, EFS_ACCESS_WRITE);
+	RC_WRAP(efs_access, efs_fs, cred, parent, EFS_ACCESS_WRITE);
 
-	return efs_create_entry(ctx, cred, parent, name, NULL,
+	return efs_create_entry(efs_fs, cred, parent, name, NULL,
 			mode, newdir, EFS_FT_DIR);
 }
 
-int efs_lookup(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *parent,
+int efs_lookup(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *parent,
 	       char *name, efs_ino_t *ino)
 
 {
@@ -179,7 +180,7 @@ int efs_lookup(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *parent,
 	struct efs_fh *parent_fh = NULL;
 	struct efs_fh *fh = NULL;
 
-	RC_WRAP_LABEL(rc, out, efs_fh_from_ino, ctx, parent, NULL, &parent_fh);
+	RC_WRAP_LABEL(rc, out, efs_fh_from_ino, efs_fs, parent, NULL, &parent_fh);
 	RC_WRAP_LABEL(rc, out, efs_fh_lookup, cred, parent_fh, name, &fh);
 
 	*ino = *efs_fh_ino(fh);
@@ -190,7 +191,7 @@ out:
 	return rc;
 }
 
-int efs_readlink(efs_ctx_t fs_ctx, efs_cred_t *cred, efs_ino_t *lnk,
+int efs_readlink(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *lnk,
 		 char *content, size_t *size)
 {
 	int rc;
@@ -204,7 +205,7 @@ int efs_readlink(efs_ctx_t fs_ctx, efs_cred_t *cred, efs_ino_t *lnk,
 	dassert(cred && lnk && size);
 	dassert(*size != 0);
 
-	RC_WRAP_LABEL(rc, errfree, efs_get_symlink, fs_ctx, lnk,
+	RC_WRAP_LABEL(rc, errfree, efs_get_symlink, efs_fs, lnk,
 		      &lnk_content_buf, &content_size);
 
 	if (content_size > *size) {
@@ -214,7 +215,7 @@ int efs_readlink(efs_ctx_t fs_ctx, efs_cred_t *cred, efs_ino_t *lnk,
 
 	memcpy(content, lnk_content_buf, content_size);
 	*size = content_size;
-	RC_WRAP_LABEL(rc, errfree, efs_update_stat, fs_ctx, lnk,
+	RC_WRAP_LABEL(rc, errfree, efs_update_stat, efs_fs, lnk,
 		      STAT_ATIME_SET);
 	log_debug("Got link: content='%.*s'", (int) *size, content);
 	rc = 0;
@@ -232,7 +233,7 @@ errfree:
  */
 #define EFS_SYMLINK_MODE 0777
 
-int efs_symlink(efs_ctx_t fs_ctx, efs_cred_t *cred, efs_ino_t *parent,
+int efs_symlink(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *parent,
 		char *name, char *content, efs_ino_t *newlnk)
 {
 	int rc;
@@ -240,12 +241,12 @@ int efs_symlink(efs_ctx_t fs_ctx, efs_cred_t *cred, efs_ino_t *parent,
 	log_trace("ENTER: name=%s", name);
 	dassert(cred && parent && name && content && newlnk);
 
-	RC_WRAP_LABEL(rc, out, efs_access, fs_ctx, cred, parent, EFS_ACCESS_WRITE);
+	RC_WRAP_LABEL(rc, out, efs_access, efs_fs, cred, parent, EFS_ACCESS_WRITE);
 
-	RC_WRAP_LABEL(rc, out, efs_create_entry, fs_ctx, cred, parent, name, content,
+	RC_WRAP_LABEL(rc, out, efs_create_entry, efs_fs, cred, parent, name, content,
 		      EFS_SYMLINK_MODE, newlnk, EFS_FT_SYMLINK);
 
-	RC_WRAP_LABEL(rc, out, efs_update_stat, fs_ctx, parent, STAT_MTIME_SET|STAT_CTIME_SET);
+	RC_WRAP_LABEL(rc, out, efs_update_stat, efs_fs, parent, STAT_MTIME_SET|STAT_CTIME_SET);
 
 out:
 	log_trace("name=%s content=%s rc=%d", name, content, rc);
@@ -253,7 +254,7 @@ out:
 }
 
 
-int efs_link(efs_ctx_t fs_ctx, efs_cred_t *cred, efs_ino_t *ino,
+int efs_link(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *ino,
 	     efs_ino_t *dino, char *dname)
 {
 	int rc;
@@ -264,20 +265,20 @@ int efs_link(efs_ctx_t fs_ctx, efs_cred_t *cred, efs_ino_t *ino,
 
 	dassert(cred && ino && dname && dino && kvstor);
 
-	index.index_priv = fs_ctx;
+	index = efs_fs->kvtree->index;
 
 	log_trace("ENTER: ino=%llu dino=%llu dname=%s", *ino, *dino, dname);
 	RC_WRAP(kvs_begin_transaction, kvstor, &index);
-	RC_WRAP_LABEL(rc, aborted, efs_access, fs_ctx, cred, dino, EFS_ACCESS_WRITE);
+	RC_WRAP_LABEL(rc, aborted, efs_access, efs_fs, cred, dino, EFS_ACCESS_WRITE);
 
-	rc = efs_lookup(fs_ctx, cred, dino, dname, &tmpino);
+	rc = efs_lookup(efs_fs, cred, dino, dname, &tmpino);
 	if (rc == 0)
 		return -EEXIST;
 
 	str256_from_cstr(k_name, dname, strlen(dname));
-	RC_WRAP_LABEL(rc, aborted, efs_tree_attach, fs_ctx, dino, ino, &k_name);
+	RC_WRAP_LABEL(rc, aborted, efs_tree_attach, efs_fs, dino, ino, &k_name);
 
-	RC_WRAP_LABEL(rc, aborted, efs_update_stat, fs_ctx, ino,
+	RC_WRAP_LABEL(rc, aborted, efs_update_stat, efs_fs, ino,
 		      STAT_CTIME_SET|STAT_INCR_LINK);
 
 	log_trace("EXIT: rc=%d ino=%llu dino=%llu dname=%s", rc, *ino, *dino, dname);
@@ -294,7 +295,7 @@ static inline bool efs_file_has_links(struct stat *stat)
 	return stat->st_nlink > 0;
 }
 
-int efs_destroy_orphaned_file(efs_fs_ctx_t fs_ctx,
+int efs_destroy_orphaned_file(struct efs_fs *efs_fs,
 			      const efs_ino_t *ino)
 {
 
@@ -307,9 +308,9 @@ int efs_destroy_orphaned_file(efs_fs_ctx_t fs_ctx,
 
 	dassert(kvstor && dstore);
 
-	index.index_priv = fs_ctx;
+	index = efs_fs->kvtree->index;
 
-	RC_WRAP_LABEL(rc, out, efs_get_stat, fs_ctx, ino, &stat);
+	RC_WRAP_LABEL(rc, out, efs_get_stat, efs_fs, ino, &stat);
 
 	if (efs_file_has_links(stat)) {
 		rc = 0;
@@ -317,14 +318,14 @@ int efs_destroy_orphaned_file(efs_fs_ctx_t fs_ctx,
 	}
 
 	kvs_begin_transaction(kvstor, &index);
-	RC_WRAP_LABEL(rc, out, efs_del_stat, fs_ctx, ino);
+	RC_WRAP_LABEL(rc, out, efs_del_stat, efs_fs, ino);
 	if (S_ISLNK(stat->st_mode)) {
-		RC_WRAP_LABEL(rc, out, efs_del_symlink, fs_ctx, ino);
+		RC_WRAP_LABEL(rc, out, efs_del_symlink, efs_fs, ino);
 	} else if (S_ISREG(stat->st_mode)) {
-		RC_WRAP_LABEL(rc, out, efs_ino_to_oid, fs_ctx, ino, &oid);
+		RC_WRAP_LABEL(rc, out, efs_ino_to_oid, efs_fs, ino, &oid);
 		RC_WRAP_LABEL(rc, out, dstore_obj_delete,
-			      dstore, fs_ctx, &oid);
-		RC_WRAP_LABEL(rc, out, efs_del_oid, fs_ctx, ino);
+			      dstore, efs_fs, &oid);
+		RC_WRAP_LABEL(rc, out, efs_del_oid, efs_fs, ino);
 	} else {
 		/* Impossible: rmdir handles DIR; LNK and REG are handled by
 		 * this function, the other types cannot be created
@@ -349,7 +350,7 @@ out:
 	return rc;
 }
 
-int efs_rename(efs_fs_ctx_t fs_ctx, efs_cred_t *cred,
+int efs_rename(struct efs_fs *efs_fs, efs_cred_t *cred,
 	       efs_ino_t *sino_dir, char *sname, const efs_ino_t *psrc,
 	       efs_ino_t *dino_dir, char *dname, const efs_ino_t *pdst,
 	       const struct efs_rename_flags *pflags)
@@ -376,25 +377,25 @@ int efs_rename(efs_fs_ctx_t fs_ctx, efs_cred_t *cred,
 	dassert(strlen(sname) <= NAME_MAX);
 	dassert(strlen(dname) <= NAME_MAX);
 	dassert((*sino_dir != *dino_dir || strcmp(sname, dname) != 0));
-	dassert(fs_ctx);
+	dassert(efs_fs);
 
 	str256_from_cstr(k_sname, sname, strlen(sname));
 	str256_from_cstr(k_dname, dname, strlen(dname));
 
 	rename_inplace = (*sino_dir == *dino_dir);
 
-	RC_WRAP_LABEL(rc, out, efs_access, fs_ctx, cred, sino_dir,
+	RC_WRAP_LABEL(rc, out, efs_access, efs_fs, cred, sino_dir,
 		      EFS_ACCESS_DELETE_ENTITY);
 
 	if (!rename_inplace) {
-		RC_WRAP_LABEL(rc, out, efs_access, fs_ctx, cred, dino_dir,
+		RC_WRAP_LABEL(rc, out, efs_access, efs_fs, cred, dino_dir,
 			      EFS_ACCESS_CREATE_ENTITY);
 	}
 
 	if (psrc) {
 		sino = *psrc;
 	} else {
-		RC_WRAP_LABEL(rc, out, efs_lookup, fs_ctx, cred, sino_dir, sname,
+		RC_WRAP_LABEL(rc, out, efs_lookup, efs_fs, cred, sino_dir, sname,
 			      &sino);
 	}
 
@@ -402,7 +403,7 @@ int efs_rename(efs_fs_ctx_t fs_ctx, efs_cred_t *cred,
 		dino = *pdst;
 		overwrite_dst = true;
 	} else {
-		rc = efs_lookup(fs_ctx, cred, dino_dir, dname, &dino);
+		rc = efs_lookup(efs_fs, cred, dino_dir, dname, &dino);
 		if (rc < 0 && rc != -ENOENT) {
 			goto out;
 		}
@@ -411,11 +412,11 @@ int efs_rename(efs_fs_ctx_t fs_ctx, efs_cred_t *cred,
 
 	if (overwrite_dst) {
 		/* Fetch 'st_mode' for source and destination. */
-		RC_WRAP_LABEL(rc, out, efs_get_stat, fs_ctx, &sino, &stat);
+		RC_WRAP_LABEL(rc, out, efs_get_stat, efs_fs, &sino, &stat);
 		s_mode = stat->st_mode;
 		kvs_free(kvstor, stat);
 		stat = NULL;
-		RC_WRAP_LABEL(rc, out, efs_get_stat, fs_ctx, &dino, &stat);
+		RC_WRAP_LABEL(rc, out, efs_get_stat, efs_fs, &dino, &stat);
 		d_mode = stat->st_mode;
 		kvs_free(kvstor, stat);
 
@@ -426,7 +427,7 @@ int efs_rename(efs_fs_ctx_t fs_ctx, efs_cred_t *cred,
 			goto out;
 		}
 		if (S_ISDIR(d_mode)) {
-			RC_WRAP_LABEL(rc, out, efs_tree_has_children, fs_ctx,
+			RC_WRAP_LABEL(rc, out, efs_tree_has_children, efs_fs,
 				      &dino, &is_dst_non_empty_dir);
 		}
 		if (is_dst_non_empty_dir) {
@@ -442,7 +443,7 @@ int efs_rename(efs_fs_ctx_t fs_ctx, efs_cred_t *cred,
 			 * we might lose some data here if the following
 			 * operations (relinking) fail.
 			 */
-			RC_WRAP_LABEL(rc, out, efs_rmdir, fs_ctx, cred,
+			RC_WRAP_LABEL(rc, out, efs_rmdir, efs_fs, cred,
 				      dino_dir, dname);
 		} else {
 			/* Make an ophaned file: it will be destoyed either
@@ -451,7 +452,7 @@ int efs_rename(efs_fs_ctx_t fs_ctx, efs_cred_t *cred,
 			 */
 			log_trace("Detaching a file from the tree "
 				  "(%llu, %llu, %s)", *dino_dir, dino, dname);
-			RC_WRAP_LABEL(rc, out, efs_detach, fs_ctx, cred,
+			RC_WRAP_LABEL(rc, out, efs_detach, efs_fs, cred,
 				      dino_dir, &dino, dname);
 		}
 	}
@@ -460,21 +461,21 @@ int efs_rename(efs_fs_ctx_t fs_ctx, efs_cred_t *cred,
 		/* a shortcut for renaming only a dentry
 		 * without re-linking of the inodes.
 		 */
-		RC_WRAP_LABEL(rc, out, efs_tree_rename_link, fs_ctx,
+		RC_WRAP_LABEL(rc, out, efs_tree_rename_link, efs_fs,
 			      sino_dir, &sino, &k_sname, &k_dname);
 	} else {
-                RC_WRAP_LABEL(rc, out, efs_get_stat, fs_ctx, &sino, &stat);
+                RC_WRAP_LABEL(rc, out, efs_get_stat, efs_fs, &sino, &stat);
                 s_mode = stat->st_mode;
                 kvs_free(kvstor, stat);
 
-		RC_WRAP_LABEL(rc, out, efs_tree_detach, fs_ctx, sino_dir,
+		RC_WRAP_LABEL(rc, out, efs_tree_detach, efs_fs, sino_dir,
 			      &sino, &k_sname);
-		RC_WRAP_LABEL(rc, out, efs_tree_attach, fs_ctx, dino_dir,
+		RC_WRAP_LABEL(rc, out, efs_tree_attach, efs_fs, dino_dir,
 			      &sino, &k_dname);
 		if(S_ISDIR(s_mode)){
-			RC_WRAP_LABEL(rc, out, efs_update_stat, fs_ctx, sino_dir,
+			RC_WRAP_LABEL(rc, out, efs_update_stat, efs_fs, sino_dir,
 				      STAT_DECR_LINK);
-                        RC_WRAP_LABEL(rc, out, efs_update_stat, fs_ctx, dino_dir,
+                        RC_WRAP_LABEL(rc, out, efs_update_stat, efs_fs, dino_dir,
 				      STAT_INCR_LINK);
 		}
 	}
@@ -484,14 +485,14 @@ int efs_rename(efs_fs_ctx_t fs_ctx, efs_cred_t *cred,
 		 * previous operations have completed successfully.
 		 */
 		log_trace("Removing detached file (%llu)", dino);
-		RC_WRAP_LABEL(rc, out, efs_destroy_orphaned_file, fs_ctx, &dino);
+		RC_WRAP_LABEL(rc, out, efs_destroy_orphaned_file, efs_fs, &dino);
 	}
 
 out:
 	return rc;
 }
 
-int efs_rmdir(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *parent, char *name)
+int efs_rmdir(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *parent, char *name)
 {
 	int rc;
 	efs_ino_t ino = 0LL;
@@ -500,24 +501,24 @@ int efs_rmdir(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *parent, char *name)
 	struct kvstore *kvstor = kvstore_get();
 	struct kvs_idx index;
 
-	dassert(ctx && cred && parent && name && kvstor);
+	dassert(efs_fs && cred && parent && name && kvstor);
 	dassert(strlen(name) <= NAME_MAX);
 
-	index.index_priv = ctx;
+	index = efs_fs->kvtree->index;
 
-	RC_WRAP_LABEL(rc, out, efs_access, ctx, cred, parent,
+	RC_WRAP_LABEL(rc, out, efs_access, efs_fs, cred, parent,
 		      EFS_ACCESS_WRITE);
 
-	RC_WRAP_LABEL(rc, out, efs_lookup, ctx, cred, parent, name,
+	RC_WRAP_LABEL(rc, out, efs_lookup, efs_fs, cred, parent, name,
 		      &ino);
 
-	RC_WRAP_LABEL(rc, out, efs_tree_has_children, ctx,
+	RC_WRAP_LABEL(rc, out, efs_tree_has_children, efs_fs,
 		      &ino, &is_non_empty_dir);
 
 	/* Check if directory empty */
 	if (is_non_empty_dir) {
 		 rc = -ENOTEMPTY;
-		 log_debug("ctx=%p ino=%llu name=%s not empty", ctx,
+		 log_debug("ctx=%p ino=%llu name=%s not empty", efs_fs,
 			    ino, name);
 		 goto out;
 	}
@@ -526,14 +527,14 @@ int efs_rmdir(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *parent, char *name)
 
 	RC_WRAP_LABEL(rc, out, kvs_begin_transaction, kvstor, &index);
 	/* Detach the inode */
-	RC_WRAP_LABEL(rc, aborted, efs_tree_detach, ctx, parent,
+	RC_WRAP_LABEL(rc, aborted, efs_tree_detach, efs_fs, parent,
 		      &ino, &kname);
 
 	/* Remove its stat */
-	RC_WRAP_LABEL(rc, aborted, efs_del_stat, ctx, &ino);
+	RC_WRAP_LABEL(rc, aborted, efs_del_stat, efs_fs, &ino);
 
 	/* Child dir has a "hardlink" to the parent ("..") */
-	RC_WRAP_LABEL(rc, aborted, efs_update_stat, ctx, parent,
+	RC_WRAP_LABEL(rc, aborted, efs_update_stat, efs_fs, parent,
 		      STAT_DECR_LINK);
 
 	/* TODO: Remove all xattrs when kvsns_remove_all_xattr is implemented */
@@ -546,12 +547,12 @@ aborted:
 	}
 
 out:
-	log_debug("EXIT ctx=%p ino=%llu name=%s rc=%d", ctx,
+	log_debug("EXIT efs_fs=%p ino=%llu name=%s rc=%d", efs_fs,
 		   ino, name, rc);
 	return rc;
 }
 
-int efs_unlink(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *dir,
+int efs_unlink(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *dir,
 	       efs_ino_t *fino, char *name)
 {
 	int rc;
@@ -560,17 +561,17 @@ int efs_unlink(efs_ctx_t ctx, efs_cred_t *cred, efs_ino_t *dir,
 	if (likely(fino != NULL)) {
 		ino = *fino;
 	} else {
-		RC_WRAP_LABEL(rc, out, efs_lookup, ctx, cred, dir, name, &ino);
+		RC_WRAP_LABEL(rc, out, efs_lookup, efs_fs, cred, dir, name, &ino);
 	}
 
-	RC_WRAP_LABEL(rc, out, efs_detach, ctx, cred, dir, &ino, name);
-	RC_WRAP_LABEL(rc, out, efs_destroy_orphaned_file, ctx, &ino);
+	RC_WRAP_LABEL(rc, out, efs_detach, efs_fs, cred, dir, &ino, name);
+	RC_WRAP_LABEL(rc, out, efs_destroy_orphaned_file, efs_fs, &ino);
 
 out:
 	return rc;
 }
 
-int efs_detach(efs_ctx_t fs_ctx, const efs_cred_t *cred,
+int efs_detach(struct efs_fs *efs_fs, const efs_cred_t *cred,
 	       const efs_ino_t *parent, const efs_ino_t *obj,
 	       const char *name)
 {
@@ -581,15 +582,15 @@ int efs_detach(efs_ctx_t fs_ctx, const efs_cred_t *cred,
 
 	dassert(kvstor != NULL);
 
-	index.index_priv = fs_ctx;
+	index = efs_fs->kvtree->index;
 
 	str256_from_cstr(k_name, name, strlen(name));
-	RC_WRAP_LABEL(rc, out, efs_access, fs_ctx, (efs_cred_t *) cred,
+	RC_WRAP_LABEL(rc, out, efs_access, efs_fs, (efs_cred_t *) cred,
 		      (efs_ino_t *) parent, EFS_ACCESS_DELETE_ENTITY);
 
 	kvs_begin_transaction(kvstor, &index);
-	RC_WRAP_LABEL(rc, out, efs_tree_detach, fs_ctx, parent, obj, &k_name);
-	RC_WRAP_LABEL(rc, out, efs_update_stat, fs_ctx, obj,
+	RC_WRAP_LABEL(rc, out, efs_tree_detach, efs_fs, parent, obj, &k_name);
+	RC_WRAP_LABEL(rc, out, efs_update_stat, efs_fs, obj,
 		      STAT_CTIME_SET|STAT_DECR_LINK);
 	kvs_end_transaction(kvstor, &index);
 

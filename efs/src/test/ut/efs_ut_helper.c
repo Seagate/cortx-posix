@@ -1,6 +1,6 @@
 /*
  * Filename: efs_ut_helper.c
- * Description: Functions for fs_open and fs_close reuired for test
+ * Description: Functions for fs_open and fs_close required for test
  *
  * Do NOT modify or remove this copyright and confidentiality notice!
  * Copyright (c) 2020, Seagate Technology, LLC.
@@ -46,7 +46,7 @@ int ut_efs_fs_setup()
 	int rc = 0;
 
 
-	ut_efs_obj.fs_ctx = EFS_NULL_FS_CTX;
+	ut_efs_obj.efs_fs = EFS_NULL_FS_CTX;
 
 	ut_efs_obj.cred.uid = getuid();
 	ut_efs_obj.cred.gid = getgid();
@@ -80,16 +80,15 @@ int ut_efs_fs_setup()
 		goto out;
 	}
 
-	struct kvs_idx index;
-
-	rc = efs_fs_open(ut_efs_obj.fs_name, &index);
+	struct efs_fs *efs_fs = NULL;
+	rc = efs_fs_open(ut_efs_obj.fs_name, &efs_fs);
 
 	if (rc != 0) {
 		fprintf(stderr, "Unable to open FS for fs_name:%s, rc=%d !\n",
 			ut_efs_obj.fs_name, rc);
 		goto out;
 	}
-	ut_efs_obj.fs_ctx = index.index_priv;
+	ut_efs_obj.efs_fs = efs_fs;
 
 out:
 	return rc;
@@ -97,7 +96,7 @@ out:
 
 int ut_efs_fs_teardown()
 {
-	efs_fs_close(ut_efs_obj.fs_ctx);
+	efs_fs_close(ut_efs_obj.efs_fs);
 
 	str256_t fs_name;
 	str256_from_cstr(fs_name, ut_efs_obj.fs_name,
