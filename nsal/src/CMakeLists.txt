@@ -142,7 +142,6 @@ if(USE_KVS_EOS OR USE_MERO_STORE)
 	""
 	HAVE_MERO_HELPERS
 	)
-
   if((NOT HAVE_MERO) OR (NOT HAVE_MERO_H) OR (NOT HAVE_MERO_HELPERS))
       message(FATAL_ERROR "Cannot find MERO")
   endif((NOT HAVE_MERO) OR (NOT HAVE_MERO_H) OR (NOT HAVE_MERO_HELPERS))
@@ -178,6 +177,9 @@ set(NAMESPACE namespace)
 add_subdirectory(nsal)
 set(NSAL nsal)
 
+add_subdirectory(kvtree)
+set(KVTREE kvtree)
+
 add_library(eos-nsal SHARED
 		$<TARGET_OBJECTS:${BASE_KVSTORE}>
 		$<TARGET_OBJECTS:${EOS_KVSTORE}>
@@ -185,6 +187,7 @@ add_library(eos-nsal SHARED
 		$<TARGET_OBJECTS:${METADATA}>
 		$<TARGET_OBJECTS:${NAMESPACE}>
 		$<TARGET_OBJECTS:${NSAL}>
+		$<TARGET_OBJECTS:${KVTREE}>
 	)
 
 target_link_libraries(eos-nsal
