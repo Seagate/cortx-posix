@@ -22,7 +22,6 @@
 #include <eos/eos_kvstore.h>
 #include <common/log.h>
 
-
 /* */
 struct md_xattr_key {
 	obj_id_t  xk_oid;
@@ -94,13 +93,10 @@ int md_xattr_set(struct kvs_idx *idx, const obj_id_t *oid,
 	int rc;
 	struct md_xattr_key *key;
 	struct kvstore *kvstor = kvstore_get();
-	struct kvs_idx index;
 
 	MD_DASSERT(kvstor != NULL);
 	MD_DASSERT(oid && name && value);
 	MD_DASSERT(size != 0);
-
-	index.index_priv = idx;
 
 	if (size > MD_XATTR_SIZE_MAX) {
 		rc = -ERANGE;
@@ -109,7 +105,7 @@ int md_xattr_set(struct kvs_idx *idx, const obj_id_t *oid,
 
 	MD_RC_WRAP_LABEL(rc, out, md_xattr_alloc_init_key, oid, name, &key);
 
-	MD_RC_WRAP_LABEL(rc, free_key, kvs_set, kvstor, &index, key,
+	MD_RC_WRAP_LABEL(rc, free_key, kvs_set, kvstor, idx, key,
 		         md_xattr_key_dsize(key), (void *)value, size);
 
 free_key:
@@ -130,16 +126,13 @@ int md_xattr_get(struct kvs_idx *idx, const obj_id_t *oid,
 	void *read_val = NULL;
 	size_t size_val = 0;
 	struct kvstore *kvstor = kvstore_get();
-	struct kvs_idx index;
 
 	MD_DASSERT(kvstor != NULL);
 	MD_DASSERT(oid && name && size);
 
-	index.index_priv = idx;
+	MD_RC_WRAP_LABEL(rc, out, md_xattr_alloc_init_key, oid, name, &key);
 
-	MD_RC_WRAP_LABEL(rc, out, md_xattr_alloc_init_key, oid, name,  &key);
-
-	MD_RC_WRAP_LABEL(rc, free_key, kvs_get, kvstor, &index, key,
+	MD_RC_WRAP_LABEL(rc, free_key, kvs_get, kvstor, idx, key,
 		         md_xattr_key_dsize(key), &read_val, &size_val);
 
 	*value = read_val;
@@ -189,16 +182,13 @@ int md_xattr_delete(struct kvs_idx *idx, const obj_id_t *oid,
 	int rc;
 	struct md_xattr_key *key;
 	struct kvstore *kvstor = kvstore_get();
-	struct kvs_idx index;
 
 	MD_DASSERT(kvstor != NULL);
 	MD_DASSERT(oid && name);
 
-	index.index_priv = idx;
-
 	MD_RC_WRAP_LABEL(rc, out, md_xattr_alloc_init_key, oid, name,  &key);
 
-	MD_RC_WRAP_LABEL(rc, free_key, kvs_del, kvstor, &index, key,
+	MD_RC_WRAP_LABEL(rc, free_key, kvs_del, kvstor, idx, key,
 		         md_xattr_key_dsize(key));
 
 free_key:
@@ -219,7 +209,6 @@ int md_xattr_list(struct kvs_idx *idx, const obj_id_t *oid, void *buf,
 	bool has_next = true;
 	struct md_xattr_key prefix = XATTR_KEY_PREFIX_INIT(oid);
 	const struct md_xattr_key *key = NULL;
-	struct kvs_idx index;
 	struct kvs_itr *iter = NULL;
 	void *value;
 
@@ -240,8 +229,7 @@ int md_xattr_list(struct kvs_idx *idx, const obj_id_t *oid, void *buf,
 		goto err;
 	}
 
-	index.index_priv = idx;
-	rc = kvs_itr_find(kvstor, &index, &prefix, md_xattr_key_psize, &iter);
+	rc = kvs_itr_find(kvstor, idx, &prefix, md_xattr_key_psize, &iter);
 	if (rc) {
 		goto out;
 	}
