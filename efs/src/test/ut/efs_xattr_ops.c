@@ -46,7 +46,8 @@ static void set_nonexist_xattr(void)
 				&ut_efs_obj.file_inode, xattr_name, buf,
 				&get_val_size);
 
-	ut_assert_int_equal(rc, val_size);
+	ut_assert_int_equal(rc, 0);
+	ut_assert_int_equal(get_val_size, val_size);
 
 	rc = memcmp(xattr_val, buf, strlen(xattr_val));
 
@@ -143,7 +144,8 @@ static void replace_exist_xattr(void)
 				&ut_efs_obj.file_inode, xattr_name, buf,
 				&get_val_size);
 
-	ut_assert_int_equal(rc, val_size);
+	ut_assert_int_equal(rc, 0);
+	ut_assert_int_equal(get_val_size, val_size);
 
 	rc = memcmp(xattr_new_val, buf, strlen(xattr_new_val));
 
@@ -176,10 +178,11 @@ static void get_exist_xattr(void)
 	char xattr_val[XATTR_VAL_SIZE_MAX] = {0};
 	size_t val_size = XATTR_VAL_SIZE_MAX;
 
-	val_size = efs_getxattr(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
-				&ut_efs_obj.file_inode, xattr_name, xattr_val,
-				&val_size);
+	rc  = efs_getxattr(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
+		           &ut_efs_obj.file_inode, xattr_name, xattr_val,
+		           &val_size);
 
+	ut_assert_int_equal(rc, 0);
 	ut_assert_int_equal(val_size, xattr_set_size);
 
 	rc = memcmp(xattr_set_val, xattr_val, xattr_set_size);
@@ -246,7 +249,7 @@ static void remove_exist_xattr(void)
 				&ut_efs_obj.file_inode, xattr_name, xattr_val,
 				&val_size);
 
-	ut_assert_int_not_equal(rc, ENOENT);
+	ut_assert_int_equal(rc, -ENOENT);
 }
 
 /**

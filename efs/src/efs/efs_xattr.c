@@ -82,6 +82,9 @@ size_t efs_getxattr(struct efs_fs *efs_fs, efs_cred_t *cred,
 	void *read_val = NULL;
 	size_t size_val;
 
+	dassert(size != NULL);
+	dassert(*size != 0);
+
 	RC_WRAP_LABEL(rc, out, efs_access, efs_fs, cred, ino,
 		      EFS_ACCESS_READ);
 
@@ -90,12 +93,6 @@ size_t efs_getxattr(struct efs_fs *efs_fs, efs_cred_t *cred,
 	RC_WRAP_LABEL(rc, out, md_xattr_get, &(efs_fs->kvtree->index), (obj_id_t *)&oid, name,
 		      &read_val, &size_val);
 
-	/* The caller/client wants to estimate the size of "value" */
-	if (*size == 0) {
-		rc = size_val;
-		goto out;
-	}
-
 	/* The passed buffer size is insufficient to hold the xattr value */
 	if (*size < size_val) {
 		rc = -ERANGE;
@@ -103,7 +100,7 @@ size_t efs_getxattr(struct efs_fs *efs_fs, efs_cred_t *cred,
 	}
 
 	memcpy(value, read_val, size_val);
-	rc = size_val;
+	*size = size_val;
 
 out:
 	log_trace("ctx=%p *ino=%llu oid=%" PRIx64 ":%" PRIx64 " rc=%d name=%s"
