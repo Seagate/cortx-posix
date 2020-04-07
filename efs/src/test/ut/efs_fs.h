@@ -25,6 +25,7 @@
 #include "efs.h"
 
 #define DEFAULT_CONFIG "/etc/efs/efs.conf"
+#define ENV_FROM_STATE(__state) (*((struct ut_efs_params **)__state))
 
 struct ut_efs_params {
 	struct efs_fs *efs_fs;
@@ -40,10 +41,30 @@ struct collection_item *cfg_items;
 /**
  * Initialization for NS tests
  */
-int ut_efs_fs_setup();
+int ut_efs_fs_setup(void **state);
 
 /*
  * Finishes initialization done for NS tests
  */ 
-int ut_efs_fs_teardown();
+int ut_efs_fs_teardown(void **state);
+
+/*
+ * Creates a file
+ */
+int ut_file_create(void **state);
+
+/*
+ * Deletes a file
+ */
+int ut_file_delete(void **state);
+
+/*
+ * Creates a directory
+ */
+int ut_dir_create(void **state);
+
+/*
+ * Deletes a directory
+ */
+int ut_dir_delete(void ** state);
 #endif /* TEST_EFS_FS_H */

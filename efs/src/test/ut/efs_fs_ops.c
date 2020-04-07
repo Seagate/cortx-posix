@@ -58,6 +58,7 @@ int main(void)
 
 	rc = ut_init(test_log);
 	if (rc != 0) {
+		printf("ut_init failed, log path=%s, rc=%d.\n", test_log, rc);
 		exit(1);
 	}
 	rc = efs_init(EFS_DEFAULT_CONFIG);
