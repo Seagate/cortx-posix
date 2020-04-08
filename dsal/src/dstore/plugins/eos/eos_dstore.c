@@ -20,6 +20,7 @@
 #include <common/log.h>
 #include <common/helpers.h>
 #include "dstore.h"
+#include "../../dstore_internal.h"
 #include <assert.h>
 
 
