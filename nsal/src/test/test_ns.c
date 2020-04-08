@@ -114,7 +114,7 @@ void test_ns_scan()
 int main(int argc, char *argv[])
 {
         int rc = 0;
-        char *test_logs = "/var/log/eos/fs/test.logs";
+        char *test_logs = "/var/log/eos/test/ut/nsal/ns_ops.logs";
 
         if (argc > 1) {
                 test_logs = argv[1];

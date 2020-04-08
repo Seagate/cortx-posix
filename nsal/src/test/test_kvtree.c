@@ -207,7 +207,7 @@ int test_internal_node(struct kvtree *kvtree, struct info *test_info)
 int main(int argc, char **argv)
 {
 	int rc = 0;
-	char *test_logs = "/var/log/eos/efs/test.logs";
+	char *test_logs = "/var/log/eos/test/ut/nsal/kvtree_ops.logs";
 
 	if (argc > 1) {
 		test_logs = argv[1];
