@@ -44,13 +44,6 @@ typedef enum md_version {
 	MD_VERSION_INVALID,
 } md_version_t;
 
-/* Common md key types associated with particular version of md. */
-typedef enum md_key_type {
-	MD_KEY_TYPE_XATTR = 1,
-	MD_KEY_TYPE_INVALID,
-	MD_KEY_TYPES = MD_KEY_TYPE_INVALID,
-} md_key_type_t;
-
 /* key metadata which should be included into each md key (2 bytes) */
 struct md_key_md {
 	uint8_t k_type;

@@ -14,6 +14,20 @@
 #ifndef _NSAL_H_
 #define _NSAL_H_
 
+typedef obj_id_t node_id_t; /* Act as node identifier in kvtree */
+
+typedef enum kvtree_key_type {
+	/* KVTree key types associated with particular version of kvtree. */
+	KVTREE_KEY_TYPE_NODE_INFO = 20,
+	KVTREE_KEY_TYPE_CHILD,
+	KVTREE_KEY_TYPE_LINK,
+	KVTREE_KEY_TYPE_XATTR,
+	KVTREE_KEY_TYPE_INVALID,
+	KVTREE_KEY_TYPES = KVTREE_KEY_TYPE_INVALID,
+
+} kvtree_key_type_t;
+
+
 /******************************************************************************/
 /* Methods */
 

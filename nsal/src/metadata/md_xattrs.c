@@ -21,6 +21,7 @@
 #include <dirent.h>
 #include <eos/eos_kvstore.h>
 #include <common/log.h>
+#include "nsal.h"
 
 /* */
 struct md_xattr_key {
@@ -33,7 +34,7 @@ struct md_xattr_key {
 {						\
 	.xk_oid	 = *__oid,			\
 	.xk_md = {				\
-		.k_type = MD_KEY_TYPE_XATTR,	\
+		.k_type = KVTREE_KEY_TYPE_XATTR,	\
 		.k_version = MD_VERSION_0,	\
 	},				        \
 	.xk_name = {},				\
@@ -79,7 +80,7 @@ static int md_xattr_alloc_init_key(const obj_id_t *oid, const char *name,
 		         sizeof (struct md_xattr_key));
 
 	(*key)->xk_oid = *oid;
-	(*key)->xk_md.k_type = MD_KEY_TYPE_XATTR;
+	(*key)->xk_md.k_type = KVTREE_KEY_TYPE_XATTR;
 	(*key)->xk_md.k_version = MD_VERSION_0;
 	(*key)->xk_name.len = len;
 	memcpy((*key)->xk_name.str, name, (*key)->xk_name.len);
