@@ -126,21 +126,21 @@ int main(int argc, char *argv[])
         }
 
         struct test_case test_list[] = {
-                ut_test_case(test_ns_init),
-                ut_test_case(test_ns_scan),
-                ut_test_case(test_ns_create),
-                ut_test_case(test_ns_delete),
-                ut_test_case(test_ns_fini),
+                ut_test_case(test_ns_init, NULL, NULL),
+                ut_test_case(test_ns_scan, NULL, NULL),
+                ut_test_case(test_ns_create, NULL, NULL),
+                ut_test_case(test_ns_delete, NULL, NULL),
+                ut_test_case(test_ns_fini, NULL, NULL),
         };
 
         int test_count = 5;
         int test_failed = 0;
 
-        test_failed = ut_run(test_list, test_count);
+        test_failed = ut_run(test_list, test_count, NULL, NULL);
 
         ut_fini();
 
-        printf("Tests failed = %d", test_failed);
+	ut_summary(test_count, test_failed);
 
         return 0;
 }

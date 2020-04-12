@@ -227,21 +227,20 @@ int main(int argc, char **argv)
 		goto out;
 	}
 	struct test_case test_list[] = {
-		ut_test_case(test_kvtree_create),
-		ut_test_case(test_kvtree_delete),
-		ut_test_case(test_kvtree_ops)
+		ut_test_case(test_kvtree_create, NULL, NULL),
+		ut_test_case(test_kvtree_delete, NULL, NULL),
+		ut_test_case(test_kvtree_ops, NULL, NULL)
 	};
 	int test_count = sizeof(test_list) / sizeof(test_list[0]);
 	int test_failed = 0;
 
-	test_failed = ut_run(test_list, test_count);
+	test_failed = ut_run(test_list, test_count, NULL, NULL);
 
 	ut_kvtree_teardown();
 out:
 	ut_fini();
-	printf("Total tests = %d\n", test_count);
-	printf("Tests passed = %d\n", test_count - test_failed);
-	printf("Tests failed = %d\n", test_failed);
+
+	ut_summary(test_count, test_failed);
 
 	return 0;
 }
