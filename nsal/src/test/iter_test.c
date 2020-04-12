@@ -256,14 +256,14 @@ int main(int argc, char *argv[])
 	}
 
 	struct test_case test_list[] = {
-		ut_test_case(test_iterator_with_prefix),
-		ut_test_case(test_iterator_no_prefix)
+		ut_test_case(test_iterator_with_prefix, NULL, NULL),
+		ut_test_case(test_iterator_no_prefix, NULL, NULL)
 	};
 
 	int test_count = 2;
 	int test_failed = 0;
 
-	test_failed = ut_run(test_list, test_count);
+	test_failed = ut_run(test_list, test_count, NULL, NULL);
 
 	rc = iter_fini();
 	if (rc) {
@@ -272,7 +272,7 @@ int main(int argc, char *argv[])
 	}
 out:
 	ut_fini();
-	printf("Tests failed = %d", test_failed);
 
+	ut_summary(test_count, test_failed);
 	return rc;
 }
