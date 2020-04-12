@@ -370,21 +370,21 @@ int main(void)
 	}
 
 	struct test_case test_list[] = {
-		ut_test_case(set_exist_xattr),
-		ut_test_case(set_nonexist_xattr),
-		ut_test_case(replace_exist_xattr),
-		ut_test_case(replace_nonexist_xattr),
-		ut_test_case(get_exist_xattr),
-		ut_test_case(get_nonexist_xattr),
-		ut_test_case(remove_exist_xattr),
-		ut_test_case(remove_nonexist_xattr),
-		ut_test_case(listxattr_test),
+		ut_test_case(set_exist_xattr, NULL, NULL),
+		ut_test_case(set_nonexist_xattr, NULL, NULL),
+		ut_test_case(replace_exist_xattr, NULL, NULL),
+		ut_test_case(replace_nonexist_xattr, NULL, NULL),
+		ut_test_case(get_exist_xattr, NULL, NULL),
+		ut_test_case(get_nonexist_xattr, NULL, NULL),
+		ut_test_case(remove_exist_xattr, NULL, NULL),
+		ut_test_case(remove_nonexist_xattr, NULL, NULL),
+		ut_test_case(listxattr_test, NULL, NULL),
 	};
 
 	int test_count = sizeof(test_list)/sizeof(test_list[0]);
 	int test_failed = 0;
 
-	test_failed = ut_run(test_list, test_count);
+	test_failed = ut_run(test_list, test_count, NULL, NULL);
 
 	efs_unlink(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
 			&ut_efs_obj.current_inode, NULL, ut_efs_obj.file_name);
@@ -393,9 +393,7 @@ int main(void)
 
 	ut_fini();
 
-	printf("Total tests  = %d\n", test_count);
-	printf("Tests passed = %d\n", test_count-test_failed);
-	printf("Tests failed = %d\n", test_failed);
+	ut_summary(test_count, test_failed);
 
 	return 0;
 }

@@ -201,23 +201,21 @@ int main(void)
 	}
 
 	struct test_case test_list[] = {
-		ut_test_case(rename_file),
-		ut_test_case(rename_into_empty_dir),
-		ut_test_case(rename_into_nonempty_dir),
+		ut_test_case(rename_file, NULL, NULL),
+		ut_test_case(rename_into_empty_dir, NULL, NULL),
+		ut_test_case(rename_into_nonempty_dir, NULL, NULL),
 	};
 
 	int test_count = sizeof(test_list)/sizeof(test_list[0]);
 	int test_failed = 0;
 
-	test_failed = ut_run(test_list, test_count);
+	test_failed = ut_run(test_list, test_count, NULL, NULL);
 
 	ut_efs_fs_teardown();
 
 	ut_fini();
 
-	printf("Total tests  = %d\n", test_count);
-	printf("Tests passed = %d\n", test_count-test_failed);
-	printf("Tests failed = %d\n", test_failed);
+	ut_summary(test_count, test_failed);
 
 	return 0;
 }
