@@ -6,20 +6,29 @@ MODULES=(utils dsal nsal efs kvsfs)
 BUILD_DIR=/tmp/eos-fs
 TEST_GRP=all
 
+delete_logs() {
+	rm -rf /var/log/eos/test/ut
+}
+
+create_log_dirs () {
+	# For efs logs
+	mkdir -p /var/log/eos/efs
+}
+
 execute_ut_nsal () {
 	echo "NSAL Unit tests"
 
-	NSAL_TESTS_DIR=$BUILD_DIR/build-nsal/test
+	mkdir -p /var/log/eos/test/ut/nsal
+	cd /var/log/eos/test/ut/nsal
+
+	NSAL_TEST_DIR=$BUILD_DIR/build-nsal/test
 	NSAL_TEST_LIST=(test_ns test_iter test_kvtree)
 
 	[ ! -d $NSAL_TESTS ] && echo "NSAL is not built" && exit 1
 
-	mkdir -p /var/log/eos/fs 
-	cd $NSAL_TESTS_DIR
-
 	for tests in "${NSAL_TEST_LIST[@]}"
 	do
-		./$tests
+		$NSAL_TEST_DIR/$tests
 		echo
 	done
 }
@@ -27,17 +36,17 @@ execute_ut_nsal () {
 execute_ut_efs () {
 	echo "EFS Unit tests"
 
+	mkdir -p /var/log/eos/test/ut/efs
+	cd /var/log/eos/test/ut/efs
+
 	EFS_TEST_DIR=$BUILD_DIR/build-efs/test/ut
 	EFS_TEST_LIST=(fs_ops_ut dir_ops_ut file_ops_ut link_ops_ut rename_ops_ut attr_ops_ut xattr_ops_ut)
 
 	[ ! -d $EFS_TESTS ] && echo "EFS is not built" && exit 1
 
-	mkdir -p /var/log/eos/test/ut/efs
-	cd $EFS_TEST_DIR
-
 	for tests in "${EFS_TEST_LIST[@]}"
 	do
-		./$tests
+		$EFS_TEST_DIR/$tests
 		echo 
 	done
 }
@@ -98,4 +107,6 @@ while [ ! -z $1 ]; do
 	shift 1
 done
 
+delete_logs
+create_log_dirs
 execute_all_ut
