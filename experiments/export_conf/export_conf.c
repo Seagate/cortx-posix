@@ -3,6 +3,8 @@
 #include <unistd.h>
 #include <sys/sendfile.h>
 #include <string.h>
+#include <stdlib.h>
+#include <errno.h>
 
 struct filesystem_id {
 	int major;
@@ -24,7 +26,7 @@ struct export_option {
 int create_block(FILE * file, struct export_option *options)
 {
 	fprintf(file, "\nexport {\n");
-	fprintf(file, "\tExport_id = %d;\n", options->export_id);
+	fprintf(file, "\tExport_Id = %d;\n", options->export_id);
 	fprintf(file, "\tPath = %s;\n", options->path);
 	fprintf(file, "\tPseudo = /%s;\n", options->path);
 	fprintf(file, "\tFSAL {\n");
@@ -68,6 +70,95 @@ int OSCopyFile(const char* source, const char* destination)
 	return result;
 }
 
+int dump_file_buff(FILE * file, char **buffer)
+{
+	int rc = 0;
+	char * buf = NULL;
+	size_t length;
+
+	fseek (file, 0, SEEK_END);
+	length = ftell (file);
+	fseek (file, 0, SEEK_SET);
+
+	buf = malloc (length);
+	if (buf == NULL) {
+		fprintf(stderr, "Cannot allocate memeory for buffer\n");
+		rc = -ENOMEM;
+		goto out;
+	}
+	fread (buf, 1, length, file);
+	*buffer = buf;
+out:
+	return rc;
+
+}
+
+int dump_buff_file( char **buffer)
+{
+	int rc = 0;
+	int length = strlen(*buffer);
+	printf("length = %d\n",length);
+
+	FILE *tmp_file = fopen("./tmp", "a");
+	if (tmp_file ==NULL ) {
+		rc = -EINVAL; //retink error no;
+		goto out;
+	}
+	fwrite(*buffer, 1, length, tmp_file);
+
+	//check tmp file passes the ganesha config santiy if yes.
+
+	rc = rename("./tmp", "./tmpganesha1");// should be ganesha.comnf
+out:
+	return rc;
+}
+
+int find_block(char *src, const char *dst, int *block_start, int *block_end)
+{
+	int rc = 0;
+	char *tmp = strstr(src, dst);
+	if(tmp == NULL) {
+		printf("export block does't found\n");
+		rc = -ENOENT;
+		goto out;
+	}
+	int pos = tmp - src;
+	*block_start = tmp - 10 - src;
+	*block_end = *block_start + 250;
+out:
+	return rc;
+}
+
+int process_block(char *buffer, int start, int end)
+{
+	memmove(&buffer[start - 1], &buffer[start +end - 1], 250);
+}
+
+int delete_block(FILE * file, int export_id)
+{
+	int rc;
+	int block_start, block_end;
+	char *buffer;
+
+	rc = dump_file_buff(file, &buffer);
+	if (rc !=0) {
+		fprintf(stderr, "Cannot dump file into buffer\n");
+		goto out;
+	}
+
+	rc = find_block(buffer, "Export_Id = 11", &block_start, &block_end);
+	if (rc !=0) {
+		goto out;
+	}
+
+	rc = process_block(buffer, block_start, block_end);
+
+	rc = dump_buff_file(&buffer);
+	free(buffer);
+out:
+	return rc;
+}
+
 int main()
 {
 	int rc = 0;
@@ -84,13 +175,15 @@ int main()
 	options.fs_id.major = 192;
 	options.fs_id.minor = 168;
 
-	rc = OSCopyFile(file_path, "/etc/ganesha/tmpganesha");
+	rc = OSCopyFile(file_path, "./tmpganesha");
 
-	FILE *file = fopen("/etc/ganesha/tmpganesha", "a+");
+	FILE *file = fopen("./tmpganesha", "a+");
 	if (file == NULL) {
 		fprintf(stderr, "Can't create file for writing\n");
 		return -1;
 	}
 	rc = create_block(file, &options);
+
+	rc = delete_block(file, options.export_id);
 	return 0;
 }
