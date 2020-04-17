@@ -6,7 +6,7 @@ include_directories("/usr/include/mero")
 find_library(HAVE_CMOCKA cmocka)
 
 if((NOT HAVE_CMOCKA))
-        message (FATAL ERROR "Connnot find cmocka")
+	message (FATAL ERROR "Connnot find cmocka")
 endif((NOT HAVE_CMOCKA))
 
 configure_file(efs_ut.ini efs_ut.ini COPYONLY)
@@ -18,6 +18,8 @@ add_executable(rename_ops_ut efs_rename_ops.c)
 add_executable(file_ops_ut efs_file_ops.c)
 add_executable(attr_ops_ut efs_attr_ops.c)
 add_executable(xattr_ops_ut efs_xattr_ops.c)
+add_executable(io_ops_ut efs_io_ops.c)
+add_executable(io_ops_bug_ut efs_io_ops_bugs.c)
 
 link_directories(${LIBKVSTORE})
 set(CMAKE_INSTALL_RPATH "${LIBKVSTORE}")
@@ -62,6 +64,14 @@ target_link_libraries(attr_ops_ut
 )
 
 target_link_libraries(xattr_ops_ut
+	efs_ut_helper
+)
+
+target_link_libraries(io_ops_ut
+	efs_ut_helper
+)
+
+target_link_libraries(io_ops_bug_ut
 	efs_ut_helper
 )
 
