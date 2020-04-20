@@ -22,7 +22,7 @@ execute_ut_nsal () {
 	cd /var/log/eos/test/ut/nsal
 
 	NSAL_TEST_DIR=$BUILD_DIR/build-nsal/test
-	NSAL_TEST_LIST=(test_ns test_iter test_kvtree)
+	NSAL_TEST_LIST=(test_ns test_iter test_kvtree sac_test_kv)
 
 	[ ! -d $NSAL_TESTS ] && echo "NSAL is not built" && exit 1
 
