@@ -24,7 +24,7 @@ execute_ut_nsal () {
 	NSAL_TEST_DIR=$BUILD_DIR/build-nsal/test
 	NSAL_TEST_LIST=(test_ns test_iter test_kvtree)
 
-	[ ! -d $NSAL_TESTS ] && echo "NSAL is not built" && exit 1
+	[ ! -d $NSAL_TEST_DIR ] && echo "NSAL is not built" && exit 1
 
 	for tests in "${NSAL_TEST_LIST[@]}"
 	do
@@ -40,9 +40,9 @@ execute_ut_efs () {
 	cd /var/log/eos/test/ut/efs
 
 	EFS_TEST_DIR=$BUILD_DIR/build-efs/test/ut
-	EFS_TEST_LIST=(fs_ops_ut dir_ops_ut file_ops_ut link_ops_ut rename_ops_ut attr_ops_ut xattr_ops_ut)
+	EFS_TEST_LIST=(fs_ops_ut dir_ops_ut file_ops_ut link_ops_ut rename_ops_ut attr_ops_ut xattr_ops_ut io_ops_ut)
 
-	[ ! -d $EFS_TESTS ] && echo "EFS is not built" && exit 1
+	[ ! -d $EFS_TEST_DIR ] && echo "EFS is not built" && exit 1
 
 	for tests in "${EFS_TEST_LIST[@]}"
 	do
