@@ -13,8 +13,6 @@
 */
 #include "efs_fs.h"
 
-struct ut_efs_params ut_efs_obj;
-
 /**
  * Test to set creation time
  * Description: Set creation time for file.
@@ -25,8 +23,10 @@ struct ut_efs_params ut_efs_obj;
  *  1. No errors from EFS API.
  *  2. ctime recieved from getattr should match set ctime.
  */
-static void set_ctime(void)
+static void set_ctime(void **state)
 {
+	struct ut_efs_params *ut_efs_objs = ENV_FROM_STATE(state);
+
 	int rc = 0;
 	int flag = STAT_CTIME_SET;
 
@@ -47,13 +47,13 @@ static void set_ctime(void)
 
 	stat_in.st_ctim.tv_sec = new_ctime;
 
-	rc = efs_setattr(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
-				&ut_efs_obj.file_inode, &stat_in, flag);
+	rc = efs_setattr(ut_efs_objs->efs_fs, &ut_efs_objs->cred,
+				&ut_efs_objs->file_inode, &stat_in, flag);
 
 	ut_assert_int_equal(rc, 0);
 
-	rc = efs_getattr(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
-			&ut_efs_obj.file_inode, &stat_out);
+	rc = efs_getattr(ut_efs_objs->efs_fs, &ut_efs_objs->cred,
+			&ut_efs_objs->file_inode, &stat_out);
 
 	ut_assert_int_equal(rc, 0);
 
@@ -70,8 +70,10 @@ static void set_ctime(void)
  *  1. No errors from EFS API.
  *  2. mtime recieved from getattr should match set mtime.
  */
-static void set_mtime(void)
+static void set_mtime(void **state)
 {
+	struct ut_efs_params *ut_efs_objs = ENV_FROM_STATE(state);
+
 	int rc = 0;
 	int flag = STAT_MTIME_SET;
 
@@ -94,13 +96,13 @@ static void set_mtime(void)
 
 	time(&cur_time);
 
-	rc = efs_setattr(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
-				&ut_efs_obj.file_inode, &stat_in, flag);
+	rc = efs_setattr(ut_efs_objs->efs_fs, &ut_efs_objs->cred,
+				&ut_efs_objs->file_inode, &stat_in, flag);
 
 	ut_assert_int_equal(rc, 0);
 
-	rc = efs_getattr(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
-				&ut_efs_obj.file_inode, &stat_out);
+	rc = efs_getattr(ut_efs_objs->efs_fs, &ut_efs_objs->cred,
+				&ut_efs_objs->file_inode, &stat_out);
 
 	ut_assert_int_equal(rc, 0);
 
@@ -121,8 +123,10 @@ static void set_mtime(void)
  *  1. No errors from EFS API.
  *  2. atime recieved from getattr should match set atime.
  */
-static void set_atime(void)
+static void set_atime(void **state)
 {
+	struct ut_efs_params *ut_efs_objs = ENV_FROM_STATE(state);
+
 	int rc = 0;
 	int flag = STAT_ATIME_SET;
 
@@ -145,12 +149,12 @@ static void set_atime(void)
 
 	time(&cur_time);
 
-	rc = efs_setattr(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
-				&ut_efs_obj.file_inode, &stat_in, flag);
+	rc = efs_setattr(ut_efs_objs->efs_fs, &ut_efs_objs->cred,
+				&ut_efs_objs->file_inode, &stat_in, flag);
 	ut_assert_int_equal(rc, 0);
 
-	rc = efs_getattr(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
-				&ut_efs_obj.file_inode, &stat_out);
+	rc = efs_getattr(ut_efs_objs->efs_fs, &ut_efs_objs->cred,
+				&ut_efs_objs->file_inode, &stat_out);
 
 	ut_assert_int_equal(rc, 0);
 
@@ -171,8 +175,10 @@ static void set_atime(void)
  *  1. No errors from EFS API.
  *  2. gid recieved from getattr should match set gid.
  */
-static void set_gid(void)
+static void set_gid(void **state)
 {
+	struct ut_efs_params *ut_efs_objs = ENV_FROM_STATE(state);
+
 	int rc = 0;
 	int flag = STAT_GID_SET;
 
@@ -188,13 +194,13 @@ static void set_gid(void)
 
 	time(&cur_time);
 
-	rc = efs_setattr(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
-				&ut_efs_obj.file_inode, &stat_in, flag);
+	rc = efs_setattr(ut_efs_objs->efs_fs, &ut_efs_objs->cred,
+				&ut_efs_objs->file_inode, &stat_in, flag);
 
 	ut_assert_int_equal(rc, 0);
 
-	rc = efs_getattr(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
-				&ut_efs_obj.file_inode, &stat_out);
+	rc = efs_getattr(ut_efs_objs->efs_fs, &ut_efs_objs->cred,
+				&ut_efs_objs->file_inode, &stat_out);
 
 	ut_assert_int_equal(rc, 0);
 
@@ -215,8 +221,10 @@ static void set_gid(void)
  *  1. No errors from EFS API.
  *  2. uid recieved from getattr should match set uid.
  */
-static void set_uid(void)
+static void set_uid(void **state)
 {
+	struct ut_efs_params *ut_efs_objs = ENV_FROM_STATE(state);
+
 	int rc = 0;
 	int flag = STAT_UID_SET;
 
@@ -232,12 +240,12 @@ static void set_uid(void)
 
 	time(&cur_time);
 
-	rc = efs_setattr(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
-				&ut_efs_obj.file_inode, &stat_in, flag);
+	rc = efs_setattr(ut_efs_objs->efs_fs, &ut_efs_objs->cred,
+				&ut_efs_objs->file_inode, &stat_in, flag);
 	ut_assert_int_equal(rc, 0);
 
-	rc = efs_getattr(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
-				&ut_efs_obj.file_inode, &stat_out);
+	rc = efs_getattr(ut_efs_objs->efs_fs, &ut_efs_objs->cred,
+				&ut_efs_objs->file_inode, &stat_out);
 
 	ut_assert_int_equal(rc, 0);
 
@@ -246,6 +254,51 @@ static void set_uid(void)
 	if(difftime(stat_out.st_ctime, cur_time) < 0) {
 		ut_assert_true(0);
 	}
+}
+
+/**
+ * Setup for attr test group
+ */
+static int attr_test_setup(void **state)
+{
+	int rc = 0;
+	struct ut_efs_params *ut_efs_objs = NULL;
+
+	ut_efs_objs = calloc(sizeof(struct ut_efs_params), 1);
+	ut_assert_not_null(ut_efs_objs);
+
+	*state = ut_efs_objs;
+	rc = ut_efs_fs_setup(state);
+
+	ut_assert_int_equal(rc, 0);
+
+	ut_efs_objs->file_name = "test_attr_file";
+	ut_efs_objs->file_inode = 0LL;
+
+	*state = ut_efs_objs;
+	rc = ut_file_create(state);
+
+	ut_assert_int_equal(rc, 0);
+
+	return rc;
+}
+
+/**
+ * Teardown for attr_ops test group
+ */
+static int attr_test_teardown(void **state)
+{
+	int rc = 0;
+
+	rc = ut_file_delete(state);
+	ut_assert_int_equal(rc, 0);
+
+	rc = ut_efs_fs_teardown(state);
+	ut_assert_int_equal(rc, 0);
+
+	free(*state);
+
+	return rc;
 }
 
 int main(void)
@@ -257,23 +310,7 @@ int main(void)
 
 	rc = ut_init(test_log);
 	if (rc != 0) {
-		exit(1);
-	}
-
-	rc = ut_efs_fs_setup();
-	if (rc) {
-		printf("Failed to intitialize efs\n");
-		exit(1);
-	}
-
-	ut_efs_obj.file_name = "test_attr_file";
-	ut_efs_obj.file_inode = 0LL;
-
-	rc = efs_creat(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
-			&ut_efs_obj.current_inode, ut_efs_obj.file_name, 0755,
-			&ut_efs_obj.file_inode);
-	if (rc) {
-		printf("Failed to create file %s\n", ut_efs_obj.file_name);
+		printf("ut_init failed, log path=%s, rc=%d.\n", test_log, rc);
 		exit(1);
 	}
 
@@ -288,20 +325,12 @@ int main(void)
 	int test_count = sizeof(test_list)/sizeof(test_list[0]);
 	int test_failed = 0;
 
-	test_failed = ut_run(test_list, test_count, NULL, NULL);
-
-	rc = efs_unlink(ut_efs_obj.efs_fs, &ut_efs_obj.cred,
-			&ut_efs_obj.current_inode, NULL, ut_efs_obj.file_name);
-
-	if (rc) {
-		printf("Failed to delete file %s\n", ut_efs_obj.file_name);
-	}
-
-	ut_efs_fs_teardown();
+	test_failed = ut_run(test_list, test_count, attr_test_setup,
+				attr_test_teardown);
 
 	ut_fini();
 
 	ut_summary(test_count, test_failed);
-
+	
 	return 0;
 }
