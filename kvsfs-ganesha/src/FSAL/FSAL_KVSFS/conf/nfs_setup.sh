@@ -191,6 +191,12 @@ function check_prerequisites {
 	tmp_var=$(pgrep m0)
 	[ -z "$tmp_var" ] && die "Mero services not activate"
 
+	#check SElinux status
+	tmp_var="$(getenforce)"
+	if [ "$tmp_var" == "Enforcing" ]; then
+		die "EOS NFS cannot work with SELinux enabled. Please disable it using \"setenforce Permissive\""
+	fi
+
 	# Check nfs-ganesha
 	tmp_var=$(rpm --version nfs-ganesha)
 	[ -z "$tmp_var" ] && die "NFS RPMs not installed "
