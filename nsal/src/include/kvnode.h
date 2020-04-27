@@ -18,7 +18,7 @@
 struct kvtree;
 
 struct kvnode {
-	struct kvtree *kvtree;         /* kvtree pointer to which the node belongs */
+	struct kvtree *tree;         /* kvtree pointer to which the node belongs */
 	node_id_t node_id;             /* 128-bit Identifier for every node */
 	struct kvnode_info *node_info; /* pointer to node attributes */
 };
@@ -30,16 +30,19 @@ struct kvnode_info {
 	char info[0];                /* node information buffer */
 };
 
+#define NODE_ID_F "{hi=%" PRIu64 ", lo=%" PRIu64 "}"
+#define NODE_ID_P(_nid) (_nid)->f_hi, (_nid)->f_lo
+
 /** Creates a kvnode for a given id(128 bit) and node information.
  *  Stores node_info for that node id.
  *
- *  @param[in] node_id - 128 bit node identifier
+ *  @param[in] node_id - pointer to 128 bit node identifier
  *  @param[in] node_info - kvnode buffer filled with node attributes
  *  @param[out] node - creates kvnode
  *
  *  @return 0 if successful, a negative "-errno" value in case of failure
  */
-int kvnode_create(struct kvtree *kvtree, node_id_t node_id,
+int kvnode_create(struct kvtree *tree, const node_id_t *node_id,
                   struct kvnode_info *node_info, struct kvnode *node);
 
 /** Allocates memory for kvnode_info and initializes node information buffer 
@@ -64,30 +67,30 @@ void kvnode_info_free(struct kvnode_info *node_info);
  *  @param[in] node - kvnode to be stored.
  *  @return 0 if successful, a negative "-errno" value in case of failure
  */
-int kvnode_info_write(struct kvnode *node);
+int kvnode_info_write(const struct kvnode *node);
 
 /** Fetches node info for a  kvnode.
  *
- *  @param[in] node - kvnode with node_id set.
+ *  @param node[in/out] - kvnode with node_id set and gets filled with node_info.
  *  @return 0 if successful, a negative "-errno" value in case of failure
  */
 int kvnode_info_read(struct kvnode *node);
 
 /** Deletes/removes node info for a node_id.
  *
- *  @param[in] kvtree - pointer to kvtree.
+ *  @param[in] tree - pointer to kvtree.
  *  @param[in] node_id - node identifier which deletes the particular node_info
  *  @return 0 if successful, a negative "-errno" value in case of failure
  */
-int kvnode_info_remove(struct kvtree *kvtree, node_id_t *node_id);
+int kvnode_info_remove(struct kvtree *tree, const node_id_t *node_id);
 
 /* Deletes kvnode for a given node_id
  * Calls internally kvnode_del_info.
  *
- *  @param[in] kvtree - pointer to kvtree.
+ *  @param[in] tree - pointer to kvtree.
  *  @param[in] node_id - node identifier 
  *  @return 0 if successful, a negative "-errno" value in case of failure
  */
-int kvnode_delete(struct kvtree *kvtree, node_id_t *node_id);
+int kvnode_delete(struct kvtree *tree, const node_id_t *node_id);
 
 #endif /* _KVNODE_H_ */
