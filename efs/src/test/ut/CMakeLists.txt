@@ -9,7 +9,7 @@ if((NOT HAVE_CMOCKA))
 	message (FATAL ERROR "Connnot find cmocka")
 endif((NOT HAVE_CMOCKA))
 
-configure_file(efs_ut.ini efs_ut.ini COPYONLY)
+configure_file(ut_efs.conf ut_efs.conf COPYONLY)
 
 add_executable(fs_ops_ut efs_fs_ops.c)
 add_executable(dir_ops_ut efs_dir_ops.c)

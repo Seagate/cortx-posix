@@ -14,37 +14,12 @@
 
 #include "efs_fs.h"
 
-struct collection_item *cfg_items;
-
-static int get_ut_config(char **fs_name)
-{
-
-	int rc = 0;
-	char *ut_config_file = "/tmp/eos-fs/build-efs/test/ut/efs_ut.ini";
-	struct collection_item *errors = NULL;
-	struct collection_item *item = NULL;
-
-	rc = config_from_file("libkvsns", ut_config_file, &cfg_items,
-				INI_STOP_ON_ERROR, &errors);
-	if (rc != 0) {
-		return rc;
-	}
-
-	rc = get_config_item("config", "fs", cfg_items, &item);
-	if (rc != 0) {
-		return rc;
-	}
-
-	*fs_name = get_string_config_value(item, NULL);
-
-	return rc;
-}
-
 int ut_efs_fs_setup(void **state)
 {
 	int rc = 0;
 	struct ut_efs_params *ut_efs_obj = ENV_FROM_STATE(state);
-
+	char *ut_conf_file = "/tmp/eos-fs/build-efs/test/ut/ut_efs.conf",
+		*def_fs = "testfs";
 	ut_efs_obj->efs_fs = EFS_NULL_FS_CTX;
 
 	ut_efs_obj->cred.uid = getuid();
@@ -61,11 +36,13 @@ int ut_efs_fs_setup(void **state)
 		goto out;
 	}
 
-	rc = get_ut_config(&ut_efs_obj->fs_name);
+	rc = ut_load_config(ut_conf_file);
 	if (rc != 0) {
-		fprintf(stderr, "Failed to get ut config: err = %d\n", rc);
+		fprintf(stderr, "ut_load_config: err = %d", rc);
 		goto out;
 	}
+
+	ut_efs_obj->fs_name = ut_get_config("efs", "fs", def_fs);
 
 	str256_t fs_name;
 	str256_from_cstr(fs_name, ut_efs_obj->fs_name,
@@ -106,6 +83,8 @@ int ut_efs_fs_teardown(void **state)
 
 	rc = efs_fs_delete(&fs_name);
 	ut_assert_int_equal(rc, 0);
+
+	free(ut_efs_obj->fs_name);
 
 	rc = efs_fini();
 	ut_assert_int_equal(rc, 0);
