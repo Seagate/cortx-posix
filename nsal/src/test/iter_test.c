@@ -10,6 +10,8 @@
 #include <ut.h>
 
 #define DEFAULT_CONFIG "/etc/efs/efs.conf"
+/* key_list and val_list needs to be in sync with below config */
+#define MAX_NUM_KEY_VALUE_PAIR 10
 
 struct test_key {
 	char type;
@@ -28,14 +30,14 @@ int nsal_start(const char *config_path)
 	dassert(kvstore != NULL);
 
 	rc = log_init("/var/log/eos/efs/efs.log", LEVEL_DEBUG);
-	if (rc != 0) {
+	if (rc) {
 		rc = -EINVAL;
-		log_debug("Log init failed, rc: %d\n", rc);
+		printf("Log init failed, rc: %d\n", rc);
 		goto out;
 	}
 
 	rc = config_from_file("libkvsns", config_path, &cfg_items,
-							INI_STOP_ON_ERROR, &errors);
+			      INI_STOP_ON_ERROR, &errors);
 	if (rc) {
 		log_err("Can't load config rc = %d", rc);
 		rc = -rc;
@@ -47,17 +49,18 @@ int nsal_start(const char *config_path)
 		log_err("Failed to do kvstore init rc = %d", rc);
 		goto out;
 	}
+
+	log_debug("rc=%d nsal_start done", rc);
+
 out:
 	if (rc) {
 		free_ini_config_errors(errors);
-		return rc;
 	}
 
-	log_debug("rc=%d nsal_start done", rc);
 	return rc;
 }
 
-int iter_init()
+int iter_init(void)
 {
 	int rc = 0;
 	struct kvstore *kvstor = kvstore_get();
@@ -68,18 +71,36 @@ int iter_init()
 	dassert(kvstor != NULL);
 
 	rc = get_config_item("mero", "kvs_fid", cfg_items, &item);
+	if (rc) {
+		log_err("get_config_item failed, rc = %d", rc);
+		goto out;
+	}
+
 	fid_str = get_string_config_value(item, NULL);
+	if (fid_str == NULL) {
+		log_err("get_string_config_value failed, rc = %d", rc);
+		goto out;
+	}
+
 	rc = kvs_fid_from_str(fid_str, &fid);
+	if (rc) {
+		log_err("kvs_fid_from_str failed, rc = %d", rc);
+		goto out;
+	}
 
 	rc = kvs_index_open(kvstor, &fid, &kv_index);
-	if (rc != 0) {
+	if (rc) {
 		log_err("Look for idx failed, rc = %d", rc);
-		return rc;
+		goto out;
 	}
+
+	log_debug("rc=%d iter_init done", rc);
+
+out:
 	return rc;
 }
 
-int iter_fini()
+int iter_fini(void)
 {
 	int rc = 0;
 	struct kvstore *kvstor = kvstore_get();
@@ -126,49 +147,90 @@ char *val_list[] = {
 	"val_test_10"
 };
 
-int set_multiple_key()
+bool test_iter_validate_key_val(struct test_key *key, size_t klen,
+				 char *value, size_t vlen)
+{
+	int index;
+	bool match_found = false;
+
+	if (key->type == 'T') {
+		/* One of the key and respective value shoud match */
+		for (index = 0; index < MAX_NUM_KEY_VALUE_PAIR; index++) {
+			if (strcmp(key->name.s_str, key_list[index]) == 0) {
+				if (sizeof(struct test_key) != klen) {
+					break;
+				}
+
+				if(strlen(val_list[index]) != (vlen - 1)) {
+					break;
+				}
+
+				if (strcmp(val_list[index], value) != 0) {
+					break;
+				}
+
+				match_found = true;
+				break;
+			}
+		}
+	}
+	return match_found;
+}
+
+int set_multiple_key(void)
 {
 	int i, rc;
+	struct test_key *keys[MAX_NUM_KEY_VALUE_PAIR];
 	struct kvstore *kvstor = kvstore_get();
-	dassert(kvstor != NULL);
-	struct test_key *keys[10];
 
-	for (i = 0; i < 10; ++i) {
-		rc = kvs_alloc(kvstor, (void **)&keys[i], sizeof(struct test_key));
+	dassert(kvstor != NULL);
+
+	for (i = 0; i < MAX_NUM_KEY_VALUE_PAIR; ++i) {
+		rc = kvs_alloc(kvstor, (void **)&keys[i],
+			       sizeof(struct test_key));
 		if (rc) {
 			goto out;
 		}
 		keys[i]->type = 'T';
-		str256_from_cstr(keys[i]->name, key_list[i], strlen(key_list[i]));
+		str256_from_cstr(keys[i]->name, key_list[i],
+				 strlen(key_list[i]));
 	}
-	for (i = 0; i < 10; ++i) {
+
+	for (i = 0; i < MAX_NUM_KEY_VALUE_PAIR; ++i) {
 		rc = kvs_set(kvstor, &kv_index, keys[i],
 		             sizeof(struct test_key), val_list[i],
-		             strlen(val_list[i]));
+		             strlen(val_list[i])+1);
 		if (rc) {
 			break;
 		}
 	}
+
 out:
-	for (i = 0; i < 10; ++i) {
-		kvs_free(kvstor, keys[i]);
+	for (i = 0; i < MAX_NUM_KEY_VALUE_PAIR; ++i) {
+		if (keys[i]) {
+			kvs_free(kvstor, keys[i]);
+		}
 	}
+
 	return rc;
 }
 
-void test_iterator_with_prefix()
+
+void test_iterator_with_prefix(void)
 {
 	int rc = 0;
+	int matching_key_val = 0;
 	struct kvs_itr *iter;
 	bool has_next = true;
 	void *key, *value;
 	size_t klen, vlen;
 	struct kvstore *kvstor = kvstore_get();
+
 	dassert(kvstor != NULL);
 
 	struct test_key prefix;
 	prefix.type = 'T';
-	size_t len = sizeof(struct test_key) -sizeof(str256_t);
+	size_t len = sizeof(struct test_key) - sizeof(str256_t);
 
 	rc = kvs_itr_find(kvstor, &kv_index, &prefix, len, &iter);
 	if (rc) {
@@ -179,10 +241,19 @@ void test_iterator_with_prefix()
 	while (has_next) {
 		kvs_itr_get(kvstor, iter, &key, &klen, &value, &vlen);
 
-		printf("key=%s,  value=%s \n", (char *)key, (char*)value);
+		if (test_iter_validate_key_val(key, klen, value, vlen)) {
+			matching_key_val++;
+		}
+
+		printf("key_type=%c, key_name=%s, value=%s \n",
+		       ((struct test_key*)key)->type,
+		       ((struct test_key*)key)->name.s_str, (char*)value);
 		rc = kvs_itr_next(kvstor, iter);
 		has_next = (rc == 0);
 	}
+
+	ut_assert_int_equal(matching_key_val, MAX_NUM_KEY_VALUE_PAIR);
+
 out:
 	if (rc == -ENOENT) {
 		rc = 0;
@@ -193,14 +264,16 @@ out:
 	ut_assert_int_equal(rc,0);
 }
 
-void test_iterator_no_prefix()
+void test_iterator_no_prefix(void)
 {
 	int rc = 0;
+	int matching_key_val = 0;
 	struct kvs_itr *iter;
 	bool has_next = true;
 	void *key, *value;
 	size_t klen, vlen;
 	struct kvstore *kvstor = kvstore_get();
+
 	dassert(kvstor != NULL);
 
 	rc = kvs_itr_find(kvstor, &kv_index, "", 0, &iter);
@@ -211,10 +284,21 @@ void test_iterator_no_prefix()
 
 	while (has_next) {
 		kvs_itr_get(kvstor, iter, &key, &klen, &value, &vlen);
-		printf("key=%s,  value=%s \n", (char *)key, (char*)value);
+
+		if (test_iter_validate_key_val(key, klen, value, vlen)) {
+			matching_key_val++;
+		}
+
+		printf("key_type=%c, key_name=%s, value=%s \n",
+		       ((struct test_key*)key)->type,
+		       ((struct test_key*)key)->name.s_str, (char*)value);
+
 		rc = kvs_itr_next(kvstor, iter);
 		has_next = (rc == 0);
 	}
+
+	ut_assert_int_equal(matching_key_val, MAX_NUM_KEY_VALUE_PAIR);
+
 out:
 	if (rc == -ENOENT) {
 		rc = 0;
@@ -239,11 +323,11 @@ int main(int argc, char *argv[])
 
 	rc = nsal_start(DEFAULT_CONFIG);
 	if (rc) {
-		log_err("Failed to do nsal_start rc = %d", rc);
+		printf("Failed to do nsal_start rc = %d", rc);
 		goto out;
 	}
 
-	rc = iter_init(cfg_items);
+	rc = iter_init();
 	if (rc) {
 		log_err("Failed iter_init");
 		goto out;

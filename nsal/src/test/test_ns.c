@@ -30,7 +30,7 @@ void test_ns_init()
 	}
 
 	rc = config_from_file("libkvsns", DEFAULT_CONFIG, &cfg_items,
-							INI_STOP_ON_ERROR, &errors);
+			      INI_STOP_ON_ERROR, &errors);
 	if (rc) {
 		printf("Can't load config rc = %d", rc);
 		rc = -rc;
@@ -56,8 +56,17 @@ out:
 void test_ns_fini()
 {
 	int rc = 0;
+	struct kvstore *kvstore = kvstore_get();
 
 	rc = ns_fini();
+	ut_assert_int_equal(rc, 0);
+
+	rc = kvs_fini(kvstore);
+	if (rc != 0) {
+		printf("kvs_fini failed, rc = %d", rc);
+	}
+
+	free_ini_config_errors(cfg_items);
 
 	ut_assert_int_equal(rc, 0);
 }
