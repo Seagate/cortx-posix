@@ -112,7 +112,7 @@ int efs_fs_fini()
 	return rc;
 }
 
-void efs_fs_scan(void (*fs_scan_cb)(const struct efs_fs *, void *args), void *args)
+void efs_fs_scan(int (*fs_scan_cb)(const struct efs_fs *, void *args), void *args)
 {
 	struct efs_fs_node *fs_node = NULL;
 

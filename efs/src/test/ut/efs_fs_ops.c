@@ -38,12 +38,16 @@ static void test_efs_fs_delete()
 	ut_assert_int_equal(rc, 0);
 }
 
-static void test_efs_cb(const struct efs_fs *fs, void *args)
+static int test_efs_cb(const struct efs_fs *fs, void *args)
 {
+	int rc = 0;
+
 	str256_t *fs_name = NULL;
 	efs_fs_get_name(fs, &fs_name);
 
 	printf("CB efs name = %s\n", fs_name->s_str);
+
+	return rc;
 }
 
 static void test_efs_fs_scan()

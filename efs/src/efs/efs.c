@@ -128,7 +128,10 @@ out:
 int efs_fini(void)
 {
 	int rc = 0;
-	//TODO management_fini.
+	rc = management_fini();
+	if (rc) {
+		log_err("management_fini failed, rc=%d", rc);
+        }
 	rc = efs_fs_fini();
 	if (rc) {
                 log_err("efs_fs_fini failed, rc=%d", rc);

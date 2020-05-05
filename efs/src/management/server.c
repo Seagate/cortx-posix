@@ -11,7 +11,7 @@
  * Portions are also trade secret. Any use, duplication, derivation, distribution
  * or disclosure of this code, for any reason, not expressly authorized is
  * prohibited. All other rights are expressly reserved by Seagate Technology, LLC.
- * 
+ *
  * Author: Yogesh Lahane <yogesh.lahane@seagate.com>
  *
  */
@@ -29,7 +29,7 @@
 /* Local headers. */
 #include <controller.h>
 
-pthread_t g_server_thread_id = 0;
+struct server *g_server_ctx = NULL;
 
 /**
  * @brief Print's usage.
@@ -46,7 +46,7 @@ static void usage(const char *prog)
 		"\t-h, --help\t\tUser help.\n", prog);
 }
 
-int server_main(int argc, char *argv[])
+int management_start(int argc, char *argv[])
 {
 	int rc = 0;
 
@@ -56,10 +56,10 @@ int server_main(int argc, char *argv[])
 
 	/* Get params. */
 	params = params_parse(argc, argv);
-	if (params->print_usage) {
+	if (params == NULL) {
 		rc = 1;
 		usage(argv[0]);
-		goto free_params;
+		goto exit;
 	}
 
 	/**
@@ -86,6 +86,8 @@ int server_main(int argc, char *argv[])
 		goto free_server;
 	}
 
+	params = NULL;
+
 	/**
 	 * Register controllers:
 	 * 1. Get the controller instance.
@@ -99,12 +101,32 @@ int server_main(int argc, char *argv[])
 	CONTROLLER_MAP(XX)
 #undef XX
 
+	g_server_ctx = server;
+	server = NULL;
+
 	/* Start Control Server. */
-	rc = server_start(server);
-	if (rc != 0) {
-		log_err("Server start failed. Exiting..\n");
-		rc = server_cleanup(server);
-		goto exit;
+	rc = server_start(g_server_ctx);
+	if (rc == 0) {
+		log_debug("Exiting server normally.");
+	} else {
+		log_err("Exiting server with error, rc : %d.", rc);
+	}
+
+	/**
+	 * 1. Unregister controllers.
+	 * 2. Delete the controller object.
+	 */
+#define XX(uc, lc)						\
+	controller = controller_find_by_name(g_server_ctx, #lc);\
+	dassert(controller != NULL);				\
+	controller_unregister(controller);			\
+	ctl_ ## lc ## _fini(controller);
+	CONTROLLER_MAP(XX)
+#undef XX
+
+	rc = server_cleanup(g_server_ctx);
+	if (rc != 0 ) {
+		log_err("Failed to cleanup management server.");
 	}
 
 free_server:
@@ -115,7 +137,25 @@ exit:
 	return rc;
 }
 
-void* server_thread_start(void *args)
+int management_stop()
+{
+	int rc = 0;
+
+	log_info("Shutting down management service...");
+
+	/**
+	 * Stop the management server.
+	 * Do cleanup it.
+	 */
+	rc = server_stop(g_server_ctx);
+	if (rc != 0) {
+		log_err("Failed to stop management server.!");
+	}
+
+	return rc;
+}
+
+void* management_thread_start(void *args)
 {
 	static int rc = 0;
 
@@ -125,11 +165,30 @@ void* server_thread_start(void *args)
 		[0] = "control_server",
 	};
 
-	rc = server_main(argc, argv);
+	rc = management_start(argc, argv);
+
+	log_debug("Exiting Management service thread");
 
 	return &rc;
 }
- 
+
+int management_thread_stop()
+{
+	int rc = 0;
+
+	/**
+	 * Shutdown it forcefully.
+	 * Send thread cancel signal.
+	 */
+	rc = pthread_cancel(g_server_ctx->thread_id);
+	if (rc != 0) {
+		log_err("Management force stop failed.");
+		goto error;
+	}
+error:
+	return rc;
+}
+
 int management_init()
 {
 	int rc = 0;
@@ -139,34 +198,37 @@ int management_init()
 
 	pthread_attr_init(&attr);
 
-	rc = pthread_create(&thread_id, &attr, &server_thread_start, NULL);
-	
-	/* Set global thread id. */
-	g_server_thread_id = thread_id;
+	log_info("Starting Management service...");
 
+	rc = pthread_create(&thread_id, &attr, &management_thread_start, NULL);
 	return rc;
 }
 
-int management_cleanup()
+int management_fini()
 {
 	int rc = 0;
-
 	void *res;
 
-	/**TODO:
-	 * Stop the management server.
-	 * Do cleanup it.
-	 */
-
-	/* Send thread cancel signal. */
-	rc = pthread_cancel(g_server_thread_id);
+	rc = management_stop();
 	if (rc != 0) {
-		goto error;
+		log_err("Failed to stop management service.");
+
+		/* Shutdown it forcefully. */
+		rc = management_thread_stop();
+		if (rc != 0) {
+			log_err("Failed to force stop management service.");
+		}
 	}
 
-	/* Wait for thread to terminate. */
-	rc = pthread_join(g_server_thread_id, &res);
+	log_debug("Waiting management service thread to terminate."),
 
-error:
+	/* Wait for thread to terminate. */
+
+	rc = pthread_join(g_server_ctx->thread_id, &res);
+	if (rc != 0 ) {
+		log_err("Failed to join management thread.");
+	}
+
+	log_info("Shutdown status : %d.", rc);
 	return rc;
 }
