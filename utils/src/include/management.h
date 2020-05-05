@@ -11,7 +11,7 @@
  * Portions are also trade secret. Any use, duplication, derivation, distribution
  * or disclosure of this code, for any reason, not expressly authorized is
  * prohibited. All other rights are expressly reserved by Seagate Technology, LLC.
- * 
+ *
  * Author: Yogesh Lahane <yogesh.lahane@seagate.com>
  *
  * HOW TO USE?
@@ -44,7 +44,7 @@
  * 	Register controllers:
  * 	1. Get the controller instance.
  * 	2. Register it.
- *	rc = {CONTROLLER}_new(server, &controller);
+ *	rc = ctl_{CONTROLLER}_init(server, &controller);
  *	controller_register(server, controller);
  *
  * 	...
@@ -63,11 +63,11 @@
  * 	Controller Interface Methods.
  *
  * 	Create an instance of the controller.
- * 	int {CONTROLLER}_init(struct server *server,
+ * 	int ctl_{CONTROLLER}_init(struct server *server,
  * 			     struct controller** controller);
  *
  * 	Delete the controller instance.
- * 	void {CONTROLLER}_fini(struct controller *fs_controller);
+ * 	void ctl_{CONTROLLER}_fini(struct controller *fs_controller);
  *
  * 	Get controller api instance.
  * 	int {CONTROLLER}_api_init(char *api_name,
@@ -95,6 +95,89 @@
  * 	void {CONTROLLER}_{API}_fini(struct controller_api *api);
  *
  * @endcode
+ *
+ * How does it work?
+ *
+ * The management service uses `libevhtp` to get and put HTTP requests which
+ * internally uses `libevent` for eventing mechanism. (See below section :
+ * How libevhtp works?). The libevhtp generates various kinds of events on
+ * each HTTP request to which we can registers hooks/call-backs to get notified
+ * when corresponding event occurs.
+ * Firstly, we create instance of evhtp object and bind it to the server IP
+ * address and wait for the new connections. Before going to wait for the events
+ * we install post_accept call back using evhtp_set_post_accept_cb method.
+ * In the post_accept_cb, We then can assign various request callbacks for the
+ * incoming requests. The hooks(callbacs) looks like below..
+ * evhtp_hook_on_header, evhtp_hook_on_headers, evhtp_hook_on_path,
+ * evhtp_hook_on_read, evhtp_hook_on_request_fini etc...
+ *
+ * For each new connection, we register evhtp_hook_on_headers and
+ * evhtp_hook_on_read hooks. The corresponding rquest handlers processes
+ * the some part of the request. Each request goes through a standard
+ * sequence of steps like - validation, processing, payload handling(if any),
+ * response construction and sending. If we get the error in any steps of
+ * request processing, we immediatly generates error message and send it back
+ * to the client. The remaing steps are skipped if there is error in the
+ * previous request processing steps.
+ *
+ * Initially, We register various controllers(FS, ENPOINT etc..) to the
+ * management service. The controllers basically supports of HTTP methods like-
+ * GET, PUT and DELETE etc. These controller api's has a logic to handle and
+ * process the corresponding HTTP request for the controller.
+ * When a new requst comes on the connection we find the controller of the
+ * request using requst URI. For example, request on the FS controller looks like:
+ * GET http://localhost/fs
+ * HOST: localhost
+ * The method of HTTP request forms the controller api(here GET). Each controller
+ * api has actions method to be called on when that particular events comes.
+ *
+ * To Summarize The Request State Machine:
+ *
+ * OnHeaders, OnPayload - external events from libevht.
+ * OnHeaders allows us to route (dispatch) the request to the right handler.
+ * OnPayload allows us to read out the associated data.
+ * OnPayload is an optional event if action does not require payload.
+ * When headers or payload cannot be parsed or contain invalid values
+ * the server sends out an error.
+ * No specific state for errors: in case of errors the request state returns
+ * back to the waiting state immediately after sending out a reply that
+ * contains the error description.
+ *
+ * The Request State Daigram:
+ *
+ *                          +---------------------+------------------>(Send error reply)------------------------+
+ *                         /|\                   /|\                                                            |
+ *             (can't to parse headers)   (can't get payload)                              		        |
+ *                          |                     |                                                             |
+ * WaitingForHeaders --(OnHeaders)--> WaitingForPayload --(OnPayload)-[Check request state]--(ERROR)------->(Continue)
+ * /\			   |						|					|
+ * |			   |						|(RUNNING)				|
+ * |		 	   |						|					|
+ * |                       |                                            |                   			|
+ * |                       |                                            |                    			|
+ * |                       +(if no payload expected)------------>(Execute action)           			|
+ * |                                                              (Send reply)               			|
+ * |                                                                   \|/                  		       \|/
+ * +--------------------------------------------------------------------+---------------------------------------+
+ *
+ * How libevhtp works?
+ *
+ * #### Bootstrapping
+ * 1.	Create a parent evhtp_t structure.
+ * 2.	Assign callbacks to the parent for specific URIs or posix-regex based URI's
+ * 3.	Optionally assign per-connection hooks (see hooks) to the callbacks.
+ * 4.	Optionally assign pre-accept and post-accept callbacks for incoming connections.
+ * 5.	Optionally enable built-in threadpool for connection handling (lock-free, and non-blocking).
+ * 6.	Optionally morph your server to HTTPS.
+ * 7.	Start the evhtp listener.
+ * #### Request handling.
+ * 1.	Optionally deal with pre-accept and post-accept callbacks if they exist,
+ * 	allowing for a connection to be rejected if the function deems it as unacceptable.
+ * 2.	Optionally assign per-request hooks (see hooks) for a request
+ * 	(the most optimal place for setting these hooks is on a post-accept callback).
+ * 3.	Deal with either per-connection or per-request hook callbacks if they exist.
+ * 4.	Once the request has been fully processed, inform evhtp to send a reply.
+ *
  */
 
 #ifndef _MANAGEMENT_H_
@@ -102,6 +185,7 @@
 
 #include <sys/queue.h> /* LIST_HEAD, LIST_INIT */
 #include <pthread.h> /* pthread_t */
+#include <stdbool.h> /* bool */
 
 struct server;
 struct params;
@@ -133,17 +217,19 @@ struct server {
 
 	/* Thread Info */
 	pthread_t			 thread_id;	/* Thread id. */
-	int				 is_cancelled;	/* Is cancelled? */
-	int				 is_launch_err;	/* Error in thread start */
+	bool				 is_shutting_down; /* Is shutting down? */
+	bool				 is_launch_err;	/* Error in thread start */
 };
 
 /**
  * Control sever APIs.
  */
-int server_main(int argc, char *argv[]);
 int server_init(struct server *server, struct params *params);
 int server_start(struct server *server);
+int server_stop(struct server *server);
 int server_cleanup(struct server *server);
+int management_start(int argc, char *argv[]);
+int management_stop(void);
 int management_init(void);
 int management_fini(void);
 
