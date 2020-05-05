@@ -13,6 +13,7 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -lpthread")
 SET(control_LIB_SRCS
 	server.c
 	fs.c
+	endpoint.c
 )
 
 add_library(management OBJECT ${control_LIB_SRCS})

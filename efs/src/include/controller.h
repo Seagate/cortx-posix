@@ -9,7 +9,7 @@
  * Portions are also trade secret. Any use, duplication, derivation, distribution
  * or disclosure of this code, for any reason, not expressly authorized is
  * prohibited. All other rights are expressly reserved by Seagate Technology, LLC.
- * 
+ *
  * Author: Yogesh Lahane <yogesh.lahane@seagate.com>
  *
  */
@@ -25,12 +25,13 @@
  * ######################################################################
  */
 #define CONTROLLER_MAP(XX)		\
-	XX(FS,	fs)
+	XX(FS,		fs)		\
+	XX(ENDPOINT,	endpoint)
 /**
  * Not supporeted yet.
  * Add to the CONTROLER_MAP as and when supported.
  * XX(FS,	fs)		\
- * XX(EXPORT,	export)		\
+ * XX(ENDPOINT,	endpoint)		\
  * XX(FAULT,	fault)		\
  */
 
@@ -38,7 +39,7 @@
 
 /**
  * Controller Types.
- */	
+ */
 enum controller_type {
 
 #define XX(uc, lc)		\
@@ -76,5 +77,17 @@ enum fs_api_id {
 };
 
 #define FS_API_COUNT   (0+FS_API_MAP(COUNT))
+
+#define ENDPOINT_API_MAP(XX)				\
+	XX(CREATE,	create,		PUT)		\
+	XX(DELETE,	delete,		DELETE)
+
+enum endpoint_api_id {
+#define XX(uc, lc, _)	ENDPOINT_ ## uc ## _ID,
+	ENDPOINT_API_MAP(XX)
+#undef XX
+};
+
+#define ENDPOINT_API_COUNT   (0+ENDPOINT_API_MAP(COUNT))
 
 #endif

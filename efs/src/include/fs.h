@@ -76,7 +76,7 @@ int efs_fs_lookup(const str256_t *name, struct efs_fs **fs);
  * @param : args call-back context 
  * @return 0 if successful, a negative "-errno" value in case of failure.
  */
-void efs_fs_scan(void (*fs_scan_cb)(const struct efs_fs *fs, void *args),
+void efs_fs_scan(int (*fs_scan_cb)(const struct efs_fs *fs, void *args),
 				 void *args);
 
 /** gets fs name.
