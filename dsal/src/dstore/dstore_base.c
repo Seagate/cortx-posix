@@ -15,12 +15,14 @@
 */
 
 #include "dstore.h"
-#include "dstore_internal.h"
-#include <assert.h>
-#include <errno.h>
-#include <ini_config.h>
-#include <common/helpers.h>
-#include <string.h>
+#include <assert.h> /* TODO: to be replaced with dassert() */
+#include <errno.h> /* ret codes such as EINVAL */
+#include <string.h> /* strncmp, strlen */
+#include <ini_config.h> /* collection_item and related functions */
+#include "common/helpers.h" /* RC_WRAP* */
+#include "common/log.h" /* log_* */
+#include "debug.h" /* dassert */
+#include "dstore_internal.h" /* import internal API definitions */
 
 static struct dstore g_dstore;
 
@@ -153,3 +155,52 @@ int dstore_get_new_objid(struct dstore *dstore, dstore_oid_t *oid)
 	return dstore->dstore_ops->obj_get_id(dstore, oid);
 }
 
+int dstore_obj_open(struct dstore *dstore,
+		    const dstore_oid_t *oid,
+		    struct dstore_obj **out)
+{
+	int rc;
+	struct dstore_obj *result = NULL;
+
+	dassert(dstore);
+	dassert(oid);
+	dassert(out);
+
+	RC_WRAP_LABEL(rc, out, dstore->dstore_ops->obj_open, dstore, oid,
+		      &result);
+
+	result->ds = dstore;
+	result->oid = *oid;
+
+	/* Transfer the ownership of the created object to the caller. */
+	*out = result;
+	result = NULL;
+
+out:
+	if (result) {
+		dstore_obj_close(result);
+	}
+
+	log_debug("open " OBJ_ID_F ", %p, rc=%d", OBJ_ID_P(oid),
+		  rc == 0 ? *out : NULL, rc);
+	return rc;
+}
+
+int dstore_obj_close(struct dstore_obj *obj)
+{
+	int rc;
+	struct dstore *dstore;
+
+	dassert(obj);
+	dstore = obj->ds;
+	dassert(dstore);
+
+	RC_WRAP_LABEL(rc, out, dstore->dstore_ops->obj_close, obj);
+
+out:
+
+	log_debug("close " OBJ_ID_F ", %p",
+		  OBJ_ID_P(dstore_obj_id(obj)), obj);
+
+	return rc;
+}
