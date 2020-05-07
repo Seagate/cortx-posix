@@ -47,7 +47,7 @@ int nsal_start(const char *config_path)
 	rc = log_init("/var/log/eos/efs/efs.log", LEVEL_DEBUG);
 	if (rc != 0) {
 		rc = -EINVAL;
-		log_debug("Log init failed, rc: %d\n", rc);
+		printf("Log init failed, rc: %d\n", rc);
 		goto out;
 	}
 
@@ -140,7 +140,7 @@ static int ut_kvtree_ops_init()
 	if (rc != 0) {
 		printf("kvtree_create failed, rc = %d", rc);
 		goto out;
-	 }
+	}
 
 	kvnode_info_free(root_info);
 
@@ -148,7 +148,7 @@ static int ut_kvtree_ops_init()
 	if (rc != 0) {
 		printf("kvtree_init failed, rc = %d", rc);
 		goto out;
-	 }
+	}
 out:
 	return rc;
 }
@@ -572,7 +572,7 @@ int main(int argc, char **argv)
 
 	rc = nsal_start(DEFAULT_CONFIG);
 	if (rc) {
-		log_err("Failed to do nsal_start rc = %d", rc);
+		printf("Failed to do nsal_start rc = %d", rc);
 		goto out;
 	}
 	rc = ut_kvtree_setup();
