@@ -26,12 +26,25 @@ set(DEFAULT_DSALINC "")
 set(DSALINC ${DEFAULT_DSALINC} CACHE PATH "Path to folder with dstore.h")
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -I${CMAKE_SOURCE_DIR}/include -fPIC -g")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror -DDEBUG")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror")
 
 set(EOS_EFS_BASE_VERSION ${BASE_VERSION})
 
 message( STATUS "cmake version ${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION}" )
 message( STATUS "eos-dsal version ${EOS_EFS_BASE_VERSION}")
+
+# Option (To enable/disable ENABLE_DASSERT mode.)
+option(ENABLE_DASSERT "Enable ENABLE_DASSERT mode." ON)
+
+if (ENABLE_DASSERT)
+        set(BCOND_ENABLE_DASSERT "%bcond_without")
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DENABLE_DASSERT")
+else (ENABLE_DASSERT)
+        set(BCOND_ENABLE_DASSERT "%bcond_with")
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+endif (ENABLE_DASSERT)
+
+message( STATUS "ENABLE_DASSERT : ${ENABLE_DASSERT}")
 
 include(CheckIncludeFiles)
 include(CheckLibraryExists)

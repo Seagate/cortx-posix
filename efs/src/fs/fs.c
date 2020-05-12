@@ -247,12 +247,9 @@ void efs_fs_get_name(const struct efs_fs *fs, str256_t **name)
 int efs_fs_open(const char *fs_name, struct efs_fs **ret_fs)
 {
 	int rc;
-	struct kvstore *kvstor = kvstore_get();
 	struct efs_fs *fs = NULL;
 	kvs_idx_fid_t ns_fid;
 	str256_t name;
-
-	dassert(kvstor != NULL);
 
 	str256_from_cstr(name, fs_name, strlen(fs_name));
 	rc = efs_fs_lookup(&name, &fs);
@@ -265,7 +262,7 @@ int efs_fs_open(const char *fs_name, struct efs_fs **ret_fs)
 
 	ns_get_fid(fs->ns, &ns_fid);
 	//RC_WRAP_LABEL(rc, error, kvs_index_open, kvstor, &ns_fid, index);
-	
+
 	if (fs->kvtree == NULL) {
 		fs->kvtree = malloc(sizeof(struct kvtree));
 		if (!fs->kvtree) {

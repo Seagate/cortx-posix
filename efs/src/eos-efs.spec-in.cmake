@@ -13,6 +13,11 @@ BuildRequires: cmake gcc libini_config-devel
 Requires: libini_config
 Provides: %{name} = %{version}-%{release}
 
+%define on_off_switch() %%{?with_%1:ON}%%{!?with_%1:OFF}
+
+@BCOND_ENABLE_DASSERT@ enable_dassert
+%global enable_dassert %{on_off_switch enable_dassert}
+
 %description
 The eos-efs is EOS file system.
 
@@ -35,7 +40,8 @@ cmake . -DEOSUTILSINC:PATH=@EOSUTILSINC@         \
 	-DNSALINC:PATH=@NSALINC@            	 \
 	-DLIBNSAL:PATH=@LIBNSAL@		 \
 	-DDSALINC:PATH=@DSALINC@		 \
-	-DLIBDSAL:PATH=@LIBDSAL@
+	-DLIBDSAL:PATH=@LIBDSAL@		\
+	-DENABLE_DASSERT=%{enable_dassert}
 
 make %{?_smp_mflags} || make %{?_smp_mflags} || make
 

@@ -127,6 +127,7 @@ efs_configure() {
 -DNSALINC:PATH=${NSAL_INC} \
 -DLIBDSAL:PATH=${DSAL_LIB} \
 -DDSALINC:PATH=${DSAL_INC} \
+-DENABLE_DASSERT=${ENABLE_DASSERT} \
 $EFS_SRC"
     echo -e "Config:\n $cmd" > $EFS_BUILD/.config
     echo -e "Env:\n $(efs_print_env)" >> $EFS_BUILD/.config
