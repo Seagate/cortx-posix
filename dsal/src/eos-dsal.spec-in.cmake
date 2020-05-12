@@ -5,7 +5,7 @@ Name: eos-dsal
 Version: @EOS_DSAL_BASE_VERSION@
 Release: %{dev_version}%{?dist}
 Summary: Data abstraction layer library
-License: Propietary
+License: Seagate
 Group: Development/Libraries
 Url: http://seagate.com/eos-dsal
 Source: %{sourcename}.tar.gz
@@ -13,6 +13,11 @@ BuildRequires: cmake gcc libini_config-devel
 BuildRequires: @RPM_DEVEL_REQUIRES@
 Requires: libini_config @RPM_REQUIRES@
 Provides: %{name} = %{version}-%{release}
+
+# EOS DSAL library paths
+%define _dsal_dir		@INSTALL_DIR_ROOT@/@PROJECT_NAME_BASE@/dsal
+%define _dsal_lib_dir		%{_dsal_dir}/lib
+%define _dsal_include_dir	%{_includedir}/dsal
 
 # Conditionally enable object stores
 #
@@ -71,15 +76,15 @@ make %{?_smp_mflags} || make %{?_smp_mflags} || make
 
 mkdir -p %{buildroot}%{_bindir}
 mkdir -p %{buildroot}%{_libdir}
-mkdir -p %{buildroot}%{_libdir}/pkgconfig
-mkdir -p %{buildroot}%{_includedir}/dsal
-mkdir -p %{buildroot}%{_includedir}/dsal/eos
+mkdir -p %{buildroot}%{_dsal_dir}
+mkdir -p %{buildroot}%{_dsal_lib_dir}
+mkdir -p %{buildroot}%{_dsal_include_dir}/
 mkdir -p %{buildroot}%{_sysconfdir}/dsal.d
-install -m 644 include/dstore.h  %{buildroot}%{_includedir}/dsal
-install -m 644 include/dsal.h  %{buildroot}%{_includedir}/dsal
-install -m 644 include/eos/eos_dstore.h  %{buildroot}%{_includedir}/dsal/eos
-install -m 744 libeos-dsal.so %{buildroot}%{_libdir}
+mkdir -p %{buildroot}%{_libdir}/pkgconfig
+install -m 644 include/*.h  %{buildroot}%{_dsal_include_dir}
+install -m 744 libeos-dsal.so %{buildroot}%{_dsal_lib_dir}
 install -m 644 eos-dsal.pc  %{buildroot}%{_libdir}/pkgconfig
+ln -s %{_dsal_lib_dir}/libeos-dsal.so %{buildroot}%{_libdir}/libeos-dsal.so
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -87,13 +92,12 @@ rm -rf $RPM_BUILD_ROOT
 %files
 %defattr(-,root,root)
 %{_libdir}/libeos-dsal.so*
+%{_dsal_lib_dir}/libeos-dsal.so*
 
 %files devel
 %defattr(-,root,root)
 %{_libdir}/pkgconfig/eos-dsal.pc
-%{_includedir}/dsal/dstore.h
-%{_includedir}/dsal/dsal.h
-%{_includedir}/dsal/eos/eos_dstore.h
+%{_dsal_include_dir}/*.h
 
 %changelog
 * Wed Jan 22 2020 Seagate 1.0.1

@@ -7,6 +7,12 @@ set -e
 ###############################################################################
 # Arguments
 
+# Project Name.
+PROJECT_NAME_BASE=${PROJECT_NAME_BASE:-"cortx"}
+
+# Install Dir.
+INSTALL_DIR_ROOT=${INSTALL_DIR_ROOT:-"/opt/seagate"}
+
 # DSAL source repo root.
 DSAL_SOURCE_ROOT=${DSAL_SOURCE_ROOT:-$PWD}
 
@@ -109,6 +115,8 @@ dsal_configure() {
 -DLIBEOSUTILS:PATH=${EOS_UTILS_LIB} \
 -DEOSUTILSINC:PATH=${EOS_UTILS_INC} \
 -DENABLE_DASSERT=${ENABLE_DASSERT} \
+-DPROJECT_NAME_BASE:STRING=${PROJECT_NAME_BASE} \
+-DINSTALL_DIR_ROOT:STRING=${INSTALL_DIR_ROOT}
 $DSAL_SRC"
     echo -e "Config:\n $cmd" > $DSAL_BUILD/.config
     echo -e "Env:\n $(dsal_print_env)" >> $DSAL_BUILD/.config
