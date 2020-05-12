@@ -37,16 +37,16 @@ execute_ut_efs () {
 	cd $UT_LOG_ROOT/efs
 
 	EFS_TEST_DIR=$BUILD_DIR/build-efs/test/ut
-	EFS_TEST_LIST=(ut_efs_fs_ops ut_efs_dir_ops ut_efs_file_ops 
+	EFS_TEST_LIST=(ut_efs_fs_ops ut_efs_dir_ops ut_efs_file_ops
 		       ut_efs_link_ops ut_efs_rename_ops ut_efs_attr_ops
-		       ut_efs_xattr_ops ut_efs_io_ops)
+		       ut_efs_xattr_file_ops ut_efs_xattr_dir_ops ut_efs_io_ops)
 
 	[ ! -d $EFS_TEST_DIR ] && echo "EFS is not built" && exit 1
 
 	for tests in "${EFS_TEST_LIST[@]}"
 	do
 		$EFS_TEST_DIR/$tests
-		echo 
+		echo
 	done
 }
 
