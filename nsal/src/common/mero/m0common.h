@@ -29,8 +29,9 @@
 #include "clovis/clovis.h"
 #include "clovis/clovis_internal.h"
 #include "clovis/clovis_idx.h"
+#include <debug.h>
 
-#ifdef DEBUG
+#ifdef ENABLE_DASSERT
 #define M0_DASSERT(cond) assert(cond)
 #else
 #define M0_DASSERT(cond)

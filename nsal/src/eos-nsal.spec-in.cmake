@@ -33,6 +33,9 @@ Provides: %{name} = %{version}-%{release}
 @BCOND_KVS_EOS@ kvs_eos
 %global use_kvs_eos %{on_off_switch kvs_eos}
 
+@BCOND_ENABLE_DASSERT@ enable_dassert
+%global enable_dassert %{on_off_switch enable_dassert}
+
 %description
 The eos-nsal is Namespace abstraction layer library. It uses @KVS_OPT@ as Key-Value Store.
 
@@ -55,7 +58,8 @@ This package contains tools for eos-nsal.
 cmake . -DUSE_KVS_REDIS=%{use_kvs_redis}     \
 	-DUSE_KVS_EOS=%{use_kvs_eos}       \
 	-DEOSUTILSINC:PATH=@EOSUTILSINC@     \
-	-DLIBEOSUTILS:PATH=@LIBEOSUTILS@
+	-DLIBEOSUTILS:PATH=@LIBEOSUTILS@	\
+	-DENABLE_DASSERT=%{enable_dassert}
 
 make %{?_smp_mflags} || make %{?_smp_mflags} || make
 
