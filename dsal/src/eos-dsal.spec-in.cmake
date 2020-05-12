@@ -82,7 +82,7 @@ mkdir -p %{buildroot}%{_dsal_include_dir}/
 mkdir -p %{buildroot}%{_sysconfdir}/dsal.d
 mkdir -p %{buildroot}%{_libdir}/pkgconfig
 install -m 644 include/*.h  %{buildroot}%{_dsal_include_dir}
-install -m 744 libeos-dsal.so %{buildroot}%{_dsal_lib_dir}
+install -m 755 libeos-dsal.so %{buildroot}%{_dsal_lib_dir}
 install -m 644 eos-dsal.pc  %{buildroot}%{_libdir}/pkgconfig
 ln -s %{_dsal_lib_dir}/libeos-dsal.so %{buildroot}%{_libdir}/libeos-dsal.so
 
