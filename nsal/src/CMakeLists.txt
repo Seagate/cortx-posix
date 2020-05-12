@@ -14,7 +14,7 @@ set(EOSUTILSINC ${DEFAULT_EOSUTILSINC} CACHE PATH "Path to folder with fault.h")
 set(LIBEOSUTILS ${DEFAULT_LIBEOSUTILS} CACHE PATH "Path to folder with libeos-utils.so")
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -I${CMAKE_SOURCE_DIR}/include -fPIC -g")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror -DDEBUG")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror")
 
 set(EOS_NSAL_BASE_VERSION ${BASE_VERSION})
 
@@ -71,6 +71,19 @@ if (USE_KVS_EOS)
 elseif (USE_KVS_REDIS)
   set(KVS_OPT "Redis")
 endif (USE_KVS_EOS)
+
+# Option (To enable/disable ENABLE_DASSERT mode.)
+option(ENABLE_DASSERT "Enable ENABLE_DASSERT mode." ON)
+
+if (ENABLE_DASSERT)
+        set(BCOND_ENABLE_DASSERT "%bcond_without")
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DENABLE_DASSERT")
+else (ENABLE_DASSERT)
+        set(BCOND_ENABLE_DASSERT "%bcond_with")
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+endif (ENABLE_DASSERT)
+
+message( STATUS "ENABLE_DASSERT : ${ENABLE_DASSERT}")
 
 include(CheckIncludeFiles)
 include(CheckLibraryExists)

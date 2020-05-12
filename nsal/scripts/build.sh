@@ -105,6 +105,7 @@ nsal_configure() {
 -DRELEASE_VER:STRING=${NSAL_BUILD_VERSION} \
 -DLIBEOSUTILS:PATH=${EOS_UTILS_LIB} \
 -DEOSUTILSINC:PATH=${EOS_UTILS_INC} \
+-DENABLE_DASSERT=${ENABLE_DASSERT} \
 $NSAL_SRC"
     echo -e "Config:\n $cmd" > $NSAL_BUILD/.config
     echo -e "Env:\n $(nsal_print_env)" >> $NSAL_BUILD/.config
