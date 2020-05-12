@@ -14,7 +14,7 @@ set(EOSUTILSINC ${DEFAULT_EOSUTILSINC} CACHE PATH "Path to folder with fault.h")
 set(LIBEOSUTILS ${DEFAULT_LIBEOSUTILS} CACHE PATH "Path to folder with libeos-utils.so")
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -I${CMAKE_SOURCE_DIR}/include -fPIC -g")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror -DDEBUG")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror")
 
 set(EOS_DSAL_BASE_VERSION ${BASE_VERSION})
 
@@ -63,6 +63,18 @@ elseif (USE_POSIX_STORE)
   set(EXTSTORE_OPT "Posix")
 endif (USE_EOS_STORE)
 
+# Option (To enable/disable DASSERT mode.)
+option(ENABLE_DASSERT "Enable ENABLE_DASSERT mode." ON)
+
+if (ENABLE_DASSERT)
+        set(BCOND_ENABLE_DASSERT "%bcond_without")
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DENABLE_DASSERT")
+else (ENABLE_DASSERT)
+        set(BCOND_ENABLE_DASSERT "%bcond_with")
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+endif (ENABLE_DASSERT)
+
+message( STATUS "ENABLE_DASSERT : ${ENABLE_DASSERT}")
 
 ## Check ini_config
 check_include_files("ini_config.h" HAVE_INI_CONFIG_H)

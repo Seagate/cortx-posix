@@ -36,6 +36,9 @@ Provides: %{name} = %{version}-%{release}
 @BCOND_EOS_STORE@ eos_store
 %global use_eos_store %{on_off_switch eos_store}
 
+@BCOND_ENABLE_DASSERT@ enable_dassert
+%global enable_dassert %{on_off_switch enable_dassert}
+
 %description
 The eos-dsal is Data abstraction layer library.
 
@@ -59,7 +62,8 @@ cmake . -DUSE_POSIX_STORE=%{use_posix_store}     \
 	-DUSE_POSIX_OBJ=%{use_posix_obj}         \
 	-DUSE_EOS_STORE=%{use_eos_store}       \
 	-DEOSUTILSINC:PATH=@EOSUTILSINC@         \
-	-DLIBEOSUTILS:PATH=@LIBEOSUTILS@
+	-DLIBEOSUTILS:PATH=@LIBEOSUTILS@	\
+	-DENABLE_DASSERT=%{enable_dassert}
 
 make %{?_smp_mflags} || make %{?_smp_mflags} || make
 
