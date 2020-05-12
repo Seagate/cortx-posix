@@ -108,6 +108,7 @@ dsal_configure() {
 -DUSE_POSIX_STORE=${USE_POSIX_STORE} \
 -DLIBEOSUTILS:PATH=${EOS_UTILS_LIB} \
 -DEOSUTILSINC:PATH=${EOS_UTILS_INC} \
+-DENABLE_DASSERT=${ENABLE_DASSERT} \
 $DSAL_SRC"
     echo -e "Config:\n $cmd" > $DSAL_BUILD/.config
     echo -e "Env:\n $(dsal_print_env)" >> $DSAL_BUILD/.config
