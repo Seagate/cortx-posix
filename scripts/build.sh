@@ -26,6 +26,7 @@ Arguments:
     -b (optional) EOS FS Build version.
     -k (optional) NSAL KVSTORE backend (eos/redis).
     -e (optional) DSAL DSTORE backend (eos/posix).
+    -d (optional) Enable/disable dassert(ON/OFF, default:ON).
 
 Examples:
     $0 -p ~/nfs-ganesha -- Builds EOS-FS with a custom NFS Ganesha
@@ -36,7 +37,7 @@ Examples:
 }
 
 eosfs_parse_cmd() {
-    while getopts ":b:v:p:k:e:" o; do
+    while getopts ":b:v:p:k:e:d:" o; do
         case "${o}" in
         b)
             export EOS_FS_BUILD_VERSION="${OPTARG}_$(git rev-parse --short HEAD)"
@@ -79,6 +80,9 @@ eosfs_parse_cmd() {
         e)
             export DSAL_DSTORE_BACKEND=${OPTARG}
             ;;
+        d)
+            export ENABLE_DASSERT=${OPTARG}
+            ;;
         *)
             eosfs_cmd_usage
             ;;
@@ -106,14 +110,15 @@ eosfs_set_env() {
 
     export KVSFS_NFS_GANESHA_DIR=${KVSFS_NFS_GANESHA_DIR:-$PWD/../nfs-ganesha-eos}
     export KVSFS_NFS_GANESHA_BUILD_DIR=${KVSFS_NFS_GANESHA_BUILD_DIR:-$EOS_FS_BUILD_ROOT/build-nfs-ganesha}
+    export ENABLE_DASSERT=${ENABLE_DASSERT:-"ON"}
 }
 
 eosfs_print_env() {
     eosfs_set_env
     local myenv=(
         KVSFS_SOURCE_ROOT
-	NSAL_SOURCE_ROOT
-	DSAL_SOURCE_ROOT
+        NSAL_SOURCE_ROOT
+        DSAL_SOURCE_ROOT
         EOS_UTILS_SOURCE_ROOT
         EOS_FS_BUILD_ROOT
         EOS_FS_BUILD_VERSION
@@ -121,7 +126,8 @@ eosfs_print_env() {
         DSAL_DSTORE_BACKEND
         KVSFS_NFS_GANESHA_DIR
         KVSFS_NFS_GANESHA_BUILD_DIR
-	EFS_SOURCE_ROOT
+        EFS_SOURCE_ROOT
+        ENABLE_DASSERT
     )
     for i in ${myenv[@]}; do
         echo "$i=${!i}"
