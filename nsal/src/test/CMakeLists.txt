@@ -6,9 +6,10 @@ include_directories("/usr/include/mero")
 find_library(HAVE_CMOCKA cmocka)
 
 if((NOT HAVE_CMOCKA))
-        message (FATAL ERROR "Conannot find cmocka")
+	message (FATAL ERROR "Cannot find cmocka")
 endif((NOT HAVE_CMOCKA))
 
+configure_file(ut_nsal.conf ut_nsal.conf COPYONLY)
 add_executable(test_ns test_ns.c)
 add_executable(test_kvtree test_kvtree.c)
 add_executable(test_iter iter_test.c)
