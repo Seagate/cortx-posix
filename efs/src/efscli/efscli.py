@@ -24,6 +24,7 @@ import http
 from http import HTTPStatus
 import http.client
 import json
+import textwrap
 
 class Command(object):
 	"""
@@ -41,8 +42,7 @@ class Command(object):
 
 class FsCommand(Command):
 	"""
-
-	Contains functionality to handle support bundle.
+	Contains functionality to handle FS commands.
 	"""
 
 	def __init__(self, args):
@@ -58,13 +58,31 @@ class FsCommand(Command):
 		sbparser.add_argument('args', nargs='*', default=[], help='fs command options')
 		sbparser.set_defaults(command=FsCommand)
 
+class EndpointCommand(Command):
+	"""
+	Contains functionality to handle EXPORT commands.
+	"""
+
+	def __init__(self, args):
+		super().__init__(args)
+
+	def name(self):
+		return "endpoint"
+
+	@staticmethod
+	def add_args(parser):
+		sbparser = parser.add_parser("endpoint", help='create, delete and update Endpoint.')
+		sbparser.add_argument('action', help='action', choices=['create', 'delete', 'update'])
+		sbparser.add_argument('args', nargs='*', default=[], help='Endpoint command options')
+		sbparser.set_defaults(command=EndpointCommand)
+
 class CommandFactory(object):
 	"""
 	Factory for representing and creating command objects
 	using a generic skeleton.
 	"""
 
-	commands = {FsCommand}
+	commands = {FsCommand, EndpointCommand}
 
 	def get_command(argv):
 		"""
@@ -108,7 +126,7 @@ class Response:
 	Represents a response for the Request.
 	"""
 	codes = {
-		HTTPStatus.CONFLICT,
+		HTTPStatus.NOT_FOUND,
 		HTTPStatus.BAD_REQUEST,
 		HTTPStatus.UNAUTHORIZED,
 		HTTPStatus.CONFLICT,
@@ -131,7 +149,6 @@ class Response:
 	def reason(self):
 		return self._resp.reason
 
-	@property
 	def body(self):
 		if self._body == None:
 			self._body = self._resp.read()
@@ -152,6 +169,45 @@ class Response:
 			self._errno = err_data.get("rc")
 
 		return self._errno
+
+	def display(self, request):
+		if request.method != 'GET':
+			return;
+
+		if request.command == 'fs':
+			# Parse resp body
+			display = "{:<8}{:<36}{:<16}{:<8}\t{}"
+
+			print(display.format("FS ID",
+						"FS Name",
+						"Exported",
+						"Protocol",
+						"Export Options"))
+
+			if self._resp.status == HTTPStatus.NO_CONTENT:
+				return;
+
+			fs_id = 1
+			fs_list = json.loads(self.body().decode("utf-8"))
+
+			for fs in fs_list:
+				fs_name = fs.get("fs-name")
+				endpoint_options = fs.get("endpoint-options")
+				if endpoint_options == None:
+					is_exported = "NO"
+					protocol = "None"
+					endpoint_options = ""
+				else:
+					is_exported = "YES"
+					protocol = endpoint_options.get('proto')
+
+				print(display.format(fs_id,
+							fs_name,
+							is_exported,
+							protocol,
+							json.dumps(endpoint_options)))
+
+			fs_id += 1
 
 class HttpRequest(Request):
 	"""
@@ -274,7 +330,26 @@ class RestClient(Client):
 		else:
 			# Set content
 			content = {}
+			options = None
+			argc = len(args)
 			content["name"] = args[0]
+			cmds_with_options = { 'fs', 'endpoint' }
+
+			if request.command in cmds_with_options:
+				if argc > 1:
+					options = args[1]
+			else:
+				options = None
+
+			if options != None:
+				content["options"] = {}
+				option_list = options.split(',')
+				for option_token in option_list:
+					option = option_token.split('=')
+					key = option[0]
+					val = option[1]
+					content["options"].update({key : val});
+
 			# Add more option parameter's here.
 			content = json.dumps(content).encode('utf-8')
 			request.content = content
@@ -334,9 +409,7 @@ def main(argv):
 		else:
 			rc = 0
 			print(resp.reason)
-			if request.command == 'fs' and request.method == 'GET':
-				# Parse resp body
-				print(resp.body)
+			resp.display(request)
 		return rc
 	except Exception as exception:
 		sys.stderr.write('%s\n' %exception)
