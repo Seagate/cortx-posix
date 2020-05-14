@@ -682,7 +682,6 @@ static void create_longname255_dir(void **state)
 	rc = efs_mkdir(ut_efs_obj->efs_fs, &ut_efs_obj->cred,
 			&ut_efs_obj->current_inode, ut_efs_obj->file_name,
 			0755, &dir_inode);
-printf("rc == %d\n", rc);
 	ut_assert_int_equal(rc, 0);
 
 	rc = efs_lookup(ut_efs_obj->efs_fs, &ut_efs_obj->cred,
@@ -750,15 +749,7 @@ static void create_name_exceed_limit_dir(void **state)
 	rc = efs_mkdir(ut_efs_obj->efs_fs, &ut_efs_obj->cred,
 			&ut_efs_obj->current_inode, ut_efs_obj->file_name,
 			0755, &dir_inode);
-printf("rc == %d\n", rc);
 	ut_assert_int_equal(rc, -E2BIG);
-/*	ut_assert_int_equal(rc, 0);
-
-	rc = efs_lookup(ut_efs_obj->efs_fs, &ut_efs_obj->cred,
-			&ut_efs_obj->parent_inode, ut_efs_obj->file_name,
-			&dir_inode);
-
-	ut_assert_int_equal(rc, 0);*/
 }
 
 /**
