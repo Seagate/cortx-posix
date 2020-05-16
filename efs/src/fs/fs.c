@@ -149,11 +149,9 @@ int efs_fs_create(const str256_t *fs_name)
 	fs_node->efs_fs.ns = malloc(ns_size);
 	memcpy(fs_node->efs_fs.ns, ns, ns_size);
 
-	/* @TODO This whole code of index open-close, efs_tree_create_root is 
-	 * repetitive and will be removed in second phase of kvtree */ 
+	/* @TODO This whole code of index open-close, efs_tree_create_root is
+	 * repetitive and will be removed in second phase of kvtree */
 
-
-	struct kvnode_info *root_node_info = NULL;
 	struct kvtree *kvtree = NULL;
 	struct stat bufstat;
 
@@ -167,12 +165,9 @@ int efs_fs_create(const str256_t *fs_name)
 	bufstat.st_atim.tv_sec = 0;
 	bufstat.st_mtim.tv_sec = 0;
 	bufstat.st_ctim.tv_sec = 0;
- 
-	/* intialize root_node_info with efs root stats */
-	RC_WRAP_LABEL(rc, free_info, kvnode_info_alloc, (void *)&bufstat, 
-	              sizeof(struct stat), &root_node_info);
 
-	RC_WRAP_LABEL(rc, free_info, kvtree_create, ns, root_node_info, &kvtree);
+	RC_WRAP_LABEL(rc, free_info, kvtree_create, ns, (void *)&bufstat,
+	              sizeof(struct stat), &kvtree);
 
 	/* @TODO set inode num generator this FS after deletion of
 	 * efs_tree_create_root */
@@ -182,7 +177,6 @@ int efs_fs_create(const str256_t *fs_name)
 
 	rc = efs_tree_create_root(&fs_node->efs_fs);
 free_info:
-	kvnode_info_free(root_node_info);
 
 	if (rc == 0) {
 		LIST_INSERT_HEAD(&fs_list, fs_node, link);
