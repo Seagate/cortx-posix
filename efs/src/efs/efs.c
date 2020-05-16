@@ -83,7 +83,7 @@ int efs_init(const char *config_path)
 		log_err("utils_init failed, rc=%d", rc);
                 goto log_cleanup;
         }
-	rc = nsal_init(cfg_items);
+	rc = nsal_module_init(cfg_items);
         if (rc) {
                 log_err("nsal_init failed, rc=%d", rc);
                 goto utils_cleanup;
@@ -109,7 +109,7 @@ efs_fs_cleanup:
 dsal_cleanup:
 	dsal_fini();
 nsal_cleanup:
-	nsal_fini();
+	nsal_module_fini();
 utils_cleanup:
 	utils_fini();
 log_cleanup:
@@ -139,7 +139,7 @@ int efs_fini(void)
 	if (rc) {
                 log_err("dsal_fini failed, rc=%d", rc);
         }
-	rc = nsal_fini();
+	rc = nsal_module_fini();
 	if (rc) {
                 log_err("nsal_fini failed, rc=%d", rc);
         }

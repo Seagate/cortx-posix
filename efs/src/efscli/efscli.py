@@ -206,8 +206,7 @@ class Response:
 							is_exported,
 							protocol,
 							json.dumps(endpoint_options)))
-
-			fs_id += 1
+				fs_id += 1
 
 class HttpRequest(Request):
 	"""

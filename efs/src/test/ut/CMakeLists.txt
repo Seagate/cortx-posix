@@ -12,6 +12,7 @@ endif((NOT HAVE_CMOCKA))
 configure_file(ut_efs.conf ut_efs.conf COPYONLY)
 
 add_executable(fs_ops_ut efs_fs_ops.c)
+add_executable(endpoint_ops_ut efs_endpoint_ops.c)
 add_executable(dir_ops_ut efs_dir_ops.c)
 add_executable(link_ops_ut efs_link_ops.c)
 add_executable(rename_ops_ut efs_rename_ops.c)
@@ -37,6 +38,13 @@ target_link_libraries(efs_ut_helper
 )
 
 target_link_libraries(fs_ops_ut
+	eos-utils
+	eos-nsal
+	eos-efs
+	${STORE_LIBRARY}
+)
+
+target_link_libraries(endpoint_ops_ut
 	eos-utils
 	eos-nsal
 	eos-efs

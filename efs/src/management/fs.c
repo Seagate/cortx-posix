@@ -513,8 +513,12 @@ static int fs_list_send_response(struct controller_api *fs_list, void *args)
 				       "fs-options",
 				       json_obj);
 
-		json_obj =
+		json_obj = NULL;
+		if (fs_node->fs_endpoint_options) {
+			json_obj =
 			json_tokener_parse(fs_node->fs_endpoint_options);
+		}
+
 		json_object_object_add(json_fs_obj,
 				       "endpoint-options",
 				       json_obj);
@@ -532,8 +536,8 @@ static int fs_list_send_response(struct controller_api *fs_list, void *args)
 		/* Remove the node entry from list. */
 		LIST_REMOVE(fs_node, entries);
 
-		/* Free the dynamic node members. */
-		/* ...*/
+		/* Fre1e the dynamic node members. */
+		free(fs_node->fs_endpoint_options);
 
 		free(fs_node);
 	}
@@ -547,16 +551,13 @@ out:
 	return 0;
 }
 
-static int fs_list_add_entry(const struct efs_fs *fs, void *args)
+static int fs_list_add_entry(const struct efs_fs_list_entry *fs, void *args)
 {
 	int rc = 0;
-	str256_t *fs_name = NULL;
 	struct fs_list_entry *fs_node;
 	struct fs_list_api *fs_list_api = NULL;
 
 	fs_list_api = (struct fs_list_api *)args;
-
-	efs_fs_get_name(fs, &fs_name);
 
 	fs_node = malloc(sizeof(struct fs_list_entry));
 	if (fs_node == NULL) {
@@ -565,13 +566,22 @@ static int fs_list_add_entry(const struct efs_fs *fs, void *args)
 		goto error;
 	}
 
-	strcpy(fs_node->fs_name, fs_name->s_str);
+	strcpy(fs_node->fs_name, fs->fs_name->s_str);
 
 	fs_node->fs_options = "";
-	fs_node->fs_endpoint_options = "{\"proto\" :  \"NFS\", \
-					\"mode\" : \"RW\" }";
 
-	log_debug("FS scan cb : fs entry : %s", fs_node->fs_name);
+	if (fs->endpoint_info == NULL) {
+		fs_node->fs_endpoint_options = NULL;
+	} else {
+		fs_node->fs_endpoint_options = strdup(fs->endpoint_info);
+		if (fs_node->fs_endpoint_options == NULL ) {
+			rc = -ENOMEM;
+			goto error;
+		}
+	}
+
+	log_debug("FS scan cb : fs entry : name = %s, endpoint_options = %s",
+		  fs_node->fs_name, fs_node->fs_endpoint_options);
 
 	LIST_INSERT_HEAD(&fs_list_api->resp.fs_list, fs_node, entries);
 
@@ -633,7 +643,7 @@ static int fs_list_process_request(struct controller_api *fs_list, void *args)
 
 	log_debug("Getting FS list.");
 
-	efs_fs_scan(fs_list_add_entry, fs_list_api);
+	efs_fs_scan_list(fs_list_add_entry, fs_list_api);
 
 	log_debug("FS list return code: %d.", rc);
 
