@@ -21,6 +21,7 @@
 #include <errno.h>
 #include <debug.h>
 #include "namespace.h"
+#include "nsal.h"
 
 #define DEFAULT_CONFIG "/etc/efs/efs.conf"
 
@@ -97,9 +98,9 @@ static int ut_kvtree_setup()
 	char *name = "eosfs";
 	size_t ns_size = 0;
 
-	rc = ns_init(cfg_items);
+	rc = nsal_module_init(cfg_items);
 	if (rc) {
-		log_err("Failed to do ns_init rc = %d", rc);
+		log_err("Failed to do ns_module_init rc = %d", rc);
 		goto out;
 	}
 
@@ -125,9 +126,9 @@ static int ut_kvtree_teardown()
 		goto out;
 	 }
 
-	rc = ns_fini();
+	rc = nsal_module_fini();
 	if (rc != 0) {
-		log_err("ns_fini failed, rc = %d", rc);
+		log_err("ns_module_fini failed, rc = %d", rc);
 		goto out;
 	 }
 

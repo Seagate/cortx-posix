@@ -40,18 +40,18 @@ typedef enum kvtree_key_type {
 
 /** Initialize nsal.
  *
- *  @param "struct collection_item *cfg_items". 
- *   
+ *  @param "struct collection_item *cfg_items".
+ *
  *  @return 0 if successful, a negative "-errno" value in case of failure.
  */
-int nsal_init(struct collection_item *cfg_items);
+int nsal_module_init(struct collection_item *cfg_items);
 
 /** finalize nsal.
- *  
+ *
  *  @param void.
- *  
+ *
  *  @return 0 if successful, a negative "-errno" value in case of failure.
  */
-int nsal_fini(void);
+int nsal_module_fini(void);
 
 #endif /* _NSAL_H_ */

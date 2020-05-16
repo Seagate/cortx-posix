@@ -29,11 +29,11 @@ struct collection_item;
 
 /** Initialize namespace.
  *
- *  @param cfg[in] - collection item.
+ *  @param meta_index[in] - namespace meta index
  *
  *  @return 0 if successful, a negative "-errno" value in case of failure.
  */
-int ns_init(struct collection_item *cfg);
+int ns_module_init(struct kvs_idx *meta_index);
 
 /** finalize namespace.
  *
@@ -41,7 +41,7 @@ int ns_init(struct collection_item *cfg);
  *
  *  @return 0 if successful, a negative "-errno" value in case of failure.
  */
-int ns_fini(void);
+int ns_module_fini(void);
 
 /** allocates namespace object.
  *
@@ -71,7 +71,7 @@ int ns_next_id(uint16_t *ns_id);
 /** scans the namespace table.
  * Callback needs to copy the buffer containing ns, as it will be deleted in
  * the next iteration.
- * @param : function pointer.
+ * @param : ns_scan_cb, function to be executed for each found namespace.
  * @return 0 if successful, a negative "-errno" value in case of failure.
  */
 int ns_scan(void (*ns_scan_cb)(struct namespace *, size_t ns_size));
@@ -97,4 +97,13 @@ void ns_get_name(struct namespace *ns, str256_t **name);
  * @return void.
  */
 void ns_get_fid(struct namespace *ns, kvs_idx_fid_t *ns_fid);
+
+/** get namespace's id.
+ *
+ * @param ns[in]: namespace obj.
+ * @param ns_id[out]: namespace's id.
+ *
+ * @return void.
+ */
+void ns_get_id(struct namespace *ns, uint16_t *ns_id);
 #endif /* _NAMESPACE_H_ */

@@ -15,6 +15,7 @@
 #include <errno.h> /* error no */
 #include "debug.h" /* dassert */
 #include "namespace.h" /* namespace */
+#include "internal/nsal_common.h" /* nsal internal data structure */
 #include "common.h" /* likely */
 #include "common/helpers.h" /* RC_WRAP_LABEL */
 #include "common/log.h" /* logging */
@@ -25,40 +26,8 @@ struct namespace {
 	kvs_idx_fid_t ns_fid; /*namespace index fid*/
 };
 
-typedef enum ns_version {
-	NS_VERSION_0 = 0,
-	NS_VERSION_INVALID,
-} ns_version_t;
-
-/* namespace key types associated with particular version of ns. */
-typedef enum ns_key_type {
-	NS_KEY_TYPE_NS_INFO = 1, /* Key for storing namespace information. */
-	NS_KEY_TYPE_NS_ID_NEXT,  /* Key for storing id of namespace. */
-	NS_KEY_TYPE_INVALID,
-} ns_key_type_t;
-
-/* namespace key */
-struct ns_key {
-	struct key_prefix ns_prefix;
-	uint16_t ns_id;
-} __attribute((packed));
-
-#define NS_KEY_INIT(_key, _ns_id, _ktype)               \
-{                                                       \
-	_key->ns_id = _ns_id,                           \
-	_key->ns_prefix.k_type = _ktype,                \
-	_key->ns_prefix.k_version = NS_VERSION_0;       \
-}
-
-#define NS_KEY_PREFIX_INIT(_key, _type)        	\
-{                                               \
-	_key->k_type = _type,     		\
-	_key->k_version = NS_VERSION_0;         \
-}
-
 /* This is a global NS index which stores information about all the namespace */
 static struct kvs_idx g_ns_meta_index;
-static char *ns_meta_fid_str;
 
 void ns_get_name(struct namespace *ns, str256_t **name)
 {
@@ -70,6 +39,12 @@ void ns_get_fid(struct namespace *ns, kvs_idx_fid_t *ns_fid)
 {
 	dassert(ns);
 	*ns_fid = ns->ns_fid;
+}
+
+void ns_get_id(struct namespace *ns, uint16_t *ns_id)
+{
+	dassert(ns);
+	*ns_id = ns->ns_id;
 }
 
 int ns_scan(void (*ns_scan_cb)(struct namespace *ns, size_t ns_size))
@@ -163,46 +138,20 @@ out:
 	return rc;
 }
 
-int ns_init(struct collection_item *cfg)
+int ns_module_init(struct kvs_idx *meta_index)
 {
 	int rc = 0;
-	kvs_idx_fid_t ns_meta_fid;
-	struct collection_item *item;
-	struct kvstore *kvstor = kvstore_get();
 
-	dassert(kvstor != NULL);
-
-	if (cfg == NULL) {
-		log_err("ns_init failed");
-		return -EINVAL;
-	}
-
-	item = NULL;
-	rc = get_config_item("kvstore", "ns_meta_fid", cfg, &item);
-	ns_meta_fid_str = get_string_config_value(item, NULL);
-	RC_WRAP_LABEL(rc, out, kvs_fid_from_str, ns_meta_fid_str, &ns_meta_fid);
-
-	/* open g_ns_meta_index */
-	RC_WRAP_LABEL(rc, out, kvs_index_open, kvstor, &ns_meta_fid, &g_ns_meta_index);
-
-out:
-	log_debug("rc=%d", rc);
-
+	dassert(meta_index != NULL);
+	g_ns_meta_index = *meta_index;
+	log_debug("Namespace module finalized. rc=%d", rc);
 	return rc;
 }
 
-int ns_fini()
+int ns_module_fini()
 {
-	int rc = 0;
-	struct kvstore *kvstor = kvstore_get();
-
-	dassert(kvstor != NULL);
-
-	RC_WRAP_LABEL(rc, out, kvs_index_close, kvstor, &g_ns_meta_index);
-
-out:
-	log_debug("rc=%d", rc);
-	return rc;
+	log_debug("Namespace module finalized.");
+	return 0;
 }
 
 int ns_create(const str256_t *name, struct namespace **ret_ns, size_t *ns_size)
