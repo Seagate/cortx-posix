@@ -195,6 +195,9 @@ set(NSAL nsal)
 add_subdirectory(kvtree)
 set(KVTREE kvtree)
 
+add_subdirectory(tenant)
+set(TENANT tenant)
+
 add_library(eos-nsal SHARED
 		$<TARGET_OBJECTS:${BASE_KVSTORE}>
 		$<TARGET_OBJECTS:${EOS_KVSTORE}>
@@ -203,6 +206,7 @@ add_library(eos-nsal SHARED
 		$<TARGET_OBJECTS:${NAMESPACE}>
 		$<TARGET_OBJECTS:${NSAL}>
 		$<TARGET_OBJECTS:${KVTREE}>
+		$<TARGET_OBJECTS:${TENANT}>
 	)
 
 target_link_libraries(eos-nsal
