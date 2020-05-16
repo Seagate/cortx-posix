@@ -14,15 +14,49 @@
  on top of eos clovis object APIs.
 */
 
-#include <ini_config.h>
-#include <eos/helpers.h>
-#include <sys/param.h>
-#include <common/log.h>
-#include <common/helpers.h>
-#include "dstore.h"
-#include "../../dstore_internal.h"
-#include <assert.h>
+#include <sys/param.h> /* DEV_BSIZE */
+#include "eos/helpers.h" /* M0 wrappers from eos-utils */
+#include "common/log.h" /* log_* */
+#include "common/helpers.h" /* RC_WRAP* */
+#include "dstore.h" /* import public DSTORE API definitions */
+#include "../../dstore_internal.h" /* import private DSTORE API definitions */
+/* TODO: assert() calls should be replaced gradually with dassert() calls. */
+#include <assert.h> /* assert() */
+#include "debug.h" /* dassert */
 
+/** Private definition of DSTORE object for M0-based backend. */
+struct eos_dstore_obj {
+	struct dstore_obj base;
+	struct m0_clovis_obj cobj;
+};
+_Static_assert((&((struct eos_dstore_obj *) NULL)->base) == 0,
+	       "The offset of of the base field should be zero.\
+	       Otherwise, the direct casts (E2D, D2E) will not work.");
+
+/* Casts DSTORE Object to EOS Object.
+ *
+ * Note: Due to the lack of de-referencing, this call may be safely
+ * used before pre-conditions, e.g.:
+ * @code
+ *   struct eos_dstore_obj *obj = D2E(in);
+ *   assert(obj);
+ * @endcode
+ * @see ::E2D
+ */
+static inline
+struct eos_dstore_obj *D2E(struct dstore_obj *obj)
+{
+	return (struct eos_dstore_obj *) obj;
+}
+
+/* Casts EOS Object to DSTORE Object.
+ * @see ::D2E
+ */
+static inline
+struct dstore_obj *E2D(struct eos_dstore_obj *obj)
+{
+	return (struct dstore_obj *) obj;
+}
 
 enum update_stat_type {
 	UP_ST_WRITE = 1,
@@ -249,6 +283,67 @@ out:
 	return rc;
 }
 
+static int eos_dstore_obj_alloc(struct eos_dstore_obj **out)
+{
+	int rc;
+	struct eos_dstore_obj *obj;
+
+	M0_ALLOC_PTR(obj);
+	if (!obj) {
+		rc = RC_WRAP_SET(-ENOMEM);
+		goto out;
+	}
+
+	*out = obj;
+
+out:
+	return rc;
+}
+
+static void eos_dstore_obj_free(struct eos_dstore_obj *obj)
+{
+	m0_free(obj);
+}
+
+static int eos_ds_obj_open(struct dstore *dstore, const obj_id_t *oid,
+			   struct dstore_obj **out)
+{
+	int rc;
+	struct eos_dstore_obj *obj = NULL;
+
+	RC_WRAP_LABEL(rc, out, eos_dstore_obj_alloc, &obj);
+
+	RC_WRAP_LABEL(rc, out, m0store_obj_open, oid, &obj->cobj);
+
+	*out = E2D(obj);
+	obj = NULL;
+
+out:
+	eos_dstore_obj_free(obj);
+	return rc;
+}
+
+static int eos_ds_obj_close(struct dstore_obj *dobj)
+{
+	struct eos_dstore_obj *obj = D2E(dobj);
+
+	dassert(obj);
+
+	m0store_obj_close(&obj->cobj);
+	eos_dstore_obj_free(obj);
+
+	/* XXX:
+	 * Right now, we assume that M0-based backend
+	 * cannot fail here. However, later on
+	 * we may want to return an error if we have unfinished
+	 * M0 operations. Such operations (that have not been
+	 * properly finished) may cause failures, for instance,
+	 * during finalization of DSAL module.
+	 */
+	return 0;
+}
+
+
 const struct dstore_ops eos_dstore_ops = {
 	.init = eos_ds_init,
 	.fini = eos_ds_fini,
@@ -258,4 +353,6 @@ const struct dstore_ops eos_dstore_ops = {
 	.obj_write = eos_ds_obj_write,
 	.obj_resize = eos_ds_obj_resize,
 	.obj_get_id = eos_ds_obj_get_id,
+	.obj_open = eos_ds_obj_open,
+	.obj_close = eos_ds_obj_close,
 };

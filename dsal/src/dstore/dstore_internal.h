@@ -45,9 +45,9 @@ struct dstore {
  * |                   | data                       |
  * +-------------------+----------------------------+
  * @{endverbatim}
- * In other workds, the base data type should always be the first field
- * in the user-defined structure. It helps to avoid unnessesary
- * "container_of" calls, and let us use typecasts directly.
+ * In other words, the base data type should always be the first field
+ * in the user-defined structure. It helps to avoid unnecessary
+ * "container_of" calls, and allows us to use typecasts directly.
  *
  * Example:
  * @{code}
@@ -74,6 +74,21 @@ struct dstore_obj {
 	 * where this object was open.
 	 */
 	struct dstore *ds;
+
+	/** Cached Object ID value.
+	 * The backend-defined information will likely have a duplicate
+	 * of this value, however, in order to get the ID we would need
+	 * to have an indirect call to the backend. So there is a trade-off
+	 * between an indirect call and extra 16 bytes per dstore_obj
+	 * instance. At this point, it is unknown what is better - an
+	 * extra indirect call (affects CPU) or extra 16 bytes (affects
+	 * memory consumption). Moreover, a backend that does not
+	 * keep track of it (for example POSIX-based) may not have this value
+	 * stored inside private data. Considering these points,
+	 * right now the best solution is to add this field and hide it with
+	 * help of a getter (see ::dstore_obj_id).
+	 */
+	obj_id_t oid;
 	/** Beginning of backend-defined information. */
 	uint8_t priv[0];
 };
@@ -130,7 +145,7 @@ enum dstore_io_op_type {
 
 /** Base data type for IO operations.
  * Memory layout is the same as for dstore_obj - a backend
- * should extend the structure if it requres additional
+ * should extend the structure if it requires additional
  * fields.
  */
 struct dstore_io_op {
@@ -148,7 +163,7 @@ struct dstore_io_op {
 	 *       may be added to the public API.
 	 */
 	struct dstore_io_vec data;
-	/** Optional callback to nofity the user about
+	/** Optional callback to notify the user about
 	 * operation state changes.
 	 */
 	dstore_io_op_cb_t cb;
@@ -281,7 +296,7 @@ struct dstore_ops {
 
 /* FIXME: This structure does not belong here.
  * It should be moved into eos-related directory.
- * The consumer (dstore.c) should include this file separtely.
+ * The consumer (dstore.c) should include this file separately.
  * It will help to remove dependencies between DSAL backends.
  */
 extern const struct dstore_ops eos_dstore_ops;
@@ -298,5 +313,11 @@ void dstore_io_op_init(struct dstore_obj *obj,
 		       dstore_io_op_cb_t cb,
 		       void *cb_ctx,
 		       struct dstore_io_op *op);
+
+static inline
+const obj_id_t *dstore_obj_id(const struct dstore_obj *obj)
+{
+	return &obj->oid;
+}
 
 #endif

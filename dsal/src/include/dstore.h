@@ -1,7 +1,7 @@
 /*
  * Filename:         dstore.h
  * Description:      data store module of DSAL
-
+ *
  * Do NOT modify or remove this copyright and confidentiality notice!
  * Copyright (c) 2019, Seagate Technology, LLC.
  * The code contained herein is CONFIDENTIAL to Seagate Technology, LLC.
@@ -9,14 +9,38 @@
  * distribution or disclosure of this code, for any reason, not expressly
  * authorized is prohibited. All other rights are expressly reserved by
  * Seagate Technology, LLC.
-
- This file contains dstore framework infrastructure.
- There are currently 1 users of this infrastructure,
-        1. eos
-
- This gives capability of data storing.
-*/
-
+ *
+ * This file describes the public API of DSTORE module -- DSAL
+ * (data store abstraction layer).
+ *
+ * Overview
+ * --------
+ *
+ * DSAL exposes the following mechanisms:
+ *	- initialization/finalization of the DSTORE;
+ *	- creation and removal of DSTORE objects;
+ *	- state management (open/close);
+ *	- IO operations;
+ *	- various utility functions exposed by DSTORE backends;
+ *
+ * State management
+ * ----------------
+ *
+ * DSAL allows its users to create an in-memory representation of an object
+ * and destoroy it using the corresponding open/close calls.
+ *
+ * Right now, DSTORE does not provide any guarantees regarding synchronization
+ * of the objects stored in the stable storage and their in-memory
+ * representations except very simple cases. For example, open() call will
+ * return an error if DSTORE was not properly initialized (errno depends on
+ * the backend) or if the requested object does not exist (ENOENT). However,
+ * an attempt to concurrently delete and open an object is considered to be
+ * undefined behavior. It is done deliberately because some of the users
+ * of DSAL (for example, S3 server) does not require strong consistency.
+ * In other words, DSAL provides a mechanism for object storage management
+ * while the policies (consistency, concurrency) should be implemented
+ * in the upper layers.
+ */
 #ifndef _DSTORE_H
 #define _DSTORE_H
 
@@ -93,7 +117,7 @@ int dstore_obj_open(struct dstore *dstore,
 /** Release resources associated with an open object.
  * This function de-allocates memory and any other sources taken by
  * dstore_obj_open call.
- * The function blocks on a call to the unerlying storage until
+ * The function blocks on a call to the underlying storage until
  * all the in-flight IO operations are stable. This behavior provides
  * open-to-close consistency.
  * An attempt to close already closed object causes undefined

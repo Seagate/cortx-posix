@@ -209,3 +209,4 @@ add_custom_command(TARGET srpm
                   VERBATIM
                   DEPENDS dist)
 
+add_subdirectory(test)
