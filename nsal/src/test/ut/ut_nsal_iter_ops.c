@@ -10,6 +10,7 @@
 #include <ut.h>
 
 #define DEFAULT_CONFIG "/etc/efs/efs.conf"
+#define CONF_FILE "/tmp/eos-fs/build-nsal/test/ut/ut_nsal.conf"
 /* key_list and val_list needs to be in sync with below config */
 #define MAX_NUM_KEY_VALUE_PAIR 10
 
@@ -309,15 +310,20 @@ out:
 	ut_assert_int_equal(rc,0);
 }
 
-int main(int argc, char *argv[])
+int main(void)
 {
 	int rc = 0;
-	char *test_logs = "/var/log/cortx/test/ut/nsal/iter_ops.logs";
+	char *test_logs = "/var/log/eos/test/ut/ut_nsal.logs";
 
-	if (argc > 1) {
-		test_logs = argv[1];
-	}
 	printf("Iterator test\n");
+
+	rc = ut_load_config(CONF_FILE);
+	if (rc != 0) {
+		printf("ut_load_config: err = %d\n", rc);
+		goto end;
+	}
+
+	test_logs = ut_get_config("nsal", "log_path", test_logs);
 
 	rc = ut_init(test_logs);
 
@@ -336,7 +342,7 @@ int main(int argc, char *argv[])
 	rc = set_multiple_key();
 	if (rc) {
 		printf("Setting multiple keys failed");
-		exit(1);
+		goto out;
 	}
 
 	struct test_case test_list[] = {
@@ -344,7 +350,7 @@ int main(int argc, char *argv[])
 		ut_test_case(test_iterator_no_prefix, NULL, NULL)
 	};
 
-	int test_count = 2;
+	int test_count =  sizeof(test_list)/sizeof(test_list[0]);
 	int test_failed = 0;
 
 	test_failed = ut_run(test_list, test_count, NULL, NULL);
@@ -358,5 +364,8 @@ out:
 	ut_fini();
 
 	ut_summary(test_count, test_failed);
+
+	free(test_logs);
+end:
 	return rc;
 }

@@ -1,5 +1,5 @@
-/*1
- * Filename: test_ns.c
+/*
+ * Filename: ut_nsal_ns_ops.c
  * Description: Implementation tests for namespace.
  *
  * Do NOT modify or remove this copyright and confidentiality notice!
@@ -19,15 +19,15 @@
 #include "str.h"
 #include "namespace.h"
 #include "nsal.h"
-#include "ut.h"
+#include "ut_nsal_ns.h"
 
 #define DEFAULT_CONFIG "/etc/efs/efs.conf"
 
-static struct collection_item *cfg_items;
 
 static void test_ns_module_init(void)
 {
 	struct collection_item *errors = NULL;
+	struct collection_item *cfg_items = NULL;
 	int rc = 0;
 
 	rc = log_init("/var/log/cortx/efs/efs.log", LEVEL_DEBUG);
@@ -136,7 +136,7 @@ static void test_cb(struct namespace *ns, size_t ns_size)
  * Expected behavior:
  * 1. List namespace entry and corresponding infomation.
  */
-static void test_ns_scan(void)
+void test_ns_scan(void)
 {
 	int rc = 0;
 
@@ -144,21 +144,26 @@ static void test_ns_scan(void)
 	ut_assert_int_equal(rc,0);
 }
 
-int main(int argc, char *argv[])
+int main(void)
 {
-	int rc = 0;
-	int test_count = 0;
-	int test_failed = 0;
-	char *test_logs = "/var/log/eos/test/ut/nsal/ns_ops.logs";
+        int rc = 0;
+        char *test_logs = "/var/log/eos/test/ut/ut_nsal.logs";
 
-	if (argc > 1) {
-		test_logs = argv[1];
-	}
+	printf("NS Tests\n");
 
-	rc = ut_init(test_logs);
+	rc = ut_load_config(CONF_FILE);
 	if (rc != 0) {
-		exit(1);
+		printf("ut_load_config: err = %d\n", rc);
+		goto end;
 	}
+
+	test_logs = ut_get_config("nsal", "log_path", test_logs);
+
+        rc = ut_init(test_logs);
+        if (rc != 0) {
+		printf("ut_init: err = %d\n", rc);
+		goto out;
+        }
 
 	struct test_case test_list[] = {
 		ut_test_case(test_ns_module_init, NULL, NULL),
@@ -168,9 +173,14 @@ int main(int argc, char *argv[])
 		ut_test_case(test_ns_module_fini, NULL, NULL),
 	};
 
-	test_count = sizeof(test_list) / sizeof(test_list[0]);
-	test_failed = ut_run(test_list, test_count, NULL, NULL);
+	int test_count = sizeof(test_list) / sizeof(test_list[0]);
+	int test_failed = ut_run(test_list, test_count, NULL, NULL);
 	ut_fini();
 	ut_summary(test_count, test_failed);
-	return 0;
+
+out:
+	free(test_logs);
+
+end:
+        return rc;
 }
