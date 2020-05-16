@@ -1,5 +1,5 @@
 /*
- * Filename: efs_ut_helper.c
+ * Filename: ut_efs_helper.c
  * Description: Functions for fs_open and fs_close required for test
  *
  * Do NOT modify or remove this copyright and confidentiality notice!
@@ -12,7 +12,7 @@
  * Author: Shraddha Shinde <shraddha.shinde@seagate.com>
  */
 
-#include "efs_fs.h"
+#include "ut_efs_helper.h"
 
 int ut_efs_fs_setup(void **state)
 {
@@ -38,7 +38,7 @@ int ut_efs_fs_setup(void **state)
 
 	rc = ut_load_config(ut_conf_file);
 	if (rc != 0) {
-		fprintf(stderr, "ut_load_config: err = %d", rc);
+		fprintf(stderr, "ut_load_config: err = %d\n", rc);
 		goto out;
 	}
 

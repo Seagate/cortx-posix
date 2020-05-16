@@ -1,5 +1,5 @@
 /*
- * Filename: efs_dir_ops.c
+ * Filename: ut_efs_dir_ops.c
  * Description: Implementation tests for directory operartions
  *
  * Do NOT modify or remove this copyright and confidentiality notice!
@@ -11,7 +11,7 @@
  *
  * Author: Shraddha Shinde <shraddha.shinde@seagate.com>
 */
-#include "efs_fs.h"
+#include "ut_efs_helper.h"
 #define DIR_NAME_LEN_MAX 255
 #define DIR_ENV_FROM_STATE(__state) (*((struct ut_dir_env **)__state))
 
@@ -856,7 +856,7 @@ static int dir_ops_teardown(void **state)
 
 	rc = ut_efs_fs_teardown(state);
 	ut_assert_int_equal(rc, 0);
-
+	
 	free(*state);
 
 	return rc;
@@ -865,14 +865,22 @@ static int dir_ops_teardown(void **state)
 int main(void)
 {
 	int rc = 0;
-	char *test_log = "/var/log/cortx/test/ut/efs/dir_ops.log";
+	char *test_log = "/var/log/eos/test/ut/ut_efs.log";
 
 	printf("Directory tests\n");
+
+	rc = ut_load_config(CONF_FILE);
+	if (rc != 0) {
+		printf("ut_load_config: err = %d\n", rc);
+		goto end;
+	}
+
+	test_log = ut_get_config("efs", "log_path", test_log);
 
 	rc = ut_init(test_log);
 	if (rc != 0) {
 		printf("ut_init failed, log path=%s, rc=%d.\n", test_log, rc);
-		exit(1);
+		goto out;
 	}
 
 	struct test_case test_list[] = {
@@ -908,5 +916,9 @@ int main(void)
 
 	ut_summary(test_count, test_failed);
 
-	return 0;
+out:
+	free(test_log);
+
+end:
+	return rc;
 }

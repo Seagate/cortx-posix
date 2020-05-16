@@ -1,5 +1,5 @@
 /*
- * Filename: efs_file_ops.c
+ * Filename: ut_efs_file_ops.c
  * Description: Implementation tests for file creation
  *
  * Do NOT modify or remove this copyright and confidentiality notice!
@@ -11,7 +11,7 @@
  *
  * Author: Shraddha Shinde <shraddha.shinde@seagate.com>
 */
-#include "efs_fs.h"
+#include "ut_efs_helper.h"
 
 /**
  * Setup for file creation test.
@@ -265,14 +265,22 @@ static int file_ops_teardown(void **state)
 int main(void)
 {
 	int rc = 0;
-	char *test_log = "/var/log/cortx/test/ut/efs/file_ops.log";
+	char *test_log = "/var/log/eos/test/ut/ut_efs.log";
 
 	printf("File creation tests\n");
+
+	rc = ut_load_config(CONF_FILE);
+	if (rc != 0) {
+		printf("ut_load_config: err = %d\n", rc);
+		goto end;
+	}
+
+	test_log = ut_get_config("efs", "log_path", test_log);
 
 	rc = ut_init(test_log);
 	if (rc != 0) {
 		printf("ut_init failed, log path=%s, rc=%d.\n", test_log, rc);
-		exit(1);
+		goto out;
 	}
 
 	struct test_case test_list[] = {
@@ -292,5 +300,9 @@ int main(void)
 
 	ut_summary(test_count, test_failed);
 
-	return 0;
+out:
+	free(test_log);
+
+end:
+	return rc;
 }
