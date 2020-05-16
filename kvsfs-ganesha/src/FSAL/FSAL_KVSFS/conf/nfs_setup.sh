@@ -14,10 +14,9 @@ EFS_CONF=/etc/efs/efs.conf
 EFS_CONF_BAK=${EFS_CONF}.$$
 GANESHA_CONF=/etc/ganesha/ganesha.conf
 GANESHA_CONF_BAK=${GANESHA_CONF}.$$
-EOS_FS_CLI=/opt/seagate/eos/efs/bin/efscli
+EFS_FS_CLI="/usr/bin/efscli"
 NFS_INITIALIZED=/var/lib/nfs/nfs_initialized
 NFS_SETUP_LOG=/var/log/nfs_setup.log
-LOG_DIR_PATH=/var/log/eos/efs
 
 function die {
 	log "error: $*"
@@ -38,7 +37,7 @@ function log {
 
 function create_fs {
 	echo -e "\nCreating default file system $DEFAULT_FS ..."
-	run $EOS_FS_CLI fs create $DEFAULT_FS
+	run $EFS_FS_CLI fs create $DEFAULT_FS
 	[ $? -ne 0 ] && die "Failed to create $DEFAULT_FS"
 }
 
@@ -60,12 +59,6 @@ function clovis_init {
 	[ $? -ne 0 ] && die "Failed to Initialise Clovis Global index"
 }
 
-
-function log_dir_setup {
-	mkdir -p $LOG_DIR_PATH
-	[ $? -ne 0 ] && die "Failed to create log dir $LOG_DIR_PATH"
-}
-
 function efs_init {
 	log "Initializing EFS..."
 
@@ -81,7 +74,7 @@ function efs_init {
 
 	cat >> $EFS_CONF << EOM
 [log]
-path = /var/log/eos/efs/efs.log
+path = /var/log/cortx/efs/efs.log
 level = LEVEL_INFO
 
 [kvstore]
@@ -213,9 +206,6 @@ function eos_nfs_init {
 	# Initialize clovis
 	clovis_init
 
-	# log dir setup
-	log_dir_setup
-
 	efs_init
 
 	# Prepare ganesha.conf
@@ -244,7 +234,6 @@ function eos_nfs_cleanup {
 	run m0clovis -l $ip_add$LOC_EXPORT_ID -h $ip_add$HA_EXPORT_ID -p $PROFILE -f $PROC_FID index drop "$KVS_NS_META_FID"
 
 	rm -f $NFS_INITIALIZED
-	rm -rf $LOG_DIR_PATH
 	echo "NFS cleanup is complete"
 }
 
@@ -288,6 +277,10 @@ while [ ! -z $1 ]; do
 	esac
 	shift 1
 done
+
+if [ ! -e $EFS_FS_CLI ]; then
+  die "efscli is not installed in the location $EFS_FS_CLI. Please install the corresponding RPM."
+fi
 
 # Get path and Pseudo path
 [ -n "$DEFAULT_FS" ] && FS_PATH="$DEFAULT_FS"

@@ -38,7 +38,6 @@
 #include "fsal_internal.h"
 #include "kvsfs_methods.h"
 #include <efs.h>
-#include <fs.h>
 
 static struct config_item ds_array_params[] = {
 	CONF_MAND_IP_ADDR("DS_Addr", "127.0.0.1",

@@ -8,6 +8,12 @@ set -e
 ###############################################################################
 # Arguments
 
+# Project Name.
+PROJECT_NAME_BASE=${PROJECT_NAME_BASE:-"cortx"}
+
+# Install Dir.
+INSTALL_DIR_ROOT=${INSTALL_DIR_ROOT:-"/opt/seagate"}
+
 KVSFS_SOURCE_ROOT=${KVSFS_SOURCE_ROOT:-$PWD}
 
 # Root folder for out-of-tree builds, i.e. location for the build folder.
@@ -183,7 +189,9 @@ kvsfs_tools_configure() {
 
 	local cmd=" cmake \
 -DBASE_VERSION:STRING=${KVSFS_VERSION} \
--DRELEASE_VER:STRING=${KVSFS_BUILD_VERSION}
+-DRELEASE_VER:STRING=${KVSFS_BUILD_VERSION} \
+-DPROJECT_NAME_BASE:STRING=${PROJECT_NAME_BASE} \
+-DINSTALL_DIR_ROOT:STRING=${INSTALL_DIR_ROOT}
 $KVSFS_TEST_DIR"
 	echo -e "Config:\n $cmd" > $KVSFS_BUILD/.config
 	echo -e "Env:\n $(kvsfs_print_env)" >> $KVSFS_BUILD/.config
@@ -221,6 +229,8 @@ kvsfs_configure() {
 -DLIBNSAL:PATH=${NSAL_LIB} \
 -DEFSINC:PATH=${EFS_INC} \
 -DLIBEFS:PATH=${EFS_LIB} \
+-DPROJECT_NAME_BASE:STRING=${PROJECT_NAME_BASE} \
+-DINSTALL_DIR_ROOT:STRING=${INSTALL_DIR_ROOT}
 $KVSFS_SRC"
 
     echo -e "Config:\n $cmd" > $KVSFS_BUILD/.config

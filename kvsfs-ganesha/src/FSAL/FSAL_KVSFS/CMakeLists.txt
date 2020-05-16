@@ -43,6 +43,9 @@ set(LIBNSAL ${DEFAULT_LIBNSAL} CACHE PATH "Path to folder with libeos-nsal.so")
 set(EFSINC ${DEFAULT_EFSINC} CACHE PATH "Path to folder with nsal headers")
 set(LIBEFS ${DEFAULT_LIBEFS} CACHE PATH "Path to folder with libeos-nsal.so")
 
+set(PROJECT_NAME_BASE ${PROJECT_NAME_BASE})
+set(INSTALL_DIR_ROOT ${INSTALL_DIR_ROOT})
+
 # TODO: Add a condition here and check nfs-ganesha configuration
 set(SYSTEM_LIBRARIES
 	"/usr/lib64/libjemalloc.so")
