@@ -94,6 +94,7 @@ eosfs_parse_cmd() {
 # Env
 
 eosfs_set_env() {
+    export PROJECT_NAME_BASE="cortx"
     export KVSFS_SOURCE_ROOT=$PWD/kvsfs-ganesha
     export NSAL_SOURCE_ROOT=$PWD/nsal
     export DSAL_SOURCE_ROOT=$PWD/dsal
@@ -111,11 +112,13 @@ eosfs_set_env() {
     export KVSFS_NFS_GANESHA_DIR=${KVSFS_NFS_GANESHA_DIR:-$PWD/../nfs-ganesha-eos}
     export KVSFS_NFS_GANESHA_BUILD_DIR=${KVSFS_NFS_GANESHA_BUILD_DIR:-$EOS_FS_BUILD_ROOT/build-nfs-ganesha}
     export ENABLE_DASSERT=${ENABLE_DASSERT:-"ON"}
+    export INSTALL_DIR_ROOT="/opt/seagate"
 }
 
 eosfs_print_env() {
     eosfs_set_env
     local myenv=(
+	PROJECT_NAME_BASE
         KVSFS_SOURCE_ROOT
         NSAL_SOURCE_ROOT
         DSAL_SOURCE_ROOT
@@ -128,6 +131,7 @@ eosfs_print_env() {
         KVSFS_NFS_GANESHA_BUILD_DIR
         EFS_SOURCE_ROOT
         ENABLE_DASSERT
+	INSTALL_DIR_ROOT
     )
     for i in ${myenv[@]}; do
         echo "$i=${!i}"
