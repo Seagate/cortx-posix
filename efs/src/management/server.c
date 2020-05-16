@@ -196,7 +196,6 @@ int management_fini()
 	log_debug("Waiting management service thread to terminate."),
 
 	/* Wait for thread to terminate. */
-
 	rc = pthread_join(g_server_tid, &res);
 	if (rc != 0 ) {
 		log_err("Failed to join management thread.");

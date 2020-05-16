@@ -31,8 +31,9 @@
 struct kvs_idx;
 
 struct efs_fs {
-	struct namespace *ns; /*namespace object*/
-	struct kvtree *kvtree; /*kvtree object*/
+	struct namespace *ns; /* namespace object */
+	struct tenant *tenant; /* tenant object */
+	struct kvtree *kvtree; /* kvtree object */
 };
 
 /**

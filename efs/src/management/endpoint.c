@@ -24,7 +24,7 @@
 #include <str.h>
 #include <debug.h>
 #include "internal/controller.h"
-//#include "endpoint.h"
+#include "internal/fs.h"
 
 /**
  * ##############################################################
@@ -170,10 +170,8 @@ static int endpoint_create_process_data(struct controller_api *endpoint_create)
 		  endpoint_create_api->req.endpoint_options);
 
 	/* 3. Send create endpoint request */
-	// @TODO: Integration point.
-	// 1. Remove the commented code and link it to the backend api.
-	//rc = efs_endpoint_create(&endpoint_name,
-	//			   endpoint_create_api->req.endpoint_options);
+	rc = efs_endpoint_create(&endpoint_name,
+				 endpoint_create_api->req.endpoint_options);
 	request_set_errcode(request, -rc);
 	log_debug("ENDPOINT create status code : %d.", rc);
 
@@ -385,10 +383,8 @@ static int endpoint_delete_process_request(struct controller_api *endpoint_delet
 	/**
 	 * Send endpoint delete request to the backend.
 	 */
-	// @TODO: Integration point.
-	// 1. Remove the commented code and link it to the backend api.
-	//rc = efs_endpoint_delete(&endpoint_name);
-	request_set_errcode(request, rc);
+	rc = efs_endpoint_delete(&endpoint_name);
+	request_set_errcode(request, -rc);
 
 	log_debug("ENDPOINT delete return code: %d.", rc);
 

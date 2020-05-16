@@ -13,6 +13,7 @@
  */
 
 #include "efs_fs.h"
+#include "nsal.h"
 
 struct collection_item *cfg_items;
 
@@ -38,21 +39,26 @@ static void test_efs_fs_delete()
 	ut_assert_int_equal(rc, 0);
 }
 
-static int test_efs_cb(const struct efs_fs *fs, void *args)
+static int test_efs_cb(const struct efs_fs_list_entry *list,  void *args)
 {
 	int rc = 0;
 
-	str256_t *fs_name = NULL;
-	efs_fs_get_name(fs, &fs_name);
+	if (args != NULL) {
+		rc = -EINVAL;
+		goto out;
+	}
 
-	printf("CB efs name = %s\n", fs_name->s_str);
-
+	printf("CB efs name = %s\n", list->fs_name->s_str);
+out:
 	return rc;
 }
 
 static void test_efs_fs_scan()
 {
-	efs_fs_scan(test_efs_cb, NULL);
+	int rc = 0;
+
+	rc = efs_fs_scan_list(test_efs_cb, (void *)0);
+	ut_assert_int_equal(rc, 0);
 }
 
 int main(void)
