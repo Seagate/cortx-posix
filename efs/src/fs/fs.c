@@ -15,10 +15,9 @@
 #include <errno.h> /* errono */
 #include <string.h> /* memcpy */
 #include "common.h" /* container_of */
-#include "fs.h" /* fs interface */
+#include "internal/fs.h" /* fs interface */
 #include "common/helpers.h" /* RC_WRAP_LABEL */
 #include "common/log.h" /* logging */
-#include <eos/eos_kvstore.h> /* remove this */
 #include "kvtree.h"
 #include "kvnode.h"
 

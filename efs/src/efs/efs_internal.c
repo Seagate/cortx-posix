@@ -23,7 +23,6 @@
 #include <common/log.h>
 #include <common/helpers.h>
 #include "efs.h"
-#include <eos/eos_kvstore.h>
 #include <dstore.h>
 #include <debug.h>
 #include <common.h> /* likely */

@@ -15,12 +15,15 @@
 
 #include <stdio.h> /* sprintf */
 #include <stdlib.h>
+#include <string.h>
+#include <errno.h>
+#include <evhtp.h>
 #include <json/json.h> /* for json_object */
 #include <management.h>
 #include <common/log.h>
 #include <str.h>
 #include <debug.h>
-#include "controller.h"
+#include "internal/controller.h"
 //#include "endpoint.h"
 
 /**
@@ -47,13 +50,15 @@ struct endpoint_create_api {
 static int endpoint_create_send_response(struct controller_api *endpoint_create,
 				       void *args)
 {
+	int rc = 0;
 	int resp_code = 0;
 	struct request *request = NULL;
-	
+
 	request = endpoint_create->request;
 
-	if (request->err_code != 0) {
-		resp_code = errno_to_http_code(request->err_code);
+	rc = request_get_errcode(request);
+	if (rc != 0) {
+		resp_code = errno_to_http_code(rc);
 	} else {
 		/* Resource got created. */
 		resp_code = EVHTP_RES_CREATED;
@@ -62,7 +67,8 @@ static int endpoint_create_send_response(struct controller_api *endpoint_create,
 	log_debug("err_code : %d", resp_code);
 
 	request_send_response(request, resp_code);
-	return 0;
+
+	return rc;
 }
 
 static int endpoint_create_process_data(struct controller_api *endpoint_create)
@@ -72,6 +78,7 @@ static int endpoint_create_process_data(struct controller_api *endpoint_create)
 	int endpoint_name_len = 0;
 	struct request *request = NULL;
 	struct endpoint_create_api *endpoint_create_api = NULL;
+	struct json_object *json_obj = NULL;
 	struct json_object *json_fs_name_obj = NULL;
 	struct json_object *json_endpoint_options_obj = NULL;
 
@@ -89,7 +96,7 @@ static int endpoint_create_process_data(struct controller_api *endpoint_create)
 		/**
 		 * Internal error.
 		 */
-		request->err_code = rc;
+		request_set_errcode(request, rc);
 		endpoint_create_send_response(endpoint_create, NULL);
 		goto error;
 	}
@@ -97,13 +104,15 @@ static int endpoint_create_process_data(struct controller_api *endpoint_create)
 	/* 1. Parse JSON requst data. */
 	endpoint_create_api = (struct endpoint_create_api*)endpoint_create->priv;
 
-	json_object_object_get_ex(request->in_json_req_obj,
+	json_obj = request_get_data(request);
+	json_object_object_get_ex(json_obj,
 				  "name",
 				  &json_fs_name_obj);
 
 	if (json_fs_name_obj == NULL) {
 		log_err("No FS name.");
-		request->err_code = EINVAL;
+		rc = EINVAL;
+		request_set_errcode(request, rc);
 		endpoint_create_send_response(endpoint_create, NULL);
 		goto error;
 	}
@@ -112,18 +121,20 @@ static int endpoint_create_process_data(struct controller_api *endpoint_create)
 		json_object_get_string(json_fs_name_obj);
 	if (endpoint_create_api->req.endpoint_name == NULL) {
 		log_err("No FS name.");
-		request->err_code = EINVAL;
+		rc = EINVAL;
+		request_set_errcode(request, rc);
 		endpoint_create_send_response(endpoint_create, NULL);
 		goto error;
 	}
 
-	json_object_object_get_ex(request->in_json_req_obj,
+	json_object_object_get_ex(json_obj,
 				  "options",
 				  &json_endpoint_options_obj);
 
 	if (json_endpoint_options_obj == NULL) {
 		log_err("No endpoint options.");
-		request->err_code = EINVAL;
+		rc = EINVAL;
+		request_set_errcode(request, rc);
 		endpoint_create_send_response(endpoint_create, NULL);
 		goto error;
 	}
@@ -133,7 +144,7 @@ static int endpoint_create_process_data(struct controller_api *endpoint_create)
 	if (endpoint_name_len > 255) {
 		log_err("FS name too long.");
 		rc = EINVAL;
-		request->err_code = rc;
+		request_set_errcode(request, rc);
 		endpoint_create_send_response(endpoint_create, NULL);
 		goto error;
 	}
@@ -148,7 +159,8 @@ static int endpoint_create_process_data(struct controller_api *endpoint_create)
 
 	if (endpoint_create_api->req.endpoint_options == NULL) {
 		log_err("Invalid endpoint options.");
-		request->err_code = EINVAL;
+		rc = EINVAL;
+		request_set_errcode(request, rc);
 		endpoint_create_send_response(endpoint_create, NULL);
 		goto error;
 	}
@@ -162,8 +174,8 @@ static int endpoint_create_process_data(struct controller_api *endpoint_create)
 	// 1. Remove the commented code and link it to the backend api.
 	//rc = efs_endpoint_create(&endpoint_name,
 	//			   endpoint_create_api->req.endpoint_options);
-	request->err_code = -rc;
-	log_debug("ENDPOINT create status code : %d.", request->err_code);
+	request_set_errcode(request, -rc);
+	log_debug("ENDPOINT create status code : %d.", rc);
 
 	request_next_action(endpoint_create);
 
@@ -184,22 +196,23 @@ static int endpoint_create_process_request(struct controller_api *endpoint_creat
 		/**
 		 * Internal error.
 		 */
-		request->err_code = rc;
+		request_set_errcode(request, rc);
 		endpoint_create_send_response(endpoint_create, NULL);
 		goto error;
 	}
 
-	if (request->in_content_len == 0) {
+	if (request_content_length(request) == 0) {
 		/**
 		 * Expecting create request endpoint info.
 		 */
-		request->err_code = EINVAL;
+		rc = EINVAL;
+		request_set_errcode(request, rc);
 		endpoint_create_send_response(endpoint_create, NULL);
 		goto error;
 	}
 
 	/* Set read data call back. */
-	request->read_cb = endpoint_create_process_data;
+	request_set_readcb(request, endpoint_create_process_data);
 
 error:
 	return rc;
@@ -298,8 +311,9 @@ static int endpoint_delete_send_response(struct controller_api *endpoint_delete,
 
 	request = endpoint_delete->request;
 
-	if (request->err_code != 0) {
-		resp_code = errno_to_http_code(request->err_code);
+	rc = request_get_errcode(request);
+	if (rc != 0) {
+		resp_code = errno_to_http_code(rc);
 	} else {
 		resp_code = EVHTP_RES_200;
 	}
@@ -324,16 +338,17 @@ static int endpoint_delete_process_request(struct controller_api *endpoint_delet
 		/**
 		 * Internal error.
 		 */
-		request->err_code = rc;
+		request_set_errcode(request, rc);
 		endpoint_delete_send_response(endpoint_delete, NULL);
 		goto error;
 	}
 
-	if (request->in_content_len != 0) {
+	if (request_content_length(request) != 0) {
 		/**
 		 * ENDPOINT delete request doesn't expect any payload data.
 		 */
-		request->err_code = EINVAL;
+		rc = EINVAL;
+		request_set_errcode(request, rc);
 		endpoint_delete_send_response(endpoint_delete, NULL);
 		goto error;
 	}
@@ -342,10 +357,11 @@ static int endpoint_delete_process_request(struct controller_api *endpoint_delet
 	 * Get the ENDPOINT delete api info.
 	 */
 	endpoint_delete_api = (struct endpoint_delete_api*)endpoint_delete->priv;
-	endpoint_delete_api->req.endpoint_name = request->api_file;
+	endpoint_delete_api->req.endpoint_name = request_api_file(request);
 	if (endpoint_delete_api->req.endpoint_name == NULL) {
 		log_err("No FS name.");
-		request->err_code = EINVAL;
+		rc = EINVAL;
+		request_set_errcode(request, rc);
 		endpoint_delete_send_response(endpoint_delete, NULL);
 		goto error;
 	}
@@ -357,7 +373,7 @@ static int endpoint_delete_process_request(struct controller_api *endpoint_delet
 	if (endpoint_name_len > 255) {
 		log_err("FS name too long.");
 		rc = EINVAL;
-		request->err_code = rc;
+		request_set_errcode(request, rc);
 		endpoint_delete_send_response(endpoint_delete, NULL);
 		goto error;
 	}
@@ -372,9 +388,9 @@ static int endpoint_delete_process_request(struct controller_api *endpoint_delet
 	// @TODO: Integration point.
 	// 1. Remove the commented code and link it to the backend api.
 	//rc = efs_endpoint_delete(&endpoint_name);
-	request->err_code = -rc;
+	request_set_errcode(request, rc);
 
-	log_debug("ENDPOINT delete return code: %d.", request->err_code);
+	log_debug("ENDPOINT delete return code: %d.", rc);
 
 	request_next_action(endpoint_delete);
 

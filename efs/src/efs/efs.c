@@ -23,11 +23,10 @@
 #include <ini_config.h>
 #include <common/log.h>
 #include <common/helpers.h>
-#include <eos/eos_kvstore.h>
 #include <dstore.h>
 #include <dsal.h> /* dsal_init,fini */
 #include <efs.h>
-#include <fs.h>
+#include <internal/fs.h>
 #include <debug.h>
 #include <management.h>
 #include <nsal.h> /* nsal_init,fini */
@@ -61,7 +60,7 @@ int efs_init(const char *config_path)
 
 	/** Path not specified, use default */
 	if (item == NULL) {
-		log_path = "/var/log/eos/efs/efs.log";
+		log_path = "/var/log/cortx/efs/efs.log";
 	} else {
 		log_path = get_string_config_value(item, NULL);
 	}

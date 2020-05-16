@@ -410,7 +410,7 @@ static int io_ops_teardown(void **state)
 int main(void)
 {
 	int rc = 0;
-	char *test_log = "/var/log/eos/test/ut/efs/io_ops.log";
+	char *test_log = "/var/log/cortx/test/ut/efs/io_ops.log";
 
 	printf("IO tests\n");
 

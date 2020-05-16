@@ -5,7 +5,7 @@ Name: eos-efs
 Version: @EOS_EFS_BASE_VERSION@
 Release: %{dev_version}%{?dist}
 Summary: EOS file system
-License: Propietary
+License: Seagate
 Group: Development/Libraries
 Url: http://seagate.com/eos-efs
 Source: %{sourcename}.tar.gz
@@ -17,6 +17,14 @@ Provides: %{name} = %{version}-%{release}
 
 @BCOND_ENABLE_DASSERT@ enable_dassert
 %global enable_dassert %{on_off_switch enable_dassert}
+
+# EOS NSAL library paths
+%define _efs_dir		@INSTALL_DIR_ROOT@/@PROJECT_NAME_BASE@/efs
+%define _efs_lib_dir		%{_efs_dir}/lib
+%define _efs_bin_dir		%{_efs_dir}/bin
+%define _efs_conf_dir		%{_efs_dir}/conf
+%define _efs_log_dir		/var/log/@PROJECT_NAME_BASE@/efs
+%define _efs_include_dir	%{_includedir}/efs
 
 %description
 The eos-efs is EOS file system.
@@ -48,17 +56,24 @@ make %{?_smp_mflags} || make %{?_smp_mflags} || make
 %install
 
 mkdir -p %{buildroot}%{_bindir}
+mkdir -p %{buildroot}%{_sbindir}
 mkdir -p %{buildroot}%{_libdir}
-mkdir -p %{buildroot}%{_libdir}/pkgconfig
-mkdir -p %{buildroot}%{_includedir}/efs
+mkdir -p %{buildroot}%{_efs_dir}
+mkdir -p %{buildroot}%{_efs_lib_dir}
+mkdir -p %{buildroot}%{_efs_bin_dir}
+mkdir -p %{buildroot}%{_efs_conf_dir}
+mkdir -p %{buildroot}%{_efs_log_dir}
+mkdir -p %{buildroot}%{_efs_include_dir}/
 mkdir -p %{buildroot}%{_sysconfdir}/efs
-mkdir -p %{buildroot}/opt/seagate/eos/efs/bin
-install -m 644 include/efs.h  %{buildroot}%{_includedir}/efs
-install -m 644 include/efs_fh.h  %{buildroot}%{_includedir}/efs
-install -m 744 libeos-efs.so %{buildroot}%{_libdir}
-install -m 644 efs.conf %{buildroot}%{_sysconfdir}/efs
+mkdir -p %{buildroot}%{_libdir}/pkgconfig
+install -m 644 include/*.h  %{buildroot}%{_efs_include_dir}
+install -m 755 libeos-efs.so %{buildroot}%{_efs_lib_dir}
+install -m 644 efs.conf %{buildroot}%{_efs_conf_dir}
+install -m 755 efscli/efscli.py %{buildroot}%{_efs_bin_dir}/efscli
 install -m 644 eos-efs.pc  %{buildroot}%{_libdir}/pkgconfig
-install -m 755 efscli/efscli.py %{buildroot}/opt/seagate/eos/efs/bin/efscli
+ln -s %{_efs_lib_dir}/libeos-efs.so %{buildroot}%{_libdir}/libeos-efs.so
+ln -s %{_efs_conf_dir}/efs.conf %{buildroot}%{_sysconfdir}/efs/efs.conf
+ln -s %{_efs_bin_dir}/efscli %{buildroot}%{_bindir}/efscli
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -66,14 +81,16 @@ rm -rf $RPM_BUILD_ROOT
 %files
 %defattr(-,root,root)
 %{_libdir}/libeos-efs.so*
+%{_efs_lib_dir}/libeos-efs.so*
+%{_efs_conf_dir}/efs.conf
 %config(noreplace) %{_sysconfdir}/efs/efs.conf
-/opt/seagate/eos/efs/bin/efscli
+%{_efs_bin_dir}/efscli
+%{_bindir}/efscli
 
 %files devel
 %defattr(-,root,root)
 %{_libdir}/pkgconfig/eos-efs.pc
-%{_includedir}/efs/efs.h
-%{_includedir}/efs/efs_fh.h
+%{_efs_include_dir}/*.h
 
 %changelog
 * Thu Feb 6 2020 Seagate 1.0.1

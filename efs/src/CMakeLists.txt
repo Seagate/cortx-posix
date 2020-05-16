@@ -25,10 +25,12 @@ set(LIBDSAL ${DEFAULT_LIBDSAL} CACHE PATH "Path to folder with libeos-dsal.so")
 set(DEFAULT_DSALINC "")
 set(DSALINC ${DEFAULT_DSALINC} CACHE PATH "Path to folder with dstore.h")
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -I${CMAKE_SOURCE_DIR}/include -fPIC -g")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -I${CMAKE_SOURCE_DIR}/include")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror -fPIC -g")
 
 set(EOS_EFS_BASE_VERSION ${BASE_VERSION})
+set(PROJECT_NAME_BASE ${PROJECT_NAME_BASE})
+set(INSTALL_DIR_ROOT ${INSTALL_DIR_ROOT})
 
 message( STATUS "cmake version ${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION}" )
 message( STATUS "eos-dsal version ${EOS_EFS_BASE_VERSION}")

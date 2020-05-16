@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <getopt.h> /*struct option is defined here */
+#include <pthread.h>
 
 /* Utils headers. */
 #include <management.h>
@@ -27,10 +28,10 @@
 #include <debug.h>
 
 /* Local headers. */
-#include <controller.h>
+#include "internal/controller.h"
 
-struct server *g_server_ctx = NULL;
-
+struct server	*g_server_ctx = NULL;
+pthread_t	 g_server_tid;     /* Thread id. */
 /**
  * @brief Print's usage.
  *
@@ -51,42 +52,21 @@ int management_start(int argc, char *argv[])
 	int rc = 0;
 
 	struct server *server = NULL;
-	struct params *params = NULL;
 	struct controller *controller = NULL;
 
-	/* Get params. */
-	params = params_parse(argc, argv);
-	if (params == NULL) {
-		rc = 1;
-		usage(argv[0]);
-		goto exit;
-	}
-
 	/**
-	 * @TODO: Enable logger when control server is run in process mode.
-	 * rc = log_init(params->log_file, params->log_level);
-	 * if (rc != 0) {
-	 * 	fprintf(stderr, "Logger init failed, errno : %d.\n", rc);
-	 * 	goto free_params;
-	 * }
+	 * Get control sever instance and init.
 	 */
-
-	/* Get control sever instance. */
-	server = malloc(sizeof(struct server));
-	if (server == NULL) {
-		rc = 1;
-		log_err("Server instance malloc failed. Exiting..\n");
-		goto free_params;
-	}
-
-	/* Init Control Server. */
-	rc = server_init(server, params);
+	rc = server_init(argc, argv, &server);
 	if (rc != 0) {
+		if (rc == EINVAL) {
+			/* Print Usage. */
+			usage(argv[0]);
+		}
+
 		log_err("Server init failed. Exiting..\n");
 		goto free_server;
 	}
-
-	params = NULL;
 
 	/**
 	 * Register controllers:
@@ -102,7 +82,6 @@ int management_start(int argc, char *argv[])
 #undef XX
 
 	g_server_ctx = server;
-	server = NULL;
 
 	/* Start Control Server. */
 	rc = server_start(g_server_ctx);
@@ -124,16 +103,8 @@ int management_start(int argc, char *argv[])
 	CONTROLLER_MAP(XX)
 #undef XX
 
-	rc = server_cleanup(g_server_ctx);
-	if (rc != 0 ) {
-		log_err("Failed to cleanup management server.");
-	}
-
 free_server:
-	free(server);
-free_params:
-	free(params);
-exit:
+	server_fini(server);
 	return rc;
 }
 
@@ -180,7 +151,7 @@ int management_thread_stop()
 	 * Shutdown it forcefully.
 	 * Send thread cancel signal.
 	 */
-	rc = pthread_cancel(g_server_ctx->thread_id);
+	rc = pthread_cancel(g_server_tid);
 	if (rc != 0) {
 		log_err("Management force stop failed.");
 		goto error;
@@ -201,6 +172,8 @@ int management_init()
 	log_info("Starting Management service...");
 
 	rc = pthread_create(&thread_id, &attr, &management_thread_start, NULL);
+	g_server_tid = thread_id;
+
 	return rc;
 }
 
@@ -224,7 +197,7 @@ int management_fini()
 
 	/* Wait for thread to terminate. */
 
-	rc = pthread_join(g_server_ctx->thread_id, &res);
+	rc = pthread_join(g_server_tid, &res);
 	if (rc != 0 ) {
 		log_err("Failed to join management thread.");
 	}

@@ -7,6 +7,12 @@ set -e
 ###############################################################################
 # Arguments
 
+# Project Name.
+PROJECT_NAME_BASE=${PROJECT_NAME_BASE:-"cortx"}
+
+# Install Dir.
+INSTALL_DIR_ROOT=${INSTALL_DIR_ROOT:-"/opt/seagate"}
+
 # EFS source repo root.
 EFS_SOURCE_ROOT=${EFS_SOURCE_ROOT:-$PWD}
 
@@ -128,6 +134,8 @@ efs_configure() {
 -DLIBDSAL:PATH=${DSAL_LIB} \
 -DDSALINC:PATH=${DSAL_INC} \
 -DENABLE_DASSERT=${ENABLE_DASSERT} \
+-DPROJECT_NAME_BASE:STRING=${PROJECT_NAME_BASE} \
+-DINSTALL_DIR_ROOT:STRING=${INSTALL_DIR_ROOT}
 $EFS_SRC"
     echo -e "Config:\n $cmd" > $EFS_BUILD/.config
     echo -e "Env:\n $(efs_print_env)" >> $EFS_BUILD/.config

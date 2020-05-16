@@ -58,7 +58,7 @@ static void test_efs_fs_scan()
 int main(void)
 {
 	int rc = 0;
-	char *test_log = "/var/log/eos/test/ut/efs/efs_fs.logs";
+	char *test_log = "/var/log/cortx/test/ut/efs/efs_fs.logs";
 
 	rc = ut_init(test_log);
 	if (rc != 0) {

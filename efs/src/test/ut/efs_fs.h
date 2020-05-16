@@ -19,7 +19,7 @@
 #include <errno.h>
 #include <dstore.h>
 #include "str.h"
-#include "fs.h"
+#include "internal/fs.h"
 #include "namespace.h"
 #include "ut.h"
 #include "efs.h"
