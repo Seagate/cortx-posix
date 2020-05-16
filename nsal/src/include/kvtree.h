@@ -33,31 +33,39 @@ struct kvtree {
 
 /* Forward declartion*/
 struct kvnode;
-struct kvnode_info;
+struct kvnode_basic_attr;
 
 /* KVTree apis */
 
-/** Creates a new kvtree by allocating memory and storing root information 
- *  with default root-id.
- *  Creates root kvnode and sets it.
- *
- *  @param[in] ns - namespace object for extracting index.
- *  @param[in] root_node_info - root attributes.
- *  @param[out] tree -Allocated kvtree with root.
- *
- *  @return 0 if successful, a negative "-errno" value in case of failure
- */
-int kvtree_create(struct namespace *ns, struct kvnode_info *root_node_info,
-                  struct kvtree **tree);
+/** Creates a new kvtree in the given namespace and returns
+  * an object that is the in-memory representation of the
+  * created tree.
+  * A kvtree always have at least one node (root), and
+  * users of this API should provide the basic attributes
+  * of this node.
+  * The created kvtree in-memory object should be
+  * finalized with a kvtree_delete() call when it is not
+  * needed anymore.
+  *
+  * @param[in] ns - namespace object for extracting index.
+  * @param[in] root_node_attr - Buffer of basic attributes of the root node.
+  * @param[in] attr_size - size of the basic attributes buffer
+  * @param[out] tree -Allocated kvtree with root.
+  *
+  * @return 0 if successful, a negative "-errno" value in case of failure
+  */
+int kvtree_create(struct namespace *ns, const void *root_node_attr,
+                  const size_t attr_size, struct kvtree **tree);
 
-/** Deletes a kvtree.
- *  Deletes root_info associated with rood_id.
+/** Deletes the kvtree in-memory object.
+ *  The root node associated with this kvtree is also deleted
+ *  along with basic attributes of the node from the disk.
  *
  *  @return 0 if successful, a negative "-errno" value in case of failure
  */
 int kvtree_delete(struct kvtree *tree);
 
-/* Initializes the kvtree with namespace obj, default root_id and 
+/* Initializes the kvtree with namespace obj, default root_id and
  * based on namespace fid opens the index.
  *
  * @param[in] ns - namespace object
@@ -123,7 +131,7 @@ typedef bool (*kvtree_iter_children_cb)(void *cb_ctx, const char *name,
 
 /* Iterate over all the children present in a parent kvnode.
  * Returns a kvnode through the callback function in each iteration.
- * 
+ *
  * @param[in] tree - kvtree pointer on which iteration is done.
  * @param[in] parent_id - node id  of the parent kvnode.
  * @param[in] cb - Callback function to which kvnode is returned.
