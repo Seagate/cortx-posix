@@ -1,5 +1,5 @@
 /*
- * Filename: test_kvtree.c
+ * Filename: ut_nsal_kvtree_ops.c 
  * Description: Unit tests for kvtree.
  *
  * Do NOT modify or remove this copyright and confidentiality notice!
@@ -32,6 +32,7 @@
 };
 
 /* Dummy structure which acts as a basic attribute for a node*/
+#define CONF_FILE "/tmp/eos-fs/build-nsal/test/ut/ut_nsal.conf"
 struct info {
 	char arr[255];
 	int uid;
@@ -908,17 +909,26 @@ static void test_kvnode_del_sys_attr_nonexist()
 	ut_internal_kvnode_delete(node_id);
 }
 
-int main(int argc, char **argv)
+int main(void)
 {
 	int rc = 0;
-	char *test_logs = "/var/log/cortx/test/ut/nsal/kvtree_ops.logs";
+	char *test_logs = "/var/log/eos/test/ut/ut_nsal.logs";
 
-	if (argc > 1) {
-		test_logs = argv[1];
-	}
 	printf("KVTree test\n");
 
+	rc = ut_load_config(CONF_FILE);
+	if (rc) {
+		printf("ut_load_config: err = %d\n", rc);
+		goto end;
+	}
+
+	test_logs = ut_get_config("nsal", "log_path", test_logs);
+
 	rc = ut_init(test_logs);
+	if (rc) {
+		printf("Failed to do ut_init rc = %d", rc);
+		goto out;
+	}
 
 	rc = nsal_start(DEFAULT_CONFIG);
 	if (rc) {
@@ -963,5 +973,8 @@ out:
 
 	ut_summary(test_count, test_failed);
 
+	free(test_logs);
+
+end:
 	return rc;
 }
