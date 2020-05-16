@@ -1,5 +1,5 @@
 /*
- * Filename: efs_io_ops.c
+ * Filename: ut_efs_io_bug_ops.c
  * Description: Implementation tests for read and write bugs
  *
  * Do NOT modify or remove this copyright and confidentiality notice!
@@ -12,7 +12,7 @@
  * Author: Shraddha Shinde <shraddha.shinde@seagate.com>
 */
 
-#include "efs_fs.h"
+#include "ut_efs_helper.h"
 #define BLOCK_SIZE 4096
 #define IO_ENV_FROM_STATE(__state) (*((struct ut_io_env **)__state))
 
@@ -283,14 +283,22 @@ static int io_ops_teardown(void **state)
 int main(void)
 {
 	int rc = 0;
-	char *test_log = "/var/log/cortx/test/ut/efs/io_ops_bugs.log";
+	char *test_log = "/var/log/eos/test/ut/ut_efs.log";
 
-	printf("IO tests\n");
+	printf("IO Bug tests\n");
+
+	rc = ut_load_config(CONF_FILE);
+	if (rc != 0) {
+		printf("ut_load_config: err = %d\n", rc);
+		goto end;
+	}
+
+	test_log = ut_get_config("efs", "log_path", test_log);
 
 	rc = ut_init(test_log);
 	if (rc != 0) {
 		printf("ut_init failed, log path=%s, rc=%d.\n", test_log, rc);
-		exit(1);
+		goto out;
 	}
 
 	struct test_case test_list[] = {
@@ -309,5 +317,9 @@ int main(void)
 
 	ut_summary(test_count, test_failed);
 
-	return 0;
+out:
+	free(test_log);
+
+end:
+	return rc;
 }

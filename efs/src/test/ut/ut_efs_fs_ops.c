@@ -1,5 +1,5 @@
 /*
-  Filename: efs_fs.c
+  Filename: ut_efs_fs.c
  * Description: mplementation tests for efs_fs
  *
  * Do NOT modify or remove this copyright and confidentiality notice!
@@ -12,8 +12,7 @@
  * Author: Jatinder Kumar <jatinder.kumar@seagate.com>
  */
 
-#include "efs_fs.h"
-#include "nsal.h"
+#include "ut_efs_helper.h"
 
 struct collection_item *cfg_items;
 
@@ -64,7 +63,17 @@ static void test_efs_fs_scan()
 int main(void)
 {
 	int rc = 0;
-	char *test_log = "/var/log/cortx/test/ut/efs/efs_fs.logs";
+	char *test_log = "/var/log/eos/test/ut/ut_efs.log";
+
+	printf("FS Tests\n");
+
+	rc = ut_load_config(CONF_FILE);
+	if (rc != 0) {
+		printf("ut_load_config: err = %d\n", rc);
+		goto end;
+	}
+
+	test_log = ut_get_config("efs", "log_path", test_log);
 
 	rc = ut_init(test_log);
 	if (rc != 0) {
@@ -74,7 +83,7 @@ int main(void)
 	rc = efs_init(EFS_DEFAULT_CONFIG);
 	if (rc) {
 		printf("Failed to intitialize efs\n");
-		exit(1);
+		goto out;
 	}
 
 	struct test_case test_list[] = {
@@ -94,5 +103,9 @@ int main(void)
 
 	ut_summary(test_count, test_failed);
 
-	return 0;
+out:
+	free(test_log);
+
+end:
+	return rc;
 }
