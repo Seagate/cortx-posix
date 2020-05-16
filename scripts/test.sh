@@ -5,21 +5,18 @@ set -e
 MODULES=(utils dsal nsal efs kvsfs)
 BUILD_DIR=/tmp/eos-fs
 TEST_GRP=all
+LOG_ROOT="/var/log/cortx"
+UT_LOG_ROOT="$LOG_ROOT/test/ut"
 
 delete_logs() {
-	rm -rf /var/log/eos/test/ut
-}
-
-create_log_dirs () {
-	# For efs logs
-	mkdir -p /var/log/eos/efs
+	rm -rf $UT_LOG_ROOT
 }
 
 execute_ut_nsal () {
 	echo "NSAL Unit tests"
 
-	mkdir -p /var/log/eos/test/ut/nsal
-	cd /var/log/eos/test/ut/nsal
+	mkdir -p $UT_LOG_ROOT/nsal
+	cd $UT_LOG_ROOT/nsal
 
 	NSAL_TEST_DIR=$BUILD_DIR/build-nsal/test
 	NSAL_TEST_LIST=(test_ns test_iter test_kvtree)
@@ -36,8 +33,8 @@ execute_ut_nsal () {
 execute_ut_efs () {
 	echo "EFS Unit tests"
 
-	mkdir -p /var/log/eos/test/ut/efs
-	cd /var/log/eos/test/ut/efs
+	mkdir -p $UT_LOG_ROOT/efs
+	cd $UT_LOG_ROOT/efs
 
 	EFS_TEST_DIR=$BUILD_DIR/build-efs/test/ut
 	EFS_TEST_LIST=(fs_ops_ut dir_ops_ut file_ops_ut link_ops_ut rename_ops_ut attr_ops_ut xattr_ops_ut io_ops_ut)
@@ -108,5 +105,4 @@ while [ ! -z $1 ]; do
 done
 
 delete_logs
-create_log_dirs
 execute_all_ut
