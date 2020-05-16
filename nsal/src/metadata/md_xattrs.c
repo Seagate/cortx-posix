@@ -19,7 +19,6 @@
 #include <string.h>
 #include <md_xattr.h>
 #include <dirent.h>
-#include <eos/eos_kvstore.h>
 #include <common/log.h>
 #include "nsal.h"
 

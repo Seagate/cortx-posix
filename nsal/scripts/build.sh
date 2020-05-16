@@ -7,6 +7,12 @@ set -e
 ###############################################################################
 # Arguments
 
+# Project Name.
+PROJECT_NAME_BASE=${PROJECT_NAME_BASE:-"cortx"}
+
+# Install Dir.
+INSTALL_DIR_ROOT=${INSTALL_DIR_ROOT:-"/opt/seagate"}
+
 # NSAL source repo root.
 NSAL_SOURCE_ROOT=${NSAL_SOURCE_ROOT:-$PWD}
 
@@ -106,6 +112,8 @@ nsal_configure() {
 -DLIBEOSUTILS:PATH=${EOS_UTILS_LIB} \
 -DEOSUTILSINC:PATH=${EOS_UTILS_INC} \
 -DENABLE_DASSERT=${ENABLE_DASSERT} \
+-DPROJECT_NAME_BASE:STRING=${PROJECT_NAME_BASE} \
+-DINSTALL_DIR_ROOT:STRING=${INSTALL_DIR_ROOT}
 $NSAL_SRC"
     echo -e "Config:\n $cmd" > $NSAL_BUILD/.config
     echo -e "Env:\n $(nsal_print_env)" >> $NSAL_BUILD/.config

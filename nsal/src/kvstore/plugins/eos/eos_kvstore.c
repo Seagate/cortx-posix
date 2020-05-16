@@ -13,7 +13,7 @@
  This file contains APIs which implement NSAL's KVStore framework,
  on top of eos clovis index APIs.
 */
-#include "eos/eos_kvstore.h"
+#include "internal/eos/eos_kvstore.h"
 #include <eos/helpers.h>
 
 int eos_kvs_init(struct collection_item *cfg_items)

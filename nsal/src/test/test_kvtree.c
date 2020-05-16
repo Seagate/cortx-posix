@@ -44,7 +44,7 @@ int nsal_start(const char *config_path)
 
 	dassert(kvstore != NULL);
 
-	rc = log_init("/var/log/eos/efs/efs.log", LEVEL_DEBUG);
+	rc = log_init("/var/log/cortx/efs/efs.log", LEVEL_DEBUG);
 	if (rc != 0) {
 		rc = -EINVAL;
 		printf("Log init failed, rc: %d\n", rc);
@@ -561,7 +561,7 @@ static void test_kvtree_iter_children_empty()
 int main(int argc, char **argv)
 {
 	int rc = 0;
-	char *test_logs = "/var/log/eos/test/ut/nsal/kvtree_ops.logs";
+	char *test_logs = "/var/log/cortx/test/ut/nsal/kvtree_ops.logs";
 
 	if (argc > 1) {
 		test_logs = argv[1];
