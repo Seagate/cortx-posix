@@ -18,8 +18,8 @@ execute_ut_nsal () {
 	mkdir -p $UT_LOG_ROOT/nsal
 	cd $UT_LOG_ROOT/nsal
 
-	NSAL_TEST_DIR=$BUILD_DIR/build-nsal/test
-	NSAL_TEST_LIST=(test_ns test_iter test_kvtree)
+	NSAL_TEST_DIR=$BUILD_DIR/build-nsal/test/ut
+	NSAL_TEST_LIST=(ut_nsal_ns_ops ut_nsal_iter_ops ut_nsal_kvtree_ops)
 
 	[ ! -d $NSAL_TEST_DIR ] && echo "NSAL is not built" && exit 1
 
@@ -37,7 +37,9 @@ execute_ut_efs () {
 	cd $UT_LOG_ROOT/efs
 
 	EFS_TEST_DIR=$BUILD_DIR/build-efs/test/ut
-	EFS_TEST_LIST=(fs_ops_ut dir_ops_ut file_ops_ut link_ops_ut rename_ops_ut attr_ops_ut xattr_ops_ut io_ops_ut)
+	EFS_TEST_LIST=(ut_efs_fs_ops ut_efs_dir_ops ut_efs_file_ops 
+		       ut_efs_link_ops ut_efs_rename_ops ut_efs_attr_ops
+		       ut_efs_xattr_ops ut_efs_io_ops)
 
 	[ ! -d $EFS_TEST_DIR ] && echo "EFS is not built" && exit 1
 
