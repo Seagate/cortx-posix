@@ -265,7 +265,7 @@ static int file_ops_teardown(void **state)
 int main(void)
 {
 	int rc = 0;
-	char *test_log = "/var/log/eos/test/ut/efs/file_ops.log";
+	char *test_log = "/var/log/cortx/test/ut/efs/file_ops.log";
 
 	printf("File creation tests\n");
 

@@ -15,13 +15,16 @@
 
 #include <stdio.h> /* sprintf */
 #include <stdlib.h>
+#include <string.h>
+#include <errno.h>
+#include <evhtp.h>
 #include <json/json.h> /* for json_object */
 #include <management.h>
 #include <common/log.h>
 #include <str.h>
 #include <debug.h>
-#include "controller.h"
-#include "fs.h"
+#include "internal/controller.h"
+#include "internal/fs.h"
 
 /**
  * ##############################################################
@@ -45,13 +48,15 @@ struct fs_create_api {
 
 static int fs_create_send_response(struct controller_api *fs_create, void *args)
 {
+	int rc = 0;
 	int resp_code = 0;
 	struct request *request = NULL;
 
 	request = fs_create->request;
 
-	if (request->err_code != 0) {
-		resp_code = errno_to_http_code(request->err_code);
+	rc = request_get_errcode(request);
+	if (rc != 0) {
+		resp_code = errno_to_http_code(rc);
 	} else {
 		/* Resource got created. */
 		resp_code = EVHTP_RES_CREATED;
@@ -60,7 +65,8 @@ static int fs_create_send_response(struct controller_api *fs_create, void *args)
 	log_debug("err_code : %d", resp_code);
 
 	request_send_response(request, resp_code);
-	return 0;
+
+	return rc;
 }
 
 static int fs_create_process_data(struct controller_api *fs_create)
@@ -71,6 +77,7 @@ static int fs_create_process_data(struct controller_api *fs_create)
 	const char *fs_options = NULL;
 	struct request *request = NULL;
 	struct fs_create_api *fs_create_api = NULL;
+	struct json_object *json_obj = NULL;
 	struct json_object *json_fs_name_obj = NULL;
 	struct json_object *json_fs_options_obj = NULL;
 
@@ -88,20 +95,23 @@ static int fs_create_process_data(struct controller_api *fs_create)
 		/**
 		 * Internal error.
 		 */
-		request->err_code = rc;
+		request_set_errcode(request, rc);
 		fs_create_send_response(fs_create, NULL);
 		goto error;
 	}
 
-	/* 1. Parse JSON requst data. */
+	/* 1. Parse JSON request data. */
 	fs_create_api = (struct fs_create_api*)fs_create->priv;
 
-	json_object_object_get_ex(request->in_json_req_obj,
+	json_obj = request_get_data(request);
+
+	json_object_object_get_ex(json_obj,
 				  "name",
 				  &json_fs_name_obj);
 	if (json_fs_name_obj == NULL) {
 		log_err("No FS name.");
-		request->err_code = EINVAL;
+		rc = EINVAL;
+		request_set_errcode(request, rc);
 		fs_create_send_response(fs_create, NULL);
 		goto error;
 	}
@@ -109,12 +119,12 @@ static int fs_create_process_data(struct controller_api *fs_create)
 	fs_create_api->req.fs_name = json_object_get_string(json_fs_name_obj);
 	if (fs_create_api->req.fs_name == NULL) {
 		log_err("No FS name.");
-		request->err_code = EINVAL;
+		request_set_errcode(request, EINVAL);
 		fs_create_send_response(fs_create, NULL);
 		goto error;
 	}
 
-	json_object_object_get_ex(request->in_json_req_obj,
+	json_object_object_get_ex(json_obj,
 				  "options",
 				  &json_fs_options_obj);
 
@@ -131,7 +141,7 @@ static int fs_create_process_data(struct controller_api *fs_create)
 	if (fs_name_len > 255) {
 		log_err("FS name too long.");
 		rc = EINVAL;
-		request->err_code = rc;
+		request_set_errcode(request, rc);
 		fs_create_send_response(fs_create, NULL);
 		goto error;
 	}
@@ -146,8 +156,8 @@ static int fs_create_process_data(struct controller_api *fs_create)
 
 	/* 3. Send create fs request */
 	rc = efs_fs_create(&fs_name);
-	request->err_code = -rc;
-	log_debug("FS create status code : %d.", request->err_code);
+	request_set_errcode(request, -rc);
+	log_debug("FS create status code : %d.", rc);
 
 	request_next_action(fs_create);
 
@@ -168,22 +178,23 @@ static int fs_create_process_request(struct controller_api *fs_create,
 		/**
 		 * Internal error.
 		 */
-		request->err_code = rc;
+		request_set_errcode(request, rc);
 		fs_create_send_response(fs_create, NULL);
 		goto error;
 	}
 
-	if (request->in_content_len == 0) {
+	if (request_content_length(request) == 0) {
 		/**
 		 * Expecting create request fs info.
 		 */
-		request->err_code = EINVAL;
+		rc = EINVAL;
+		request_set_errcode(request, rc);
 		fs_create_send_response(fs_create, NULL);
 		goto error;
 	}
 
 	/* Set read data call back. */
-	request->read_cb = fs_create_process_data;
+	request_set_readcb(request, fs_create_process_data);
 
 error:
 	return rc;
@@ -281,9 +292,10 @@ static int fs_delete_send_response(struct controller_api *fs_delete, void *args)
 
 	request = fs_delete->request;
 
-	if (request->err_code != 0) {
+	rc = request_get_errcode(request);
+	if (rc != 0) {
 		/* Send error response message. */
-		resp_code = errno_to_http_code(request->err_code);
+		resp_code = errno_to_http_code(rc);
 	} else {
 		resp_code = EVHTP_RES_200;
 	}
@@ -308,16 +320,17 @@ static int fs_delete_process_request(struct controller_api *fs_delete,
 		/**
 		 * Internal error.
 		 */
-		request->err_code = rc;
+		request_set_errcode(request, rc);
 		fs_delete_send_response(fs_delete, NULL);
 		goto error;
 	}
 
-	if (request->in_content_len != 0) {
+	if (request_content_length(request) != 0) {
 		/**
 		 * FS delete request doesn't expect any payload data.
 		 */
-		request->err_code = EINVAL;
+		rc = EINVAL;
+		request_set_errcode(request, rc);
 		fs_delete_send_response(fs_delete, NULL);
 		goto error;
 	}
@@ -326,10 +339,11 @@ static int fs_delete_process_request(struct controller_api *fs_delete,
 	 * Get the FS delete api info.
 	 */
 	fs_delete_api = (struct fs_delete_api*)fs_delete->priv;
-	fs_delete_api->req.fs_name = request->api_file;
+	fs_delete_api->req.fs_name = request_api_file(request);
 	if (fs_delete_api->req.fs_name == NULL) {
 		log_err("No FS name.");
-		request->err_code = EINVAL;
+		rc = EINVAL;
+		request_set_errcode(request, rc);
 		fs_create_send_response(fs_delete, NULL);
 		goto error;
 	}
@@ -338,7 +352,7 @@ static int fs_delete_process_request(struct controller_api *fs_delete,
 	if (fs_name_len > 255) {
 		log_err("FS name too long.");
 		rc = EINVAL;
-		request->err_code = rc;
+		request_set_errcode(request, rc);
 		fs_create_send_response(fs_delete, NULL);
 		goto error;
 	}
@@ -354,9 +368,9 @@ static int fs_delete_process_request(struct controller_api *fs_delete,
 	 * Send fs delete request to the backend.
 	 */
 	rc = efs_fs_delete(&fs_name);
-	request->err_code = -rc;
+	request_set_errcode(request, -rc);
 
-	log_debug("FS delete return code: %d.", request->err_code);
+	log_debug("FS delete return code: %d.", rc);
 
 	request_next_action(fs_delete);
 
@@ -458,22 +472,25 @@ struct fs_list_api {
 
 static int fs_list_send_response(struct controller_api *fs_list, void *args)
 {
+	int rc = 0;
 	int resp_code = 0;
 	struct fs_list_entry *fs_node = NULL;
 	struct request *request = NULL;
 	struct fs_list_api *fs_list_api = NULL;
 	struct json_object *json_obj = NULL;
+	struct json_object *json_resp_obj = NULL;
 	struct json_object *json_fs_obj = NULL;
 
 	request = fs_list->request;
 	fs_list_api = (struct fs_list_api*)fs_list->priv;
 
-	if (request->err_code != 0) {
-		resp_code = errno_to_http_code(request->err_code);
+	rc = request_get_errcode(request);
+	if (rc != 0) {
+		resp_code = errno_to_http_code(rc);
 		goto out;
 	}
 
-	request->out_json_req_obj = json_object_new_array();
+	json_resp_obj = json_object_new_array();
 
 	if (LIST_EMPTY(&fs_list_api->resp.fs_list)) {
 		resp_code = EVHTP_RES_NOCONTENT;
@@ -502,9 +519,11 @@ static int fs_list_send_response(struct controller_api *fs_list, void *args)
 				       "endpoint-options",
 				       json_obj);
 
-		json_object_array_add(request->out_json_req_obj,
+		json_object_array_add(json_resp_obj,
 				json_fs_obj);
 	}
+
+	request_set_data(request, json_resp_obj);
 
 	/* List Deletion. */
 	while (!LIST_EMPTY(&fs_list_api->resp.fs_list)) {
@@ -575,16 +594,17 @@ static int fs_list_process_request(struct controller_api *fs_list, void *args)
 		/**
 		 * Internal error.
 		 */
-		request->err_code = rc;
+		request_set_errcode(request, rc);
 		fs_list_send_response(fs_list, NULL);
 		goto error;
 	}
 
-	if (request->in_content_len != 0) {
+	if (request_content_length(request) != 0) {
 		/**
 		 * FS delete request doesn't expect any payload data.
 		 */
-		request->err_code = EINVAL;
+		rc = EINVAL;
+		request_set_errcode(request, rc);
 		fs_list_send_response(fs_list, NULL);
 		goto error;
 	}
@@ -593,7 +613,7 @@ static int fs_list_process_request(struct controller_api *fs_list, void *args)
 	 * Get the FS list api info.
 	 */
 	fs_list_api = (struct fs_list_api*)fs_list->priv;
-	fs_list_api->req.fs_name = request->api_file;
+	fs_list_api->req.fs_name = request_api_file(request);
 
 	if (fs_list_api->req.fs_name) {
 		/* Compose efs_fs_list api params. */
@@ -615,9 +635,7 @@ static int fs_list_process_request(struct controller_api *fs_list, void *args)
 
 	efs_fs_scan(fs_list_add_entry, fs_list_api);
 
-	request->err_code = 0;
-
-	log_debug("FS list return code: %d.", request->err_code);
+	log_debug("FS list return code: %d.", rc);
 
 	request_next_action(fs_list);
 

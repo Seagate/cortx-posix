@@ -373,7 +373,7 @@ static int rename_ops_teardown(void **state)
 int main(void)
 {
 	int rc = 0;
-	char *test_log = "/var/log/eos/test/ut/efs/rename_ops.log";
+	char *test_log = "/var/log/cortx/test/ut/efs/rename_ops.log";
 
 	printf("Rename tests\n");
 

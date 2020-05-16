@@ -475,7 +475,7 @@ static int link_ops_teardown(void **state)
 int main(void)
 {
 	int rc = 0;
-	char *test_log = "/var/log/eos/test/ut/efs/link_ops.log";
+	char *test_log = "/var/log/cortx/test/ut/efs/link_ops.log";
 
 	printf("Link Tests\n");
 
