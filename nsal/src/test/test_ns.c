@@ -22,7 +22,7 @@ void test_ns_init()
 
 	dassert(kvstore != NULL);
 
-	rc = log_init("/var/log/eos/efs/efs.log", LEVEL_DEBUG);
+	rc = log_init("/var/log/cortx/efs/efs.log", LEVEL_DEBUG);
 	if (rc != 0) {
 		rc = -EINVAL;
 		printf("Log init failed, rc: %d\n", rc);
@@ -123,7 +123,7 @@ void test_ns_scan()
 int main(int argc, char *argv[])
 {
         int rc = 0;
-        char *test_logs = "/var/log/eos/test/ut/nsal/ns_ops.logs";
+        char *test_logs = "/var/log/cortx/test/ut/nsal/ns_ops.logs";
 
         if (argc > 1) {
                 test_logs = argv[1];

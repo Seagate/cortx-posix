@@ -5,7 +5,7 @@ Name: eos-nsal
 Version: @EOS_NSAL_BASE_VERSION@
 Release: %{dev_version}%{?dist}
 Summary: Namespace abstraction layer library
-License: LGPLv3
+License: Seagate
 Group: Development/Libraries
 Url: http://seagate.com/eos-nsal
 Source: %{sourcename}.tar.gz
@@ -13,6 +13,11 @@ BuildRequires: cmake gcc libini_config-devel
 BuildRequires: @RPM_DEVEL_REQUIRES@
 Requires: libini_config @RPM_REQUIRES@
 Provides: %{name} = %{version}-%{release}
+
+# EOS NSAL library paths
+%define _nsal_dir		@INSTALL_DIR_ROOT@/@PROJECT_NAME_BASE@/nsal
+%define _nsal_lib_dir		%{_nsal_dir}/lib
+%define _nsal_include_dir	%{_includedir}/nsal
 
 # Conditionally enable KVS and object stores
 #
@@ -67,16 +72,15 @@ make %{?_smp_mflags} || make %{?_smp_mflags} || make
 
 mkdir -p %{buildroot}%{_bindir}
 mkdir -p %{buildroot}%{_libdir}
-mkdir -p %{buildroot}%{_libdir}/pkgconfig
-mkdir -p %{buildroot}%{_includedir}/nsal
-mkdir -p %{buildroot}%{_includedir}/nsal/eos
-mkdir -p %{buildroot}%{_includedir}/nsal/redis
+mkdir -p %{buildroot}%{_nsal_dir}
+mkdir -p %{buildroot}%{_nsal_lib_dir}
+mkdir -p %{buildroot}%{_nsal_include_dir}/
 mkdir -p %{buildroot}%{_sysconfdir}/nsal.d
-install -m 644 include/kvstore.h  %{buildroot}%{_includedir}/nsal
-install -m 644 include/eos/eos_kvstore.h  %{buildroot}%{_includedir}/nsal/eos
-install -m 644 include/redis/redis_kvstore.h  %{buildroot}%{_includedir}/nsal/redis
-install -m 744 libeos-nsal.so %{buildroot}%{_libdir}
+mkdir -p %{buildroot}%{_libdir}/pkgconfig
+install -m 644 include/*.h  %{buildroot}%{_nsal_include_dir}
+install -m 755 libeos-nsal.so %{buildroot}%{_nsal_lib_dir}
 install -m 644 eos-nsal.pc  %{buildroot}%{_libdir}/pkgconfig
+ln -s %{_nsal_lib_dir}/libeos-nsal.so %{buildroot}%{_libdir}/libeos-nsal.so
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -84,13 +88,12 @@ rm -rf $RPM_BUILD_ROOT
 %files
 %defattr(-,root,root)
 %{_libdir}/libeos-nsal.so*
+%{_nsal_lib_dir}/libeos-nsal.so*
 
 %files devel
 %defattr(-,root,root)
 %{_libdir}/pkgconfig/eos-nsal.pc
-%{_includedir}/nsal/kvstore.h
-%{_includedir}/nsal/eos/eos_kvstore.h
-%{_includedir}/nsal/redis/redis_kvstore.h
+%{_nsal_include_dir}/*.h
 
 %changelog
 * Tue Dec 24 2019 Seagate 1.0.1

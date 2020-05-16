@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ini_config.h>
-#include "eos/eos_kvstore.h"
+#include "kvstore.h"
 #include <debug.h>
 #include <string.h>
 #include <errno.h>
@@ -29,7 +29,7 @@ int nsal_start(const char *config_path)
 
 	dassert(kvstore != NULL);
 
-	rc = log_init("/var/log/eos/efs/efs.log", LEVEL_DEBUG);
+	rc = log_init("/var/log/cortx/efs/efs.log", LEVEL_DEBUG);
 	if (rc) {
 		rc = -EINVAL;
 		printf("Log init failed, rc: %d\n", rc);
@@ -312,7 +312,7 @@ out:
 int main(int argc, char *argv[])
 {
 	int rc = 0;
-	char *test_logs = "/var/log/eos/test/ut/nsal/iter_ops.logs";
+	char *test_logs = "/var/log/cortx/test/ut/nsal/iter_ops.logs";
 
 	if (argc > 1) {
 		test_logs = argv[1];

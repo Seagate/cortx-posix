@@ -17,7 +17,6 @@
 
 #include <errno.h>
 #include <string.h>
-#include "eos/eos_kvstore.h"
 #include "debug.h"
 #include "common/log.h"
 #include "str.h"
