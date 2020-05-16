@@ -8,12 +8,14 @@
 
 #define ROOT_INIT(__key, __id)             \
 {                                          \
-	__key.f_hi = __id,                     \
-	__key.f_lo = 0;                        \
+    __key.f_hi = __id,                     \
+    __key.f_lo = 0;                        \
 }
 
-#define NULL_NODE_ID { .f_hi = 0, .f_lo = 0 }
-
+/* Key for parent -> child mapping.
+ * Version 1: key = (parent, child_name), value = child.
+ * NOTE: This key has variable size.
+ */
 struct child_node_key {
 	md_key_md_t node_md;
 	node_id_t parent_id;
@@ -22,27 +24,27 @@ struct child_node_key {
 
 #define CHILD_NODE_KEY_INIT(_key, _node_id, _name)      \
 {                                                       \
-	_key->node_md.k_type = KVTREE_KEY_TYPE_CHILD,       \
-	_key->node_md.k_version = KVTREE_VERSION_0,         \
-	_key->parent_id = *(_node_id),                        \
-	_key->name = *_name;                                \
+    _key->node_md.k_type = KVTREE_KEY_TYPE_CHILD,       \
+    _key->node_md.k_version = KVTREE_VERSION_0,         \
+    _key->parent_id = *(_node_id),                      \
+    _key->name = *_name;                                \
 }
 
-#define CHILD_NODE_PREFIX_INIT(_node_id)                \
-{                                                       \
-	.node_md = {                                        \
-			.k_type = KVTREE_KEY_TYPE_CHILD,            \
-			.k_version = KVTREE_VERSION_0,              \
-		},                                              \
-	.parent_id = *_node_id,                             \
+#define CHILD_NODE_PREFIX_INIT(_node_id)            \
+{                                                   \
+    .node_md = {                                    \
+        .k_type = KVTREE_KEY_TYPE_CHILD,            \
+        .k_version = KVTREE_VERSION_0,              \
+    },                                              \
+    .parent_id = *_node_id,                         \
 }
 
 /** Pattern size of a child node key, i.e. the size of a child node prefix. */
 static const size_t child_node_psize =
 	sizeof(struct child_node_key) - sizeof(str256_t);
 
-int kvtree_create(struct namespace *ns, struct kvnode_info *root_node_info,
-                  struct kvtree **tree)
+int kvtree_create(struct namespace *ns, const void *root_node_attr,
+                  const size_t attr_size, struct kvtree **tree)
 {
 	int rc = 0;
 	kvs_idx_fid_t ns_fid;
@@ -50,10 +52,11 @@ int kvtree_create(struct namespace *ns, struct kvnode_info *root_node_info,
 	node_id_t root_id;
 	struct kvnode root;
 
+	dassert(root_node_attr);
+	dassert(attr_size != 0);
+
 	struct kvstore *kvstor = kvstore_get();
 	dassert(kvstor && ns);
-
-	dassert(root_node_info);
 
 	RC_WRAP_LABEL(rc, out, kvs_alloc, kvstor, (void **)tree,
 	              sizeof(struct kvtree));
@@ -67,12 +70,15 @@ int kvtree_create(struct namespace *ns, struct kvnode_info *root_node_info,
 
 	ROOT_INIT(root_id, DEFAULT_ROOT_ID);
 
-	/*Creates a node and stores node_info */
-	RC_WRAP_LABEL(rc, close_index, kvnode_create, *tree, &root_id, 
-	              root_node_info, &root);
+	/*Creates a node and stores node_attr */
+	RC_WRAP_LABEL(rc, close_index, kvnode_init, *tree, &root_id,
+	              root_node_attr, attr_size, &root);
 
+	RC_WRAP_LABEL(rc, free_kvnode, kvnode_dump, &root);
 	(*tree)->root_node_id = root_id;
 
+free_kvnode:
+	kvnode_fini(&root);
 close_index:
 	kvs_index_close(kvstor, &(*tree)->index);
 	if (rc == 0) {
@@ -83,8 +89,8 @@ free_tree:
 		kvs_free(kvstor, *tree);
 	}
 out:
-	log_debug("kvtree=%p, root_id " NODE_ID_F ", rc=%d", *tree, NODE_ID_P(&root_id),
-		 rc);
+	log_debug("kvtree=%p, root_id " NODE_ID_F ", rc=%d", *tree,
+	          NODE_ID_P(&root_id), rc);
 	return rc;
 }
 
@@ -93,11 +99,13 @@ int kvtree_delete(struct kvtree *tree)
 	int rc = 0;
 	kvs_idx_fid_t ns_fid;
 	struct kvs_idx ns_index;
+	struct kvnode root;
+
+	dassert(tree);
+	dassert(tree->ns);
 
 	struct kvstore *kvstor = kvstore_get();
-
 	dassert(kvstor);
-	dassert(tree->ns);
 
 	/* Extract fid from namespace and open index*/
 	ns_get_fid(tree->ns, &ns_fid);
@@ -105,13 +113,17 @@ int kvtree_delete(struct kvtree *tree)
 	RC_WRAP_LABEL(rc, out, kvs_index_open, kvstor, &ns_fid, &ns_index);
 
 	tree->index = ns_index;
-	/* Delete node_info for the node id */
-	RC_WRAP_LABEL(rc, out, kvnode_delete, tree, &tree->root_node_id);
+	/* Delete root-node basic attributes for the root-node id */
+	RC_WRAP_LABEL(rc, index_close, kvnode_load, tree, &tree->root_node_id, &root);
 
-	rc = kvs_index_close(kvstor, &tree->index);
+	RC_WRAP_LABEL(rc, free_kvnode, kvnode_delete, &root);
+
+free_kvnode:
+	kvnode_fini(&root);
 
 	kvs_free(kvstor, tree);
-
+index_close:
+	kvs_index_close(kvstor, &ns_index);
 out:
 	log_debug("rc=%d", rc);
 	return rc;
@@ -153,8 +165,8 @@ int kvtree_fini(struct kvtree *tree)
 
 	dassert(kvstor != NULL);
 
-	rc = kvs_index_close(kvstor, &tree->index);
-
+	RC_WRAP_LABEL(rc, out, kvs_index_close, kvstor, &tree->index);
+out:
 	log_debug("kvtree=%p, rc=%d", tree, rc);
 	return rc;
 }
@@ -165,23 +177,30 @@ int kvtree_attach(struct kvtree *tree, const node_id_t *parent_id,
 	int rc = 0;
 	struct child_node_key *node_key = NULL;
 
-	struct kvstore *kvstor = kvstore_get();
+	dassert(tree);
+	dassert(parent_id);
+	dassert(node_id);
+	dassert(node_name);
 
-	dassert(kvstor && node_name);
+	struct kvstore *kvstor = kvstore_get();
+	dassert(kvstor);
 
 	RC_WRAP_LABEL(rc, out, kvs_alloc, kvstor, (void **)&node_key,
 	              sizeof(struct child_node_key));
 
 	CHILD_NODE_KEY_INIT(node_key, parent_id, node_name);
 
-	rc = kvs_set(kvstor, &tree->index, node_key, sizeof(struct child_node_key),
-	             (void *)node_id, sizeof(node_id_t));
+	RC_WRAP_LABEL(rc, out, kvs_set, kvstor, &tree->index, node_key,
+	              sizeof(struct child_node_key), (void *)node_id,
+	              sizeof(node_id_t));
 
-	kvs_free(kvstor, node_key);
 out:
+	if (node_key != NULL) {
+		kvs_free(kvstor, node_key);
+	}
 	log_debug("kvtree=%p,parent " NODE_ID_F ",child " NODE_ID_F ",name '"
-	           STR256_F"', rc=%d", tree, NODE_ID_P(parent_id), NODE_ID_P(node_id),
-	           STR256_P(node_name), rc);
+	           STR256_F"', rc=%d", tree, NODE_ID_P(parent_id),
+	           NODE_ID_P(node_id), STR256_P(node_name), rc);
 	return rc;
 }
 
@@ -191,19 +210,24 @@ int kvtree_detach(struct kvtree *tree, const node_id_t *parent_id,
 	int rc = 0;
 	struct child_node_key *node_key = NULL;
 
-	struct kvstore *kvstor = kvstore_get();
+	dassert(tree);
+	dassert(parent_id);
+	dassert(node_name);
 
-	dassert(kvstor && node_name);
+	struct kvstore *kvstor = kvstore_get();
+	dassert(kvstor);
 
 	RC_WRAP_LABEL(rc, out, kvs_alloc, kvstor, (void **)&node_key,
 	              sizeof(struct child_node_key));
 
 	CHILD_NODE_KEY_INIT(node_key, parent_id, node_name);
 
-	rc = kvs_del(kvstor, &tree->index, node_key, sizeof(struct child_node_key));
+	RC_WRAP_LABEL(rc, out, kvs_del, kvstor, &tree->index, node_key,
+	              sizeof(struct child_node_key));
 
-	kvs_free(kvstor, node_key);
 out:
+	kvs_free(kvstor, node_key);
+
 	log_debug("kvtree=%p,parent " NODE_ID_F ",name '" STR256_F "'", tree,
 	           NODE_ID_P(parent_id), STR256_P(node_name), rc);
 	return rc;
@@ -215,12 +239,15 @@ int kvtree_lookup(struct kvtree *tree, const node_id_t *parent_id,
 	int rc = 0;
 	struct child_node_key *node_key = NULL;
 	node_id_t *val_ptr = NULL;
-	node_id_t value = NULL_NODE_ID;
+	node_id_t value = KVNODE_NULL_ID;
 	uint64_t val_size = 0;
 
-	struct kvstore *kvstor = kvstore_get();
+	dassert(tree);
+	dassert(parent_id);
+	dassert(node_name);
 
-	dassert(kvstor && node_name);
+	struct kvstore *kvstor = kvstore_get();
+	dassert(kvstor);
 
 	RC_WRAP_LABEL(rc, out, kvs_alloc, kvstor, (void **)&node_key,
 	              sizeof(struct child_node_key));
@@ -261,8 +288,8 @@ int kvtree_iter_children(struct kvtree *tree, const node_id_t *parent_id,
 	const char *child_node_name;
 
 	struct kvstore *kvstor = kvstore_get();
-
 	dassert(kvstor != NULL);
+
 	RC_WRAP_LABEL(rc, out, kvs_itr_find, kvstor, &tree->index, &prefix,
 	              child_node_psize, &iter);
 

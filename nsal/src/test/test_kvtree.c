@@ -14,6 +14,7 @@
 
 #include "kvtree.h"
 #include "kvnode.h"
+#include "../kvtree/kvnode_internal.h"   /* @TODO to be removed*/
 #include <string.h>
 #include <ut.h>
 #include <common/log.h>
@@ -23,11 +24,25 @@
 
 #define DEFAULT_CONFIG "/etc/efs/efs.conf"
 
+#define KVNODE_ID_INIT(__id) (node_id_t)   \
+{                                          \
+    .f_hi = __id,                          \
+    .f_lo = 0,                             \
+};
+
+/* Dummy structure which acts as a basic attribute for a node*/
 struct info {
 	char arr[255];
 	int uid;
 	int gid;
 };
+
+/* Dummy system attribute types for storing sys_attrs along with a kvnode*/
+typedef enum sys_attr {
+	ATTR_TYPE_1 = 1,
+	ATTR_TYPE_2,
+	ATTR_TYPE_3
+} sys_attr_t;
 
 static struct collection_item *cfg_items;
 
@@ -68,7 +83,6 @@ int nsal_start(const char *config_path)
 out:
 	if (rc) {
 		free_ini_config_errors(errors);
-		return rc;
 	}
 
 	log_debug("rc=%d nsal_start done", rc);
@@ -78,18 +92,19 @@ out:
 static int ut_kvtree_setup()
 {
 	int rc = 0;
+	/* Creating namespace */
+	str256_t ns_name;
+	char *name = "eosfs";
+	size_t ns_size = 0;
 
 	rc = ns_init(cfg_items);
 	if (rc) {
 		log_err("Failed to do ns_init rc = %d", rc);
 		goto out;
 	}
-	/* Creating namespace */
-	str256_t ns_name;
-	char *name = "eosfs";
-	size_t ns_size = 0;
 
 	str256_from_cstr(ns_name, name, strlen(name));
+
 	rc = ns_create(&ns_name, &ns, &ns_size);
 	if (rc) {
 		log_err("Failed to do ns_create rc = %d", rc);
@@ -130,19 +145,14 @@ static int ut_kvtree_ops_init()
 {
 	int rc = 0;
 	struct info root_test_info = {"test-kvtree", 99, 55};
-	struct kvnode_info *root_info = NULL;
-
-	rc = kvnode_info_alloc((void *)&root_test_info, sizeof(struct info), &root_info);
-	ut_assert_int_equal(rc, 0);
 
 	/*passing created namespace to kvtree*/
-	rc = kvtree_create(ns, root_info, &test_kvtree);
+	rc = kvtree_create(ns, (void *)&root_test_info, sizeof(struct info),
+	                   &test_kvtree);
 	if (rc != 0) {
 		printf("kvtree_create failed, rc = %d", rc);
 		goto out;
 	}
-
-	kvnode_info_free(root_info);
 
 	rc = kvtree_init(ns, test_kvtree);
 	if (rc != 0) {
@@ -157,34 +167,36 @@ static int ut_kvtree_ops_fini()
 {
 	int rc = 0;
 
+	rc = kvtree_fini(test_kvtree);
+	if (rc != 0) {
+		goto out;
+	}
+
 	rc = kvtree_delete(test_kvtree);
 	if (rc != 0) {
 		goto out;
 	}
 
-	rc = kvtree_fini(test_kvtree);
-	if (rc != 0) {
-		goto out;
-	 }
 out:
 	return rc;
 }
 
-/* Helper function to compare contents of kvnode_info */
+/* Helper function to compare contents of kvnode_attr */
 static int ut_internal_node_check(struct kvtree *tree, node_id_t node_id,
                               struct info *test_info)
 {
 	struct kvnode empty_node;
 	int rc = 0;
 
-	empty_node.tree = tree;
-	empty_node.node_id = node_id;
-
-	rc = kvnode_info_read(&empty_node);
+	rc = kvnode_load(tree, &node_id, &empty_node);
 	if (rc) {
 		goto out;
 	}
-	rc = memcmp(test_info, empty_node.node_info->info, empty_node.node_info->size);
+	/* @TODO need an API which will return the contents of basic attributes */
+	rc = memcmp(test_info, empty_node.basic_attr->attr,
+	            empty_node.basic_attr->size);
+
+	kvnode_fini(&empty_node);
 out:
 	return rc;
 }
@@ -195,11 +207,11 @@ out:
  * Strategy:
  *  1. Create kvtree
  *  2. Initialize kvtree
- *  3. Verify root kvnode_info by readding root kvnode_info value
+ *  3. Verify root node_basic_attr by loading root node_attr value
  * Expected behavior:
  *  1. No errors from kvtree API.
- *  2. kvnode_info recieved from kvnode_info read should match written
- *     kvnode_info at time of root node creation.
+ *  2. kvnode_basic_attr recieved from kvnode_load should match written
+ *     node_attr at time of root node creation.
  */
 static void test_kvtree_create()
 {
@@ -207,16 +219,10 @@ static void test_kvtree_create()
 	int rc = 0;
 	/* Dummy data treated as root information*/
 	struct info node_info = {"sample-kvtree-root", 99, 55};
-	struct kvnode_info *root_info = NULL;
-
-	rc = kvnode_info_alloc((void *)&node_info, sizeof(struct info), &root_info);
-	ut_assert_int_equal(rc, 0);
 
 	/*passing created namespace to kvtree*/
-	rc = kvtree_create(ns, root_info, &tree);
+	rc = kvtree_create(ns, (void *)&node_info, sizeof(struct info), &tree);
 	ut_assert_int_equal(rc, 0);
-
-	kvnode_info_free(root_info);
 
 	rc = kvtree_init(ns, tree);
 	ut_assert_int_equal(rc, 0);
@@ -224,9 +230,12 @@ static void test_kvtree_create()
 	rc = ut_internal_node_check(tree, tree->root_node_id, &node_info);
 	ut_assert_int_equal(rc, 0);
 
+	rc = kvtree_fini(tree);
+	ut_assert_int_equal(rc, 0);
+
 	rc = kvtree_delete(tree);
 	if (rc) {
-		printf("Failed to delete kvtree \n");
+		printf("Failed to delete kvtree rc = %d\n", rc);
 	}
 }
 
@@ -245,18 +254,9 @@ static void test_kvtree_delete()
 	int rc = 0;
 	struct kvtree *tree;
 	struct info node_info = {"sample-kvtree-root2",99, 55};
-	struct kvnode_info *root_info = NULL;
-
-	rc = kvnode_info_alloc((void *)&node_info, sizeof(struct info), &root_info);
-	ut_assert_int_equal(rc, 0);
 
 	/*passing created namespace to kvtree*/
-	rc = kvtree_create(ns, root_info, &tree);
-	ut_assert_int_equal(rc, 0);
-
-	kvnode_info_free(root_info);
-
-	rc = kvtree_init(ns, tree);
+	rc = kvtree_create(ns, (void *)&node_info, sizeof(struct info), &tree);
 	ut_assert_int_equal(rc, 0);
 
 	rc = kvtree_delete(tree);
@@ -264,53 +264,71 @@ static void test_kvtree_delete()
 }
 
 /**
- * Test to create new (non-existing) kvnode
- * Description: Create new (non-existing) kvnode for test_kvtree.
+ * Test to create new (non-existing) kvnode and dump it on disk.
+ * Description: Create new (non-existing) kvnode for test_kvtree and dump it.
  * Strategy:
  *  1. Create kvnode
- *  2. Verify write kvnode_info by readding kvnode_info value
+ *  2. Dump kvnode
+ *  3. Verify written kvnode basic attributes by kvnode_load value
  * Expected behavior:
  *  1. No errors from EFS API.
- *  2. kvnode_info recieved from kvnode_info read should match written
- *     kvnode_info at time of node creation.
+ *  2. node_attr recieved from kvnode_load should match written
+ *     node_attr at time of node creation.
  */
 static void test_kvnode_create()
 {
 	/*create new kvnode*/
 	struct info test_info = {"nonexist-node1", 1000, 2000};
-	struct kvnode_info *node_info = NULL;
 	int rc = 0;
-	node_id_t node_id = { .f_hi = 33, .f_lo = 0 };
-
-	rc = kvnode_info_alloc((void *)&test_info, sizeof(struct info), &node_info);
-	ut_assert_int_equal(rc, 0);
-
-	/* Operation to create kvnode*/
+	node_id_t node_id;
 	struct kvnode node;
-	rc = kvnode_create(test_kvtree, &node_id, node_info, &node);
+
+	node_id = KVNODE_ID_INIT(33);
+	/* Operation to create kvnode*/
+	rc = kvnode_init(test_kvtree, &node_id, (void *)&test_info,
+	                 sizeof(struct info), &node);
 	ut_assert_int_equal(rc, 0);
 
-	kvnode_info_free(node_info);
+	rc = kvnode_dump(&node);
+	ut_assert_int_equal(rc, 0);
+
+	kvnode_fini(&node);
 
 	/*check set data*/
 	rc = ut_internal_node_check(test_kvtree, node_id, &test_info);
 	ut_assert_int_equal(rc, 0);
 }
 
-/* Helper function to create kvnode based on node_id and node_info*/
-static void ut_internal_kvnode_create(struct info *test_info, node_id_t node_id,
-                                      struct kvnode *node)
+/* Helper function to create kvnode based on node_id and node_attr
+ * and then dump it to the disk. */
+static void ut_internal_kvnode_create(struct info *test_info, node_id_t node_id)
 {
-	struct kvnode_info *node_info = NULL;
 	int rc = 0;
+	struct kvnode node;
 
-	rc = kvnode_info_alloc((void *)test_info, sizeof(struct info), &node_info);
+	rc = kvnode_init(test_kvtree, &node_id, (void *)test_info,
+	                 sizeof(struct info), &node);
 	ut_assert_int_equal(rc, 0);
 
-	rc = kvnode_create(test_kvtree, &node_id, node_info, node);
+	rc = kvnode_dump(&node);
 	ut_assert_int_equal(rc, 0);
 
-	kvnode_info_free(node_info);
+	kvnode_fini(&node);
+}
+
+/* Helper function to delete kvnode based on node_id*/
+static void ut_internal_kvnode_delete(node_id_t node_id)
+{
+	int rc = 0;
+	struct kvnode node;
+
+	rc = kvnode_load(test_kvtree, &node_id, &node);
+	ut_assert_int_equal(rc, 0);
+
+	rc = kvnode_delete(&node);
+	ut_assert_int_equal(rc, 0);
+
+	kvnode_fini(&node);
 }
 
 /**
@@ -332,16 +350,16 @@ static void ut_internal_kvnode_create(struct info *test_info, node_id_t node_id,
 static void test_kvtree_attach_detach()
 {
 	int rc = 0;
-	node_id_t node_id = { .f_hi = 33, .f_lo = 0 };
+	node_id_t node_id;
 	/*create new child kvnode*/
 	struct info test_info = {"child-node1", 1000, 2000};
-	struct kvnode node;
 	str256_t node_name;
 	node_id_t new_id;
 
-	ut_internal_kvnode_create(&test_info, node_id, &node);
-
+	node_id = KVNODE_ID_INIT(44);
 	str256_from_cstr(node_name, "child-node1", 11);
+
+	ut_internal_kvnode_create(&test_info, node_id);
 
 	rc = kvtree_attach(test_kvtree, &(test_kvtree->root_node_id), &node_id,
 	                   &node_name);
@@ -357,14 +375,13 @@ static void test_kvtree_attach_detach()
 	rc = kvtree_detach(test_kvtree, &(test_kvtree->root_node_id), &node_name);
 	ut_assert_int_equal(rc, 0);
 
-	new_id.f_hi = 0, new_id.f_lo = 0;
+	new_id = KVNODE_NULL_ID;
 
 	rc = kvtree_lookup(test_kvtree, &(test_kvtree->root_node_id), &node_name,
 	                   &new_id);
 	ut_assert_int_equal(rc, -ENOENT);
 
-	rc = kvnode_delete(test_kvtree, &node_id);
-	ut_assert_int_equal(rc, 0);
+	ut_internal_kvnode_delete(node_id);
 }
 
 /**
@@ -405,26 +422,77 @@ static void test_kvtree_lookup_nonexist()
 
 	str256_from_cstr(node_name, "child-node-nonexist", 19);
 
-	rc = kvtree_lookup(test_kvtree, &(test_kvtree->root_node_id), &node_name, NULL);
+	rc = kvtree_lookup(test_kvtree, &(test_kvtree->root_node_id), &node_name,
+	                   NULL);
 	ut_assert_int_equal(rc, -ENOENT);
 }
 
 /**
- * Test to delete a kvnode which does not exist.
- * Description: Delete a kvnode which is not present in the test_kvtree.
+ * Test to dump and load a kvnode.
+ * Description: Dump a node and load the same kvnode and verify all content of
+ * the fist node matches the content of the second node.
  * Strategy:
- *  1. Delete a kvnode from kvtree
+ *  1. Dump first kvnode.
+ *  2. Load second kvnode from the first node's node_id
+ *  3. Delete the origin node from disk.
  * Expected behavior:
- *  1. No errors from kvtree API.
- *  2. Delete should return -ENOENT which signifies node didn't exist.
+ *  1. No errors from kvnode API.
+ *  2. All content of the fist node should matche the content of the second node.
  */
-static void test_kvnode_delete_nonexist()
+static void test_dump_load_verify(void)
 {
 	int rc = 0;
-	node_id_t node_id = { .f_hi = 66, .f_lo = 0 };
+	struct kvnode origin;
+	struct kvnode loaded;
+	struct info test_info = {"origin-node1", 1000, 2000};
+	node_id_t o_node_id;
 
+	o_node_id = KVNODE_ID_INIT(55);
+
+	rc = kvnode_init(test_kvtree, &o_node_id, &test_info, sizeof(struct info),
+	                 &origin);
+	ut_assert_int_equal(rc, 0);
+
+	rc = kvnode_dump(&origin);
+	ut_assert_int_equal(rc, 0);
+
+	rc = kvnode_load(test_kvtree, &origin.node_id, &loaded);
+	ut_assert_int_equal(rc, 0);
+
+	/* Deep comparison between all the components of the node*/
+	rc = memcmp(&origin.node_id, &loaded.node_id, sizeof(node_id_t));
+	ut_assert_int_equal(rc, 0);
+
+	rc = memcmp(origin.basic_attr, loaded.basic_attr,
+	            sizeof(struct kvnode_basic_attr));
+	ut_assert_int_equal(rc, 0);
+
+	kvnode_fini(&loaded);
+
+	rc = kvnode_delete(&origin);
+	ut_assert_int_equal(rc, 0);
+
+	kvnode_fini(&origin);
+}
+
+/**
+ * Test to load a kvnode which does not exist.
+ * Description: Load a kvnode which is not present in the test_kvtree.
+ * Strategy:
+ *  1. Load kvnode from the given node_id
+ * Expected behavior:
+ *  1. No errors from kvtree API.
+ *  2. Load should return -ENOENT which signifies node didn't exist.
+ */
+static void test_kvnode_load_nonexist()
+{
+	int rc = 0;
+	node_id_t node_id;
+	struct kvnode node;
+
+	node_id = KVNODE_ID_INIT(66);
 	/* Operation to delete kvnode */
-	rc = kvnode_delete(test_kvtree, &node_id);
+	rc = kvnode_load(test_kvtree, &node_id, &node);
 	ut_assert_int_equal(rc, -ENOENT);
 }
 
@@ -434,11 +502,11 @@ static void test_kvnode_delete_nonexist()
  * Strategy:
  *  1. Create a kvnode
  *  2. Delete the above kvnode.
- *  3. Verify the kvnode is deleted or not by kvnode_info_read using the same
+ *  3. Verify the kvnode is deleted or not by kvnode_load using the same
  *     node_id from kvtree.
  * Expected behavior:
  *  1. No errors from kvtree API.
- *  2. After delete, kvnode_info_read should return -ENOENT which signifies
+ *  2. After delete, kvnode_load should return -ENOENT which signifies
  *     node was deleted.
  */
 static void test_kvnode_delete_exist()
@@ -446,17 +514,24 @@ static void test_kvnode_delete_exist()
 	int rc = 0;
 	struct kvnode node;
 	struct info test_info = {"delete.exist.node", 1000, 2000};
-	node_id_t node_id = { .f_hi = 77, .f_lo = 0 };
+	node_id_t node_id;
 
-	ut_internal_kvnode_create(&test_info, node_id, &node);
+	node_id = KVNODE_ID_INIT(77);
+
+	ut_internal_kvnode_create(&test_info, node_id);
+
+	rc = kvnode_load(test_kvtree, &node_id, &node);
+	ut_assert_int_equal(rc, 0);
 
 	/* Operation to delete kvnode */
-	rc = kvnode_delete(test_kvtree, &node_id);
+	rc = kvnode_delete(&node);
 	ut_assert_int_equal(rc, 0);
 
 	/* check deleted data exists or not*/
 	rc = ut_internal_node_check(test_kvtree, node_id, &test_info);
 	ut_assert_int_equal(rc, -ENOENT);
+
+	kvnode_fini(&node);
 }
 
 char *children[] = {
@@ -470,7 +545,7 @@ char *children[] = {
 int cb_pos = 0;
 
 /* Callback function to be used for kvtree_iter_children*/
-static bool test_kvtree_iter_cb(void *ctx, const char *name,
+static bool test_kvtree_iter_cb(void *ctx,  const char *name,
                                 const struct kvnode *node)
 {
 	int rc = 0;
@@ -495,22 +570,23 @@ static bool test_kvtree_iter_cb(void *ctx, const char *name,
  * Expected behavior:
  *  1. No errors from kvtree API.
  *  2. After receiving every child-kvnode, the contents should match with
- *     original child node info.
+ *     original child node basic attributes.
  */
 static void test_kvtree_iter_children()
 {
 	int rc = 0, i;
-	struct kvnode node[5];
 	/* Dummy data used for all 5 children. */
 	struct info test_info = {"sample.child.node", 1000, 2000};
 	/* This node_id is used with f_hi incremented by 1 for each child node.*/
-	node_id_t child_id = { .f_hi = 80, .f_lo = 0 };
+	node_id_t child_id;
 	str256_t node_name;
 
+	child_id = KVNODE_ID_INIT(80);
 	for (i = 0; i < 5; i++) {
-		ut_internal_kvnode_create(&test_info, child_id, &node[i]);
-
 		str256_from_cstr(node_name, children[i], strlen(children[i]));
+
+		ut_internal_kvnode_create(&test_info, child_id);
+
 		rc = kvtree_attach(test_kvtree, &test_kvtree->root_node_id, &child_id,
 		                   &node_name);
 		ut_assert_int_equal(rc, 0);
@@ -528,8 +604,7 @@ static void test_kvtree_iter_children()
 		rc = kvtree_detach(test_kvtree, &test_kvtree->root_node_id, &node_name);
 		ut_assert_int_equal(rc, 0);
 
-		rc = kvnode_delete(test_kvtree, &child_id);
-		ut_assert_int_equal(rc, 0);
+		ut_internal_kvnode_delete(child_id);
 
 		child_id.f_hi++;
 	}
@@ -556,6 +631,280 @@ static void test_kvtree_iter_children_empty()
 	ut_assert_int_equal(rc, 0);
 	/* verify that callback hasn't been called. */
 	ut_assert_int_equal(cb_pos, 0);
+}
+
+/**
+ * Test to set system attributes of a given numeric-id for a kvnode.
+ * Description: Set system attributes of a given numeric-id for a kvnode and
+ * verify it using get system attr API.
+ * * Strategy:
+ * 1. Create a kvnode.
+ * 2. SET sys attr for the above kvnode.
+ * 3. GET sys attr for the same kvnode.
+ * 4. Delete the kvnode.
+ * Expected behavior:
+ *  1. No errors from kvnode API.
+ *  2. Verify that the GET sys_attr API matches the original system attribute
+ *     at time of setting it.
+ */
+static void test_kvnode_set_sys_attr()
+{
+	int rc = 0;
+	struct kvnode node;
+	struct info test_info = {"sample.sys_attr.node", 1000, 2000};
+	node_id_t node_id;
+	char *str = "sample-attr-1";
+	buff_t value;
+	buff_t loaded;
+
+	node_id = KVNODE_ID_INIT(123);
+
+	rc = kvnode_init(test_kvtree, &node_id, (void *)&test_info,
+	                 sizeof(struct info), &node);
+	ut_assert_int_equal(rc, 0);
+
+	rc = kvnode_dump(&node);
+	ut_assert_int_equal(rc, 0);
+
+	buff_init(&value, str, strlen(str) + 1);
+
+	rc = kvnode_set_sys_attr(&node, ATTR_TYPE_1, value);
+	ut_assert_int_equal(rc, 0);
+
+	buff_init(&loaded, NULL, 0);
+
+	rc = kvnode_get_sys_attr(&node, ATTR_TYPE_1, &loaded);
+	ut_assert_int_equal(rc, 0);
+
+	kvnode_fini(&node);
+
+	ut_assert_int_equal(loaded.len, value.len);
+
+	rc = memcmp(loaded.buf, value.buf, value.len);
+	ut_assert_int_equal(rc, 0);
+
+	free(loaded.buf);
+
+	ut_internal_kvnode_delete(node_id);
+}
+
+/**
+ * Test to get a non-existing system attributes of a given numeric-id for a kvnode.
+ * Description: Get a non-existing system attributes of a given numeric-id for
+ * a kvnode and  verify that the API returns -ENOENT.
+ * * Strategy:
+ * 1. Create a kvnode.
+ * 2. GET sys attr for the same kvnode. It should retun -ENOENT.
+ * 3. Delete the kvnode.
+ * Expected behavior:
+ *  1. No errors from kvnode API.
+ *  2. Verify that the GET sys_attr API returns -ENOENT for a non-existing
+ *     system attribute.
+ */
+static void test_kvnode_get_sys_attr_nonexist()
+{
+	int rc = 0;
+	struct info test_info = {"sample.non-exist.sys_attr.node", 1000, 2000};
+	node_id_t node_id;
+	struct kvnode node;
+	buff_t value;
+
+	node_id = KVNODE_ID_INIT(124);
+
+	rc = kvnode_init(test_kvtree, &node_id, (void *)&test_info,
+	                 sizeof(struct info), &node);
+	ut_assert_int_equal(rc, 0);
+
+	rc = kvnode_dump(&node);
+	ut_assert_int_equal(rc, 0);
+
+	buff_init(&value, NULL, 0);
+
+	rc = kvnode_get_sys_attr(&node, ATTR_TYPE_1, &value);
+	ut_assert_int_equal(rc, -ENOENT);
+
+	ut_assert_null(value.buf);
+	ut_assert_int_equal(value.len, 0);
+
+	rc = kvnode_delete(&node);
+	ut_assert_int_equal(rc, 0);
+
+	kvnode_fini(&node);
+}
+
+/**
+ * Test to set multiple system attributes by using multiple numeric-id for a kvnode.
+ * Description: Set multiple(list) system attributes for a kvnode and verify
+ * the list of set attributes using get system attr API.
+ * * Strategy:
+ * 1. Create a kvnode.
+ * 2. SET list of sys attr for the above kvnode.
+ * 3. GET list of sys attr for the same kvnode and verify its contents.
+ * 4. Delete all sys attrs.
+ * 5. Delete the kvnode.
+ * Expected behavior:
+ *  1. No errors from kvnode API.
+ *  2. Verify that the GET sys_attr API matches the original system attribute
+ *     at time of setting it.
+ */
+static void test_kvnode_set_sys_attr_multiple()
+{
+	int rc = 0;
+	int i;
+	struct kvnode node;
+	buff_t value;
+	struct info test_info = {"sample.sys_attr.node", 1000, 2000};
+	node_id_t node_id;
+	char *str[] = {
+		"sample-attr-type1",
+		"sample-attr-type2",
+		"sample-attr-type3" };
+
+	node_id = KVNODE_ID_INIT(125);
+
+	rc = kvnode_init(test_kvtree, &node_id, &test_info, sizeof(struct info),
+	                 &node);
+	ut_assert_int_equal(rc, 0);
+
+	rc = kvnode_dump(&node);
+	ut_assert_int_equal(rc, 0);
+
+	for (i = 0; i < sizeof(str)/sizeof(str[0]); ++i) {
+		buff_init(&value, str[i], strlen(str[i]) + 1);
+
+		rc = kvnode_set_sys_attr(&node, ATTR_TYPE_1 + i, value);
+		ut_assert_int_equal(rc, 0);
+	}
+
+	for (i = 0; i < sizeof(str)/sizeof(str[0]); ++i) {
+		buff_init(&value, NULL, 0);
+
+		rc = kvnode_get_sys_attr(&node, ATTR_TYPE_1 + i, &value);
+		ut_assert_int_equal(rc, 0);
+
+		ut_assert_not_null(value.buf);
+		ut_assert_int_not_equal(value.len, 0);
+
+		rc = memcmp(str[i], value.buf, value.len);
+		ut_assert_int_equal(rc, 0);
+
+		rc = kvnode_del_sys_attr(&node, ATTR_TYPE_1 + i);
+		ut_assert_int_equal(rc, 0);
+
+		free(value.buf);
+	}
+
+	rc = kvnode_delete(&node);
+	ut_assert_int_equal(rc, 0);
+
+	kvnode_fini(&node);
+}
+
+/**
+ * Test to delete system attributes of a given numeric-id for a kvnode.
+ * Description: Set and then delete system attributes of a given numeric-id for
+ * a kvnode and verify it using get system attr API.
+ * * Strategy:
+ * 1. Create a kvnode.
+ * 2. SET sys attr for the above kvnode.
+ * 3. DELETE sys attr for the same kvnode.
+ * 4. Verify sys attr has been deleted by calling GET sys attr.
+ * 5. Delete the kvnode.
+ * Expected behavior:
+ * 1. No errors from kvnode API.
+ * 2. Verify the deleted sys attr by GET sys_attr API which should return
+ *     -ENOENT.
+ */
+static void test_kvnode_del_sys_attr()
+{
+	int rc = 0;
+	struct kvnode node;
+	buff_t value;
+	struct info test_info = {"sample-delete.sys_attr.node", 1000, 2000};
+	node_id_t node_id;
+	char *str = "sample-attr-delete-1";
+
+	node_id = KVNODE_ID_INIT(234);
+
+	rc = kvnode_init(test_kvtree, &node_id, (void *)&test_info,
+	                 sizeof(struct info), &node);
+	ut_assert_int_equal(rc, 0);
+
+	rc = kvnode_dump(&node);
+	ut_assert_int_equal(rc, 0);
+
+	buff_init(&value, str, strlen(str) + 1);
+
+	rc = kvnode_set_sys_attr(&node, ATTR_TYPE_1, value);
+	ut_assert_int_equal(rc, 0);
+
+	rc = kvnode_del_sys_attr(&node, ATTR_TYPE_1);
+	ut_assert_int_equal(rc, 0);
+
+	buff_init(&value, NULL, 0);
+
+	rc = kvnode_get_sys_attr(&node, ATTR_TYPE_1, &value);
+	ut_assert_int_equal(rc, -ENOENT);
+
+	kvnode_fini(&node);
+
+	ut_internal_kvnode_delete(node_id);
+}
+
+/**
+ * Test to delete a non-existing system attribute of a given numeric-id for a
+ * kvnode.
+ * Description: Delete non-existing system attributes of a given numeric-id for
+ * a kvnode by deleting same attribute twice and then delete an unknown
+ * (non-exist) attribute.
+ * * Strategy:
+ * 1. Create a kvnode.
+ * 2. SET sys attr for the above kvnode.
+ * 3. Delete sys attr for the same kvnode.
+ * 4. Delete same sys attr twice. Should return -ENOENT.
+ * 5. Delete an unknown sys attr. Should return -ENOENT.
+ * 6. Delete the kvnode.
+ * Expected behavior:
+ * 1. No errors from kvnode API.
+ * 2. Verify that deleting a non-existing sys attr should return -ENOENT.
+ */
+static void test_kvnode_del_sys_attr_nonexist()
+{
+	int rc = 0;
+	struct info test_info = {"sample-delete.sys_attr.node", 1000, 2000};
+	node_id_t node_id;
+	struct kvnode node;
+	char *str = "sample-attr-delete-2";
+	buff_t value;
+
+	node_id = KVNODE_ID_INIT(345);
+
+	rc = kvnode_init(test_kvtree, &node_id, (void *)&test_info,
+	                 sizeof(struct info), &node);
+	ut_assert_int_equal(rc, 0);
+
+	rc = kvnode_dump(&node);
+	ut_assert_int_equal(rc, 0);
+
+	buff_init(&value, str, strlen(str) + 1);
+
+	rc = kvnode_set_sys_attr(&node, ATTR_TYPE_1, value);
+	ut_assert_int_equal(rc, 0);
+
+	rc = kvnode_del_sys_attr(&node, ATTR_TYPE_1);
+	ut_assert_int_equal(rc, 0);
+
+	/* Deleting a system attribute twice. */
+	rc = kvnode_del_sys_attr(&node, ATTR_TYPE_1);
+	ut_assert_int_equal(rc, -ENOENT);
+
+	/* Deleting an unknown type of system attribute. */
+	rc = kvnode_del_sys_attr(&node, 898);
+	ut_assert_int_equal(rc, -ENOENT);
+
+	kvnode_fini(&node);
+
+	ut_internal_kvnode_delete(node_id);
 }
 
 int main(int argc, char **argv)
@@ -585,13 +934,19 @@ int main(int argc, char **argv)
 
 	struct test_case test_list[] = {
 		ut_test_case(test_kvnode_create, NULL, NULL),
-		ut_test_case(test_kvnode_delete_nonexist, NULL, NULL),
+		ut_test_case(test_dump_load_verify, NULL, NULL),
+		ut_test_case(test_kvnode_load_nonexist, NULL, NULL),
 		ut_test_case(test_kvnode_delete_exist, NULL, NULL),
 		ut_test_case(test_kvtree_attach_detach, NULL, NULL),
 		ut_test_case(test_kvtree_detach_nonexist, NULL, NULL),
 		ut_test_case(test_kvtree_lookup_nonexist, NULL, NULL),
 		ut_test_case(test_kvtree_iter_children, NULL, NULL),
 		ut_test_case(test_kvtree_iter_children_empty, NULL, NULL),
+		ut_test_case(test_kvnode_set_sys_attr, NULL, NULL),
+		ut_test_case(test_kvnode_get_sys_attr_nonexist, NULL, NULL),
+		ut_test_case(test_kvnode_set_sys_attr_multiple, NULL, NULL),
+		ut_test_case(test_kvnode_del_sys_attr, NULL, NULL),
+		ut_test_case(test_kvnode_del_sys_attr_nonexist, NULL, NULL),
 		ut_test_case(test_kvtree_create, NULL, NULL),
 		ut_test_case(test_kvtree_delete, NULL, NULL),
 	};
