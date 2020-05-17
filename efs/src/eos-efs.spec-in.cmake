@@ -86,6 +86,7 @@ rm -rf $RPM_BUILD_ROOT
 %config(noreplace) %{_sysconfdir}/efs/efs.conf
 %{_efs_bin_dir}/efscli
 %{_bindir}/efscli
+%{_efs_log_dir}
 
 %files devel
 %defattr(-,root,root)
