@@ -1,5 +1,5 @@
 /*
- * Filename: ut_efs_xattr_ops.c
+ * Filename: efs_xattr_ops.c
  * Description: Implementation tests for xattr
  *
  * Do NOT modify or remove this copyright and confidentiality notice!
@@ -11,15 +11,9 @@
  *
  * Author: Shraddha Shinde <shraddha.shinde@seagate.com>
 */
-#include "ut_efs_helper.h"
-#include <sys/xattr.h> /* XATTR_CREATE */
-#define XATTR_VAL_SIZE_MAX 4096
-#define XATTR_ENV_FROM_STATE(__state) (*((struct ut_xattr_env **)__state))
 
-struct ut_xattr_env {
-	struct ut_efs_params ut_efs_obj;
-	char **xattr;
-};
+#include "efs_xattr_ops.h"
+#include <sys/xattr.h> /* XATTR_CREATE */
 
 /**
  * Test to set new (non-existing) xattr
@@ -31,7 +25,7 @@ struct ut_xattr_env {
  *  1. No errors from EFS API.
  *  2. xattr recieved from getxattr should match set xattr.
  */
-static void set_nonexist_xattr(void **state)
+void set_nonexist_xattr(void **state)
 {
 	int rc = 0;
 	struct ut_efs_params *ut_efs_obj = ENV_FROM_STATE(state);
@@ -68,7 +62,7 @@ static void set_nonexist_xattr(void **state)
  *  1. No errors from EFS API.
  *  2. set xattr operation should be successful
  */
-static int set_exist_xattr_setup(void **state)
+int set_exist_xattr_setup(void **state)
 {
 	int rc = 0;
 	char *xattr_name = "set.exist.xattr", *xattr_val = "1234567890";
@@ -97,7 +91,7 @@ static int set_exist_xattr_setup(void **state)
  *  1. No errors from EFS API.
  *  2. setxattr operation should fail with error EEXIST
  */
-static void set_exist_xattr(void **state)
+void set_exist_xattr(void **state)
 {
 	int rc = 0;
 	char *xattr_new_val = "1234567890";
@@ -124,7 +118,7 @@ static void set_exist_xattr(void **state)
  *  1. No errors from EFS API.
  *  2. Setxattr operation should fail with error ENOENT
  */
-static void replace_nonexist_xattr(void **state)
+void replace_nonexist_xattr(void **state)
 {
 	int rc = 0;
 	char *xattr_name = "replace.nonexist.xattr", *xattr_val = "123456789";
@@ -148,7 +142,7 @@ static void replace_nonexist_xattr(void **state)
  *  1. No errors from EFS API.
  *  2. setxattr operation should be successful
  */
-static int replace_exist_xattr_setup(void **state)
+int replace_exist_xattr_setup(void **state)
 {
 	int rc = 0;
 	char *xattr_name = "replace.exist.xattr", *xattr_val = "1234567890";
@@ -179,7 +173,7 @@ static int replace_exist_xattr_setup(void **state)
  *  1. No errors from EFS API.
  *  2. setxattr operation with flag XATTR_REPLACE should be successful
  */
-static void replace_exist_xattr(void **state)
+void replace_exist_xattr(void **state)
 {
 	int rc = 0;
 	char *xattr_new_val = "1234567890";
@@ -219,7 +213,7 @@ static void replace_exist_xattr(void **state)
  *  1. No errors from EFS API.
  *  2. Setxattr operation should be successful
  */
-static int get_exist_xattr_setup(void **state)
+int get_exist_xattr_setup(void **state)
 {
 	int rc = 0;
 
@@ -251,13 +245,13 @@ static int get_exist_xattr_setup(void **state)
  *  1. No errors from EFS API.
  *  2. value from getxattr should match with set value.
  */
-static void get_exist_xattr(void **state)
+void get_exist_xattr(void **state)
 {
 	int rc = 0;
 
 	struct ut_xattr_env *ut_xattr_obj = XATTR_ENV_FROM_STATE(state);
 	struct ut_efs_params *ut_efs_obj = &ut_xattr_obj->ut_efs_obj;
-	
+
 	size_t xattr_set_size = strlen(ut_xattr_obj->xattr[1]);
 
 	char xattr_val[XATTR_VAL_SIZE_MAX] = {0};
@@ -284,7 +278,7 @@ static void get_exist_xattr(void **state)
  *  1. No errors from EFS API.
  *  2. getxattr soperation should fail with error ENOENT
  */
-static void get_nonexist_xattr(void **state)
+void get_nonexist_xattr(void **state)
 {
 	int rc = 0;
 	char *xattr_name = "get.nonexist.xattr";
@@ -310,7 +304,7 @@ static void get_nonexist_xattr(void **state)
  *  1. No errors from EFS API.
  *  2. Setxattr operation should be successful.
  */
-static int remove_exist_xattr_setup(void **state)
+int remove_exist_xattr_setup(void **state)
 {
 	int rc = 0;
 	char *xattr_name = "remove.exist.xattr", *xattr_set_val = "1234567890";
@@ -340,7 +334,7 @@ static int remove_exist_xattr_setup(void **state)
  *  2. xattr remove operation should be successful
  *  3. getxattr should fail with error ENOENT.
  */
-static void remove_exist_xattr(void **state)
+void remove_exist_xattr(void **state)
 {
 	int rc = 0;
 
@@ -371,7 +365,7 @@ static void remove_exist_xattr(void **state)
  *  1. No errors from EFS API.
  *  2. xattr remove operation should fail with error ENOENT
  */
-static void remove_nonexist_xattr(void **state)
+void remove_nonexist_xattr(void **state)
 {
 	int rc = 0;
 	char *xattr_name = "remove.nonexist.xattr";
@@ -394,7 +388,7 @@ static void remove_nonexist_xattr(void **state)
  *  1. No errors from EFS API.
  *  2. Setxattr operations should be successful.
  */
-static int listxattr_test_setup(void **state)
+int listxattr_test_setup(void **state)
 {
 	char xattr_name[][4096] = { "xattr.checksum", "xattr.attribute"},
 		xattr_set_val[][XATTR_VAL_SIZE_MAX] = {"1234567890", "999999999"},
@@ -443,7 +437,7 @@ static int listxattr_test_setup(void **state)
  *  2. list xattr operation should be successful
  *  3. xattr values set and recieved from list xattr should match.
  */
-static void listxattr_test(void **state)
+void listxattr_test(void **state)
 {
 	int rc = 0;
 
@@ -493,7 +487,7 @@ static void listxattr_test(void **state)
  *  1. No errors from EFS API.
  *  2. File deletion should be successful.
  */
-static int listxattr_test_teardown(void **state)
+int listxattr_test_teardown(void **state)
 {
 	int rc = 0;
 	struct ut_xattr_env *ut_xattr_obj = XATTR_ENV_FROM_STATE(state);
@@ -507,106 +501,3 @@ static int listxattr_test_teardown(void **state)
 	return rc;
 }
 
-/**
- * Setup for xattr test group.
- */
-static int xattr_ops_setup(void **state)
-{
-	int rc = 0;
-	struct ut_xattr_env *ut_xattr_obj = NULL;
-
-	ut_xattr_obj = calloc(sizeof(struct ut_xattr_env), 1);
-
-	ut_assert_not_null(ut_xattr_obj);
-
-	ut_xattr_obj->xattr = calloc(sizeof(char *), 8);
-
-	if( ut_xattr_obj->xattr == NULL) {
-		ut_assert_true(0);
-		rc = -ENOMEM;
-	}
-
-	*state = ut_xattr_obj;
-	rc = ut_efs_fs_setup(state);
-
-	ut_assert_int_equal(rc, 0);
-
-	ut_xattr_obj->ut_efs_obj.file_name = "test_xattr_file";
-	ut_xattr_obj->ut_efs_obj.file_inode = 0LL;
-
-	*state = ut_xattr_obj;
-	rc = ut_file_create(state);
-
-	ut_assert_int_equal(rc, 0);
-
-	return rc;
-}
-
-/**
- * Teardown for xattr test group
- */
-static int xattr_ops_teardown(void **state)
-{
-	int rc = 0;
-
-	rc = ut_file_delete(state);
-	ut_assert_int_equal(rc, 0);
-
-	rc = ut_efs_fs_teardown(state);
-	ut_assert_int_equal(rc, 0);
-
-	free(*state);
-
-	return rc;
-}
-
-int main(void)
-{
-	int rc = 0;
-	char *test_log = "/var/log/eos/test/ut/ut_efs.log";
-
-	printf("Xattr Tests\n");
-
-	rc = ut_load_config(CONF_FILE);
-	if (rc != 0) {
-		printf("ut_load_config: err = %d\n", rc);
-		goto end;
-	}
-
-	test_log = ut_get_config("efs", "log_path", test_log);
-
-	rc = ut_init(test_log);
-	if (rc != 0) {
-		printf("ut_init failed, log path=%s, rc=%d.\n", test_log, rc);
-		goto out;
-	}
-
-	struct test_case test_list[] = {
-		ut_test_case(set_exist_xattr, set_exist_xattr_setup, NULL),
-		ut_test_case(set_nonexist_xattr, NULL, NULL),
-		ut_test_case(replace_exist_xattr, replace_exist_xattr_setup, NULL),
-		ut_test_case(replace_nonexist_xattr, NULL, NULL),
-		ut_test_case(get_exist_xattr, get_exist_xattr_setup, NULL),
-		ut_test_case(get_nonexist_xattr, NULL, NULL),
-		ut_test_case(remove_exist_xattr, remove_exist_xattr_setup, NULL),
-		ut_test_case(remove_nonexist_xattr, NULL, NULL),
-		ut_test_case(listxattr_test, listxattr_test_setup,
-				listxattr_test_teardown),
-	};
-
-	int test_count = sizeof(test_list)/sizeof(test_list[0]);
-	int test_failed = 0;
-
-	test_failed = ut_run(test_list, test_count, xattr_ops_setup,
-				xattr_ops_teardown);
-
-	ut_fini();
-
-	ut_summary(test_count, test_failed);
-
-out:
-	free(test_log);
-
-end:
-	return rc;
-}

@@ -18,9 +18,10 @@ add_executable(ut_efs_link_ops ut_efs_link_ops.c)
 add_executable(ut_efs_rename_ops ut_efs_rename_ops.c)
 add_executable(ut_efs_file_ops ut_efs_file_ops.c)
 add_executable(ut_efs_attr_ops ut_efs_attr_ops.c)
-add_executable(ut_efs_xattr_ops ut_efs_xattr_ops.c)
 add_executable(ut_efs_io_ops ut_efs_io_ops.c)
 add_executable(ut_efs_io_bug_ops ut_efs_io_bug_ops.c)
+add_executable(ut_efs_xattr_file_ops ut_efs_xattr_file_ops.c)
+add_executable(ut_efs_xattr_dir_ops ut_efs_xattr_dir_ops.c)
 
 link_directories(${LIBKVSTORE})
 set(CMAKE_INSTALL_RPATH "${LIBKVSTORE}")
@@ -28,12 +29,27 @@ set(CMAKE_INSTALL_RPATH "${LIBKVSTORE}")
 set(ut_efs_helper_SRC
 	ut_efs_helper.c
 )
+
 add_library(ut_efs_helper STATIC ${ut_efs_helper_SRC})
 
 target_link_libraries(ut_efs_helper
 	eos-utils
 	eos-nsal
 	eos-efs
+	${STORE_LIBRARY}
+)
+
+set(ut_efs_xattr_ops_SRC
+	ut_efs_xattr_ops.c
+)
+
+add_library(ut_efs_xattr_ops STATIC ${ut_efs_xattr_ops_SRC})
+
+target_link_libraries(ut_efs_xattr_ops
+	eos-utils
+	eos-nsal
+	eos-efs
+	ut_efs_helper
 	${STORE_LIBRARY}
 )
 
@@ -71,8 +87,12 @@ target_link_libraries(ut_efs_attr_ops
 	ut_efs_helper
 )
 
-target_link_libraries(ut_efs_xattr_ops
-	ut_efs_helper
+target_link_libraries(ut_efs_xattr_file_ops
+	ut_efs_xattr_ops
+)
+
+target_link_libraries(ut_efs_xattr_dir_ops
+	ut_efs_xattr_ops
 )
 
 target_link_libraries(ut_efs_io_ops

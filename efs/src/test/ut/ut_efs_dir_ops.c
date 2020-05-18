@@ -132,7 +132,7 @@ static int dir_test_teardown(void **state)
 {
 	int rc = 0;
 
-	rc = ut_file_delete(state);
+	rc = ut_dir_delete(state);
 	ut_assert_int_equal(rc, 0);
 
 	return rc;

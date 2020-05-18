@@ -153,10 +153,29 @@ out:
 int efs_mkdir(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *parent, char *name,
 	      mode_t mode, efs_ino_t *newdir)
 {
-	RC_WRAP(efs_access, efs_fs, cred, parent, EFS_ACCESS_WRITE);
+	int rc;
+	dstore_oid_t oid;
+	struct dstore *dstore = dstore_get();
 
-	return efs_create_entry(efs_fs, cred, parent, name, NULL,
-			mode, newdir, EFS_FT_DIR);
+	log_trace("ENTER: parent=%p name=%s dir=%p mode=0x%X",
+		  parent, name, newdir, mode);
+
+	RC_WRAP_LABEL(rc, out, efs_access, efs_fs, cred, parent,
+		      EFS_ACCESS_WRITE);
+
+	RC_WRAP_LABEL(rc, out, efs_create_entry, efs_fs, cred, parent, name,
+		      NULL, mode, newdir, EFS_FT_DIR);
+
+	/* Get a new unique oid */
+	RC_WRAP_LABEL(rc, out, dstore_get_new_objid, dstore, &oid);
+
+	/* Set the ino-oid mapping for this directory in kvs.*/
+	RC_WRAP_LABEL(rc, out, efs_set_ino_oid, efs_fs, newdir, &oid);
+
+out:
+	log_trace("EXIT: parent=%p name=%s dir=%p mode=0x%X rc=%d",
+		   parent, name, newdir, mode, rc);
+	return rc;
 }
 
 int efs_lookup(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *parent,
@@ -500,6 +519,7 @@ int efs_rmdir(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *parent, char *
 	str256_t kname;
 	struct kvstore *kvstor = kvstore_get();
 	struct kvs_idx index;
+	dstore_oid_t oid;
 
 	dassert(efs_fs && cred && parent && name && kvstor);
 	dassert(strlen(name) <= NAME_MAX);
@@ -536,6 +556,10 @@ int efs_rmdir(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *parent, char *
 	/* Child dir has a "hardlink" to the parent ("..") */
 	RC_WRAP_LABEL(rc, aborted, efs_update_stat, efs_fs, parent,
 		      STAT_DECR_LINK);
+
+	RC_WRAP_LABEL(rc, aborted, efs_ino_to_oid, efs_fs, &ino, &oid);
+
+	RC_WRAP_LABEL(rc, aborted, efs_del_oid, efs_fs, &ino);
 
 	/* TODO: Remove all xattrs when kvsns_remove_all_xattr is implemented */
 	RC_WRAP_LABEL(rc, out, kvs_end_transaction, kvstor, &index);
