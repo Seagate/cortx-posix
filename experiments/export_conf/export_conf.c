@@ -1,189 +1,212 @@
 #include <stdio.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <sys/sendfile.h>
+#include <stdint.h>
+#include <stdbool.h>
 #include <string.h>
-#include <stdlib.h>
-#include <errno.h>
+#include <json.h>
 
-struct filesystem_id {
-	int major;
-	int minor;
+#define PULGINS_DIR				"/usr/lib64/ganesha/"
+#define FSAL_NAME				"KVSFS"
+#define FSAL_SHARED_LIBRARY			"/usr/lib64/ganesha/libfsalkvsfs.so.4.2.0"
+#define EFS_CONFIG				"efs_config"
+
+#define SERIALIZE_BUFFER_DEFAULT_SIZE 		2048 //size opt
+struct str256 {
+	uint8_t s_len;
+	char s_str[256];
 };
 
-struct export_option {
-	int export_id;
-	char path[256];
-	char pseudo[256];
-	char sectype[256];
-	//only singal client 
-	char squash[256];
-	char access_type[10];
-	int protocols;
-	struct filesystem_id fs_id;
+typedef struct str256 str256_t;
+
+#define str256_from_cstr(dst, src, len) 				\
+	do {                                                        	\
+		memcpy(dst.s_str, src, len);                           	\
+		dst.s_str[len] = '\0';                                 	\
+		dst.s_len = len;                                       	\
+	} while (0);
+
+struct serialized_buffer{
+	void *data;
+	size_t size;
+	int next;
 };
 
-int create_block(FILE * file, struct export_option *options)
+static void init_serialized_buffer(struct serialized_buffer **buff)
 {
-	fprintf(file, "\nexport {\n");
-	fprintf(file, "\tExport_Id = %d;\n", options->export_id);
-	fprintf(file, "\tPath = %s;\n", options->path);
-	fprintf(file, "\tPseudo = /%s;\n", options->path);
-	fprintf(file, "\tFSAL {\n");
-	fprintf(file, "\t\tNAME = KVSFS;\n");
-	fprintf(file, "\t\tefs_config = /etc/efs/efs.conf;\n");
-	fprintf(file, "\t}\n");
-	fprintf(file, "\tSecType = %s;\n", options->sectype);
-	fprintf(file, "\tFilesystem_id = %d.%d;\n", options->fs_id.major, options->fs_id.minor);
-	/* depend on number of client */
-	fprintf(file, "\tclient {\n");
-	fprintf(file, "\t\tclients = *;\n"); //chanage acc to export options
-	fprintf(file, "\t\tSquash = no_root_squash;\n");
-	fprintf(file, "\t\taccess_type=RW;\n");
-	fprintf(file, "\t\tprotocols = %d;\n", options->protocols);
-	fprintf(file, "\t}\n");
-	fprintf(file, "}\n");
-	// confirm test.conf with ganesha helper api config_parse and retunr error code
-	return 0;
+	(*buff) = (struct serialized_buffer *)malloc( sizeof(struct serialized_buffer));
+	(*buff)->data = malloc(SERIALIZE_BUFFER_DEFAULT_SIZE);
+	(*buff)->size = SERIALIZE_BUFFER_DEFAULT_SIZE;
+	(*buff)->next = 0;
+	return;
 }
 
-int OSCopyFile(const char* source, const char* destination)
+static void free_serialize_buffer(struct serialized_buffer *buff) 
 {
-	int input, output;
-	if ((input = open(source, O_RDONLY)) == -1)
-	{
-		return -1;
-	}
-	if ((output = creat(destination, 0660)) == -1)
-	{
-		close(input);
-		return -1;
-	}
-
-	off_t bytesCopied = 0;
-	struct stat fileinfo = {0};
-	fstat(input, &fileinfo);
-	int result = sendfile(output, input, &bytesCopied, fileinfo.st_size);
-
-	close(input);
-	close(output);
-	return result;
+	free(buff->data);
+	free(buff);
 }
 
-int dump_file_buff(FILE * file, char **buffer)
+void serialize_data(struct serialized_buffer *buff, char *data, int nbytes){
+
+	//if (buff == NULL) assert(0);
+
+	//struct serialized_buffer *buffer = (struct serialized_buffer *)(b);
+	int available_size = buff->size - buff->next;
+	bool is_resize = 0;
+
+	while(available_size < nbytes){
+		buff->size = buff->size * 2;
+		available_size = buff->size - buff->next;
+		is_resize = 1;
+	}
+
+	if(is_resize == 0){
+		memcpy((char *)buff->data + buff->next, data, nbytes);
+		buff->next += nbytes;
+		return;
+	}
+
+	// resize of the buffer
+	buff->data = realloc(buff->data, buff->size); 
+	memcpy((char *)buff->data + buff->next, data, nbytes);
+	buff->next += nbytes;
+	return;
+}
+
+struct export_fsal_block {
+	str256_t name;
+	str256_t efs_config;
+};
+
+struct client_block {
+	str256_t clients;
+	str256_t squash;
+	str256_t access_type;
+	str256_t protocols;
+};
+
+struct export_block {
+	uint16_t export_id;
+	str256_t path;
+	str256_t pseudo;
+	struct export_fsal_block fsal_block;
+	str256_t sectype;
+	str256_t filesystem_id;
+	struct client_block client_block;
+};
+
+struct kvsfs_block {
+	str256_t fsal_shared_library;
+};
+
+struct fsal_block {
+	struct kvsfs_block kvsfs_block;
+
+};
+struct nfs_core_param_block {
+	uint32_t nb_worker;
+	uint32_t manage_gids_expiration;
+	str256_t Plugins_Dir;
+};
+
+struct nfsv4_block {
+	str256_t domainname;
+	bool graceless;
+};
+
+static int json_to_export_fsal_block(struct json_object *obj,
+				     struct export_fsal_block *block)
 {
 	int rc = 0;
-	char * buf = NULL;
-	size_t length;
 
-	fseek (file, 0, SEEK_END);
-	length = ftell (file);
-	fseek (file, 0, SEEK_SET);
-
-	buf = malloc (length);
-	if (buf == NULL) {
-		fprintf(stderr, "Cannot allocate memeory for buffer\n");
-		rc = -ENOMEM;
-		goto out;
-	}
-	fread (buf, 1, length, file);
-	*buffer = buf;
-out:
-	return rc;
-
-}
-
-int dump_buff_file( char **buffer)
-{
-	int rc = 0;
-	int length = strlen(*buffer);
-	printf("length = %d\n",length);
-
-	FILE *tmp_file = fopen("./tmp", "a");
-	if (tmp_file ==NULL ) {
-		rc = -EINVAL; //retink error no;
-		goto out;
-	}
-	fwrite(*buffer, 1, length, tmp_file);
-
-	//check tmp file passes the ganesha config santiy if yes.
-
-	rc = rename("./tmp", "./tmpganesha1");// should be ganesha.comnf
-out:
-	return rc;
-}
-
-int find_block(char *src, const char *dst, int *block_start, int *block_end)
-{
-	int rc = 0;
-	char *tmp = strstr(src, dst);
-	if(tmp == NULL) {
-		printf("export block does't found\n");
-		rc = -ENOENT;
-		goto out;
-	}
-	int pos = tmp - src;
-	*block_start = tmp - 10 - src;
-	*block_end = *block_start + 250;
-out:
+	str256_from_cstr(block->name, FSAL_NAME, strlen(FSAL_NAME));
+	str256_from_cstr(block->efs_config, EFS_CONFIG, strlen(EFS_CONFIG));
 	return rc;
 }
 
-int process_block(char *buffer, int start, int end)
+static int json_to_client_block(struct json_object *obj,
+				struct client_block *block)
 {
-	memmove(&buffer[start - 1], &buffer[start +end - 1], 250);
+	int rc = 0;
+	struct json_object *json_obj = NULL;
+	const char *str = NULL;
+
+	json_object_object_get_ex(obj, "clients", &json_obj);
+	str = json_object_get_string(json_obj);
+	str256_from_cstr(block->clients, str, strlen(str));
+	str = NULL;
+
+	json_object_object_get_ex(obj, "Squash", &json_obj);
+	str = json_object_get_string(json_obj);
+	str256_from_cstr(block->squash, str, strlen(str));
+	str = NULL;
+
+	json_object_object_get_ex(obj, "access_type", &json_obj);
+	str = json_object_get_string(json_obj);
+	str256_from_cstr(block->access_type, str, strlen(str));
+
+	json_object_object_get_ex(obj, "protocols", &json_obj);
+	str = json_object_get_string(json_obj);
+	str256_from_cstr(block->protocols, str, strlen(str));
+	return rc;
 }
 
-int delete_block(FILE * file, int export_id)
+static int json_to_export_block(struct json_object *obj,
+			  struct export_block *block)
 {
-	int rc;
-	int block_start, block_end;
-	char *buffer;
+	int rc = 0;
+	struct json_object *json_obj = NULL;
+	const char *str = NULL;
+	char *path = "test";
 
-	rc = dump_file_buff(file, &buffer);
-	if (rc !=0) {
-		fprintf(stderr, "Cannot dump file into buffer\n");
-		goto out;
-	}
+	block->export_id = 9999; /* todo */
+	str256_from_cstr(block->path, path, strlen(path));
+	str256_from_cstr(block->pseudo, path, strlen(path));
 
-	rc = find_block(buffer, "Export_Id = 11", &block_start, &block_end);
-	if (rc !=0) {
-		goto out;
-	}
+	rc = json_to_export_fsal_block(obj, &block->fsal_block);
 
-	rc = process_block(buffer, block_start, block_end);
+	json_object_object_get_ex(obj, "secType", &json_obj);
+	str = json_object_get_string(json_obj);
+	str256_from_cstr(block->sectype, str, strlen(str));
+	str = NULL;
 
-	rc = dump_buff_file(&buffer);
-	free(buffer);
-out:
+	json_object_object_get_ex(obj, "Filesystem_id", &json_obj);
+	str = json_object_get_string(json_obj);
+	str256_from_cstr(block->filesystem_id, str, strlen(str));
+	str = NULL;
+
+	rc = json_to_client_block(obj, &block->client_block);
 	return rc;
 }
 
 int main()
 {
-	int rc = 0;
-	struct export_option options;
-	char *file_path = "./test.conf";
+	struct json_object *obj;
+	const char *str  = "{ \"proto\": \"nfs\", \"mode\": \"rw\", \"secType\": \"sys\", \"Filesystem_id\": \"192.168\", \"client\": \"1\", \"clients\": \"*\", \"Squash\": \"no_root_squash\", \"access_type\": \"RW\", \"protocols\": \"4\" }";
 
-	options.export_id = 11;
-	memcpy(options.path, "test", sizeof("test"));
-	memcpy(options.pseudo, "/test", sizeof("/test"));
-	memcpy(options.sectype, "sys", sizeof("sys"));
-	memcpy(options.squash, "no_root_squash", sizeof("no_root_squash"));
-	memcpy(options.access_type, "RW", sizeof("RW"));
-	options.protocols = 4;
-	options.fs_id.major = 192;
-	options.fs_id.minor = 168;
+	obj = json_tokener_parse(str);
+	struct export_block *export_block = NULL;
+	struct export_fsal_block *export_fsal_block = NULL;
+	struct client_block *client_block = NULL;
 
-	rc = OSCopyFile(file_path, "./tmpganesha");
+	export_block = malloc(sizeof(struct export_block));
+	//
+	export_fsal_block = malloc(sizeof(struct export_fsal_block));
+	//
+	client_block = malloc(sizeof(struct client_block));
+	//
+	json_to_export_block(obj, export_block);
+	json_to_export_fsal_block(obj, export_fsal_block);
+	json_to_client_block(obj, client_block);
 
-	FILE *file = fopen("./tmpganesha", "a+");
-	if (file == NULL) {
-		fprintf(stderr, "Can't create file for writing\n");
-		return -1;
-	}
-	rc = create_block(file, &options);
-
-	rc = delete_block(file, options.export_id);
+	free(export_block);
+	free(export_fsal_block);
+	free(client_block);
+	json_object_put(obj);
 	return 0;
 }
+
+/*
+ *  * A simple example of json string parsing with json-c.
+ *   *
+ *    * gcc -Wall -g -I/usr/include/json-c/ -o conf export_conf.c -ljson-c
+ *     */
