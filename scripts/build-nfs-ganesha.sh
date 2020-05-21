@@ -16,6 +16,7 @@ KVSFS_NFS_GANESHA_BUILD_DIR=${KVSFS_NFS_GANESHA_BUILD_DIR:-$KVSFS_NFS_GANESHA_DI
 #   https://github.com/nfs-ganesha/nfs-ganesha/commit/fccc3e3fa9fcdeccaeee96ab699de0a77b02ca0e
 # * Disable unused FSALS: Ceph, Gluster, RGW, Lustre.
 # * Disable 9P.
+# * Enable ADMIN_TOOLS, DBUS.
 #
 DEFAULT_CMAKE_ARGS_LIST=(
     -DUSE_FSAL_GPFS=OFF
@@ -28,6 +29,8 @@ DEFAULT_CMAKE_ARGS_LIST=(
     -DUSE_RADOS_RECOV=OFF
     -DRADOS_URLS=OFF
     -DUSE_9P=OFF
+    -DUSE_ADMIN_TOOLS=ON
+    -DUSE_DBUS=ON
 )
 DEFAULT_CMAKE_ARGS="${DEFAULT_CMAKE_ARGS_LIST[@]}"
 
@@ -80,6 +83,7 @@ nfs_ganesha_bootstrap() {
         krb5-devel
         krb5-libs
         userspace-rcu-devel
+        python-devel
     )
     local repo="ssh://git@gitlab.mero.colo.seagate.com:6022/eos/third_party/nfs-ganesha.git"
     rm -fR "$KVSFS_NFS_GANESHA_DIR"

@@ -11,7 +11,8 @@ RUN yum install -y \
         flex \
         krb5-devel \
         krb5-libs \
-        userspace-rcu-devel
+        userspace-rcu-devel \
+        python-devel
 
 RUN cd eos-fs && ./scripts/build-nfs-ganesha.sh config
 RUN yum-builddep -y nfs-ganesha-eos/src/libntirpc/libntirpc.spec
