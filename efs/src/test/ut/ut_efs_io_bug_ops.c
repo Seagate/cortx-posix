@@ -169,7 +169,7 @@ static int rw_mixed_range(void **state, efs_file_open_t *fd, uint64_t w_offset,
 
 	rc = efs_write(ut_efs_obj->efs_fs, &ut_efs_obj->cred, fd,
 			ut_io_obj->buf_in, w_size, w_offset);
-	
+
 	ut_assert_int_equal(rc, w_size);
 	rc = 0;
 
@@ -177,16 +177,13 @@ static int rw_mixed_range(void **state, efs_file_open_t *fd, uint64_t w_offset,
 			r_size, r_offset);
 
 	ut_assert_int_equal(rc, r_size);
-	rc = 0;
 
-	#ifdef ENABLE_KNOWN_BUG_READ_PAST_EOF
-		rc = memcmp(ut_io_obj->buf_in, buf_out, w_size);
-		ut_assert_int_equal(rc, 0);
+	rc = memcmp(ut_io_obj->buf_in, buf_out, w_size);
+	ut_assert_int_equal(rc, 0);
 
-		rc = memcmp(ut_io_obj->data, buf_out + w_size, r_size - w_size);
-		ut_assert_int_equal(rc, 0);
-	#endif
-	
+	rc = memcmp(ut_io_obj->data, buf_out + w_size, r_size - w_size);
+	ut_assert_int_equal(rc, 0);
+
 	free(buf_out);
 
 	return rc;
@@ -221,8 +218,16 @@ static void test_r_4kholes_in_middle(void **state)
 	efs_file_open_t fd;
 
 	struct ut_efs_params *ut_efs_obj = ENV_FROM_STATE(state);
+	struct stat stat_in;
 
 	fd.ino = ut_efs_obj->file_inode;
+
+	stat_in.st_size = nr_blocks * blk_sz;
+
+	rc = efs_truncate(ut_efs_obj->efs_fs, &ut_efs_obj->cred,
+			  &ut_efs_obj->file_inode, &stat_in, STAT_SIZE_SET);
+
+	ut_assert_int_equal(rc, 0);
 
 	for (i = 0; i < nr_blocks; i++) {
 		rc = rw_mixed_range(state, &fd, (blk_sz * i), blk_sz,
