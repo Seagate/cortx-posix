@@ -60,7 +60,7 @@ int kvnode_init(struct kvtree *tree, const node_id_t *node_id, const void *attr,
 	node->basic_attr = node_attr;
 
 out:
-	log_debug("kvtree=%p, node_id " NODE_ID_F ", size of node attr = %lu, "
+	log_debug("kvtree=%p, node_id " NODE_ID_F ", size of node attr = %zu, "
 	           "rc=%d", tree, NODE_ID_P(node_id), tot_size, rc);
 	return rc;
 }
@@ -92,8 +92,8 @@ out:
 	if (node_key != NULL) {
 		kvs_free(kvstor, node_key);
 	}
-	log_debug("kvtree=%p, node_id " NODE_ID_F ", total size of basic attr=%d,"
-	          "rc=%d", node->tree, NODE_ID_P(&node->node_id), tot_size, rc);
+	log_debug("kvtree=%p, node_id " NODE_ID_F ", total ba size=%zu, rc=%d",
+		  node->tree, NODE_ID_P(&node->node_id), tot_size, rc);
 	return rc;
 }
 
