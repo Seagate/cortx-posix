@@ -45,7 +45,7 @@ struct env {
 #define ENV_FROM_STATE(__state) (*((struct env **) __state))
 
 /*****************************************************************************/
-/* Description: Test Open and Close operations.
+/* Description: Test create and delete operation.
  * Strategy:
  *	Create a new file.
  *	Delete the new file.
@@ -64,6 +64,52 @@ static void test_creat_del_basic(void **state)
 
 	rc = dstore_obj_delete(env->dstore, NULL, &env->oid);
 	ut_assert_int_equal(rc, 0);
+}
+
+/*****************************************************************************/
+/* Description: Test creation of already existing object
+ * Strategy:
+ *	Create a new file
+ *	Again create the same file
+ *	In above step DSAL should return -EEXIST
+ *	Delete the new file
+ * Expected behavior:
+ *	When we try to recreate the already existing file DSAL should give
+ *	error with  -EEXIST return code
+ * Enviroment:
+ *	Empty dstore.
+ */
+static void test_creat_existing(void **state)
+{
+	int rc;
+	struct env *env = ENV_FROM_STATE(state);
+
+	rc = dstore_obj_create(env->dstore, NULL, &env->oid);
+	ut_assert_int_equal(rc, 0);
+
+	rc = dstore_obj_create(env->dstore, NULL, &env->oid);
+	ut_assert_int_equal(rc, -EEXIST);
+
+	rc = dstore_obj_delete(env->dstore, NULL, &env->oid);
+	ut_assert_int_equal(rc, 0);
+}
+
+/*****************************************************************************/
+/* Description: Test deletion of non existing object
+ * Strategy:
+ *	Delete the non existing file
+ * Expected behavior:
+ *	 DSAL layer should return -ENOENT
+ * Enviroment:
+ *	Empty dstore.
+ */
+static void test_del_non_existing(void **state)
+{
+	int rc;
+	struct env *env = ENV_FROM_STATE(state);
+
+	rc = dstore_obj_delete(env->dstore, NULL, &env->oid);
+	ut_assert_int_equal(rc, -ENOENT);
 }
 
 /*****************************************************************************/
@@ -208,6 +254,8 @@ int main(int argc, char *argv[])
 
 	struct test_case test_group[] = {
 		ut_test_case(test_creat_del_basic, NULL, NULL),
+		ut_test_case(test_creat_existing, NULL, NULL),
+		ut_test_case(test_del_non_existing, NULL, NULL),
 		ut_test_case(test_open_close_basic, NULL, NULL),
 		ut_test_case(test_open_non_existing, NULL, NULL),
 		ut_test_case(test_delete_open, NULL, NULL),
