@@ -40,59 +40,59 @@ efs_ino_t *file_inode;
  */
 static void set_ctime(void **state)
 {
-	struct ut_dir_env *ut_dir_obj = DIR_ENV_FROM_STATE(state);
-	struct ut_efs_params *ut_efs_objs = &ut_dir_obj->ut_efs_objs;
-	time_t  set_time, start_time, end_time;
+   struct ut_dir_env *ut_dir_obj = DIR_ENV_FROM_STATE(state);
+   struct ut_efs_params *ut_efs_objs = &ut_dir_obj->ut_efs_objs;
+   time_t  set_time, start_time, end_time;
 
-	int rc = 0, i = 0;
-	int flag = STAT_CTIME_SET;
+   int rc = 0, i = 0;
+   int flag = STAT_CTIME_SET;
 
-	time_t new_ctime;
-	time(&new_ctime);
+   time_t new_ctime;
+   time(&new_ctime);
 
-	struct tm *now_tm;
-	now_tm = localtime(&new_ctime);
+   struct tm *now_tm;
+   now_tm = localtime(&new_ctime);
 
-	// Increment current time by random value(1 hour in this case)
-	now_tm->tm_hour += 1;
+   // Increment current time by random value(1 hour in this case)
+   now_tm->tm_hour += 1;
 
-	new_ctime = mktime(now_tm);
+   new_ctime = mktime(now_tm);
 
-	struct stat stat_in, stat_out;
-	struct timeval st,et;
-	time(&start_time);
-	printf("Test 1 Start time %s\n",ctime(&start_time));	
-	for(i=0;i<NUM_FILES;i++)
-	{
-	   memset(&stat_in, 0, sizeof(stat_in));
+   struct stat stat_in, stat_out;
+   struct timeval st,et;
+   time(&start_time);
+   printf("Test 1 Start time %s\n",ctime(&start_time));	
+   for(i=0;i<NUM_FILES;i++)
+   {
+      memset(&stat_in, 0, sizeof(stat_in));
 
-	   stat_in.st_ctim.tv_sec = new_ctime;
-	   ut_efs_objs->file_inode=ut_dir_obj->file_inode[i];
-	   rc = efs_setattr(ut_efs_objs->efs_fs, &ut_efs_objs->cred,
-				&ut_efs_objs->file_inode, &stat_in, flag);
-	   ut_assert_int_equal(rc, 0);
-	}
+      stat_in.st_ctim.tv_sec = new_ctime;
+      ut_efs_objs->file_inode=ut_dir_obj->file_inode[i];
+      rc = efs_setattr(ut_efs_objs->efs_fs, &ut_efs_objs->cred,
+                     &ut_efs_objs->file_inode, &stat_in, flag);
+      ut_assert_int_equal(rc, 0);
+   }
 
-	time(&set_time);
-	printf("Time after setting attributes %s\n",ctime(&set_time));
+   time(&set_time);
+   printf("Time after setting attributes %s\n",ctime(&set_time));
 
-	gettimeofday(&st,NULL);
-	for(i=0;i<NUM_FILES;i++)
-	{
-	   memset(&stat_out, 0, sizeof(stat_out));
-	   ut_efs_objs->file_inode=ut_dir_obj->file_inode[i];
-	   rc = efs_getattr(ut_efs_objs->efs_fs, &ut_efs_objs->cred,
-			              &ut_efs_objs->file_inode, &stat_out);
-	   ut_assert_int_equal(rc, 0);
+   gettimeofday(&st,NULL);
+   for(i=0;i<NUM_FILES;i++)
+   {
+      memset(&stat_out, 0, sizeof(stat_out));
+      ut_efs_objs->file_inode=ut_dir_obj->file_inode[i];
+      rc = efs_getattr(ut_efs_objs->efs_fs, &ut_efs_objs->cred,
+                    &ut_efs_objs->file_inode, &stat_out);
+      ut_assert_int_equal(rc, 0);
 
       ut_assert_int_equal(0, difftime(new_ctime, stat_out.st_ctime));
-	}
-	gettimeofday(&et,NULL);
-	int elapsed = ((et.tv_sec - st.tv_sec)*1000000)+(et.tv_usec-st.tv_usec);
-	printf("Get Attribute took %d seconds\n", elapsed);
+   }
+   gettimeofday(&et,NULL);
+   int elapsed = ((et.tv_sec - st.tv_sec)*1000000)+(et.tv_usec-st.tv_usec);
+   printf("Get Attribute took %d seconds\n", elapsed);
 
-	time(&end_time);
-	printf("Test-1 End time %s\n",ctime(&end_time));	
+   time(&end_time);
+   printf("Test-1 End time %s\n",ctime(&end_time));	
 }
 
 
@@ -108,62 +108,61 @@ static void set_ctime(void **state)
  */
 static void set_mtime(void **state)
 {
-	struct ut_dir_env *ut_dir_obj = DIR_ENV_FROM_STATE(state);
-	struct ut_efs_params *ut_efs_objs = &ut_dir_obj->ut_efs_objs;
+   struct ut_dir_env *ut_dir_obj = DIR_ENV_FROM_STATE(state);
+   struct ut_efs_params *ut_efs_objs = &ut_dir_obj->ut_efs_objs;
 
-	time_t start_time, end_time, set_time;
+   time_t start_time, end_time, set_time;
    struct timeval st,et;
-	int rc = 0,i;
-	int flag = STAT_MTIME_SET;
+   int rc = 0,i;
+   int flag = STAT_MTIME_SET;
 
-	time_t new_mtime, cur_time;
-	time(&new_mtime);
+   time_t new_mtime, cur_time;
+   time(&new_mtime);
 
-	struct tm *now_tm;
-	now_tm = localtime(&new_mtime);
+   struct tm *now_tm;
+   now_tm = localtime(&new_mtime);
 
-	// Increment mtime by random value(1 hour in this case)
-	now_tm->tm_hour += 1;
+   // Increment mtime by random value(1 hour in this case)
+   now_tm->tm_hour += 1;
 
-	new_mtime = mktime(now_tm);
+   new_mtime = mktime(now_tm);
 
-	struct stat stat_in,stat_out;
+   struct stat stat_in,stat_out;
 
-	time(&start_time);
-	printf("Test-2 Start time %s\n",ctime(&start_time));	
-	for(i=0;i<NUM_FILES;i++)
-	{
-	   memset(&stat_in, 0, sizeof(stat_in));
+   time(&start_time);
+   printf("Test-2 Start time %s\n",ctime(&start_time));	
+   for(i=0;i<NUM_FILES;i++)
+   {
+      memset(&stat_in, 0, sizeof(stat_in));
 
-	   stat_in.st_mtim.tv_sec = new_mtime;
+      stat_in.st_mtim.tv_sec = new_mtime;
 
-	   time(&cur_time);
-	
-	   ut_efs_objs->file_inode=ut_dir_obj->file_inode[i];
-	   rc = efs_setattr(ut_efs_objs->efs_fs, &ut_efs_objs->cred,
-				          &ut_efs_objs->file_inode, &stat_in, flag);
+      time(&cur_time);
+      ut_efs_objs->file_inode=ut_dir_obj->file_inode[i];
+      rc = efs_setattr(ut_efs_objs->efs_fs, &ut_efs_objs->cred,
+                   &ut_efs_objs->file_inode, &stat_in, flag);
 
-	   ut_assert_int_equal(rc, 0);
-	}
-	time(&set_time);
-	printf("Test2 set time %s",ctime(&set_time));
+      ut_assert_int_equal(rc, 0);
+   }
+   time(&set_time);
+   printf("Test2 set time %s",ctime(&set_time));
 
    gettimeofday(&st,NULL);
-	for(i=0;i<NUM_FILES;i++)
-	{
-	   memset(&stat_out, 0, sizeof(stat_out));
-	   ut_efs_objs->file_inode=ut_dir_obj->file_inode[i];
-	   rc = efs_getattr(ut_efs_objs->efs_fs, &ut_efs_objs->cred,
+   for(i=0;i<NUM_FILES;i++)
+   {
+      memset(&stat_out, 0, sizeof(stat_out));
+      ut_efs_objs->file_inode=ut_dir_obj->file_inode[i];
+      rc = efs_getattr(ut_efs_objs->efs_fs, &ut_efs_objs->cred,
 				            &ut_efs_objs->file_inode, &stat_out);
 
-	   ut_assert_int_equal(rc, 0);
-	}
+      ut_assert_int_equal(rc, 0);
+   }
    gettimeofday(&et,NULL);
-	int elapsed = ((et.tv_sec - st.tv_sec)*1000000)+(et.tv_usec-st.tv_usec);
-	printf("Get Attribute took %d seconds\n", elapsed);
+   int elapsed = ((et.tv_sec - st.tv_sec)*1000000)+(et.tv_usec-st.tv_usec);
+   printf("Get Attribute took %d seconds\n", elapsed);
 
-	time(&end_time);
-	printf("Test 2 End time %s\n",ctime(&end_time));	
+   time(&end_time);
+   printf("Test 2 End time %s\n",ctime(&end_time));	
 }
 
 /**
@@ -178,57 +177,57 @@ static void set_mtime(void **state)
  */
 static void set_atime(void **state)
 {
-	struct ut_dir_env *ut_dir_obj = DIR_ENV_FROM_STATE(state);
-	struct ut_efs_params *ut_efs_objs = &ut_dir_obj->ut_efs_objs;
-	int rc = 0,i;
-	int flag = STAT_ATIME_SET;
-	time_t start_time, end_time, set_time;
+   struct ut_dir_env *ut_dir_obj = DIR_ENV_FROM_STATE(state);
+   struct ut_efs_params *ut_efs_objs = &ut_dir_obj->ut_efs_objs;
+   int rc = 0,i;
+   int flag = STAT_ATIME_SET;
+   time_t start_time, end_time, set_time;
    struct timeval st,et;
 
-	time_t new_atime, cur_time;
-	time(&new_atime);
+   time_t new_atime, cur_time;
+   time(&new_atime);
 
-	struct tm *now_tm;
-	now_tm = localtime(&new_atime);
+   struct tm *now_tm;
+   now_tm = localtime(&new_atime);
 
-	// Increment atime by random value(1 hour in this case)
-	now_tm->tm_hour += 1;
+   // Increment atime by random value(1 hour in this case)
+   now_tm->tm_hour += 1;
 
-	new_atime = mktime(now_tm);
+   new_atime = mktime(now_tm);
 
-	struct stat stat_in, stat_out;
-	time(&start_time);
-	printf("Test 3 Start time %s\n",ctime(&start_time));	
-	for(i=0;i<NUM_FILES;i++)
-	{
-	   memset(&stat_in, 0, sizeof(stat_in));
-	   stat_in.st_atim.tv_sec = new_atime;
+   struct stat stat_in, stat_out;
+   time(&start_time);
+   printf("Test 3 Start time %s\n",ctime(&start_time));	
+   for(i=0;i<NUM_FILES;i++)
+   {
+      memset(&stat_in, 0, sizeof(stat_in));
+      stat_in.st_atim.tv_sec = new_atime;
 
       time(&cur_time);
 
-	   ut_efs_objs->file_inode=ut_dir_obj->file_inode[i];
-	   rc = efs_setattr(ut_efs_objs->efs_fs, &ut_efs_objs->cred,
-				          &ut_efs_objs->file_inode, &stat_in, flag);
-	   ut_assert_int_equal(rc, 0);
-	}
-	time(&set_time);
-	printf("Test3 set time %s",ctime(&set_time));
+      ut_efs_objs->file_inode=ut_dir_obj->file_inode[i];
+      rc = efs_setattr(ut_efs_objs->efs_fs, &ut_efs_objs->cred,
+                      &ut_efs_objs->file_inode, &stat_in, flag);
+      ut_assert_int_equal(rc, 0);
+   }
+   time(&set_time);
+   printf("Test3 set time %s",ctime(&set_time));
 
    gettimeofday(&st,NULL);
-	for (i=0;i<NUM_FILES;i++)
-	{
-	   memset(&stat_out, 0, sizeof(stat_out));
-	   ut_efs_objs->file_inode=ut_dir_obj->file_inode[i];
-	   rc = efs_getattr(ut_efs_objs->efs_fs, &ut_efs_objs->cred,
-				          &ut_efs_objs->file_inode, &stat_out);
+   for (i=0;i<NUM_FILES;i++)
+   {
+      memset(&stat_out, 0, sizeof(stat_out));
+      ut_efs_objs->file_inode=ut_dir_obj->file_inode[i];
+      rc = efs_getattr(ut_efs_objs->efs_fs, &ut_efs_objs->cred,
+                      &ut_efs_objs->file_inode, &stat_out);
       ut_assert_int_equal(rc, 0);
-	}
+   }
    gettimeofday(&et,NULL);
-	int elapsed = ((et.tv_sec - st.tv_sec)*1000000)+(et.tv_usec-st.tv_usec);
-	printf("Get Attribute took %d seconds\n", elapsed);
+   int elapsed = ((et.tv_sec - st.tv_sec)*1000000)+(et.tv_usec-st.tv_usec);
+   printf("Get Attribute took %d seconds\n", elapsed);
 
-	time(&end_time);
-	printf("Test 3 End time %s\n",ctime(&end_time));	
+   time(&end_time);
+   printf("Test 3 End time %s\n",ctime(&end_time));	
 }
 
 /**
@@ -243,54 +242,52 @@ static void set_atime(void **state)
  */
 static void set_gid(void **state)
 {
-	struct ut_dir_env *ut_dir_obj = DIR_ENV_FROM_STATE(state);
-	struct ut_efs_params *ut_efs_objs = &ut_dir_obj->ut_efs_objs;
-	int rc = 0,i;
-	int flag = STAT_GID_SET;
-	time_t start_time, end_time;
+   struct ut_dir_env *ut_dir_obj = DIR_ENV_FROM_STATE(state);
+   struct ut_efs_params *ut_efs_objs = &ut_dir_obj->ut_efs_objs;
+   int rc = 0,i;
+   int flag = STAT_GID_SET;
+   time_t start_time, end_time;
    struct timeval st,et;
 
-	gid_t new_gid =100;
+   gid_t new_gid =100;
 
-	time_t cur_time;
+   time_t cur_time;
 
-	struct stat stat_in, stat_out;
-	time(&start_time);
-	printf("Test 4 Start time %s\n",ctime(&start_time));
+   struct stat stat_in, stat_out;
+   time(&start_time);
+   printf("Test 4 Start time %s\n",ctime(&start_time));
 
-	for(i=0;i<NUM_FILES;i++)
-	{
-	memset(&stat_in, 0, sizeof(stat_in));
-	memset(&stat_out, 0, sizeof(stat_out));
+   for(i=0;i<NUM_FILES;i++)
+   {
+      memset(&stat_in, 0, sizeof(stat_in));
+      stat_in.st_gid = new_gid;
+      
+      time(&cur_time);
 
-	stat_in.st_gid = new_gid;
+      ut_efs_objs->file_inode=ut_dir_obj->file_inode[i];
+      rc = efs_setattr(ut_efs_objs->efs_fs, &ut_efs_objs->cred,
+                      &ut_efs_objs->file_inode, &stat_in, flag);
 
-	time(&cur_time);
-
-	ut_efs_objs->file_inode=ut_dir_obj->file_inode[i];
-	rc = efs_setattr(ut_efs_objs->efs_fs, &ut_efs_objs->cred,
-				&ut_efs_objs->file_inode, &stat_in, flag);
-
-	ut_assert_int_equal(rc, 0);
+      ut_assert_int_equal(rc, 0);
    }
 
    gettimeofday(&st,NULL);
    for(i=0;i<NUM_FILES;i++)
-	{
-	   memset(&stat_out, 0, sizeof(stat_out));
-	   rc = efs_getattr(ut_efs_objs->efs_fs, &ut_efs_objs->cred,
-				&ut_efs_objs->file_inode, &stat_out);
+   {
+      memset(&stat_out, 0, sizeof(stat_out));
+      rc = efs_getattr(ut_efs_objs->efs_fs, &ut_efs_objs->cred,
+                     &ut_efs_objs->file_inode, &stat_out);
 
-	   ut_assert_int_equal(rc, 0);
+      ut_assert_int_equal(rc, 0);
 
-	   ut_assert_int_equal(stat_out.st_gid, new_gid);
+      ut_assert_int_equal(stat_out.st_gid, new_gid);
    }
    gettimeofday(&et,NULL);
-	int elapsed = ((et.tv_sec - st.tv_sec)*1000000)+(et.tv_usec-st.tv_usec);
-	printf("Get Attribute took %d seconds\n", elapsed);
+   int elapsed = ((et.tv_sec - st.tv_sec)*1000000)+(et.tv_usec-st.tv_usec);
+   printf("Get Attribute took %d seconds\n", elapsed);
 
-	time(&end_time);
-	printf("Test 4 End time %s\n",ctime(&end_time));	
+   time(&end_time);
+   printf("Test 4 End time %s\n",ctime(&end_time));	
 }
 
 /**
@@ -305,49 +302,48 @@ static void set_gid(void **state)
  */
 static void set_uid(void **state)
 {
-	struct ut_dir_env *ut_dir_obj = DIR_ENV_FROM_STATE(state);
-	struct ut_efs_params *ut_efs_objs = &ut_dir_obj->ut_efs_objs;
-	int rc = 0,i;
-	int flag = STAT_UID_SET;
-	time_t start_time, end_time;
+   struct ut_dir_env *ut_dir_obj = DIR_ENV_FROM_STATE(state);
+   struct ut_efs_params *ut_efs_objs = &ut_dir_obj->ut_efs_objs;
+   int rc = 0,i;
+   int flag = STAT_UID_SET;
+   time_t start_time, end_time;
    struct timeval st,et;
 
-	uid_t new_uid = 100;
+   uid_t new_uid = 100;
 
-	time_t cur_time;
+   time_t cur_time;
 
-	struct stat stat_in, stat_out;
-	time(&start_time);
-	printf("Test-5 Start time %s\n",ctime(&start_time));	
-	for(i=0;i<NUM_FILES;i++)
-	{
-	   memset(&stat_in, 0, sizeof(stat_in));
-	   memset(&stat_out, 0, sizeof(stat_out));
+   struct stat stat_in, stat_out;
+   time(&start_time);
+   printf("Test-5 Start time %s\n",ctime(&start_time));	
+   for(i=0;i<NUM_FILES;i++)
+   {
+      memset(&stat_in, 0, sizeof(stat_in));
+      stat_in.st_uid = new_uid;
 
-	   stat_in.st_uid = new_uid;
+      time(&cur_time);
 
-	   time(&cur_time);
-
-	   ut_efs_objs->file_inode=ut_dir_obj->file_inode[i];
-	   rc = efs_setattr(ut_efs_objs->efs_fs, &ut_efs_objs->cred,
-				          &ut_efs_objs->file_inode, &stat_in, flag);
-	   ut_assert_int_equal(rc, 0);
+      ut_efs_objs->file_inode=ut_dir_obj->file_inode[i];
+      rc = efs_setattr(ut_efs_objs->efs_fs, &ut_efs_objs->cred,
+                      &ut_efs_objs->file_inode, &stat_in, flag);
+      ut_assert_int_equal(rc, 0);
    }
 
    gettimeofday(&st,NULL);
    for(i=0;i<NUM_FILES;i++)
-	{
-	   rc = efs_getattr(ut_efs_objs->efs_fs, &ut_efs_objs->cred,
-				          &ut_efs_objs->file_inode, &stat_out);
+   {
+      memset(&stat_out, 0, sizeof(stat_out));
+      rc = efs_getattr(ut_efs_objs->efs_fs, &ut_efs_objs->cred,
+                      &ut_efs_objs->file_inode, &stat_out);
 
-	   ut_assert_int_equal(rc, 0);   
+      ut_assert_int_equal(rc, 0);   
    }
    gettimeofday(&et,NULL);
-	int elapsed = ((et.tv_sec - st.tv_sec)*1000000)+(et.tv_usec-st.tv_usec);
-	printf("Get Attribute took %d seconds\n", elapsed);
+   int elapsed = ((et.tv_sec - st.tv_sec)*1000000)+(et.tv_usec-st.tv_usec);
+   printf("Get Attribute took %d seconds\n", elapsed);
    
-	time(&end_time);
-	printf("Test-5 End time %s\n",ctime(&end_time));	
+   time(&end_time);
+   printf("Test-5 End time %s\n",ctime(&end_time));	
 }
 
 /**
@@ -355,44 +351,44 @@ static void set_uid(void **state)
  */
 static int attr_test_setup(void **state)
 {
-	int rc = 0, i = 0;
-  	struct ut_dir_env *ut_dir_obj = calloc(sizeof(struct ut_dir_env),1);	
-	ut_assert_not_null(ut_dir_obj);
+   int rc = 0, i = 0;
+   struct ut_dir_env *ut_dir_obj = calloc(sizeof(struct ut_dir_env),1);	
+   ut_assert_not_null(ut_dir_obj);
 
-	ut_dir_obj->name_list= calloc(sizeof(char*),NUM_FILES);
-	if(ut_dir_obj->name_list == NULL){
-	   rc = -ENOMEM;
-	   ut_assert_true(0);
-	}
+   ut_dir_obj->name_list= calloc(sizeof(char*),NUM_FILES);
+   if(ut_dir_obj->name_list == NULL){
+      rc = -ENOMEM;
+      ut_assert_true(0);
+   }
 
-	ut_dir_obj->file_inode = calloc(sizeof(unsigned long long),NUM_FILES);
-	if(ut_dir_obj->file_inode == NULL){
-	rc = -ENOMEM;
-	ut_assert_true(0);
-	}
+   ut_dir_obj->file_inode = calloc(sizeof(unsigned long long),NUM_FILES);
+   if(ut_dir_obj->file_inode == NULL){
+   rc = -ENOMEM;
+   ut_assert_true(0);
+   }
 
-	*state = ut_dir_obj;
-	rc = ut_efs_fs_setup(state);
+   *state = ut_dir_obj;
+   rc = ut_efs_fs_setup(state);
 
-	ut_assert_int_equal(rc, 0);
+   ut_assert_int_equal(rc, 0);
 
-	for(i=0;i<NUM_FILES;i++)
-	{
-	   ut_dir_obj->name_list[i] = malloc(sizeof(char*));
-	}
-	
-	for(i=0;i<NUM_FILES;i++)
-	{
-	   snprintf(ut_dir_obj->name_list[i],sizeof(char*),"%d",i+1);
-	   ut_dir_obj->ut_efs_objs.file_inode = 0LL;
-	   ut_dir_obj->ut_efs_objs.file_name = ut_dir_obj->name_list[i];
+   for(i=0;i<NUM_FILES;i++)
+   {
+      ut_dir_obj->name_list[i] = malloc(sizeof(char*));
+   }
 
-	   rc = ut_file_create(state);
+   for(i=0;i<NUM_FILES;i++)
+   {
+      snprintf(ut_dir_obj->name_list[i],sizeof(char*),"%d",i+1);
+      ut_dir_obj->ut_efs_objs.file_inode = 0LL;
+      ut_dir_obj->ut_efs_objs.file_name = ut_dir_obj->name_list[i];
 
-	   ut_dir_obj->file_inode[i] = ut_dir_obj->ut_efs_objs.file_inode;
-	   ut_assert_int_equal(rc, 0);
-	}
-	return rc;
+      rc = ut_file_create(state);
+
+      ut_dir_obj->file_inode[i] = ut_dir_obj->ut_efs_objs.file_inode;
+      ut_assert_int_equal(rc, 0);
+   }
+   return rc;
 }
 
 /**
@@ -400,38 +396,38 @@ static int attr_test_setup(void **state)
  */
 static int attr_test_teardown(void **state)
 {
-	int rc = 0, i=0;
-	struct ut_dir_env *ut_dir_obj = DIR_ENV_FROM_STATE(state);
+   int rc = 0, i=0;
+   struct ut_dir_env *ut_dir_obj = DIR_ENV_FROM_STATE(state);
 
-	for (i=0;i<NUM_FILES;i++)
-	{
-	   ut_dir_obj->ut_efs_objs.file_name=ut_dir_obj->name_list[i];
-	   rc = ut_file_delete(state);
-	   ut_assert_int_equal(rc, 0);
-	}
+   for (i=0;i<NUM_FILES;i++)
+   {
+      ut_dir_obj->ut_efs_objs.file_name=ut_dir_obj->name_list[i];
+      rc = ut_file_delete(state);
+      ut_assert_int_equal(rc, 0);
+   }
 
-	rc = ut_efs_fs_teardown(state);
-	ut_assert_int_equal(rc, 0);
+   rc = ut_efs_fs_teardown(state);
+   ut_assert_int_equal(rc, 0);
 
-	for(i=0;i<NUM_FILES;i++)
-	{
-		free(ut_dir_obj->name_list[i]);
-	}
-	free(ut_dir_obj->file_inode);
-	free(*state);
+   for(i=0;i<NUM_FILES;i++)
+   {
+      free(ut_dir_obj->name_list[i]);
+   }
+   free(ut_dir_obj->file_inode);
+   free(*state);
 
-	return rc;
+   return rc;
 }
 
 int main(void)
 {
-	int rc = 0;
-	char *test_log = "/var/log/eos/test/ut/ut_efs.log";
+   int rc = 0;
+   char *test_log = "/var/log/eos/test/ut/ut_efs.log";
 
-	printf("Attribute Tests\n");
+   printf("Attribute Tests\n");
 
-	rc = ut_load_config(CONF_FILE);
-	if (rc != 0) {
+   rc = ut_load_config(CONF_FILE);
+   if (rc != 0) {
 		printf("ut_load_config: err = %d\n", rc);
 		goto end;
 	}
@@ -440,8 +436,8 @@ int main(void)
 
 	rc = ut_init(test_log);
 	if (rc != 0) {
-		printf("ut_init failed, log path=%s, rc=%d.\n", test_log, rc);
-		goto out;
+      printf("ut_init failed, log path=%s, rc=%d.\n", test_log, rc);
+      goto out;
 	}
 
 	struct test_case test_list[] = {
