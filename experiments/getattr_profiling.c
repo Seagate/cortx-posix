@@ -1,5 +1,5 @@
 /*
- * Filename: getattr_profoling.c
+ * Filename: getattr_profiling.c
  * Description: Implementation tests for file attributes
  *
  * Do NOT modify or remove this copyright and confidentiality notice!
@@ -375,10 +375,6 @@ static int attr_test_setup(void **state)
    for(i=0;i<NUM_FILES;i++)
    {
       ut_dir_obj->name_list[i] = malloc(sizeof(char*));
-   }
-
-   for(i=0;i<NUM_FILES;i++)
-   {
       snprintf(ut_dir_obj->name_list[i],sizeof(char*),"%d",i+1);
       ut_dir_obj->ut_efs_objs.file_inode = 0LL;
       ut_dir_obj->ut_efs_objs.file_name = ut_dir_obj->name_list[i];
