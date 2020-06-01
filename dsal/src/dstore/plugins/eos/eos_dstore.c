@@ -154,7 +154,6 @@ int eos_ds_obj_del(struct dstore *dstore, void *ctx, dstore_oid_t *oid)
 	rc = m0store_delete_object(fid);
 	if (rc) {
 		if (rc == -ENOENT) {
-			rc = 0;
 			log_warn("Non-existing obj, ctx=%p fid= "U128X_F" rc=%d",
 				  ctx, U128_P(&fid), rc);
 			goto out;
