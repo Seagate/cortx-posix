@@ -228,8 +228,8 @@ int kvtree_detach(struct kvtree *tree, const node_id_t *parent_id,
 out:
 	kvs_free(kvstor, node_key);
 
-	log_debug("kvtree=%p,parent " NODE_ID_F ",name '" STR256_F "'", tree,
-	           NODE_ID_P(parent_id), STR256_P(node_name), rc);
+	log_debug("kvtree=%p,parent " NODE_ID_F ",name '" STR256_F "',rc '%d'",
+		  tree, NODE_ID_P(parent_id), STR256_P(node_name), rc);
 	return rc;
 }
 
