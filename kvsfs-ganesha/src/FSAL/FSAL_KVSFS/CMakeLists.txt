@@ -62,7 +62,7 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -I${CAPIINC}")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wno-unused-variable")
 
 # TODO: Wrap this with a check against build type
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g3")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g3 -fPIC")
 # set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fstack-protector-all")
 
 set(CMAKE_REQUIRED_INCLUDES ${EOSUTILSINC})
@@ -107,6 +107,9 @@ endif(NOT HAVE_EOS_UTILS_H)
 include_directories(${EOSUTILSINC})
 link_directories(${LIBEOSUTILS})
 
+add_subdirectory(config)
+set(LIBCONFIG libconfig)
+
 SET(fsalkvsfs_LIB_SRCS
    fsal_internal.c
    main.c
@@ -118,7 +121,13 @@ SET(fsalkvsfs_LIB_SRCS
    ds.c
 )
 
-add_library(fsalkvsfs SHARED ${fsalkvsfs_LIB_SRCS})
+add_library(libkvsfs OBJECT ${fsalkvsfs_LIB_SRCS})
+set(LIBKVSFS libkvsfs)
+
+add_library(fsalkvsfs SHARED
+	   $<TARGET_OBJECTS:${LIBKVSFS}>
+	   $<TARGET_OBJECTS:${LIBCONFIG}>
+	   )
 
 target_link_libraries(fsalkvsfs
   eos-utils

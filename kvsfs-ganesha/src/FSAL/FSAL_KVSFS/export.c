@@ -30,14 +30,13 @@
  */
 
 #include <stdint.h>
-#include <common/log.h>
 #include <config_parsing.h>
 #include <fsal_types.h>
 #include <FSAL/fsal_config.h>
 #include <FSAL/fsal_commonlib.h>
 #include "fsal_internal.h"
 #include "kvsfs_methods.h"
-#include <efs.h>
+#include "efs.h"
 
 static struct config_item ds_array_params[] = {
 	CONF_MAND_IP_ADDR("DS_Addr", "127.0.0.1",
@@ -101,8 +100,14 @@ static struct config_block export_param = {
 	.blk_desc.u.blk.commit = noop_conf_commit
 };
 
-
 static void kvsfs_export_ops_init(struct export_ops *ops);
+
+static struct efs_endpoint_ops g_nfs_ep_ops = {
+	.init = kvsfs_config_init,
+	.fini = kvsfs_config_fini,
+	.create = kvsfs_add_export,
+	.delete = kvsfs_remove_export,
+};
 
 /* create_export
  * Create an export point and return a handle to it to be kept
@@ -138,7 +143,7 @@ fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
 	if (retval != 0)
 		goto errout;
 
-	retval = efs_init(EFS_DEFAULT_CONFIG);
+	retval = efs_init(EFS_DEFAULT_CONFIG, &g_nfs_ep_ops);
 	if (retval != 0) {
 		LogMajor(COMPONENT_FSAL, "Can't start EFS");
 		goto errout;
