@@ -43,7 +43,33 @@ void tenant_get_info(struct tenant *tenant, void **info)
 	*info = tenant->priv;
 }
 
-int tenant_scan(int (*tenant_scan_cb)(void *cb_ctx, struct tenant *tenant), void *cb_ctx)
+int tenant_copy(const struct tenant *src, struct tenant **dest)
+{
+	int rc = 0;
+	int tot_length = sizeof(struct tenant) + src->size;
+
+	dassert(src);
+
+	*dest = malloc(tot_length);
+	if (*dest == NULL) {
+		log_err("Cannot allocate tenant object");
+		rc = -ENOMEM;
+		goto out;
+	}
+	memcpy(*dest, src, tot_length);
+out:
+	return rc;
+}
+
+void tenant_free(struct tenant *obj)
+{
+	if(obj) {
+		free(obj);
+	}
+}
+
+int tenant_scan(int (*tenant_scan_cb)(void *cb_ctx, struct tenant *tenant),
+		void *cb_ctx)
 {
 	int rc = 0;
 	struct kvs_itr *kvs_iter = NULL;
