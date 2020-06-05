@@ -31,11 +31,11 @@ struct efs_fs_list_entry {
 
 /** Initialize efs_fs: populate in memory list for available fs in kvs
  *
- *  @param cfg[in] - collection item.
+ *  @param e_ops: const pointer to endpoint operations.
  *
  *  @return 0 if successful, a negative "-errno" value in case of failure.
  */
-int efs_fs_init(struct collection_item *cfg);
+int efs_fs_init(const struct efs_endpoint_ops *e_ops);
 
 /** finalize efs_fs: free up the in memory list.
  *
@@ -107,25 +107,25 @@ int efs_fs_open(const char *fs_name, struct efs_fs **fs);
  */
 void efs_fs_close(struct efs_fs *efs_fs);
 
-/* getter: get the namespace id for given fs object.
+/* getter: get the filesystem id for given fs object.
  *
  * @param fs[in]: fs object.
- * @param ns_id[out]: namespace id.
+ * @param ns_id[out]: filesystem id.
  *
  * return void.
  */
-void efs_get_ns_id(struct efs_fs *fs, uint16_t *ns_id);
+void efs_fs_get_id(struct efs_fs *fs, uint16_t *fs_id);
 
 /*****************************************************************************/
 /* efs fs_endpoint */
 
 /** Initialize efs_fs: populate in memory list for available endpoint in kvs
  *
- *  @param cfg_items[in] - collection item.
+ *  @param void.
  *
  *  @return 0 if successful, a negative "-errno" value in case of failure.
  */
-int efs_endpoint_init(struct collection_item *cfg_items);
+int efs_endpoint_init(void);
 
 /** finalize efs_fs: set tenant to null in memory list.
  *
@@ -159,10 +159,10 @@ int efs_endpoint_delete(const str256_t *name);
  * getter function for endpoint information for given efs_fs object.
  *
  * @param fs[in]: efs_fs object.
- * @param info[out]: information of endpoint.
+ * @param info[out]: information associated with an endpoint object
  *
  * @ return void.
  */
-void efs_fs_endpoint_info(const struct efs_fs *fs, void **info);
+void efs_fs_get_endpoint(const struct efs_fs *fs, void **info);
 
 #endif /* _FS_H_ */

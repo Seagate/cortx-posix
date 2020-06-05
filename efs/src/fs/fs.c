@@ -26,7 +26,6 @@
 #include "kvnode.h"
 
 /* data types */
-
 /* fs node : in memory data structure. */
 struct efs_fs_node {
 	struct efs_fs efs_fs; /* fs object */
@@ -35,6 +34,9 @@ struct efs_fs_node {
 
 LIST_HEAD(list, efs_fs_node) fs_list = LIST_HEAD_INITIALIZER();
 
+/* global endpoint operations for efs*/
+static const struct efs_endpoint_ops *g_e_ops;
+
 static int efs_fs_is_empty(const struct efs_fs *fs)
 {
 	//@todo
@@ -42,10 +44,10 @@ static int efs_fs_is_empty(const struct efs_fs *fs)
 	return 0;
 }
 
-void efs_get_ns_id(struct efs_fs *fs, uint16_t *ns_id)
+void efs_fs_get_id(struct efs_fs *fs, uint16_t *fs_id)
 {
 	dassert(fs);
-	ns_get_id(fs->ns, ns_id);
+	ns_get_id(fs->ns, fs_id);
 }
 
 int efs_fs_lookup(const str256_t *name, struct efs_fs **fs)
@@ -131,43 +133,53 @@ static int endpoint_tenant_scan_cb(void *cb_ctx, struct tenant *tenant)
 
 	/* update fs_list */
 	fs_node = container_of(fs, struct efs_fs_node, efs_fs);
-	fs_node->efs_fs.tenant = tenant;
+	RC_WRAP_LABEL(rc, out, tenant_copy, tenant, &fs_node->efs_fs.tenant);
 out:
 	return rc;
 }
 
-int efs_fs_init(struct collection_item *cfg)
+int efs_fs_init(const struct efs_endpoint_ops *e_ops)
 {
 	int rc = 0;
-	rc = ns_scan(fs_ns_scan_cb);
+	/* initailize the efs module endpoint operation */
+	dassert(e_ops != NULL);
+	g_e_ops = e_ops;
+	RC_WRAP_LABEL(rc, out, ns_scan, fs_ns_scan_cb);
+	RC_WRAP_LABEL(rc, out, efs_endpoint_init);
+out:
 	log_debug("filesystem initialization, rc=%d", rc);
 	return rc;
 }
 
-int efs_endpoint_init(struct collection_item *cfg_items)
+int efs_endpoint_init(void)
 {
 	int rc = 0;
 
 	RC_WRAP_LABEL(rc, out, tenant_scan, endpoint_tenant_scan_cb, NULL);
+	dassert(g_e_ops->init != NULL);
+	RC_WRAP_LABEL(rc, out, g_e_ops->init);
 out:
 	log_debug("endpoint initialization, rc=%d", rc);
 	return rc;
 }
 
-int efs_endpoint_fini()
+int efs_endpoint_fini(void)
 {
 	int rc = 0;
 	struct efs_fs_node *fs_node = NULL, *fs_node_ptr = NULL;
 
+	dassert(g_e_ops->fini != NULL);
+	RC_WRAP_LABEL(rc, out, g_e_ops->fini);
 	LIST_FOREACH_SAFE(fs_node, &fs_list, link, fs_node_ptr) {
 		fs_node->efs_fs.tenant = NULL;
 	}
 
+out:
 	log_debug("endpoint finalize, rc=%d", rc);
 	return rc;
 }
 
-int efs_fs_fini()
+int efs_fs_fini(void)
 {
 	int rc = 0;
 	struct efs_fs_node *fs_node = NULL, *fs_node_ptr = NULL;
@@ -175,6 +187,7 @@ int efs_fs_fini()
 	RC_WRAP_LABEL(rc, out, efs_endpoint_fini);
 	LIST_FOREACH_SAFE(fs_node, &fs_list, link, fs_node_ptr) {
 		LIST_REMOVE(fs_node, link);
+		tenant_free(fs_node->efs_fs.tenant);
 		free(fs_node->efs_fs.ns);
 		free(fs_node);
 	}
@@ -190,14 +203,37 @@ int efs_fs_scan_list(int (*fs_scan_cb)(const struct efs_fs_list_entry *list,
 	int rc = 0;
 	struct efs_fs_node *fs_node = NULL;
 	struct efs_fs_list_entry fs_entry;
+	LIST_FOREACH(fs_node, &fs_list, link) {
+		dassert(fs_node != NULL);
+		dassert(fs_node->efs_fs.ns != NULL);
+		efs_fs_get_name(&fs_node->efs_fs, &fs_entry.fs_name);
+		efs_fs_get_endpoint(&fs_node->efs_fs,
+				     (void **)&fs_entry.endpoint_info);
+		RC_WRAP_LABEL(rc, out, fs_scan_cb, &fs_entry, args);
+	}
+out:
+	return rc;
+}
+
+int efs_endpoint_scan(int (*efs_scan_cb)(const struct efs_endpoint_info *info,
+                     void *args), void *args)
+{
+	int rc = 0;
+	struct efs_fs_node *fs_node = NULL;
+	struct efs_endpoint_info ep_list;
 
 	LIST_FOREACH(fs_node, &fs_list, link) {
 		dassert(fs_node != NULL);
-		efs_fs_get_name(&fs_node->efs_fs, &fs_entry.fs_name);
-		efs_fs_endpoint_info(&fs_node->efs_fs,
-				     (void **)&fs_entry.endpoint_info);
 		dassert(fs_node->efs_fs.ns != NULL);
-		RC_WRAP_LABEL(rc, out, fs_scan_cb, &fs_entry, args);
+
+		if (fs_node->efs_fs.tenant == NULL)
+			continue;
+
+		efs_fs_get_name(&fs_node->efs_fs, &ep_list.ep_name);
+		efs_fs_get_id(&fs_node->efs_fs, &ep_list.ep_id);
+		efs_fs_get_endpoint(&fs_node->efs_fs,
+				     (void **)&ep_list.ep_info);
+		RC_WRAP_LABEL(rc, out, efs_scan_cb, &ep_list, args);
 	}
 out:
 	return rc;
@@ -279,10 +315,11 @@ out:
 int efs_endpoint_create(const str256_t *endpoint_name, const char *endpoint_options)
 {
 	int rc = 0;
-	uint16_t ns_id = 0;
+	uint16_t fs_id = 0;
 	struct efs_fs_node *fs_node = NULL;
 	struct efs_fs *fs = NULL;
 	struct tenant *tenant;
+
 
 	/* check file system exist */
 	rc = efs_fs_lookup(endpoint_name, &fs);
@@ -299,30 +336,20 @@ int efs_endpoint_create(const str256_t *endpoint_name, const char *endpoint_opti
 		goto out;
 	}
 
-	/* get namespace ID */
-	efs_get_ns_id(fs, &ns_id);
+	/* get filesyetm ID */
+	efs_fs_get_id(fs, &fs_id);
 
-	/* TODO: At this position we should call the corresponding function
-	* provided by some endpoint_ops virtual table to create export
-	* at the protocol specific layer, for example to modify
-	* the config file of NFS Ganesha service:
-	* @code
-	* struct endpoint_ops *e_ops = efs_get_registered_endpoint_operations(endpoint_options);
-	* RC_WRAP_LABEL(rc, out, e_ops->on_create_export, endpoint_name, ns_id, endpoint_options);
-	* @endcode
-	* Right now, we don't have this code, so we are just dropping a warning.
-	*/
-	log_warn("Protocol-specific operation for creating export is not executed.");
-
+	dassert(g_e_ops->create != NULL);
+	RC_WRAP_LABEL(rc, out, g_e_ops->create, endpoint_name->s_str,
+		      fs_id,endpoint_options);
 	/* create tenant object */
 	RC_WRAP_LABEL(rc, out, tenant_create, endpoint_name, &tenant,
-		      ns_id, endpoint_options);
+		      fs_id, endpoint_options);
 
 	/* update fs_list */
 	fs_node = container_of(fs, struct efs_fs_node, efs_fs);
-	fs_node->efs_fs.tenant = tenant;
+	RC_WRAP_LABEL(rc, out, tenant_copy, tenant, &fs_node->efs_fs.tenant);
 	tenant = NULL;
-	/* @todo call back to ganesha for dynamic export */
 
 out:
 	log_info("endpoint_name=" STR256_F " rc=%d", STR256_P(endpoint_name), rc);
@@ -360,26 +387,16 @@ int efs_endpoint_delete(const str256_t *endpoint_name)
 	 */
 
 	/* get namespace ID */
-	efs_get_ns_id(fs, &ns_id);
+	efs_fs_get_id(fs, &ns_id);
 
-	/* TODO: At this position we should call the corresponding function
-	* provided by some endpoint_ops virtual table to create export
-	* at the protocol specific layer, for example to modify
-	* the config file of NFS Ganesha service:
-	* @code
-	* struct endpoint_ops *e_ops = efs_get_registered_endpoint_operations(endpoint_options);
-	* RC_WRAP_LABEL(rc, out, e_ops->on_delete_export, endpoint_name, ns_id, endpoint_options);
-	* @endcode
-	* Right now, we don't have this code, so we are just dropping a warning.
-	*/
-	log_warn("Protocol-specific operation for deleting export is not executed.");
-
+	dassert(g_e_ops->delete != NULL);
+	RC_WRAP_LABEL(rc, out, g_e_ops->delete, ns_id);
 	/* delete tenant from nsal */
 	fs_node = container_of(fs, struct efs_fs_node, efs_fs);
 	RC_WRAP_LABEL(rc, out, tenant_delete, fs_node->efs_fs.tenant);
 
 	/* Remove endpoint from the fs list */
-	free(fs_node->efs_fs.tenant);
+	tenant_free(fs_node->efs_fs.tenant);
 	fs_node->efs_fs.tenant= NULL;
 
 out:
@@ -438,7 +455,7 @@ void efs_fs_get_name(const struct efs_fs *fs, str256_t **name)
 	ns_get_name(fs->ns, name);
 }
 
-void efs_fs_endpoint_info(const struct efs_fs *fs, void **info)
+void efs_fs_get_endpoint(const struct efs_fs *fs, void **info)
 {
 	dassert(fs);
 	if (fs->tenant == NULL) {

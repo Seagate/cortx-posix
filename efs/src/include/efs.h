@@ -36,6 +36,29 @@ struct efs_fs {
 	struct kvtree *kvtree; /* kvtree object */
 };
 
+/** This structure is exposed to upper layer and have information regarding
+ *  the endpoint. this is filled during efs_endpoint_scan*/
+struct efs_endpoint_info {
+	str256_t *ep_name; /* endpoint name */
+	uint16_t ep_id;    /* endpoint id(export_id) */
+	const char *ep_info; /* endpoint options */
+};
+
+/** This structure define endpoint operations for create/update the protocol
+ * specific config file and will be initialized by protocol layer.
+ */
+struct efs_endpoint_ops {
+	/** constructor,  will ganerate the protocol specific config file based
+	 *  on endpoint stroed in kvs */
+	int (*init) (void);
+	/* Basic destructor, clear the in momory structure created by constructor .*/
+	int (*fini) (void);
+	/* will create export block in protocol specific config file */
+	int (*create) (const char *ep_name, uint16_t ep_id, const char *ep_info);
+	/* will delete export block in protocol specific config file */
+	int (*delete) (uint16_t id);
+};
+
 /**
  * Start the efs library. This should be done by every thread using the library
  *
@@ -44,9 +67,10 @@ struct efs_fs {
  * invoked to perform all needed cleanups.
  *
  * @param: const char *config.
+ * @param: cosnt  struct efs_endpoint_ops *e_ops
  * @return 0 if successful, a negative "-errno" value in case of failure
  */
-int efs_init(const char *config);
+int efs_init(const char *config, const struct efs_endpoint_ops *e_ops);
 
 /**
  * Finalizes the efs library.
@@ -58,6 +82,15 @@ int efs_init(const char *config);
  * @return 0 if successful, a negative "-errno" value in case of failure
  */
 int efs_fini(void);
+
+/** callback function,  scans the tenant table.
+ * the next iteration.
+ * @param : efs_scan_cb Function to be executed for each found endpoint.
+ * @param : args call-back context
+ * @return 0 if successful, a negative "-errno" value in case of failure.
+ */
+int efs_endpoint_scan(int (*efs_scan_cb)(const struct efs_endpoint_info *info,
+		     void *args), void *args);
 
 /**
  * @todo : When efs_ctx_t is defined, EFS_NULL_FS_CTX,
