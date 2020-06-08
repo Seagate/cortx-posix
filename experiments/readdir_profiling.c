@@ -184,7 +184,7 @@ static int create_files_setup(void **state)
 	/* Create files under Test Directory*/
 	for (i=1;i<NUM_FILES+1;i++)
 	{
-		snprintf(ut_dir_obj->name_list[i],sizeof(char*),"%d",i+1);
+		snprintf(ut_dir_obj->name_list[i],MAX_FILENAME_LENGTH,"%d",i+1);
 		ut_dir_obj->ut_efs_obj.file_name = ut_dir_obj->name_list[i];
 		rc = ut_file_create(state);
 		ut_assert_int_equal(rc,0);
