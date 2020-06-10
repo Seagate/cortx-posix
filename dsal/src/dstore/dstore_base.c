@@ -195,12 +195,91 @@ int dstore_obj_close(struct dstore_obj *obj)
 	dstore = obj->ds;
 	dassert(dstore);
 
+	log_trace("close >>> " OBJ_ID_F ", %p",
+		  OBJ_ID_P(dstore_obj_id(obj)), obj);
+
 	RC_WRAP_LABEL(rc, out, dstore->dstore_ops->obj_close, obj);
 
 out:
-
-	log_debug("close " OBJ_ID_F ", %p",
-		  OBJ_ID_P(dstore_obj_id(obj)), obj);
-
+	log_trace("close << (%d)", rc);
 	return rc;
+}
+
+int dstore_io_op_write(struct dstore_obj *obj,
+		       struct dstore_io_vec *bvec,
+		       dstore_io_op_cb_t cb,
+		       void *cb_ctx,
+		       struct dstore_io_op **out)
+{
+	int rc;
+	struct dstore *dstore;
+	struct dstore_io_op *result = NULL;
+
+	dassert(obj);
+	dassert(obj->ds);
+	dassert(bvec);
+	dassert(out);
+	dassert(dstore_obj_invariant(obj));
+	dassert(dstore_io_vec_invariant(bvec));
+
+	dstore = obj->ds;
+
+	RC_WRAP_LABEL(rc, out, dstore->dstore_ops->io_op_init, obj,
+		      DSTORE_IO_OP_WRITE, bvec, cb, cb_ctx, &result);
+	RC_WRAP_LABEL(rc, out, dstore->dstore_ops->io_op_submit, result);
+
+	*out = result;
+	result = NULL;
+
+out:
+	if (result) {
+		dstore->dstore_ops->io_op_fini(result);
+	}
+
+	log_debug("write (" OBJ_ID_F " <=> %p, "
+		  "vec=%p, cb=%p, ctx=%p, *out=%p) rc=%d",
+		  OBJ_ID_P(dstore_obj_id(obj)), obj,
+		  bvec, cb, cb_ctx, rc == 0 ? *out : NULL, rc);
+
+	dassert((!(*out)) || dstore_io_op_invariant(*out));
+	return rc;
+}
+
+int dstore_io_op_wait(struct dstore_io_op *op)
+{
+	int rc = 0;
+	struct dstore *dstore;
+
+	dassert(op);
+	dassert(op->obj);
+	dassert(op->obj->ds);
+	dassert(dstore_io_op_invariant(op));
+
+	dstore = op->obj->ds;
+
+	RC_WRAP_LABEL(rc, out, dstore->dstore_ops->io_op_wait, op);
+
+out:
+	log_debug("wait (" OBJ_ID_F " <=> %p, op=%p) rc=%d",
+		  OBJ_ID_P(dstore_obj_id(op->obj)), op->obj, op, rc);
+	return rc;
+}
+
+void dstore_io_op_fini(struct dstore_io_op *op)
+{
+	struct dstore *dstore;
+
+	dassert(op);
+	dassert(op->obj);
+	dassert(op->obj->ds);
+	dassert(dstore_io_op_invariant(op));
+
+	dstore = op->obj->ds;
+
+	log_trace("fini >>> (" OBJ_ID_F " <=> %p, op=%p)",
+		  OBJ_ID_P(dstore_obj_id(op->obj)), op->obj, op);
+
+	dstore->dstore_ops->io_op_fini(op);
+
+	log_trace("%s", (char *) "fini <<< ()");
 }

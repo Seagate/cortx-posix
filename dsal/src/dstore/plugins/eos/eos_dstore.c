@@ -23,6 +23,7 @@
 /* TODO: assert() calls should be replaced gradually with dassert() calls. */
 #include <assert.h> /* assert() */
 #include "debug.h" /* dassert */
+#include "lib/vec.h" /* m0bufvec and m0indexvec */
 
 /** Private definition of DSTORE object for M0-based backend. */
 struct eos_dstore_obj {
@@ -38,24 +39,114 @@ _Static_assert((&((struct eos_dstore_obj *) NULL)->base) == 0,
  * Note: Due to the lack of de-referencing, this call may be safely
  * used before pre-conditions, e.g.:
  * @code
- *   struct eos_dstore_obj *obj = D2E(in);
+ *   struct eos_dstore_obj *obj = D2E_obj(in);
  *   assert(obj);
  * @endcode
- * @see ::E2D
+ * @see ::E2D_obj
  */
 static inline
-struct eos_dstore_obj *D2E(struct dstore_obj *obj)
+struct eos_dstore_obj *D2E_obj(struct dstore_obj *obj)
 {
 	return (struct eos_dstore_obj *) obj;
 }
 
 /* Casts EOS Object to DSTORE Object.
- * @see ::D2E
+ * @see ::D2E_obj
  */
 static inline
-struct dstore_obj *E2D(struct eos_dstore_obj *obj)
+struct dstore_obj *E2D_obj(struct eos_dstore_obj *obj)
 {
 	return (struct dstore_obj *) obj;
+}
+
+
+/** IO Buffers and extents for M0-based backend.
+ * This object holds the information associated with an IO operation:
+ *	- IO buffers - array of sizes, array of pointers, and count.
+ *	- IO range (or extents) - array of sizes,
+ *		array of offsets (in the object), and count.
+ * This object is needed to keep M0-related information in the one place.
+ * Memory mgmt: the object keeps only references borrowed from
+ * the base IO operation object (dstore_io_op.)
+ */
+struct eos_io_bufext {
+	/** Vector of data buffers. */
+	struct m0_bufvec data;
+	/* Vector of extents in the target object */
+	struct m0_indexvec extents;
+};
+
+/** Private definition of DSTORE io operation for M0-based backend.
+ * Memory mgmt:
+ * 1. It is a self-referential structure. Additional precautions should be
+ *	taken care of when this structure needs to be copied or moved.
+ *	Since m0 op holds the pointer to the operation context, which in our
+ *	case is the eos_io_op, this structure cannot be moved without
+ *	"re-wiring" of the op_datum field inside `cop`.
+ * 2. The base field of this structure holds borrowed references to the
+ *	user-provided buffers. It does not own any data, and therefore
+ *	it should not free any user data. However, it may own additional
+ *	resources, for example a vector of sizes or offsets.
+ * 3. The vec field of this structure hold copies of the references from the
+ *	base field. It is needed because the requirements state that DSAL
+ *	should have a common base type for operation and data vectors,
+ *	however it is not possible for M0-dependent data types (bufvec
+ *	and indexvec) to be "common" data types.
+ *
+ * Here is an example of values for a case where IO operation should be
+ * executed for two IO buffers and two different offsets:
+ *
+ * @{verbatim}
+ * +-------------------------------------------------------------------------+
+ * | 0xCAFE, 0xD0AB is the addresses of two buffers allocated		     |
+ * | by the user (for example, after a malloc() call).                       |
+ * |                                                                         |
+ * | .base.data.dbufs  => {{ 0xCAFE }, { 0xD0AB }}                           |
+ * |		points to an array of user-provided buffers where            |
+ * |		the array itself is allocated by DSAL.                       |
+ * | .base.data.ovec => { 0, 4096 }					     |
+ * |		points to an array of offsets allocated by DSAL.             |
+ * | .base.data.svec => { 4096, 4096 }					     |
+ * |		points to an array of sizes allocated by DSAL.               |
+ * | .vec.data.ov_buf == .base.data.dbufs                                    |
+ * |		points to the same location as the base field.               |
+ * | .vec.extents.iv_buf == .base.data.ovec                                  |
+ * |		points to the same location as the base field.               |
+ * +-------------------------------------------------------------------------+
+ * @{endverbatim}
+ *
+ * As per the current state of M0 API, "attrs" does not have any semantic
+ * meaning for us (the M0 API users), so that they are kept zeroed (empty).
+ *
+ * Further improvements for this data type.
+ *	1. Re-usage of IO operation objects. M0 operation can be re-used,
+ *	therefore it would be good to make eos_io_op to be re-usable as well.
+ *	This improvement will be when the users start maintain
+ *	operation lists.
+ */
+struct eos_io_op {
+	struct dstore_io_op base;
+	struct m0_clovis_op *cop;
+	struct eos_io_bufext vec;
+	struct m0_bufvec attrs;
+};
+
+_Static_assert((&((struct eos_io_op *) NULL)->base) == 0,
+	       "The offset of of the base field should be zero.\
+	       Otherwise, the direct casts (E2D, D2E) will not work.");
+
+static inline
+struct eos_io_op *D2E_op(struct dstore_io_op *op)
+{
+	return (struct eos_io_op *) op;
+}
+
+/* Casts EOS IO operation to DSTORE IO Operation
+ */
+static inline
+struct dstore_io_op *E2D_op(struct eos_io_op *op)
+{
+	return (struct dstore_io_op *) op;
 }
 
 enum update_stat_type {
@@ -284,7 +375,7 @@ out:
 
 static int eos_dstore_obj_alloc(struct eos_dstore_obj **out)
 {
-	int rc;
+	int rc = 0;
 	struct eos_dstore_obj *obj;
 
 	M0_ALLOC_PTR(obj);
@@ -314,7 +405,7 @@ static int eos_ds_obj_open(struct dstore *dstore, const obj_id_t *oid,
 
 	RC_WRAP_LABEL(rc, out, m0store_obj_open, oid, &obj->cobj);
 
-	*out = E2D(obj);
+	*out = E2D_obj(obj);
 	obj = NULL;
 
 out:
@@ -324,9 +415,10 @@ out:
 
 static int eos_ds_obj_close(struct dstore_obj *dobj)
 {
-	struct eos_dstore_obj *obj = D2E(dobj);
+	struct eos_dstore_obj *obj = D2E_obj(dobj);
 
 	dassert(obj);
+	dassert(obj->base.ds);
 
 	m0store_obj_close(&obj->cobj);
 	eos_dstore_obj_free(obj);
@@ -342,6 +434,152 @@ static int eos_ds_obj_close(struct dstore_obj *dobj)
 	return 0;
 }
 
+/* NOTE: The function may be unsafe because we have two references to
+ * the same object (svec) from two different objects (data and extents).
+ * However, it is safe as long as M0 is not trying to modify both of them
+ * as independent objects (for example, using memcpy or something similar).
+ * Since logically M0 should not mutate these fields (READ,WRITE,ALLOC,FREE
+ * do not modify the vectors except the contents of data buffers), it is
+ * safe to do this assignment here.
+ */
+static inline
+void dstore_io_vec2bufext(struct dstore_io_vec *io_vec,
+			  struct eos_io_bufext *bufext)
+{
+	M0_SET0(bufext);
+
+	bufext->data.ov_buf = (void **) io_vec->dbufs;
+	bufext->data.ov_vec.v_nr = io_vec->nr;
+	bufext->data.ov_vec.v_count = io_vec->svec;
+
+	bufext->extents.iv_vec.v_nr = io_vec->nr;
+	bufext->extents.iv_vec.v_count = io_vec->svec;
+	bufext->extents.iv_index = io_vec->ovec;
+}
+
+static void on_oop_executed(struct m0_clovis_op *cop)
+{
+	log_trace("IO op %p executed.", cop->op_datum);
+	/* noop */
+}
+
+
+static void on_oop_finished(struct m0_clovis_op *cop)
+{
+	int rc = m0_clovis_rc(cop);
+	struct eos_io_op *op = cop->op_datum;
+	dassert(op->cop == cop);
+	RC_WRAP_SET(rc);
+	if (op->base.cb) {
+		op->base.cb(op->base.cb_ctx, &op->base, rc);
+	}
+	log_trace("IO op %p finished.", op);
+}
+
+static void on_oop_failed(struct m0_clovis_op *cop)
+{
+	log_trace("IO op %p went to failed state.", cop->op_datum);
+	on_oop_finished(cop);
+}
+
+static const struct m0_clovis_op_ops eos_io_op_cbs = {
+	.oop_executed = on_oop_executed,
+	.oop_failed = on_oop_failed,
+	.oop_stable = on_oop_finished,
+};
+
+static int eos_ds_io_op_init(struct dstore_obj *dobj,
+			     enum dstore_io_op_type type,
+			     struct dstore_io_vec *bvec,
+			     dstore_io_op_cb_t cb,
+			     void *cb_ctx,
+			     struct dstore_io_op **out)
+{
+	int rc = 0;
+	struct eos_dstore_obj *obj = D2E_obj(dobj);
+	struct eos_io_op *result = NULL;
+
+	const m0_time_t schedule_now = 0;
+	const uint64_t empty_mask = 0;
+
+	if (!M0_IN(type, (DSTORE_IO_OP_WRITE))) {
+		log_err("%s", (char *) "Unsupported IO operation");
+		rc = RC_WRAP_SET(-EINVAL);
+		goto out;
+	}
+
+	dassert(bvec);
+	dassert(out);
+	dassert(dstore_io_vec_invariant(bvec));
+
+	M0_ALLOC_PTR(result);
+	if (result == NULL) {
+		rc = RC_WRAP_SET(-ENOMEM);
+		goto out;
+	}
+
+	result->base.type = type;
+	result->base.obj = dobj;
+
+	dstore_io_vec_move(&result->base.data, bvec);
+
+	dstore_io_vec2bufext(&result->base.data, &result->vec);
+
+	RC_WRAP_LABEL(rc, out, m0_clovis_obj_op, &obj->cobj, M0_CLOVIS_OC_WRITE,
+		      &result->vec.extents, &result->vec.data,
+		      &result->attrs, empty_mask, &result->cop);
+
+	result->cop->op_datum = result;
+	m0_clovis_op_setup(result->cop, &eos_io_op_cbs, schedule_now);
+
+	*out = E2D_op(result);
+	result = NULL;
+
+out:
+	if (result) {
+		m0_free(result);
+	}
+
+	log_debug("io_op_init obj=%p, nr=%d, op=%p rc=%d", obj, (int) bvec->nr,
+		  rc == 0 ? *out : NULL, rc);
+
+	dassert((!(*out)) || dstore_io_op_invariant(*out));
+	return rc;
+}
+
+static int eos_ds_io_op_submit(struct dstore_io_op *dop)
+{
+	struct eos_io_op *op = D2E_op(dop);
+	m0_clovis_op_launch(&op->cop, 1);
+	log_debug("io_op_submit op=%p", op);
+	return 0; /* M0 launch is safe */
+}
+
+static int eos_ds_io_op_wait(struct dstore_io_op *dop)
+{
+	int rc;
+	struct eos_io_op *op = D2E_op(dop);
+	const uint64_t wait_bits = M0_BITS(M0_CLOVIS_OS_FAILED,
+					   M0_CLOVIS_OS_STABLE);
+	const m0_time_t time_limit = M0_TIME_NEVER;
+
+	RC_WRAP_LABEL(rc, out, m0_clovis_op_wait, op->cop, wait_bits,
+		      time_limit);
+	RC_WRAP_LABEL(rc, out, m0_clovis_rc, op->cop);
+
+out:
+	log_debug("io_op_wait op=%p, rc=%d", op, rc);
+	return rc;
+}
+
+static void eos_ds_io_op_fini(struct dstore_io_op *dop)
+{
+	struct eos_io_op *op = D2E_op(dop);
+
+	m0_clovis_op_fini(op->cop);
+	m0_clovis_op_free(op->cop);
+	m0_free(op);
+}
 
 const struct dstore_ops eos_dstore_ops = {
 	.init = eos_ds_init,
@@ -354,4 +592,8 @@ const struct dstore_ops eos_dstore_ops = {
 	.obj_get_id = eos_ds_obj_get_id,
 	.obj_open = eos_ds_obj_open,
 	.obj_close = eos_ds_obj_close,
+	.io_op_init = eos_ds_io_op_init,
+	.io_op_submit = eos_ds_io_op_submit,
+	.io_op_wait = eos_ds_io_op_wait,
+	.io_op_fini = eos_ds_io_op_fini,
 };

@@ -1,18 +1,23 @@
 /*
  * Filename:         dstore_bufvec.h
- * Description:      IO Vectors and buffers.
-
+ * Description:      IO Vectors and buffers (API).
+ *
  * Do NOT modify or remove this copyright and confidentiality notice!
- * Copyright (c) 2019, Seagate Technology, LLC.
+ * Copyright (c) 2020, Seagate Technology, LLC.
  * The code contained herein is CONFIDENTIAL to Seagate Technology, LLC.
  * Portions are also trade secret. Any use, duplication, derivation,
  * distribution or disclosure of this code, for any reason, not expressly
  * authorized is prohibited. All other rights are expressly reserved by
  * Seagate Technology, LLC.
+ *
+ * This file is an optional part of DSTORE public API.
+ * It describes data types and functions needed for interaction
+ * with IO-related interfaces (IO operations).
  */
 #ifndef DSTORE_BUFVEC_H_
 #define DSTORE_BUFVEC_H_
 /******************************************************************************/
+#include <stddef.h> /* size_t */
 /******************************************************************************/
 
 /* Opaque data type that represents a single datum for an IO operation.
@@ -29,8 +34,10 @@ struct dstore_io_buf;
 int dstore_io_buf_init(void *data, size_t size, size_t offset,
 		      struct dstore_io_buf **buf);
 
-/* Release resources associated with the buffer. */
-int dstore_io_buf_fini(struct dstore_io_buf *buf);
+/** Release the resources associated with the buffer.
+ * @param[in,opt] buf - Pointer to buffer object. NULL value is noop.
+ */
+void dstore_io_buf_fini(struct dstore_io_buf *buf);
 
 /** Get a pointed to the data buffer. */
 const void *dstore_io_buf_data(const struct dstore_io_buf *buf);
@@ -77,7 +84,9 @@ int dstore_io_vec_set(struct dstore_io_vec *vec,
 int dstore_io_vec_get(const struct dstore_io_vec *vec,
 		      size_t index, struct dstore_io_buf **buf);
 
-/* Release resources allocated for the buf vector */
+/** Release the resources allocated for the IO vector.
+ * @param[in,opt] buf - Pointer to IO vector object. NULL value is noop.
+ */
 void dstore_io_vec_fini(struct dstore_io_vec *vec);
 
 /******************************************************************************/

@@ -18,6 +18,7 @@
 #include <errno.h> /* errno codes */
 #include <stdlib.h> /* alloc, free */
 #include "dstore.h" /* dstore operations to be tested */
+#include "dstore_bufvec.h" /* data buffers and vectors */
 #include "dsal_test_lib.h" /* DSAL-specific helpers for tests */
 
 /*****************************************************************************/
@@ -221,6 +222,71 @@ static void test_delete_open(void **state)
 }
 
 /*****************************************************************************/
+/* Description: Test WRITE operation.
+ * This function simply tests WRITE-related API functions and sanity
+ * of the returned retcodes. It does not do any functional testing
+ * against the contents of the dstore or the IO buffers.
+ * Strategy:
+ *	Create a new file.
+ *	Open the new file.
+ *	Write a block of data into the new file.
+ *	Close the new file.
+ *	Delete the new file.
+ * Expected behavior:
+ *	No errors from the DSAL calls.
+ * Enviroment:
+ *	Empty dstore.
+ */
+static void test_write_basic(void **state)
+{
+	int rc;
+	struct dstore_obj *obj = NULL;
+	struct dstore_io_op *wop = NULL;
+	struct dstore_io_vec *data = NULL;
+	struct dstore_io_buf *buf = NULL;
+	struct env *env = ENV_FROM_STATE(state);
+	void *raw_buf = NULL;
+	const size_t buf_size = 4 << 10;
+	const off_t offset = 0;
+
+	raw_buf = calloc(1, buf_size);
+	ut_assert_not_null(raw_buf);
+
+	dtlib_fill_data_block(raw_buf, buf_size);
+
+	rc = dstore_io_buf_init(raw_buf, buf_size, offset, &buf);
+	ut_assert_int_equal(rc, 0);
+
+	rc = dstore_io_buf2vec(&buf, &data);
+	ut_assert_int_equal(rc, 0);
+
+	rc = dstore_obj_create(env->dstore, NULL, &env->oid);
+	ut_assert_int_equal(rc, 0);
+
+	rc = dstore_obj_open(env->dstore, &env->oid, &obj);
+	ut_assert_int_equal(rc, 0);
+	ut_assert_not_null(obj);
+
+	rc = dstore_io_op_write(obj, data, NULL, NULL, &wop);
+	ut_assert_int_equal(rc, 0);
+	ut_assert_not_null(wop);
+
+	rc = dstore_io_op_wait(wop);
+	ut_assert_int_equal(rc, 0);
+
+	dstore_io_op_fini(wop);
+	dstore_io_vec_fini(data);
+	dstore_io_buf_fini(buf);
+	free(raw_buf);
+
+	rc = dstore_obj_close(obj);
+	ut_assert_int_equal(rc, 0);
+
+	rc = dstore_obj_delete(env->dstore, NULL, &env->oid);
+	ut_assert_int_equal(rc, 0);
+}
+
+/*****************************************************************************/
 static int test_group_setup(void **state)
 {
 	struct env *env;
@@ -257,6 +323,7 @@ int main(int argc, char *argv[])
 		ut_test_case(test_creat_existing, NULL, NULL),
 		ut_test_case(test_del_non_existing, NULL, NULL),
 		ut_test_case(test_open_close_basic, NULL, NULL),
+		ut_test_case(test_write_basic, NULL, NULL),
 		ut_test_case(test_open_non_existing, NULL, NULL),
 		ut_test_case(test_delete_open, NULL, NULL),
 	};

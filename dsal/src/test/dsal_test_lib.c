@@ -25,7 +25,7 @@
 #define EFS_TEST_CONF_PATH "/etc/efs/efs.conf"
 
 /* Default log level for DSAL tests */
-#define DEFAULT_LOG_LEVEL "LEVEL_DEBUG"
+#define DEFAULT_LOG_LEVEL LEVEL_DEBUG
 
 /******************************************************************************/
 struct dstore *dstore;
@@ -43,7 +43,8 @@ void dtlib_setup(int argc, char *argv[])
 	struct collection_item *errors = NULL;
 	struct collection_item *item = NULL;
 	char *log_path = NULL;
-	char *log_level = NULL;
+	char *log_level_str = NULL;
+	log_level_t log_level;
 
 	/* Enable log redirection if the path has been provided.
 	 * Otherwise, use stderr/stdout.
@@ -75,13 +76,15 @@ void dtlib_setup(int argc, char *argv[])
 
 	(void) get_config_item("log", "level", cfg_items, &item);
 	if (item != NULL) {
-		log_level = get_string_config_value(item, NULL);
+		log_level_str = get_string_config_value(item, NULL);
+		log_level = log_level_no(log_level_str);
+		free(log_level_str);
 		item = NULL;
 	} else {
 		log_level = DEFAULT_LOG_LEVEL;
 	}
 
-	rc = log_init(log_path, log_level_no(log_level));
+	rc = log_init(log_path, log_level);
 	if (rc) {
 		fprintf(stderr, "Failed to initialize logger.\n");
 		goto die;
@@ -114,7 +117,7 @@ die:
  */
 void dtlib_teardown(void)
 {
-	/* TODO: no reliable fini() so far in DSAL. */
+	dstore_fini(dstore);
 }
 
 /*****************************************************************************/
