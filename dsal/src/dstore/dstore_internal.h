@@ -21,6 +21,10 @@
 
 #include "dstore.h" /* import public data types */
 
+struct dstore_ops;
+static inline
+bool dstore_ops_invariant(const struct dstore_ops *ops);
+
 struct dstore {
 	/* Type of dstore, currently eos supported */
 	char *type;
@@ -31,6 +35,18 @@ struct dstore {
 	/* Not used currently */
 	int flags;
 };
+
+static inline
+bool dstore_invariant(const struct dstore *dstore)
+{
+	/* Condition:
+	 *	Dstore backend operations should be valid.
+	 */
+	bool ops_are_valid = dstore_ops_invariant(dstore->dstore_ops);
+
+	return ops_are_valid;
+}
+
 
 /** A base object for DSAL operations.
  *
@@ -93,6 +109,16 @@ struct dstore_obj {
 	uint8_t priv[0];
 };
 
+static inline
+bool dstore_obj_invariant(const struct dstore_obj *obj)
+{
+	/* Condition:
+	 *	Object should have a reference to dstore.
+	 *	The reference should point to a valid dstore object.
+	 */
+	return obj->ds != NULL && dstore_invariant(obj->ds);
+}
+
 /** A single IO buffer.
  * This structure has two primary use cases:
  *	- creating a single IO datum without having troubles
@@ -104,12 +130,42 @@ struct dstore_obj {
  * should not be modified after vector is created).
  */
 struct dstore_io_buf {
-	void *buf;
+	uint8_t *buf;
 	uint64_t size;
 	uint64_t offset;
 };
 
+static inline
+bool dstore_io_buf_invariant(const struct dstore_io_buf *io_buf)
+{
+	/* Condition:
+	 *	Non-empty buffer should have "size" field set.
+	 */
+	bool should_have_size_if_has_data = ((!io_buf->buf) || io_buf->size);
+	return should_have_size_if_has_data;
+}
+
 /** An immutable (no append, no remove) vector of data buffers.
+ * The IO vector comprises
+ *	- well-known scatter-gather fields for
+ *	  keeping pointers to array of data buffers;
+ *	- (unused right now) flags to modify behavior;
+ *	- embedded data buffer to reduce allocations of intermediate
+ *	  objects for single-buffer IO (which is the only use case right now).
+ * NOTE: This structure was deliberately set to be opaque and to have an
+ * internal embedded buffer because of the conflicting requirements that
+ * exist at this moment:
+ *	- API should support vectored IO;
+ *	- API should be consistent;
+ *	- API should not expose backend-dependent data types;
+ *	- DSAL should always have common data types;
+ *	- The amount of memory allocations should be reduced as much
+ *	  as possible.
+ *	- memcpy (even for small objects) should be avoided.
+ *	- DSAL should be optimized for the current workload (non-vectored IO).
+ *	- API should be simple and easy-to-use.
+ * Considering these points, the essential parts of IO interface (data vector
+ * and data buffer) were made to be opaque for the callers.
  */
 struct dstore_io_vec {
 	/* Array of pointers to data buffers. */
@@ -129,7 +185,77 @@ struct dstore_io_vec {
 	 * to indicate ownership status of data buffers.
 	 */
 	uint64_t flags;
+
+	/* Embedded data buffer: an in-place storage for
+	 * non-vectored IO operations.
+	 * It helps to reduce unnecessary memory
+	 * allocations for operations that work on
+	 * a single extent.
+	 */
+	struct dstore_io_buf edbuf;
 };
+
+static inline
+bool dstore_io_vec_invariant(const struct dstore_io_vec *io_vec)
+{
+	/* Condition:
+	 *	If vector has elements then the corresponding fields
+	 *	should be filled.
+	 * NOTE: This condition may be changed in future if
+	 * we need to implement Alloc/Free operations.
+	 */
+	bool non_empty_vec_has_data = ((!io_vec->nr) ||
+				       (io_vec->dbufs && io_vec->svec &&
+					io_vec->ovec && io_vec->bsize));
+	/* Condition:
+	 *	The embedded buffer should always be in the right state
+	 *	(whether it is empty or not).
+	 */
+	bool embed_is_valid = dstore_io_buf_invariant(&io_vec->edbuf);
+	return non_empty_vec_has_data && embed_is_valid;
+}
+
+/** Check if io_vec is just a single buffer embedded into io_vec itself. */
+static inline
+bool dstore_io_vec_is_embed(const struct dstore_io_vec *v)
+{
+	return v->edbuf.buf != NULL && v->dbufs == &v->edbuf.buf;
+}
+
+/** An utility function to wire embedded buffer with the "interface"
+ * pointers. Before calling this function, the vector may
+ * (or rather should) violate its invariant (because dbufs and the other
+ * things are not wired together). After calling this function, the invariant
+ * should be held (as long as the embedded buffer is valid).
+ * Therefore, this function is highly unsafe and it can be used only at
+ * initialization steps.
+ */
+static inline
+void dstore_io_vec_set_from_edbuf(struct dstore_io_vec *v)
+{
+	v->dbufs = &v->edbuf.buf;
+	v->svec = &v->edbuf.size;
+	v->ovec = &v->edbuf.offset;
+	v->bsize = v->edbuf.size;
+	v->nr = 1;
+}
+
+/** Moves io_vec value from one object into another. */
+static inline
+void dstore_io_vec_move(struct dstore_io_vec *dst, struct dstore_io_vec *src)
+{
+	/* copy embedded buffer state */
+	dst->edbuf = src->edbuf;
+
+	/* update refs for embedded case */
+	if (dstore_io_vec_is_embed(src)) {
+		dstore_io_vec_set_from_edbuf(dst);
+	}
+
+	/* nullify the source */
+	*src = (struct dstore_io_vec) { .nr = 0 };
+}
+
 
 /** IO operations available for a datastore object. */
 enum dstore_io_op_type {
@@ -173,6 +299,36 @@ struct dstore_io_op {
 	/** Beginning of backend-defined information. */
 	uint8_t priv[0];
 };
+
+static inline
+bool dstore_io_op_invariant(const struct dstore_io_op *op)
+{
+	/* Condition:
+	 *	Op type should be a supported operation.
+	 * NOTE: only WRITE is supported so far.
+	 */
+	bool op_is_supported = (op->type == DSTORE_IO_OP_WRITE);
+	/* Condition:
+	 *	Data vector should be a valid object whether it has
+	 *	data or not.
+	 */
+	bool has_valid_vec = dstore_io_vec_invariant(&op->data);
+	/* Condition:
+	 *	Operation always holds a borrowed reference to
+	 *	the associated object.
+	 */
+	bool has_ref_to_obj = op->obj != NULL;
+
+	/* Condition:
+	 *	IO operations require non-empty vectors.
+	 * NOTE: This condition should be changed/removed
+	 *	 when Alloc/Free implemented.
+	 */
+	bool has_needed_data = (op->data.nr != 0);
+
+	return op_is_supported && has_valid_vec && has_needed_data &&
+		has_ref_to_obj;
+}
 
 /** Vtable for DSAL backends.
  * This structure describes a list of functions that
@@ -261,6 +417,20 @@ struct dstore_ops {
 			  void *cb_ctx,
 			  struct dstore_io_op **out);
 
+	/** DSAL.OP_FINI Interface.
+	 * This function releases all the resources take by
+	 * the corresponding IO operation.
+	 * Note: This function will block (if it is necessary)
+	 * to ensure the operation is safely removed/canceled
+	 * from any queues. The caller is responsible for waiting
+	 * until stable/failed state (using io_op_submit or the callback
+	 * mechanism) to achieve better performance. However, it is known that
+	 * the operation will not block (for example, if it is already
+	 * finished with success/failure) then this call won't affect
+	 * performance.
+	 */
+	void (*io_op_fini)(struct dstore_io_op *op);
+
 	/* DSAL.OP_SUBMIT Interface.
 	 * This function sends an IO operation to be executed.
 	 * The function can be noop for some of the backends
@@ -293,6 +463,36 @@ struct dstore_ops {
 	 */
 	void (*free_buf)(struct dstore *, void *);
 };
+
+static inline
+bool dstore_ops_invariant(const struct dstore_ops *ops)
+{
+	/* Condition:
+	 *	All callbacks should be available except those
+	 *	which are not implemented (or not in use right now).
+	 */
+	return
+		ops->init &&
+		ops->fini &&
+		ops->obj_create &&
+		ops->obj_delete &&
+		ops->obj_read &&
+		ops->obj_write &&
+		ops->obj_resize &&
+		ops->obj_get_id &&
+		ops->obj_open &&
+		ops->obj_close &&
+		ops->io_op_init &&
+		ops->io_op_submit &&
+		ops->io_op_wait &&
+
+		/* AllocBuf/FreeBuf interfaces are not in use right now. */
+#if 0
+		ops->alloc_buf &&
+		ops->free_buf &&
+#endif
+		true;
+}
 
 /* FIXME: This structure does not belong here.
  * It should be moved into eos-related directory.
