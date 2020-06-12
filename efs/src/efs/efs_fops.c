@@ -100,10 +100,12 @@ ssize_t efs_write(struct efs_fs *efs_fs, efs_cred_t *cred, efs_file_open_t *fd,
 	struct stat wstat;
 	dstore_oid_t oid;
 	struct dstore *dstore = dstore_get();
+	struct kvnode node = KVNODE_INIT_EMTPY;
 
 	dassert(dstore);
 
-	log_trace("ENTER: ino=%llu fd=%p count=%lu offset=%ld", fd->ino, fd, count, (long)offset);
+	log_trace("ENTER: ino=%llu fd=%p count=%lu offset=%ld", fd->ino, fd,
+		  count, (long)offset);
 
 	memset(&wstat, 0, sizeof(wstat));
 
@@ -128,10 +130,13 @@ ssize_t efs_write(struct efs_fs *efs_fs, efs_cred_t *cred, efs_file_open_t *fd,
 	stat.st_mtim = wstat.st_mtim;
 	stat.st_ctim = wstat.st_ctim;
 
-	RC_WRAP(efs_set_stat, efs_fs, &fd->ino, &stat);
+	RC_WRAP_LABEL(rc, out, efs_kvnode_init, &node, efs_fs->kvtree, &fd->ino,
+		      &stat);
+	RC_WRAP_LABEL(rc, out, efs_set_stat, &node);
 	rc = write_amount;
 out:
-	log_trace("EXIT rc=%d", rc);
+	kvnode_fini(&node);
+	log_trace("efs_write: rc=%d", rc);
 	return rc;
 }
 
@@ -186,15 +191,17 @@ ssize_t efs_read(struct efs_fs *efs_fs, efs_cred_t *cred, efs_file_open_t *fd,
 	struct stat stat;
 	dstore_oid_t oid;
 	struct dstore *dstore = dstore_get();
+	struct kvnode node = KVNODE_INIT_EMTPY;
 
 	dassert(dstore);
 
-	log_trace("ENTER: ino=%llu fd=%p count=%lu offset=%ld", fd->ino, fd, count, (long)offset);
+	log_trace("ENTER: ino=%llu fd=%p count=%lu offset=%ld", fd->ino, fd,
+		  count, (long)offset);
 
 	RC_WRAP_LABEL(rc, out, efs_ino_to_oid, efs_fs, &fd->ino, &oid);
 	RC_WRAP(efs_getattr, efs_fs, cred, &fd->ino, &stat);
 	RC_WRAP(efs_access, efs_fs, cred, &fd->ino, EFS_ACCESS_READ);
-	
+
 	void *ctx = efs_fs->kvtree->index.index_priv;
 	read_amount = dstore_obj_read(dstore, ctx, &oid, offset,
 				      count, buf, &eof, &stat);
@@ -202,10 +209,13 @@ ssize_t efs_read(struct efs_fs *efs_fs, efs_cred_t *cred, efs_file_open_t *fd,
 		rc = read_amount;
 		goto out;
 	}
-	RC_WRAP(efs_set_stat, efs_fs, &fd->ino, &stat);
+	RC_WRAP_LABEL(rc, out, efs_kvnode_init, &node, efs_fs->kvtree, &fd->ino,
+		      &stat);
+	RC_WRAP_LABEL(rc, out, efs_set_stat, &node);
 	rc = read_amount;
 out:
-	log_trace("EXIT rc=%d", rc);
+	kvnode_fini(&node);
+	log_trace("efs_read rc=%d", rc);
 	return rc;
 }
 

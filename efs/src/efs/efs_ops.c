@@ -32,15 +32,18 @@ int efs_getattr(struct efs_fs *efs_fs, const efs_cred_t *cred,
 	int rc;
 	struct stat *stat = NULL;
 	struct kvstore *kvstor = kvstore_get();
+	struct kvnode node = KVNODE_INIT_EMTPY;
 
 	dassert(cred != NULL);
 	dassert(ino != NULL);
 	dassert(kvstor != NULL);
 
-	RC_WRAP_LABEL(rc, out, efs_get_stat, efs_fs, ino, &stat);
+	RC_WRAP_LABEL(rc, out, efs_kvnode_load, &node, efs_fs->kvtree, ino);
+	RC_WRAP_LABEL(rc, out, efs_get_stat, &node, &stat);
 	memcpy(bufstat, stat, sizeof(struct stat));
 	kvs_free(kvstor, stat);
 out:
+	kvnode_fini(&node);
 	log_debug("ino=%d rc=%d", (int)bufstat->st_ino, rc);
 	return rc;
 }
@@ -49,6 +52,7 @@ int efs_setattr(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *ino,
 		struct stat *setstat, int statflag)
 {
 	struct stat bufstat;
+	struct kvnode node = KVNODE_INIT_EMTPY;
 	struct timeval t;
 	mode_t ifmt;
 	int rc;
@@ -108,8 +112,12 @@ int efs_setattr(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *ino,
 		bufstat.st_ctim.tv_sec = setstat->st_ctim.tv_sec;
 		bufstat.st_ctim.tv_nsec = setstat->st_ctim.tv_nsec;
 	}
-	RC_WRAP_LABEL(rc, out, efs_set_stat, efs_fs, ino, &bufstat);
+
+	RC_WRAP_LABEL(rc, out, efs_kvnode_init, &node, efs_fs->kvtree, ino,
+		      &bufstat);
+	RC_WRAP_LABEL(rc, out, efs_set_stat, &node);
 out:
+	kvnode_fini(&node);
 	log_debug("rc=%d", rc);
 	return rc;
 }
@@ -135,7 +143,7 @@ int efs_readdir(struct efs_fs *efs_fs,
 		void *cb_ctx)
 {
 	int rc;
-
+	struct kvnode node = KVNODE_INIT_EMTPY;
 	RC_WRAP_LABEL(rc, out, efs_access, efs_fs, (efs_cred_t *) cred,
 			(efs_ino_t *) dir_ino,
 			EFS_ACCESS_LIST_DIR);
@@ -143,10 +151,11 @@ int efs_readdir(struct efs_fs *efs_fs,
 	RC_WRAP_LABEL(rc, out, efs_tree_iter_children, efs_fs, dir_ino,
 			cb, cb_ctx);
 
-	RC_WRAP_LABEL(rc, out, efs_update_stat, efs_fs, dir_ino,
-			STAT_ATIME_SET);
+	RC_WRAP_LABEL(rc, out, efs_kvnode_load, &node, efs_fs->kvtree, dir_ino);
+	RC_WRAP_LABEL(rc, out, efs_update_stat, &node, STAT_ATIME_SET);
 
 out:
+	kvnode_fini(&node);
 	return rc;
 }
 
@@ -217,6 +226,7 @@ int efs_readlink(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *lnk,
 	void *lnk_content_buf = NULL;
 	size_t content_size;
 	struct kvstore *kvstor = kvstore_get();
+	struct kvnode node = KVNODE_INIT_EMTPY;
 
 	dassert(kvstor);
 
@@ -234,12 +244,14 @@ int efs_readlink(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *lnk,
 
 	memcpy(content, lnk_content_buf, content_size);
 	*size = content_size;
-	RC_WRAP_LABEL(rc, errfree, efs_update_stat, efs_fs, lnk,
-		      STAT_ATIME_SET);
+
+	RC_WRAP_LABEL(rc, errfree, efs_kvnode_load, &node, efs_fs->kvtree, lnk);
+	RC_WRAP_LABEL(rc, errfree, efs_update_stat, &node, STAT_ATIME_SET);
 	log_debug("Got link: content='%.*s'", (int) *size, content);
 	rc = 0;
 
 errfree:
+	kvnode_fini(&node);
 	kvs_free(kvstor, lnk_content_buf);
 	log_trace("EXIT: rc=%d", rc);
 	return rc;
@@ -256,6 +268,7 @@ int efs_symlink(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *parent,
 		char *name, char *content, efs_ino_t *newlnk)
 {
 	int rc;
+	struct kvnode node = KVNODE_INIT_EMTPY;
 
 	log_trace("ENTER: name=%s", name);
 	dassert(cred && parent && name && content && newlnk);
@@ -265,9 +278,12 @@ int efs_symlink(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *parent,
 	RC_WRAP_LABEL(rc, out, efs_create_entry, efs_fs, cred, parent, name, content,
 		      EFS_SYMLINK_MODE, newlnk, EFS_FT_SYMLINK);
 
-	RC_WRAP_LABEL(rc, out, efs_update_stat, efs_fs, parent, STAT_MTIME_SET|STAT_CTIME_SET);
+	RC_WRAP_LABEL(rc, out, efs_kvnode_load, &node, efs_fs->kvtree, parent);
+	RC_WRAP_LABEL(rc, out, efs_update_stat, &node,
+		      STAT_MTIME_SET|STAT_CTIME_SET);
 
 out:
+	kvnode_fini(&node);
 	log_trace("name=%s content=%s rc=%d", name, content, rc);
 	return rc;
 }
@@ -281,6 +297,7 @@ int efs_link(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *ino,
 	str256_t k_name;
 	struct kvstore *kvstor = kvstore_get();
 	struct kvs_idx index;
+	struct kvnode node = KVNODE_INIT_EMTPY;
 
 	dassert(cred && ino && dname && dino && kvstor);
 
@@ -297,13 +314,15 @@ int efs_link(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *ino,
 	str256_from_cstr(k_name, dname, strlen(dname));
 	RC_WRAP_LABEL(rc, aborted, efs_tree_attach, efs_fs, dino, ino, &k_name);
 
-	RC_WRAP_LABEL(rc, aborted, efs_update_stat, efs_fs, ino,
+	RC_WRAP_LABEL(rc, aborted, efs_kvnode_load, &node, efs_fs->kvtree, ino);
+	RC_WRAP_LABEL(rc, aborted, efs_update_stat, &node,
 		      STAT_CTIME_SET|STAT_INCR_LINK);
 
 	log_trace("EXIT: rc=%d ino=%llu dino=%llu dname=%s", rc, *ino, *dino, dname);
 	RC_WRAP(kvs_end_transaction, kvstor, &index);
 	return rc;
 aborted:
+	kvnode_fini(&node);
 	kvs_discard_transaction(kvstor, &index);
 	log_trace("EXIT: rc=%d ino=%llu dino=%llu dname=%s", rc, *ino, *dino, dname);
 	return rc;
@@ -324,12 +343,14 @@ int efs_destroy_orphaned_file(struct efs_fs *efs_fs,
 	struct kvstore *kvstor = kvstore_get();
 	struct dstore *dstore = dstore_get();
 	struct kvs_idx index;
+	struct kvnode node = KVNODE_INIT_EMTPY;
 
 	dassert(kvstor && dstore);
 
 	index = efs_fs->kvtree->index;
 
-	RC_WRAP_LABEL(rc, out, efs_get_stat, efs_fs, ino, &stat);
+	RC_WRAP_LABEL(rc, out, efs_kvnode_load, &node, efs_fs->kvtree, ino);
+	RC_WRAP_LABEL(rc, out, efs_get_stat, &node, &stat);
 
 	if (efs_file_has_links(stat)) {
 		rc = 0;
@@ -337,7 +358,9 @@ int efs_destroy_orphaned_file(struct efs_fs *efs_fs,
 	}
 
 	kvs_begin_transaction(kvstor, &index);
-	RC_WRAP_LABEL(rc, out, efs_del_stat, efs_fs, ino);
+
+	RC_WRAP_LABEL(rc, out, efs_del_stat, &node);
+
 	if (S_ISLNK(stat->st_mode)) {
 		RC_WRAP_LABEL(rc, out, efs_del_symlink, efs_fs, ino);
 	} else if (S_ISREG(stat->st_mode)) {
@@ -358,6 +381,7 @@ int efs_destroy_orphaned_file(struct efs_fs *efs_fs,
 	kvs_end_transaction(kvstor, &index);
 
 out:
+	kvnode_fini(&node);
 	if (stat) {
 		kvs_free(kvstor, stat);
 	}
@@ -386,6 +410,8 @@ int efs_rename(struct efs_fs *efs_fs, efs_cred_t *cred,
 	mode_t s_mode = 0;
 	mode_t d_mode = 0;
 	struct kvstore *kvstor = kvstore_get();
+	struct kvnode snode = KVNODE_INIT_EMTPY,
+		      dnode = KVNODE_INIT_EMTPY;
 	const struct efs_rename_flags flags = pflags ? *pflags :
 		(const struct efs_rename_flags) EFS_RENAME_FLAGS_INIT;
 
@@ -431,12 +457,18 @@ int efs_rename(struct efs_fs *efs_fs, efs_cred_t *cred,
 
 	if (overwrite_dst) {
 		/* Fetch 'st_mode' for source and destination. */
-		RC_WRAP_LABEL(rc, out, efs_get_stat, efs_fs, &sino, &stat);
+		RC_WRAP_LABEL(rc, out, efs_kvnode_load, &snode, efs_fs->kvtree,
+			      &sino);
+		RC_WRAP_LABEL(rc, out, efs_get_stat, &snode, &stat);
 		s_mode = stat->st_mode;
+		kvnode_fini(&snode);
 		kvs_free(kvstor, stat);
 		stat = NULL;
-		RC_WRAP_LABEL(rc, out, efs_get_stat, efs_fs, &dino, &stat);
+		RC_WRAP_LABEL(rc, out, efs_kvnode_load, &dnode, efs_fs->kvtree,
+			      &dino);
+		RC_WRAP_LABEL(rc, out, efs_get_stat, &dnode, &stat);
 		d_mode = stat->st_mode;
+		kvnode_fini(&dnode);
 		kvs_free(kvstor, stat);
 
 		if (S_ISDIR(s_mode) != S_ISDIR(d_mode)) {
@@ -483,7 +515,9 @@ int efs_rename(struct efs_fs *efs_fs, efs_cred_t *cred,
 		RC_WRAP_LABEL(rc, out, efs_tree_rename_link, efs_fs,
 			      sino_dir, &sino, &k_sname, &k_dname);
 	} else {
-                RC_WRAP_LABEL(rc, out, efs_get_stat, efs_fs, &sino, &stat);
+		RC_WRAP_LABEL(rc, out, efs_kvnode_load, &snode, efs_fs->kvtree,
+			      &sino);
+                RC_WRAP_LABEL(rc, out, efs_get_stat, &snode, &stat);
                 s_mode = stat->st_mode;
                 kvs_free(kvstor, stat);
 
@@ -492,9 +526,11 @@ int efs_rename(struct efs_fs *efs_fs, efs_cred_t *cred,
 		RC_WRAP_LABEL(rc, out, efs_tree_attach, efs_fs, dino_dir,
 			      &sino, &k_dname);
 		if(S_ISDIR(s_mode)){
-			RC_WRAP_LABEL(rc, out, efs_update_stat, efs_fs, sino_dir,
+			RC_WRAP_LABEL(rc, out, efs_update_stat, &snode,
 				      STAT_DECR_LINK);
-                        RC_WRAP_LABEL(rc, out, efs_update_stat, efs_fs, dino_dir,
+                        RC_WRAP_LABEL(rc, out, efs_kvnode_load, &dnode,
+				      efs_fs->kvtree, dino_dir);
+                        RC_WRAP_LABEL(rc, out, efs_update_stat, &dnode,
 				      STAT_INCR_LINK);
 		}
 	}
@@ -508,6 +544,8 @@ int efs_rename(struct efs_fs *efs_fs, efs_cred_t *cred,
 	}
 
 out:
+	kvnode_fini(&snode);
+	kvnode_fini(&dnode);
 	return rc;
 }
 
@@ -519,6 +557,8 @@ int efs_rmdir(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *parent, char *
 	str256_t kname;
 	struct kvstore *kvstor = kvstore_get();
 	struct kvs_idx index;
+	struct kvnode child_node = KVNODE_INIT_EMTPY,
+		      parent_node = KVNODE_INIT_EMTPY;
 	dstore_oid_t oid;
 
 	dassert(efs_fs && cred && parent && name && kvstor);
@@ -551,10 +591,14 @@ int efs_rmdir(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *parent, char *
 		      &ino, &kname);
 
 	/* Remove its stat */
-	RC_WRAP_LABEL(rc, aborted, efs_del_stat, efs_fs, &ino);
+	RC_WRAP_LABEL(rc, aborted, efs_kvnode_load, &child_node, efs_fs->kvtree,
+		      &ino);
+	RC_WRAP_LABEL(rc, aborted, efs_del_stat, &child_node);
 
 	/* Child dir has a "hardlink" to the parent ("..") */
-	RC_WRAP_LABEL(rc, aborted, efs_update_stat, efs_fs, parent,
+	RC_WRAP_LABEL(rc, aborted, efs_kvnode_load, &parent_node,
+		      efs_fs->kvtree, parent);
+	RC_WRAP_LABEL(rc, aborted, efs_update_stat, &parent_node,
 		      STAT_DECR_LINK);
 
 	RC_WRAP_LABEL(rc, aborted, efs_ino_to_oid, efs_fs, &ino, &oid);
@@ -565,6 +609,9 @@ int efs_rmdir(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *parent, char *
 	RC_WRAP_LABEL(rc, out, kvs_end_transaction, kvstor, &index);
 
 aborted:
+	kvnode_fini(&child_node);
+	kvnode_fini(&parent_node);
+
 	if (rc < 0) {
 		/* FIXME: error code is overwritten */
 		RC_WRAP_LABEL(rc, out, kvs_discard_transaction, kvstor, &index);
@@ -603,6 +650,7 @@ int efs_detach(struct efs_fs *efs_fs, const efs_cred_t *cred,
 	str256_t k_name;
 	struct kvstore *kvstor = kvstore_get();
 	struct kvs_idx index;
+	struct kvnode node = KVNODE_INIT_EMTPY;
 
 	dassert(kvstor != NULL);
 
@@ -614,11 +662,14 @@ int efs_detach(struct efs_fs *efs_fs, const efs_cred_t *cred,
 
 	kvs_begin_transaction(kvstor, &index);
 	RC_WRAP_LABEL(rc, out, efs_tree_detach, efs_fs, parent, obj, &k_name);
-	RC_WRAP_LABEL(rc, out, efs_update_stat, efs_fs, obj,
+
+	RC_WRAP_LABEL(rc, out, efs_kvnode_load, &node, efs_fs->kvtree, obj);
+	RC_WRAP_LABEL(rc, out, efs_update_stat, &node,
 		      STAT_CTIME_SET|STAT_DECR_LINK);
 	kvs_end_transaction(kvstor, &index);
 
 out:
+	kvnode_fini(&node);
 	if (rc != 0) {
 		kvs_discard_transaction(kvstor, &index);
 	}

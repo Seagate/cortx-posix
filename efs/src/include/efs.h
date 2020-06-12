@@ -198,12 +198,6 @@ typedef void *efs_fs_ctx_t;
  * once all migration of efs completes.
  */
 /* Inode Attributes API */
-int efs_get_stat(struct efs_fs *efs_fs, const efs_ino_t *ino,
-		 struct stat **bufstat);
-int efs_set_stat(struct efs_fs *efs_fs, const efs_ino_t *ino,
-		 struct stat *bufstat);
-int efs_del_stat(struct efs_fs *efs_fs, const efs_ino_t *ino);
-int efs_update_stat(struct efs_fs *efs_fs, const efs_ino_t *ini, int flags);
 int efs_get_symlink(struct efs_fs *efs_fs, const efs_ino_t *ino,
 		    void **buf, size_t *buf_size);
 int efs_set_symlink(struct efs_fs *efs_fs, const efs_ino_t *ino,

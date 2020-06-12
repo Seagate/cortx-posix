@@ -28,6 +28,7 @@
 #include <common.h> /* likely */
 #include <inttypes.h> /* PRIx64 */
 #include "kvtree.h"
+#include "kvnode.h"
 
 /** Get pointer to a const C-string owned by kvsns_name string. */
 static inline const char *efs_name_as_cstr(const str256_t *kname)
@@ -312,57 +313,127 @@ out:
 	return rc;
 }
 
-int efs_get_stat(struct efs_fs *efs_fs, const efs_ino_t *ino,
-		 struct stat **bufstat)
+int efs_kvnode_init(struct kvnode *node, struct kvtree *tree,
+		    const efs_ino_t *ino, const struct stat *bufstat)
 {
 	int rc;
-	size_t buf_size = 0;
-	RC_WRAP_LABEL(rc, out, efs_ns_get_inode_attr, efs_fs, ino, EFS_KEY_TYPE_STAT,
-		      (void **)bufstat, &buf_size);
-out:
-	if (rc == 0) {
-	    dassert(buf_size == sizeof(struct stat));
-	}
+	node_id_t node_id;
+	uint16_t size = sizeof(struct stat);
+
+	dassert(tree);
+	dassert(bufstat);
+	/**
+	 * A kvnode is identified by a 128 bit node id. However, currently efs
+	 * uses 64 bit inodes in it's apis to identify the entities. The
+	 * following api is a temporary arrangement to convert 64 bit inodes
+	 * to 128 bit node ids.
+	 * @TODO: Cleanup these when efs filehandle (or equivalent) is
+	 * implemented. The filehandles would eventually use 128bit unique fids.
+	 */
+	ino_to_node_id(ino, &node_id);
+
+	rc = kvnode_init(tree, &node_id, (void *)bufstat, size, node);
+
+	log_trace("efs_kvnode_init: " NODE_ID_F "uid: %d, gid: %d, mode: %04o,"
+		  " rc : %d",
+		  NODE_ID_P(&node->node_id),
+		  bufstat->st_uid,
+		  bufstat->st_gid,
+		  bufstat->st_mode & 07777,
+		  rc);
+
 	return rc;
 }
 
-int efs_set_stat(struct efs_fs *efs_fs, const efs_ino_t *ino,
-		    struct stat *bufstat)
-{
-	assert(bufstat != NULL);
-
-	log_trace("set_stat(%llu), uid: %d, gid: %d, mode: %04o",
-		  (unsigned long long) *ino,
-		  bufstat->st_uid,
-		  bufstat->st_gid,
-		  bufstat->st_mode & 07777);
-	return efs_ns_set_inode_attr(efs_fs, ino, EFS_KEY_TYPE_STAT,
-				     bufstat, sizeof(*bufstat));
-}
-
-int efs_del_stat(struct efs_fs *efs_fs, const efs_ino_t *ino)
-{
-	return efs_ns_del_inode_attr(efs_fs, ino, EFS_KEY_TYPE_STAT);
-}
-
-int efs_amend_stat(struct stat *stat, int flags);
-
-int efs_update_stat(struct efs_fs *efs_fs, const efs_ino_t *ino, int flags)
+int efs_kvnode_load(struct kvnode *node, struct kvtree *tree,
+		    const efs_ino_t *ino)
 {
 	int rc;
-	struct stat *stat = NULL;
-	struct kvstore *kvstor = kvstore_get();
+	node_id_t node_id;
 
-	dassert(ino && kvstor);
+	dassert(tree);
+	/**
+	 * A kvnode is identified by a 128 bit node id. However, currently efs
+	 * uses 64 bit inodes in it's apis to identify the entities. The
+	 * following api is a temporary arrangement to convert 64 bit inodes
+	 * to 128 bit node ids.
+	 * @TODO: Cleanup these when efs filehandle (or equivalent) is
+	 * implemented. The filehandles would eventually use 128bit unique fids.
+	 */
+	ino_to_node_id(ino, &node_id);
 
-	RC_WRAP_LABEL(rc, out, efs_get_stat, efs_fs, ino, &stat);
-	RC_WRAP_LABEL(rc, out, efs_amend_stat, stat, flags);
-	RC_WRAP_LABEL(rc, out, efs_set_stat, efs_fs, ino, stat);
+	rc = kvnode_load(tree, &node_id, node);
+
+	log_trace("efs_load_kvnode: " NODE_ID_F " rc : %d",
+		  NODE_ID_P(&node->node_id), rc);
+
+	return rc;
+}
+
+int efs_get_stat(struct kvnode *node, struct stat **bufstat)
+{
+	int rc = 0;
+	uint16_t attr_size;
+	struct stat *attr_buff = NULL;
+	struct kvstore *kvstore = kvstore_get();
+
+	dassert(node);
+	dassert(node->tree);
+	dassert(node->basic_attr);
+
+	attr_size = kvnode_get_basic_attr_buff(node, (void **)&attr_buff);
+
+	dassert(attr_buff);
+	dassert(attr_size == sizeof(struct stat));
+
+	/* TODO: Can we avoid kvs_alloc and have separate API for efs? */
+	RC_WRAP_LABEL(rc, out, kvs_alloc, kvstore, (void **)bufstat,
+		      attr_size);
+
+	/* TODO: This extra memcpy is here because the lifetime of kvnode is
+	 * limited by the scope of this function. When kvnode will be promoted
+	 * upper to the argument list then we can return a weak reference to its
+	 * internals (instead of loading kvsnode from kvstore). But right now we
+	 * cannot do that, so that we just allocate a new buffer, copy data
+	 * there and return this buffer to the caller
+	*/
+	memcpy(*bufstat, attr_buff, attr_size);
 
 out:
-	kvs_free(kvstor, stat);
-	log_trace("Update stats (%d) for %llu, rc=%d",
-		  flags, *ino, rc);
+	log_trace("efs_get_stat: " NODE_ID_F " rc : %d",
+		  NODE_ID_P(&node->node_id), rc);
+
+	return rc;
+}
+
+int efs_set_stat(struct kvnode *node)
+{
+	int rc = 0;
+
+	dassert(node);
+	dassert(node->tree);
+	dassert(node->basic_attr);
+
+	rc = kvnode_dump(node);
+
+	log_trace("efs_set_stat" NODE_ID_F "rc : %d",
+		  NODE_ID_P(&node->node_id), rc);
+
+	return rc;
+}
+
+int efs_del_stat(struct kvnode *node)
+{
+	int rc;
+
+	dassert(node);
+	dassert(node->tree);
+	dassert(node->basic_attr);
+
+	rc = kvnode_delete(node);
+
+	log_trace("efs_del_stat: " NODE_ID_F " rc : %d",
+		  NODE_ID_P(&node->node_id), rc);
 
 	return rc;
 }
@@ -420,6 +491,30 @@ out:
 	return rc;
 }
 
+int efs_update_stat(struct kvnode *node, int flags)
+{
+	int rc;
+	uint16_t stat_size;
+	struct stat *stat = NULL;
+	struct kvstore *kvstor = kvstore_get();
+
+	dassert(kvstor);
+
+	stat_size = kvnode_get_basic_attr_buff(node, (void **)&stat);
+
+	dassert(stat);
+	dassert(stat_size == sizeof(struct stat));
+
+	RC_WRAP_LABEL(rc, out, efs_amend_stat, stat, flags);
+	RC_WRAP_LABEL(rc, out, efs_set_stat, node);
+
+out:
+	log_trace("efs_update_stat (%d) for " NODE_ID_F ", rc=%d",
+		  flags, NODE_ID_P(&node->node_id), rc);
+
+	return rc;
+}
+
 int efs_get_symlink(struct efs_fs *efs_fs, const efs_ino_t *ino,
 		    void **buf, size_t *buf_size)
 {
@@ -447,7 +542,6 @@ int efs_del_symlink(struct efs_fs *efs_fs, const efs_ino_t *ino)
 int efs_tree_create_root(struct efs_fs *efs_fs)
 {
 	int rc = 0;
-	struct stat bufstat;
 	struct efs_parentdir_key *parent_key = NULL;
 	struct kvstore *kvstor = kvstore_get();
 	efs_ino_t ino;
@@ -480,19 +574,7 @@ int efs_tree_create_root(struct efs_fs *efs_fs)
 		      (const efs_ino_t *)&ino, EFS_KEY_TYPE_INO_NUM_GEN,
                       &v, sizeof(v));
 
-        /* Set stat */
-        memset(&bufstat, 0, sizeof(struct stat));
-        bufstat.st_mode = S_IFDIR|0777;
-        bufstat.st_ino = EFS_ROOT_INODE;
-        bufstat.st_nlink = 2;
-        bufstat.st_uid = 0;
-        bufstat.st_gid = 0;
-        bufstat.st_atim.tv_sec = 0;
-        bufstat.st_mtim.tv_sec = 0;
-        bufstat.st_ctim.tv_sec = 0;
-        RC_WRAP(efs_set_stat, efs_fs, &ino, &bufstat);
-
-		kvs_index_close(kvstor, &ns_index);
+	kvs_index_close(kvstor, &ns_index);
 free_key:
 	kvs_free(kvstor, parent_key);
 out:
@@ -526,9 +608,6 @@ int efs_tree_delete_root(struct efs_fs *efs_fs)
 	RC_WRAP_LABEL(rc, free_key, efs_ns_del_inode_attr, efs_fs,
                      (const efs_ino_t *)&ino, EFS_KEY_TYPE_INO_NUM_GEN);
 
-        /* Delete stat */
-	RC_WRAP(efs_del_stat, efs_fs, &ino);
-
 	kvs_index_close(kvstor, &ns_index);
 free_key:
         kvs_free(kvstor, parent_key);
@@ -548,6 +627,7 @@ int efs_tree_detach(struct efs_fs *efs_fs,
 	uint64_t *parent_value = NULL;
 	struct kvstore *kvstor = kvstore_get();
 	struct kvs_idx index;
+	struct kvnode parent_node = KVNODE_INIT_EMTPY;
 
 	dassert(kvstor != NULL);
 
@@ -586,10 +666,14 @@ int efs_tree_detach(struct efs_fs *efs_fs,
 
 	kvs_free(kvstor, parent_value);
 	// Update stats
-	RC_WRAP_LABEL(rc, free_parent_key, efs_update_stat, efs_fs,
-		      parent_ino, STAT_CTIME_SET|STAT_MTIME_SET);
+	RC_WRAP_LABEL(rc, free_parent_key, efs_kvnode_load, &parent_node,
+		      efs_fs->kvtree, parent_ino);
+
+	RC_WRAP_LABEL(rc, free_parent_key, efs_update_stat, &parent_node,
+		      STAT_CTIME_SET|STAT_MTIME_SET);
 
 free_parent_key:
+	kvnode_fini(&parent_node);
 	kvs_free(kvstor, parent_key);
 
 free_dentrykey:
@@ -616,6 +700,7 @@ int efs_tree_attach(struct efs_fs *efs_fs,
 	uint64_t *parent_val_ptr = NULL;
 	struct kvstore *kvstor = kvstore_get();
 	struct kvs_idx index;
+	struct kvnode parent_node = KVNODE_INIT_EMTPY;
 
 	dassert(kvstor != NULL);
 	dassert(ino != NULL);
@@ -669,10 +754,14 @@ int efs_tree_attach(struct efs_fs *efs_fs,
 		      (void *)&parent_value, sizeof(parent_value));
 
 	// Update stats
-	RC_WRAP_LABEL(rc, free_parentkey, efs_update_stat, efs_fs, parent_ino,
+	RC_WRAP_LABEL(rc, free_parentkey, efs_kvnode_load, &parent_node,
+		      efs_fs->kvtree, parent_ino);
+
+	RC_WRAP_LABEL(rc, free_parentkey, efs_update_stat, &parent_node,
 		      STAT_CTIME_SET|STAT_MTIME_SET);
 
 free_parentkey:
+	kvnode_fini(&parent_node);
 	kvs_free(kvstor, parent_key);
 
 free_dentrykey:
@@ -695,6 +784,7 @@ int efs_tree_rename_link(struct efs_fs *efs_fs,
 	node_id_t dentry_val;
 	struct kvstore *kvstor = kvstore_get();
 	struct kvs_idx index;
+	struct kvnode parent_node = KVNODE_INIT_EMTPY;
 
 	dassert(kvstor != NULL);
 
@@ -723,10 +813,13 @@ int efs_tree_rename_link(struct efs_fs *efs_fs,
 	
 
 	// Update ctime stat
-	RC_WRAP_LABEL(rc, cleanup, efs_update_stat, efs_fs, parent_ino,
+	RC_WRAP_LABEL(rc, cleanup, efs_kvnode_load, &parent_node,
+		      efs_fs->kvtree, parent_ino);
+	RC_WRAP_LABEL(rc, cleanup, efs_update_stat, &parent_node,
 		      STAT_CTIME_SET);
 
 cleanup:
+	kvnode_fini(&parent_node);
 	kvs_free(kvstor, dentry_key);
 
 out:
@@ -953,6 +1046,8 @@ int efs_create_entry(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *parent,
 	struct  stat *parent_stat = NULL;
 	struct kvstore *kvstor = kvstore_get();
 	struct kvs_idx index;
+	struct kvnode new_node    = KVNODE_INIT_EMTPY,
+		      parent_node = KVNODE_INIT_EMTPY;
 
 	dassert(kvstor);
 	index = efs_fs->kvtree->index;
@@ -977,7 +1072,11 @@ int efs_create_entry(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *parent,
 		return -EEXIST;
 
 	RC_WRAP(efs_next_inode, efs_fs, new_entry);
-	RC_WRAP_LABEL(rc, errfree, efs_get_stat, efs_fs, parent, &parent_stat);
+	RC_WRAP_LABEL(rc, errfree, efs_kvnode_load, &parent_node,
+		      efs_fs->kvtree, parent);
+	RC_WRAP_LABEL(rc, errfree, efs_get_stat, &parent_node, &parent_stat);
+
+	kvnode_fini(&parent_node);
 
 	RC_WRAP(kvs_begin_transaction, kvstor, &index);
 
@@ -1030,7 +1129,9 @@ int efs_create_entry(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *parent,
 		rc = -EINVAL;
 		goto errfree;
 	}
-	RC_WRAP_LABEL(rc, errfree, efs_set_stat, efs_fs, new_entry, &bufstat);
+	RC_WRAP_LABEL(rc, errfree, efs_kvnode_init, &new_node, efs_fs->kvtree,
+		      new_entry, &bufstat);
+	RC_WRAP_LABEL(rc, errfree, efs_set_stat, &new_node);
 
 	if (type == EFS_FT_SYMLINK) {
 		RC_WRAP_LABEL(rc, errfree, efs_set_symlink, efs_fs, new_entry,
@@ -1045,12 +1146,16 @@ int efs_create_entry(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *parent,
 		RC_WRAP_LABEL(rc, errfree, efs_amend_stat, parent_stat,
 			      STAT_CTIME_SET | STAT_MTIME_SET);
 	}
-	RC_WRAP_LABEL(rc, errfree, efs_set_stat, efs_fs, parent, parent_stat);
+	RC_WRAP_LABEL(rc, errfree, efs_kvnode_init, &parent_node,
+		      efs_fs->kvtree, parent, parent_stat);
+	RC_WRAP_LABEL(rc, errfree, efs_set_stat, &parent_node);
 
 	RC_WRAP(kvs_end_transaction, kvstor, &index);
 	return 0;
 
 errfree:
+	kvnode_fini(&new_node);
+	kvnode_fini(&parent_node);
 	kvs_free(kvstor, parent_stat);
 	log_trace("Exit rc=%d", rc);
 	kvs_discard_transaction(kvstor, &index);
