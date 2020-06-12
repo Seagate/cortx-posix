@@ -34,7 +34,8 @@
  * kvnode_dump - Dumps node on disk (serialize)
  * kvnode_delete - Removes a node the from disk
  * kvnode_fini - Destroys resources held by kvnode object created during
- *               init/load (destructor)
+ *               init/load (destructor), if kvnode object is not initialized
+ *               it will do nothing
  *
  * # Memory
  *
@@ -143,6 +144,7 @@ struct kvnode_basic_attr;
 #define NODE_ID_F "{hi=%" PRIu64 ", lo=%" PRIu64 "}"
 #define NODE_ID_P(_nid) (_nid)->f_hi, (_nid)->f_lo
 
+#define KVNODE_INIT_EMTPY (struct kvnode) { .tree = NULL }
 #define KVNODE_NULL_ID (node_id_t) { .f_hi = 0, .f_lo = 0 }
 
 /** Initializes a kvnode with node basic attributes for a given id(128 bit) and
@@ -160,9 +162,10 @@ struct kvnode_basic_attr;
  *  @return 0 if successful, a negative "-errno" value in case of failure
  */
 int kvnode_init(struct kvtree *tree, const node_id_t *node_id,
-                const void *attr, const size_t attr_size, struct kvnode *node);
+                const void *attr, const uint16_t attr_size, struct kvnode *node);
 
-/* Releases the resources held by kvnode
+/* Releases the resources held by kvnode, it will do nothing if kvnode is not
+ * initialized
  *
  * @param[in] node - kvnode's basic attributes held by kvnode are released.
  */
@@ -233,5 +236,18 @@ int kvnode_get_sys_attr(const struct kvnode *node, const int key, buff_t *value)
  * @return 0 if successful, a negative "-errno" value in case of failure
  */
 int kvnode_del_sys_attr(const struct kvnode *node, const int key);
+
+/* kvnode has the opaque basic_attr structure which has actual
+ * attribute info and size of attributes. This API is used to
+ * extract the offset address and size of attributes.
+ *
+ * @param[in] node * - A pointer to kvnode which hold the opaque
+ *                     attribute information
+ * @param[in] attr_buff ** - Will hold the offset address of actual
+ *                           attribute buffer
+ * @return - A size of the attributes stored in basic_attr structure
+ */
+uint16_t kvnode_get_basic_attr_buff(const struct kvnode *node,
+				    void **attr_buff);
 
 #endif /* _KVNODE_H_ */

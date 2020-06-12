@@ -33,7 +33,7 @@ struct kvnode_sys_attr_key {
 }
 
 int kvnode_init(struct kvtree *tree, const node_id_t *node_id, const void *attr,
-                const size_t attr_size, struct kvnode *node)
+                const uint16_t attr_size, struct kvnode *node)
 {
 	int rc = 0;
 	size_t tot_size = 0;
@@ -166,16 +166,18 @@ out:
 void kvnode_fini(struct kvnode *node)
 {
 	dassert(node);
-	dassert(node->basic_attr);
+	if (node->tree) {
+		dassert(node->basic_attr);
 
-	struct kvstore *kvstor = kvstore_get();
-	dassert(kvstor);
+		struct kvstore *kvstor = kvstore_get();
+		dassert(kvstor);
 
-	kvs_free(kvstor, node->basic_attr);
+		kvs_free(kvstor, node->basic_attr);
 
-	node->tree = NULL;;
-	node->node_id = KVNODE_NULL_ID;
-	node->basic_attr = NULL;
+		node->tree = NULL;;
+		node->node_id = KVNODE_NULL_ID;
+		node->basic_attr = NULL;
+	}
 }
 
 int kvnode_set_sys_attr(const struct kvnode *node, const int key,
@@ -273,4 +275,17 @@ out:
 	log_debug("kvtree=%p, node_id " NODE_ID_F ", System Attr id=%d, rc=%d",
 	          node->tree, NODE_ID_P(&node->node_id), key, rc);
 	return rc;
+}
+
+uint16_t kvnode_get_basic_attr_buff(const struct kvnode *node, void **attr_buff)
+{
+	struct kvnode_basic_attr *basic_attr;
+
+	dassert(node);
+	dassert(node->basic_attr);
+
+	basic_attr = node->basic_attr;
+	*attr_buff = (void *)basic_attr->attr;
+
+	return basic_attr->size;
 }
