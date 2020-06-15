@@ -84,10 +84,10 @@ static inline const char *efs_key_type_to_str(efs_key_type_t ktype)
  * DENTRY_KEY_INIT are replaced with DENTRY_KEY_PTR_INIT */
 #define DENTRY_KEY_PTR_INIT(key, ino, fname)	\
 {							\
-		key->fid.f_hi = (*ino),		\
-		key->fid.f_lo = 0,			\
 		key->md.type = EFS_KEY_TYPE_DIRENT,	\
 		key->md.version = EFS_VERSION_0,	\
+		key->fid.f_hi = (*ino),			\
+		key->fid.f_lo = 0,			\
 		key->name = *fname;			\
 }
 
@@ -110,6 +110,33 @@ static inline size_t efs_name_dsize(const str256_t *kname)
  */
 static inline size_t efs_dentry_key_dsize(const struct efs_dentry_key *key) {
 	return efs_dentry_key_psize + efs_name_dsize(&key->name);
+}
+
+/**
+ * A kvnode is identified by a 128 bit node id. However, currently efs uses
+ * 64 bit inodes in it's apis to identify the entities. The following apis
+ * are a temporary arrangement to convert 64 bit inodes to 128 bit node ids.
+ * @TODO: Cleanup these apis when efs filehandle (or equivalent) is
+ * implemented. The filehandles would eventually use 128bit unique fids.
+ */
+static inline int node_id_to_ino(const node_id_t *nid, efs_ino_t *ino)
+{
+	dassert(nid != NULL);
+	dassert(ino != NULL);
+
+	*ino = nid->f_hi;
+	return 0;
+}
+
+static inline int ino_to_node_id(const efs_ino_t *ino, node_id_t *nid)
+{
+	dassert(ino != NULL);
+	dassert(nid != NULL);
+
+	nid->f_hi = *ino;
+	nid->f_lo = 0;
+
+	return 0;
 }
 
 /* @todo rename this to PARENTDIR_KEY_INIT once all the instances of
@@ -582,7 +609,8 @@ int efs_tree_attach(struct efs_fs *efs_fs,
 	int rc;
 	struct efs_dentry_key *dentry_key;
 	struct efs_parentdir_key *parent_key;
-	efs_ino_t dentry_value = *ino;
+	node_id_t dentry_val;
+
 	uint64_t parent_value;
 	uint64_t val_size = 0;
 	uint64_t *parent_val_ptr = NULL;
@@ -590,6 +618,8 @@ int efs_tree_attach(struct efs_fs *efs_fs,
 	struct kvs_idx index;
 
 	dassert(kvstor != NULL);
+	dassert(ino != NULL);
+	dassert(*ino >= EFS_ROOT_INODE);
 
 	index = efs_fs->kvtree->index;
 	// Add dentry
@@ -600,9 +630,12 @@ int efs_tree_attach(struct efs_fs *efs_fs,
 
 	DENTRY_KEY_PTR_INIT(dentry_key, parent_ino, node_name);
 
+	RC_WRAP_LABEL(rc, free_dentrykey, ino_to_node_id, ino, &dentry_val);
+
 	RC_WRAP_LABEL(rc, free_dentrykey, kvs_set, kvstor, &index,
 		      dentry_key, efs_dentry_key_dsize(dentry_key),
-		      &dentry_value, sizeof(dentry_value));
+		      &dentry_val, sizeof(dentry_val));
+
 
 	// Update parent link count
 	RC_WRAP_LABEL(rc, free_dentrykey, kvs_alloc, kvstor,
@@ -659,7 +692,7 @@ int efs_tree_rename_link(struct efs_fs *efs_fs,
 {
 	int rc;
 	struct efs_dentry_key *dentry_key;
-	efs_ino_t dentry_value = *ino;
+	node_id_t dentry_val;
 	struct kvstore *kvstor = kvstore_get();
 	struct kvs_idx index;
 
@@ -681,10 +714,13 @@ int efs_tree_rename_link(struct efs_fs *efs_fs,
 
 	dentry_key->name = *new_name;
 
+	RC_WRAP_LABEL(rc, cleanup, ino_to_node_id, ino, &dentry_val);
+
 	// Add dentry
 	RC_WRAP_LABEL(rc, cleanup, kvs_set, kvstor, &index,
 		      dentry_key, efs_dentry_key_dsize(dentry_key),
-		      &dentry_value, sizeof(dentry_value));
+		      &dentry_val, sizeof(dentry_val));
+	
 
 	// Update ctime stat
 	RC_WRAP_LABEL(rc, cleanup, efs_update_stat, efs_fs, parent_ino,
@@ -756,7 +792,7 @@ int efs_tree_lookup(struct efs_fs *efs_fs,
 	efs_ino_t value = 0;
 	int rc;
 	uint64_t val_size = 0;
-	uint64_t *val_ptr = NULL;
+	node_id_t *val_ptr = NULL;
 	struct kvstore *kvstor = kvstore_get();
 	struct kvs_idx index;
 
@@ -776,7 +812,8 @@ int efs_tree_lookup(struct efs_fs *efs_fs,
 	if (ino) {
 		dassert(val_ptr != NULL);
 		dassert(val_size == sizeof(*val_ptr));
-		*ino = *val_ptr;
+		RC_WRAP_LABEL(rc, cleanup, node_id_to_ino, val_ptr, ino);
+		dassert(*ino >= EFS_ROOT_INODE);
 		value = *ino;
 		kvs_free(kvstor, val_ptr);
 	}
@@ -812,7 +849,8 @@ int efs_tree_iter_children(struct efs_fs *efs_fs,
 	struct kvs_idx index;
 	struct kvs_itr *iter = NULL;
 	const struct efs_dentry_key *key = NULL;
-	const efs_ino_t *value = NULL;
+	efs_ino_t child_ino;
+	const node_id_t *value = NULL;
 	const char *dentry_name_str;
 
 	index = efs_fs->kvtree->index;
@@ -835,9 +873,11 @@ int efs_tree_iter_children(struct efs_fs *efs_fs,
 
 		dassert(key->name.s_len != 0);
 		dentry_name_str = efs_name_as_cstr(&key->name);
-
-		log_debug("NEXT %s = %llu", dentry_name_str, *value);
-		need_next = cb(cb_ctx, dentry_name_str, value);
+		
+		RC_WRAP_LABEL(rc, out, node_id_to_ino, value, &child_ino);
+		
+		log_debug("NEXT %s = %llu", dentry_name_str, child_ino);
+		need_next = cb(cb_ctx, dentry_name_str, &child_ino);
 		rc = kvs_itr_next(kvstor, iter);
 		has_next = (rc == 0);
 

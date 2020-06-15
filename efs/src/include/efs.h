@@ -319,8 +319,8 @@ struct efs_gi_index_key {
  * @see efs_parentdir_key for reverse mapping.
  */
 struct efs_dentry_key {
-	efs_fid_t fid;
 	efs_key_md_t md;
+	efs_fid_t fid;
 	str256_t name;
 } __attribute((packed));
 
