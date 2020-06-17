@@ -342,7 +342,8 @@ eosfs_reinstall() {
     _nsal_build rpm-install &&
     _dsal_build rpm-install &&
     _efs_build rpm-install &&
-    _kvsfs_build rpm-install
+    _kvsfs_build rpm-install &&
+    sudo cp /etc/efs/efs.conf.rpmsave /etc/efs/efs.conf
 }
 
 ###############################################################################
