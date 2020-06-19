@@ -28,14 +28,79 @@
 #define DEFAULT_LOG_LEVEL LEVEL_DEBUG
 
 /******************************************************************************/
-struct dstore *dstore;
-dstore_oid_t def_object = {0};
+static struct dstore *dstore;
+static dstore_oid_t def_object = {0};
+static dstore_oid_t def_multi_obj[NUM_OF_OBJECTS] = {{0}};
+
+/* Global variables for efs config for m0_filesystem_stats */
+char *server = NULL, *client = NULL;
+const char* config_path = EFS_TEST_CONF_PATH;
+struct collection_item *cfg_items = NULL;
+struct collection_item *errors = NULL;
+struct collection_item *item = NULL;
+
+/* Read efs config parameter needed for m0_filesystem_stats */
+int dtlib_get_mero_config_params(void)
+{
+	int rc = 0, len;
+
+	rc = config_from_file("libkvsns", config_path, &cfg_items,
+			      INI_STOP_ON_ERROR, &errors);
+	if (rc) {
+		fprintf(stderr, "Failed to load ini file.\n");
+		goto die;
+	}
+
+	(void) get_config_item("mero", "local_addr", cfg_items, &item);
+	if (item != NULL) {
+		server = get_string_config_value(item, NULL);
+		item = NULL;
+	}
+	else
+		goto die;
+
+	(void) get_config_item("mero", "ha_addr", cfg_items, &item);
+	if (item != NULL) {
+		client = get_string_config_value(item, NULL);
+		item = NULL;
+
+		/* for m0_filesystems_stats call we have to mention
+		   different client address. Hence need to tweak the existing
+		   adress by changing last digit.
+		   Below logic will change last digit to 9 if it is less
+		   than 9, else it sets it to 8 */
+		len = strlen(client);
+		if (client[len-1] < '9')
+			client[len-1] = '9';
+		else
+			client[len-1] = '8';
+	}
+	else {
+		free(server);
+		goto die;
+	}
+	free_ini_config(cfg_items);
+	return SUCCESS;
+
+die:
+	free_ini_config_errors(errors);
+	free_ini_config(cfg_items);
+	fprintf(stderr, "Failed to initialize test group environment %d\n", rc);
+	return FAILURE;
+}
+
+/* Method to transfer the read values */
+void dtlib_get_clnt_svr(char **srv, char **clnt)
+{
+	*srv = server;
+	*clnt = client;
+}
 
 /******************************************************************************/
 /* Module-wide "setup" action.
  * Sets up the environment for all testcases in this module.
  */
-void dtlib_setup(int argc, char *argv[])
+int dtlib_common_setup(int argc, char *argv[])
 {
 	int rc = 0;
 	const char* config_path = EFS_TEST_CONF_PATH;
@@ -98,17 +163,62 @@ void dtlib_setup(int argc, char *argv[])
 
 	dstore = dstore_get();
 
+	free(log_path);
+	free_ini_config(cfg_items);
+	return SUCCESS;
+
+die:
+	if (log_path) {
+		free(log_path);
+	}
+	free_ini_config_errors(errors);
+	free_ini_config(cfg_items);
+	fprintf(stderr, "Failed to initialize test group environment %d\n", rc);
+	return FAILURE;
+}
+
+/* Setup for single DSAL object operations */
+int dtlib_setup(int argc, char *argv[])
+{
+	int rc = 0;
+
+	dtlib_common_setup(argc, argv);
 	rc = dstore_get_new_objid(dstore, &def_object);
 	if (rc) {
-		fprintf(stderr, "Cannot generete UFID for the default object\n");
+		fprintf(stderr,
+			"Cannot generete UFID for the default object\n");
 		goto die;
 	}
 
-	return;
+	return SUCCESS;
 
 die:
 	fprintf(stderr, "Failed to initialize test group environment %d\n", rc);
-	abort();
+	return FAILURE;
+}
+
+/* setup for multiple DSAL objects */
+int dtlib_setup_for_multi(int argc, char *argv[])
+{
+	int rc = 0, i;
+
+	dtlib_get_mero_config_params();
+	dtlib_common_setup(argc, argv);
+
+	for (i = 0; i < NUM_OF_OBJECTS; i++) {
+		rc = dstore_get_new_objid(dstore, &def_multi_obj[i]);
+		if (rc) {
+			fprintf(stderr,
+			      "Cannot generete UFID for the default object\n");
+			goto die;
+		}
+	}
+
+	return SUCCESS;
+
+die:
+	fprintf(stderr, "Failed to initialize test group environment %d\n", rc);
+	return FAILURE;
 }
 
 /******************************************************************************/
@@ -133,3 +243,12 @@ const dstore_oid_t *dtlib_def_obj(void)
 }
 
 /*****************************************************************************/
+/* pass on multiple FIDs to the caller */
+void dtlib_get_objids(dstore_oid_t oids[])
+{
+	int i;
+
+	for (i = 0; i < NUM_OF_OBJECTS; i++) {
+		oids[i] = def_multi_obj[i];
+	}
+}

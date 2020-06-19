@@ -299,7 +299,7 @@ static int test_group_setup(void **state)
 
 	*state = env;
 
-	return 0;
+	return SUCCESS;
 }
 
 static int test_group_teardown(void **state)
@@ -309,7 +309,7 @@ static int test_group_teardown(void **state)
 	free(env);
 	*state = NULL;
 
-	return 0;
+	return SUCCESS;
 }
 
 /*****************************************************************************/
@@ -328,9 +328,14 @@ int main(int argc, char *argv[])
 		ut_test_case(test_delete_open, NULL, NULL),
 	};
 
-	dtlib_setup(argc, argv);
+	rc = dtlib_setup(argc, argv);
+	if (rc) {
+		printf("Failed to set up the test group environment");
+		goto out;
+	}
 	rc = DSAL_UT_RUN(test_group, test_group_setup, test_group_teardown);
 	dtlib_teardown();
 
+out:
 	return rc;
 }
