@@ -19,5 +19,6 @@ endfunction()
 ################################################################################
 # List of tests
 add_dsal_test(dsal_test_basic dsal_test_basic.c)
+add_dsal_test(dsal_test_space_stats dsal_test_space_stats.c)
 
 ################################################################################

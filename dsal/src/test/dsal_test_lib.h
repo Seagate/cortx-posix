@@ -23,14 +23,26 @@
 
 #include "ut.h"
 
+/* Number of objects for stress test */
+#define NUM_OF_OBJECTS 10
+
+/* return values */
+#define SUCCESS 0
+#define FAILURE 1
+
 /* Get initialized dstore instance. */
 struct dstore *dtlib_dstore(void);
 
 /** Get default object ID. */
 const dstore_oid_t *dtlib_def_obj(void);
+/** Get multiple object IDs. */
+void dtlib_get_objids(dstore_oid_t[]);
+/** Get client & server names - related to m0_filesystem_stats. */
+void dtlib_get_clnt_svr(char **svr, char **clnt);
 
 /** Global setup action. */
-void dtlib_setup(int argc, char *argv[]);
+int dtlib_setup(int argc, char *argv[]);
+int dtlib_setup_for_multi(int argc, char *argv[]);
 
 /* Global teardown action. */
 void dtlib_teardown(void);
