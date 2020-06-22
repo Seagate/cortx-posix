@@ -1,13 +1,13 @@
 %define sourcename @CPACK_SOURCE_PACKAGE_FILE_NAME@
 %global dev_version %{lua: extraver = string.gsub('@EOS_NSAL_EXTRA_VERSION@', '%-', '.'); print(extraver) }
 
-Name: eos-nsal
+Name: @PROJECT_NAME@
 Version: @EOS_NSAL_BASE_VERSION@
 Release: %{dev_version}%{?dist}
 Summary: Namespace abstraction layer library
 License: Seagate
 Group: Development/Libraries
-Url: http://seagate.com/eos-nsal
+Url: GHS://@PROJECT_NAME@
 Source: %{sourcename}.tar.gz
 BuildRequires: cmake gcc libini_config-devel
 BuildRequires: @RPM_DEVEL_REQUIRES@
@@ -15,6 +15,7 @@ Requires: libini_config @RPM_REQUIRES@
 Provides: %{name} = %{version}-%{release}
 
 # EOS NSAL library paths
+%define _nsal_lib		@PROJECT_NAME@
 %define _nsal_dir		@INSTALL_DIR_ROOT@/@PROJECT_NAME_BASE@/nsal
 %define _nsal_lib_dir		%{_nsal_dir}/lib
 %define _nsal_include_dir	%{_includedir}/nsal
@@ -42,10 +43,10 @@ Provides: %{name} = %{version}-%{release}
 %global enable_dassert %{on_off_switch enable_dassert}
 
 %description
-The eos-nsal is Namespace abstraction layer library. It uses @KVS_OPT@ as Key-Value Store.
+The @PROJECT_NAME@ is Namespace abstraction layer library. It uses @KVS_OPT@ as Key-Value Store.
 
 %package devel
-Summary: Development file for the library eos-nsal
+Summary: Development file for the library @PROJECT_NAME@
 Group: Development/Libraries
 Requires: %{name} = %{version}-%{release} pkgconfig
 Requires: @RPM_DEVEL_REQUIRES@
@@ -53,18 +54,19 @@ Provides: %{name}-devel = %{version}-%{release}
 
 
 %description devel
-The eos-nsal is Namespace abstraction layer library.
-This package contains tools for eos-nsal.
+The @PROJECT_NAME@ is Namespace abstraction layer library.
+This package contains tools for @PROJECT_NAME@.
 
 %prep
 %setup -q -n %{sourcename}
 
 %build
-cmake . -DUSE_KVS_REDIS=%{use_kvs_redis}     \
-	-DUSE_KVS_EOS=%{use_kvs_eos}       \
-	-DEOSUTILSINC:PATH=@EOSUTILSINC@     \
+cmake . -DUSE_KVS_REDIS=%{use_kvs_redis}     	\
+	-DUSE_KVS_EOS=%{use_kvs_eos}       	\
+	-DEOSUTILSINC:PATH=@EOSUTILSINC@     	\
 	-DLIBEOSUTILS:PATH=@LIBEOSUTILS@	\
-	-DENABLE_DASSERT=%{enable_dassert}
+	-DENABLE_DASSERT=%{enable_dassert}	\
+	-DPROJECT_NAME_BASE=@PROJECT_NAME_BASE@ \
 
 make %{?_smp_mflags} || make %{?_smp_mflags} || make
 
@@ -78,21 +80,21 @@ mkdir -p %{buildroot}%{_nsal_include_dir}/
 mkdir -p %{buildroot}%{_sysconfdir}/nsal.d
 mkdir -p %{buildroot}%{_libdir}/pkgconfig
 install -m 644 include/*.h  %{buildroot}%{_nsal_include_dir}
-install -m 755 libeos-nsal.so %{buildroot}%{_nsal_lib_dir}
-install -m 644 eos-nsal.pc  %{buildroot}%{_libdir}/pkgconfig
-ln -s %{_nsal_lib_dir}/libeos-nsal.so %{buildroot}%{_libdir}/libeos-nsal.so
+install -m 755 lib%{_nsal_lib}.so %{buildroot}%{_nsal_lib_dir}
+install -m 644 %{_nsal_lib}.pc  %{buildroot}%{_libdir}/pkgconfig
+ln -s %{_nsal_lib_dir}/lib%{_nsal_lib}.so %{buildroot}%{_libdir}/lib%{_nsal_lib}.so
 
 %clean
 rm -rf $RPM_BUILD_ROOT
 
 %files
 %defattr(-,root,root)
-%{_libdir}/libeos-nsal.so*
-%{_nsal_lib_dir}/libeos-nsal.so*
+%{_libdir}/lib%{_nsal_lib}.so*
+%{_nsal_lib_dir}/lib%{_nsal_lib}.so*
 
 %files devel
 %defattr(-,root,root)
-%{_libdir}/pkgconfig/eos-nsal.pc
+%{_libdir}/pkgconfig/%{_nsal_lib}.pc
 %{_nsal_include_dir}/*.h
 
 %changelog

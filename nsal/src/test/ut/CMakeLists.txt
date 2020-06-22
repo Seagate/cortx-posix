@@ -18,19 +18,19 @@ link_directories(${LIBKVSTORE})
 set(CMAKE_INSTALL_RPATH "${LIBKVSTORE}")
 
 target_link_libraries(ut_nsal_ns_ops
-	eos-utils
-	eos-nsal
+	${PROJECT_NAME_BASE}-utils
+	${PROJECT_NAME_BASE}-nsal
 	${STORE_LIBRARY}
 )
 
 target_link_libraries(ut_nsal_iter_ops
-	eos-utils
-	eos-nsal
+	${PROJECT_NAME_BASE}-utils
+	${PROJECT_NAME_BASE}-nsal
 	${STORE_LIBRARY}
 )
 
 target_link_libraries(ut_nsal_kvtree_ops
-	eos-utils
-	eos-nsal
+	${PROJECT_NAME_BASE}-utils
+	${PROJECT_NAME_BASE}-nsal
 	${STORE_LIBRARY}
 )
