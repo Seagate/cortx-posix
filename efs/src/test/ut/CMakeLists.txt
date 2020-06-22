@@ -12,7 +12,7 @@ endif((NOT HAVE_CMOCKA))
 configure_file(ut_efs.conf ut_efs.conf COPYONLY)
 
 add_executable(ut_efs_fs_ops ut_efs_fs_ops.c)
-add_executable(endpoint_ops_ut efs_endpoint_ops.c)
+add_executable(ut_efs_endpoint_ops ut_efs_endpoint_ops.c)
 add_executable(ut_efs_dir_ops ut_efs_dir_ops.c)
 add_executable(ut_efs_link_ops ut_efs_link_ops.c)
 add_executable(ut_efs_rename_ops ut_efs_rename_ops.c)
@@ -27,7 +27,9 @@ link_directories(${LIBKVSTORE})
 set(CMAKE_INSTALL_RPATH "${LIBKVSTORE}")
 
 set(ut_efs_helper_SRC
+	ut_efs_endpoint_dummy.c
 	ut_efs_helper.c
+
 )
 
 add_library(ut_efs_helper STATIC ${ut_efs_helper_SRC})
@@ -57,13 +59,15 @@ target_link_libraries(ut_efs_fs_ops
 	eos-utils
 	eos-nsal
 	eos-efs
+	ut_efs_helper
 	${STORE_LIBRARY}
 )
 
-target_link_libraries(endpoint_ops_ut
+target_link_libraries(ut_efs_endpoint_ops
 	eos-utils
 	eos-nsal
 	eos-efs
+	ut_efs_helper
 	${STORE_LIBRARY}
 )
 
@@ -106,9 +110,9 @@ target_link_libraries(ut_efs_io_bug_ops
 set(CMAKE_EV_LIB /usr/local/lib)
 link_directories(${CMAKE_EV_LIB})
 
-add_executable(test-management test-management.c)
+add_executable(ut_efs_management ut_efs_management.c)
 
-target_link_libraries(test-management
+target_link_libraries(ut_efs_management
 	eos-efs
 	json
 	event
@@ -116,4 +120,5 @@ target_link_libraries(test-management
 	crypto
 	event_openssl
 	evhtp
+	ut_efs_helper
 )

@@ -13,10 +13,11 @@
  */
 
 #include "ut_efs_helper.h"
+#include "ut_efs_endpoint_dummy.h"
 
 struct collection_item *cfg_items;
 
-static void test_efs_fs_create()
+static void test_efs_fs_create(void)
 {
 	int rc = 0;
 	char *name = "efs";
@@ -27,7 +28,7 @@ static void test_efs_fs_create()
 	ut_assert_int_equal(rc, 0);
 }
 
-static void test_efs_fs_delete()
+static void test_efs_fs_delete(void)
 {
 	int rc = 0;
 	char *name = "efs";
@@ -52,7 +53,7 @@ out:
 	return rc;
 }
 
-static void test_efs_fs_scan()
+static void test_efs_fs_scan(void)
 {
 	int rc = 0;
 
@@ -80,7 +81,7 @@ int main(void)
 		printf("ut_init failed, log path=%s, rc=%d.\n", test_log, rc);
 		exit(1);
 	}
-	rc = efs_init(EFS_DEFAULT_CONFIG);
+	rc = efs_init(EFS_DEFAULT_CONFIG, get_endpoint_dummy_ops());
 	if (rc) {
 		printf("Failed to intitialize efs\n");
 		goto out;

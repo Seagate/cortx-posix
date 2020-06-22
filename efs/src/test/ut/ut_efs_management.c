@@ -31,6 +31,7 @@
 #include <internal/fs.h>
 #include <debug.h>
 #include <nsal.h> /* nsal_init,fini */
+#include "ut_efs_endpoint_dummy.h"
 
 #define LOG_FILE	"/var/log/cortx/efs/efs.log"
 #define	LOG_LEVEL	LOG_DEBUG
@@ -90,7 +91,7 @@ int test_management_init(const char *config_path)
 		log_err("dsal_init failed, rc=%d", rc);
 		goto nsal_cleanup;
 	}
-	rc = efs_fs_init(cfg_items);
+	rc = efs_fs_init(get_endpoint_dummy_ops());
 	if (rc) {
 		log_err("efs_fs_init failed, rc=%d", rc);
 		goto dsal_cleanup;

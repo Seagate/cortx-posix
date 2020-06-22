@@ -35,7 +35,7 @@ static struct collection_item *cfg_items;
 
 static int efs_initialized;
 
-int efs_init(const char *config_path)
+int efs_init(const char *config_path, const struct efs_endpoint_ops *e_ops)
 {
 	struct collection_item *errors = NULL;
 	int rc = 0;
@@ -93,7 +93,7 @@ int efs_init(const char *config_path)
 		log_err("dsal_init failed, rc=%d", rc);
 		goto nsal_cleanup;
 	}
-	rc = efs_fs_init(cfg_items);
+	rc = efs_fs_init(e_ops);
 	if (rc) {
 		log_err("efs_fs_init failed, rc=%d", rc);
 		goto dsal_cleanup;

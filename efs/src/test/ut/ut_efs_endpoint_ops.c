@@ -12,13 +12,14 @@
  * Author: Jatinder Kumar <jatinder.kumar@seagate.com>
  */
 
-#include "efs_endpoint.h"
+#include "ut_efs_endpoint_dummy.h"
+#include "ut_efs_endpoint.h"
 #include "nsal.h"
 #include "internal/fs.h"
 
 struct collection_item *cfg_items;
 
-static void test_efs_endpoint_create()
+static void test_efs_endpoint_create(void)
 {
 	int rc = 0;
 	char *name = "efs";
@@ -34,7 +35,7 @@ static void test_efs_endpoint_create()
 	ut_assert_int_equal(rc, 0);
 }
 
-static void test_efs_endpoint_delete()
+static void test_efs_endpoint_delete(void)
 {
 	int rc = 0;
 	char *name = "efs";
@@ -48,7 +49,7 @@ static void test_efs_endpoint_delete()
 	ut_assert_int_equal(rc, 0);
 }
 
-static int test_endpoint_cb(const struct efs_fs_list_entry *list, void *args)
+static int test_fs_cb(const struct efs_fs_list_entry *list, void *args)
 {
 	int rc = 0;
 
@@ -64,18 +65,39 @@ out:
 	return rc;
 }
 
-static void test_efs_endpoint_scan()
+static void test_efs_fs_scan(void)
 {
 	int rc = 0;
-	rc = efs_fs_scan_list(test_endpoint_cb, (void*)0);
+
+	rc = efs_fs_scan_list(test_fs_cb, (void*)0);
+	ut_assert_int_equal(rc, 0);
+}
+
+static int test_endpoint_cb(const struct efs_endpoint_info *list, void *args)
+{
+	int rc = 0;
+
+	printf("ep_name = %s\n", list->ep_name->s_str);
+	printf("ep_id = %d\n", list->ep_id);
+	printf("ep_info = %s\n", list->ep_info);
+
+	return rc;
+}
+
+static void test_efs_endpoint_scan(void)
+{
+	int rc = 0;
+
+	rc = efs_endpoint_scan(test_endpoint_cb, NULL);
 	ut_assert_int_equal(rc, 0);
 }
 
 int main(int argc, char *argv[])
 {
 	int rc = 0;
-	char *test_log = "/var/log/eos/test/ut/efs/endpoint_ops.logs";
+	char *test_log = "/var/log/eos/test/ut/ut_efs.logs";
 
+	printf("Endpoint ops Tests\n");
 	if (argc > 1) {
 		test_log = argv[1];
 	}
@@ -85,7 +107,7 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	rc = efs_init(EFS_DEFAULT_CONFIG);
+	rc = efs_init(EFS_DEFAULT_CONFIG, get_endpoint_dummy_ops());
 	if (rc) {
 		printf("Failed to intitialize efs\n");
 		exit(1);
@@ -93,10 +115,9 @@ int main(int argc, char *argv[])
 
 	struct test_case test_list[] = {
 		ut_test_case(test_efs_endpoint_create, NULL, NULL),
+		ut_test_case(test_efs_fs_scan, NULL, NULL),
 		ut_test_case(test_efs_endpoint_scan, NULL, NULL),
 		ut_test_case(test_efs_endpoint_delete, NULL, NULL),
-		ut_test_case(test_efs_endpoint_scan, NULL, NULL),
-
 	};
 
 	int test_count = sizeof(test_list)/sizeof(test_list[0]);

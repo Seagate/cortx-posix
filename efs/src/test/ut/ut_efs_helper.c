@@ -13,6 +13,7 @@
  */
 
 #include "ut_efs_helper.h"
+#include "ut_efs_endpoint_dummy.h"
 
 int ut_efs_fs_setup(void **state)
 {
@@ -30,7 +31,7 @@ int ut_efs_fs_setup(void **state)
 
 	ut_efs_obj->fs_name = NULL;
 
-	rc = efs_init(EFS_DEFAULT_CONFIG);
+	rc = efs_init(EFS_DEFAULT_CONFIG, get_endpoint_dummy_ops());
 	if (rc != 0) {
 		fprintf(stderr, "efs_init: err = %d\n", rc);
 		goto out;
