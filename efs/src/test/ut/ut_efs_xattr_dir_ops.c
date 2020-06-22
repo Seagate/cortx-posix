@@ -69,7 +69,7 @@ static int xattr_dir_ops_teardown(void **state)
 int main(void)
 {
 	int rc = 0;
-	char *test_log = "/var/log/eos/test/ut/efs/xattr_dir_ops.log";
+	char *test_log = "/var/log/cortx/test/ut/xattr_dir_ops.log";
 
 	printf("Xattr dir Tests\n");
 

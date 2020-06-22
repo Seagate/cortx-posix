@@ -8,5 +8,5 @@ Description: EOS file system
 Requires:
 Version: @EOS_EFS_BASE_VERSION@
 Cflags: -I/usr/include
-Libs: -L/usr/lib64 -leos-efs
+Libs: -L/usr/lib64 -l@PROJECT_NAME@
 

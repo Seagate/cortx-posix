@@ -185,9 +185,9 @@ efs_rpm_install() {
     local dist=$(rpm --eval '%{dist}')
     local suffix="${EFS_VERSION}-${EFS_BUILD_VERSION}${dist}.x86_64.rpm"
     local mypkg=(
-        eos-efs
-        eos-efs-debuginfo
-        eos-efs-devel
+        ${PROJECT_NAME_BASE}-fs
+        ${PROJECT_NAME_BASE}-fs-debuginfo
+        ${PROJECT_NAME_BASE}-fs-devel
     )
     local myrpms=()
 
@@ -214,7 +214,7 @@ efs_rpm_install() {
 }
 
 efs_rpm_uninstall() {
-    sudo yum remove -y 'eos-efs*'
+    sudo yum remove -y "${PROJECT_NAME_BASE}-fs*"
 }
 
 efs_reinstall() {

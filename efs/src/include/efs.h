@@ -98,7 +98,7 @@ int efs_endpoint_scan(int (*efs_scan_cb)(const struct efs_endpoint_info *info,
  */
 #define EFS_NULL_FS_CTX (NULL)
 
-#define EFS_DEFAULT_CONFIG "/etc/efs/efs.conf"
+#define EFS_DEFAULT_CONFIG "/etc/cortx/cortxfs.conf"
 
 #define EFS_ROOT_INODE 2LL
 #define EFS_ROOT_UID 0

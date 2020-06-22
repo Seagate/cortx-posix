@@ -60,7 +60,7 @@ int efs_init(const char *config_path, const struct efs_endpoint_ops *e_ops)
 
 	/** Path not specified, use default */
 	if (item == NULL) {
-		log_path = "/var/log/cortx/efs/efs.log";
+		log_path = "/var/log/cortx/fs/cortxfs.log";
 	} else {
 		log_path = get_string_config_value(item, NULL);
 	}

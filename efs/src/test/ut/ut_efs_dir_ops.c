@@ -865,7 +865,7 @@ static int dir_ops_teardown(void **state)
 int main(void)
 {
 	int rc = 0;
-	char *test_log = "/var/log/eos/test/ut/ut_efs.log";
+	char *test_log = "/var/log/cortx/test/ut/ut_efs.log";
 
 	printf("Directory tests\n");
 
