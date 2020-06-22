@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 2.6.3)
 
+set(LIB_FS_GANESHA ${PROJECT_NAME_BASE}-fs-ganesha)
+
+PROJECT(${LIB_FS_GANESHA} C)
+
 include(CheckIncludeFiles)
 include(CheckLibraryExists)
 
@@ -121,30 +125,28 @@ SET(fsalkvsfs_LIB_SRCS
    ds.c
 )
 
-add_library(libkvsfs OBJECT ${fsalkvsfs_LIB_SRCS})
-set(LIBKVSFS libkvsfs)
+add_library(LIBGANESHA OBJECT ${fsalkvsfs_LIB_SRCS})
 
-add_library(fsalkvsfs SHARED
-	   $<TARGET_OBJECTS:${LIBKVSFS}>
+add_library(${LIB_FS_GANESHA} SHARED
+	   $<TARGET_OBJECTS:${LIBGANESHA}>
 	   $<TARGET_OBJECTS:${LIBCONFIG}>
 	   )
 
-target_link_libraries(fsalkvsfs
-  eos-utils
-  eos-efs
+target_link_libraries(${LIB_FS_GANESHA}
+  ${PROJECT_NAME_BASE}-fs
   ${SYSTEM_LIBRARIES}
 )
 
-set_target_properties(fsalkvsfs PROPERTIES VERSION 4.2.0 SOVERSION 4)
+set_target_properties(${LIB_FS_GANESHA} PROPERTIES VERSION 4.2.0 SOVERSION 4)
 
 ########### install files ###############
 
-install(TARGETS fsalkvsfs COMPONENT fsal DESTINATION  ${FSAL_DESTINATION} )
+install(TARGETS ${LIB_FS_GANESHA} COMPONENT fsal DESTINATION  ${FSAL_DESTINATION} )
 
 # rpmbuild specific stuff
-set(CPACK_PACKAGE_FILE_NAME "kvsfs-ganesha" )
+set(CPACK_PACKAGE_FILE_NAME "${LIB_FS_GANESHA}-Source" )
 set(CPACK_PACKAGE_VENDOR "Seagate")
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "NFS-Ganesha FSAL for EFS")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "NFS-Ganesha FSAL for ${PROJECT_NAME_BASE}-FS")
 SET(CPACK_PACKAGE_VERSION_MAJOR ${KVSFS_GANESHA_MAJOR_VERSION})
 SET(CPACK_PACKAGE_VERSION_MINOR ${KVSFS_GANESHA_MINOR_VERSION})
 SET(CPACK_PACKAGE_VERSION_PATCH ${KVSFS_GANESHA_PATCH_LEVEL})
@@ -163,8 +165,8 @@ add_custom_target(dist COMMAND ${CMAKE_MAKE_PROGRAM} package_source)
 
 # Now create a useable specfile
 configure_file(
-  "${PROJECT_SOURCE_DIR}/libfsalkvsfs.spec-in.cmake"
-  "${PROJECT_SOURCE_DIR}/libfsalkvsfs.spec"
+  "${PROJECT_SOURCE_DIR}/${LIB_FS_GANESHA}.spec-in.cmake"
+  "${PROJECT_SOURCE_DIR}/${LIB_FS_GANESHA}.spec"
 )
 
 set(RPM_BUILD_OPTIONS " --define '_srcrpmdir ${CMAKE_CURRENT_BINARY_DIR}' --define '_lib_path ${CMAKE_BINARY_DIR}' --define '_nfs_setup_dir ${CMAKE_SOURCE_DIR}/conf' ")
@@ -176,8 +178,8 @@ add_custom_command(TARGET rpm
 	DEPENDS dist)
 
 # A quick check of the dependencies of the library
-add_custom_target(check_ldd DEPENDS fsalkvsfs)
+add_custom_target(check_ldd DEPENDS ${LIB_FS_GANESHA})
 add_custom_command(TARGET check_ldd
-	COMMAND env LD_LIBRARY_PATH=${LIBEFS} LD_PRELOAD=/usr/lib64/libganesha_nfsd.so /usr/bin/ldd -r ${CMAKE_BINARY_DIR}/libfsalkvsfs.so
+	COMMAND env LD_LIBRARY_PATH=${LIBEFS} LD_PRELOAD=/usr/lib64/libganesha_nfsd.so /usr/bin/ldd -r ${CMAKE_BINARY_DIR}/${LIB_FS_GANESHA}.so
 	VERBATIM)
 

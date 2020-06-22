@@ -10,8 +10,8 @@ DEFAULT_FS=''
 FS_PATH='nonexistent'
 LOC_EXPORT_ID='@tcp:12345:44:301'
 HA_EXPORT_ID='@tcp:12345:45:1'
-EFS_CONF=/etc/efs/efs.conf
-EFS_CONF_BAK=${EFS_CONF}.$$
+CORTXFS_CONF=/etc/cortx/cortxfs.conf
+CORTXFS_CONF_BAK=${CORTXFS_CONF}.$$
 GANESHA_CONF=/etc/ganesha/ganesha.conf
 GANESHA_CONF_BAK=${GANESHA_CONF}.$$
 EFS_FS_CLI="/usr/bin/efscli"
@@ -63,18 +63,18 @@ function efs_init {
 	log "Initializing EFS..."
 
 	# Backup efs.conf file
-	[ ! -e $EFS_CONF_BAK ] && run cp $EFS_CONF $EFS_CONF_BAK
+	[ ! -e $CORTXFS_CONF_BAK ] && run cp $CORTXFS_CONF $CORTXFS_CONF_BAK
 
 	# Modify efs.conf
-	tmp_var=$(sed -n '/kvstore/=' $EFS_CONF)
+	tmp_var=$(sed -n '/kvstore/=' $CORTXFS_CONF)
 	[ $? -ne 0 ] && die "Failed to access efs.conf file"
 
-	run sed -i "$tmp_var,\$d" $EFS_CONF
+	run sed -i "$tmp_var,\$d" $CORTXFS_CONF
 	[ $? -ne 0 ] && die "Failed to edit efs.conf file"
 
-	cat >> $EFS_CONF << EOM
+	cat >> $CORTXFS_CONF << EOM
 [log]
-path = /var/log/cortx/efs/efs.log
+path = /var/log/cortx/fs/cortxfs.log
 level = LEVEL_INFO
 
 [kvstore]
@@ -121,8 +121,8 @@ EXPORT {
 
 	# Exporting FSAL
 	FSAL {
-		Name  = KVSFS;
-		efs_config = $EFS_CONF;
+		Name  = CORTX-FS;
+		cortxfs_config = $CORTXFS_CONF;
 	}
 
 	# Allowed security types for this export
@@ -148,8 +148,8 @@ EXPORT {
 
 # KVSFS Plugin path
 FSAL {
-	KVSFS {
-		FSAL_Shared_Library = /usr/lib64/ganesha/libfsalkvsfs.so.4.2.0 ;
+	CORTX-FS {
+		FSAL_Shared_Library = /usr/lib64/ganesha/libfsalcortx-fs.so.4.2.0 ;
 	}
 }
 

@@ -304,9 +304,9 @@ kvsfs_rpm_install() {
     local dist=$(rpm --eval '%{dist}')
     local suffix="${KVSFS_VERSION}-${KVSFS_BUILD_VERSION}${dist}.x86_64.rpm"
     local mypkg=(
-        kvsfs-ganesha
-        kvsfs-ganesha-debuginfo
-        kvsfs-ganesha-test
+        $PROJECT_NAME_BASE-fs-ganesha
+        $PROJECT_NAME_BASE-fs-ganesha-debuginfo
+        $PROJECT_NAME_BASE-fs-ganesha-test
     )
     local myrpms=()
 
@@ -333,7 +333,7 @@ kvsfs_rpm_install() {
 }
 
 kvsfs_rpm_uninstall() {
-    sudo yum remove -y 'kvsfs-ganesha*'
+    sudo yum remove -y "$PROJECT_NAME_BASE-fs-ganesha*"
 }
 
 ###############################################################################
