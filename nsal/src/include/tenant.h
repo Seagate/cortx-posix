@@ -79,7 +79,8 @@ int tenant_next_id(uint16_t *tenant_id);
  *  @param : tenant_scan_cb, function to be executed for each found tenant.
  *  @return 0 if successful, a negative "-errno" value in case of failure.
  */
-int tenant_scan(int (*tenant_scan_cb)(void *cb_ctx, struct tenant *tenant), void *cb_ctx);
+int tenant_scan(int (*tenant_scan_cb)(void *cb_ctx, struct tenant *tenant),
+		void *cb_ctx);
 
 /** get tenant's name as str256_t obj.
  * For given str256_t obj, memory is not allocated by the caller,
@@ -102,4 +103,20 @@ void tenant_get_name(struct tenant *tenant, str256_t **name);
  */
 void tenant_get_info(struct tenant *tenant, void **info);
 
+/** Copy tenant obj into dst..
+ *
+ *  @param src[in]: source
+ *  @param dest[out]: destination.
+ *
+ *  @return 0 if successful, a negative "-errno" value in case of failure.
+ */
+int tenant_copy(const struct tenant *src, struct tenant **dst);
+
+/** Free tenaant object.
+ *
+ *  @param: tenant obj.
+ *
+ *  @return void.
+ */
+void tenant_free(struct tenant *obj);
 #endif /* _TENANT_H_ */
