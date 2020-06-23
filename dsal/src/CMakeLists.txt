@@ -1,7 +1,9 @@
 cmake_minimum_required(VERSION 2.6.3)
 cmake_policy(SET CMP0017 NEW)
 
-PROJECT(eos-dsal C)
+set(LIB_DSAL ${PROJECT_NAME_BASE}-dsal)
+
+PROJECT(${LIB_DSAL} C)
 set(EOS_DSAL_MAJOR_VERSION 1)
 set(EOS_DSAL_MINOR_VERSION 0)
 set(EOS_DSAL_PATCH_LEVEL 1)
@@ -18,7 +20,6 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror -fPIC -g")
 
 set(EOS_DSAL_BASE_VERSION ${BASE_VERSION})
 set(EOS_NSAL_BASE_VERSION ${BASE_VERSION})
-set(PROJECT_NAME_BASE ${PROJECT_NAME_BASE})
 
 message( STATUS "cmake version ${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION}" )
 message( STATUS "eos-dsal version ${EOS_DSAL_BASE_VERSION}")
@@ -145,22 +146,22 @@ endif(NOT HAVE_EOS_UTILS_H)
 include_directories(${EOSUTILSINC})
 link_directories(${LIBEOSUTILS})
 
-add_library(eos-dsal SHARED
+add_library(${LIB_DSAL} SHARED
 		$<TARGET_OBJECTS:${DSTORE}>
 		$<TARGET_OBJECTS:${DSAL}>
 	)
 
-target_link_libraries(eos-dsal
+target_link_libraries(${LIB_DSAL}
   mero
   mero-helpers
   ini_config
-  eos-utils
+  ${PROJECT_NAME_BASE}-utils
 )
 
 # CPack / rpmbuild specific stuff
-set(CPACK_PACKAGE_FILE_NAME "eos-dsal-Source" )
+set(CPACK_PACKAGE_FILE_NAME "${LIB_DSAL}-Source" )
 set(CPACK_PACKAGE_VENDOR "DSAL")
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "DSAL - the data abstraction layer")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "DSAL - the data store abstraction layer")
 SET(CPACK_PACKAGE_VERSION_MAJOR ${EOS_DSAL_MAJOR_VERSION})
 SET(CPACK_PACKAGE_VERSION_MINOR ${EOS_DSAL_MINOR_VERSION})
 SET(CPACK_PACKAGE_VERSION_PATCH ${EOS_DSAL_PATCH_LEVEL})
@@ -179,14 +180,14 @@ add_custom_target(dist COMMAND ${CMAKE_MAKE_PROGRAM} package_source)
 
 # Create the .pc file
 configure_file(
-  "${PROJECT_SOURCE_DIR}/eos-dsal.pc-in.cmake"
-  "${PROJECT_SOURCE_DIR}/eos-dsal.pc"
+  "${PROJECT_SOURCE_DIR}/${LIB_DSAL}.pc-in.cmake"
+  "${PROJECT_SOURCE_DIR}/${LIB_DSAL}.pc"
 )
 
 # Now create a useable specfile
 configure_file(
-  "${PROJECT_SOURCE_DIR}/eos-dsal.spec-in.cmake"
-  "${PROJECT_SOURCE_DIR}/eos-dsal.spec"
+  "${PROJECT_SOURCE_DIR}/${LIB_DSAL}.spec-in.cmake"
+  "${PROJECT_SOURCE_DIR}/${LIB_DSAL}.spec"
 )
 
 set(RPMDEST "--define '_srcrpmdir ${CMAKE_CURRENT_BINARY_DIR}'")

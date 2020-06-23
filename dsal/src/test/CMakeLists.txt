@@ -6,7 +6,11 @@ cmake_minimum_required(VERSION 2.6.3)
 include_directories("${PROJECT_SOURCE_DIR}/include")
 
 # Set up the dependency list
-set(DSAL_TEST_LIBS eos-dsal eos-utils cmocka)
+set(DSAL_TEST_LIBS
+	${PROJECT_NAME_BASE}-dsal
+	${PROJECT_NAME_BASE}-utils
+	cmocka
+   )
 
 # Set up library sources
 set(DSAL_TEST_LIBRARY dsal_test_lib.c)

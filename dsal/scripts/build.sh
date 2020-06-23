@@ -166,9 +166,9 @@ dsal_rpm_install() {
     local dist=$(rpm --eval '%{dist}')
     local suffix="${DSAL_VERSION}-${DSAL_BUILD_VERSION}${dist}.x86_64.rpm"
     local mypkg=(
-        eos-dsal
-        eos-dsal-debuginfo
-        eos-dsal-devel
+        ${PROJECT_NAME_BASE}-dsal
+        ${PROJECT_NAME_BASE}-dsal-debuginfo
+        ${PROJECT_NAME_BASE}-dsal-devel
     )
     local myrpms=()
 
@@ -195,7 +195,7 @@ dsal_rpm_install() {
 }
 
 dsal_rpm_uninstall() {
-    sudo yum remove -y 'eos-dsal*'
+    sudo yum remove -y "${PROJECT_NAME_BASE}-dsal*"
 }
 
 dsal_reinstall() {

@@ -8,5 +8,5 @@ Description: Data abstraction layer library
 Requires:
 Version: @EOS_DSAL_BASE_VERSION@
 Cflags: -I/usr/include
-Libs: -L/usr/lib64 -leos-dsal
+Libs: -L/usr/lib64 -l@PROJECT_NAME@
 

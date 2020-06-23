@@ -22,7 +22,7 @@
 #include "common/log.h" /* logger init */
 
 /* Path to EFS config for DSAL tests */
-#define EFS_TEST_CONF_PATH "/etc/efs/efs.conf"
+#define EFS_TEST_CONF_PATH "/etc/cortx/cortxfs.conf"
 
 /* Default log level for DSAL tests */
 #define DEFAULT_LOG_LEVEL LEVEL_DEBUG
