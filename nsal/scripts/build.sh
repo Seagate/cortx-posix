@@ -163,9 +163,9 @@ nsal_rpm_install() {
     local dist=$(rpm --eval '%{dist}')
     local suffix="${NSAL_VERSION}-${NSAL_BUILD_VERSION}${dist}.x86_64.rpm"
     local mypkg=(
-        eos-nsal
-        eos-nsal-debuginfo
-        eos-nsal-devel
+        ${PROJECT_NAME_BASE}-nsal
+        ${PROJECT_NAME_BASE}-nsal-debuginfo
+        ${PROJECT_NAME_BASE}-nsal-devel
     )
     local myrpms=()
 
@@ -196,7 +196,7 @@ nsal_rpm_install() {
 }
 
 nsal_rpm_uninstall() {
-    sudo yum remove -y 'eos-nsal*'
+    sudo yum remove -y "${PROJECT_NAME_BASE}-nsal*"
 }
 
 nsal_reinstall() {

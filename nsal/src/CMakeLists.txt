@@ -1,7 +1,9 @@
 cmake_minimum_required(VERSION 2.6.3)
 cmake_policy(SET CMP0017 NEW)
 
-PROJECT(eos-nsal C)
+set(LIB_NSAL ${PROJECT_NAME_BASE}-nsal)
+
+PROJECT(${LIB_NSAL} C)
 set(EOS_NSAL_MAJOR_VERSION 1)
 set(EOS_NSAL_MINOR_VERSION 0)
 set(EOS_NSAL_PATCH_LEVEL 1)
@@ -17,7 +19,6 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -I${CMAKE_SOURCE_DIR}/include")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror -fPIC -g")
 
 set(EOS_NSAL_BASE_VERSION ${BASE_VERSION})
-set(PROJECT_NAME_BASE ${PROJECT_NAME_BASE})
 set(INSTALL_DIR_ROOT ${INSTALL_DIR_ROOT})
 
 message( STATUS "cmake version ${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION}" )
@@ -198,7 +199,7 @@ set(KVTREE kvtree)
 add_subdirectory(tenant)
 set(TENANT tenant)
 
-add_library(eos-nsal SHARED
+add_library(${LIB_NSAL} SHARED
 		$<TARGET_OBJECTS:${BASE_KVSTORE}>
 		$<TARGET_OBJECTS:${EOS_KVSTORE}>
 		${REDIS_TARGET_OBJECT}
@@ -209,11 +210,11 @@ add_library(eos-nsal SHARED
 		$<TARGET_OBJECTS:${TENANT}>
 	)
 
-target_link_libraries(eos-nsal
+target_link_libraries(${LIB_NSAL}
   mero
   mero-helpers
   ini_config
-  eos-utils
+  ${PROJECT_NAME_BASE}-utils
   cmocka
   ${HIREDIS}
 )
@@ -221,8 +222,8 @@ target_link_libraries(eos-nsal
 add_subdirectory(test)
 
 # CPack / rpmbuild specific stuff
-set(CPACK_PACKAGE_FILE_NAME "eos-nsal-Source" )
-set(CPACK_PACKAGE_VENDOR "NSAL")
+set(CPACK_PACKAGE_FILE_NAME "(${LIB_NSAL}-Source" )
+set(CPACK_PACKAGE_VENDOR "${PROJECT_NAME_BASE}-NSAL")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "NSAL - a namespace abstraction layer")
 SET(CPACK_PACKAGE_VERSION_MAJOR ${EOS_NSAL_MAJOR_VERSION})
 SET(CPACK_PACKAGE_VERSION_MINOR ${EOS_NSAL_MINOR_VERSION})
@@ -242,14 +243,14 @@ add_custom_target(dist COMMAND ${CMAKE_MAKE_PROGRAM} package_source)
 
 # Create the .pc file
 configure_file(
-  "${PROJECT_SOURCE_DIR}/eos-nsal.pc-in.cmake"
-  "${PROJECT_SOURCE_DIR}/eos-nsal.pc"
+  "${PROJECT_SOURCE_DIR}/${LIB_NSAL}.pc-in.cmake"
+  "${PROJECT_SOURCE_DIR}/${LIB_NSAL}.pc"
 )
 
 # Now create a useable specfile
 configure_file(
-  "${PROJECT_SOURCE_DIR}/eos-nsal.spec-in.cmake"
-  "${PROJECT_SOURCE_DIR}/eos-nsal.spec"
+  "${PROJECT_SOURCE_DIR}/${LIB_NSAL}.spec-in.cmake"
+  "${PROJECT_SOURCE_DIR}/${LIB_NSAL}.spec"
 )
 
 set(RPMDEST "--define '_srcrpmdir ${CMAKE_CURRENT_BINARY_DIR}'")

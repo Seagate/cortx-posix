@@ -22,7 +22,7 @@
 #include "namespace.h"
 #include "nsal.h"
 
-#define DEFAULT_CONFIG "/etc/efs/efs.conf"
+#define DEFAULT_CONFIG "/etc/cortx/cortxfs.conf"
 
 #define KVNODE_ID_INIT(__id) (node_id_t)   \
 {                                          \
@@ -60,7 +60,7 @@ int nsal_start(const char *config_path)
 
 	dassert(kvstore != NULL);
 
-	rc = log_init("/var/log/cortx/efs/efs.log", LEVEL_DEBUG);
+	rc = log_init("/var/log/cortx/fs/efs.log", LEVEL_DEBUG);
 	if (rc != 0) {
 		rc = -EINVAL;
 		printf("Log init failed, rc: %d\n", rc);

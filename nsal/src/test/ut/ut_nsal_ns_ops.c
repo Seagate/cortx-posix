@@ -21,7 +21,7 @@
 #include "nsal.h"
 #include "ut_nsal_ns.h"
 
-#define DEFAULT_CONFIG "/etc/efs/efs.conf"
+#define DEFAULT_CONFIG "/etc/cortx/cortxfs.conf"
 
 
 static void test_ns_module_init(void)
@@ -30,7 +30,7 @@ static void test_ns_module_init(void)
 	struct collection_item *cfg_items = NULL;
 	int rc = 0;
 
-	rc = log_init("/var/log/cortx/efs/efs.log", LEVEL_DEBUG);
+	rc = log_init("/var/log/cortx/fs/efs.log", LEVEL_DEBUG);
 	if (rc != 0) {
 		rc = -EINVAL;
 		printf("Log init failed, rc: %d\n", rc);

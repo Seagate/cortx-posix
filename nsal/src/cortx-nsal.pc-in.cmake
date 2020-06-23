@@ -8,5 +8,5 @@ Description: Namespace abstraction layer library
 Requires:
 Version: @EOS_NSAL_BASE_VERSION@
 Cflags: -I/usr/include
-Libs: -L/usr/lib64 -leos-nsal
+Libs: -L/usr/lib64 -l@PROJECT_NAME@
 
