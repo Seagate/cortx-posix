@@ -14,7 +14,6 @@
 
 #include "kvtree.h"
 #include "kvnode.h"
-#include "../kvtree/kvnode_internal.h"   /* @TODO to be removed*/
 #include <string.h>
 #include <ut.h>
 #include <common/log.h>
@@ -187,16 +186,22 @@ out:
 static int ut_internal_node_check(struct kvtree *tree, node_id_t node_id,
                               struct info *test_info)
 {
-	struct kvnode empty_node;
-	int rc = 0;
+	struct   info *attr_buffer = NULL;
+	struct   kvnode empty_node;
+	int      rc = 0;
+	uint16_t buf_size = 0;
 
 	rc = kvnode_load(tree, &node_id, &empty_node);
 	if (rc) {
 		goto out;
 	}
-	/* @TODO need an API which will return the contents of basic attributes */
-	rc = memcmp(test_info, empty_node.basic_attr->attr,
-	            empty_node.basic_attr->size);
+
+	buf_size = kvnode_get_basic_attr_buff(&empty_node,
+					      (void **)&attr_buffer);
+
+	ut_assert_int_not_equal(buf_size, 0);
+
+	rc = memcmp(test_info, attr_buffer, buf_size);
 
 	kvnode_fini(&empty_node);
 out:
@@ -466,7 +471,7 @@ static void test_dump_load_verify(void)
 	ut_assert_int_equal(rc, 0);
 
 	rc = memcmp(origin.basic_attr, loaded.basic_attr,
-	            sizeof(struct kvnode_basic_attr));
+	            sizeof(struct info));
 	ut_assert_int_equal(rc, 0);
 
 	kvnode_fini(&loaded);
