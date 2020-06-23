@@ -215,7 +215,7 @@ static void fsal_block_to_buffer(struct fsal_block *block,
 	append_data(buffer, str, strlen(str));
 	memset(str, '\0', sizeof(str));
 
-	sprintf(str, "\tKVSFS {\n");
+	sprintf(str, "\tCORTX-FS {\n");
 	append_data(buffer, str, strlen(str));
 	memset(str, '\0', sizeof(str));
 
@@ -347,7 +347,7 @@ static void export_to_buffer(struct export_block *block,
 	append_data(buffer, str, strlen(str));
 	memset(str, '\0', sizeof(str));
 
-	sprintf(str, "\t\tefs_config = %s;\n",
+	sprintf(str, "\t\tcortxfs_config = %s;\n",
 		block->fsal_block.efs_config.s_str);
 	append_data(buffer, str, strlen(str));
 	memset(str, '\0', sizeof(str));

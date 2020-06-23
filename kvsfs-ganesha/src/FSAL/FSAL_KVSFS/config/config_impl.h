@@ -22,9 +22,9 @@
 #include "str.h"
 
 #define PULGINS_DIR                             "/usr/lib64/ganesha/"
-#define FSAL_NAME                               "KVSFS"
-#define FSAL_SHARED_LIBRARY                     "/usr/lib64/ganesha/libfsalkvsfs.so.4.2.0"
-#define EFS_CONFIG                              "/etc/efs/efs.conf"
+#define FSAL_NAME                               "CORTX-FS"
+#define FSAL_SHARED_LIBRARY                     "/usr/lib64/ganesha/libfsalcortx-fs.so.4.2.0"
+#define EFS_CONFIG                              "/etc/cortx/cortxfs.conf"
 #define DOMAIN_NAME				"localdomain"
 #define SERIALIZE_BUFFER_DEFAULT_SIZE           2048
 

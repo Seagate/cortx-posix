@@ -125,7 +125,8 @@ SET(fsalkvsfs_LIB_SRCS
    ds.c
 )
 
-add_library(LIBGANESHA OBJECT ${fsalkvsfs_LIB_SRCS})
+add_library(libganesha OBJECT ${fsalkvsfs_LIB_SRCS})
+set(LIBGANESHA libganesha)
 
 add_library(${LIB_FS_GANESHA} SHARED
 	   $<TARGET_OBJECTS:${LIBGANESHA}>
