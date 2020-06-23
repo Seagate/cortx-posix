@@ -1,13 +1,13 @@
 %define sourcename @CPACK_SOURCE_PACKAGE_FILE_NAME@
 %global dev_version %{lua: extraver = string.gsub('@EOS_DSAL_EXTRA_VERSION@', '%-', '.'); print(extraver) }
 
-Name: eos-dsal
+Name: @PROJECT_NAME@
 Version: @EOS_DSAL_BASE_VERSION@
 Release: %{dev_version}%{?dist}
 Summary: Data abstraction layer library
 License: Seagate
 Group: Development/Libraries
-Url: http://seagate.com/eos-dsal
+Url: GHS://corts-dsal
 Source: %{sourcename}.tar.gz
 BuildRequires: cmake gcc libini_config-devel
 BuildRequires: @RPM_DEVEL_REQUIRES@
@@ -15,6 +15,7 @@ Requires: libini_config @RPM_REQUIRES@
 Provides: %{name} = %{version}-%{release}
 
 # EOS DSAL library paths
+%define _dsal_lib		@PROJECT_NAME@
 %define _dsal_dir		@INSTALL_DIR_ROOT@/@PROJECT_NAME_BASE@/dsal
 %define _dsal_lib_dir		%{_dsal_dir}/lib
 %define _dsal_include_dir	%{_includedir}/dsal
@@ -45,19 +46,17 @@ Provides: %{name} = %{version}-%{release}
 %global enable_dassert %{on_off_switch enable_dassert}
 
 %description
-The eos-dsal is Data abstraction layer library.
+The @PROJECT_NAME@ is Data Store Abstraction Layer library.
 
 %package devel
-Summary: Development file for the library eos-dsal
+Summary: Development file for the library @PROJECT_NAME@
 Group: Development/Libraries
 Requires: %{name} = %{version}-%{release} pkgconfig
 Requires: @RPM_DEVEL_REQUIRES@
 Provides: %{name}-devel = %{version}-%{release}
 
-
 %description devel
-The eos-dsal is Data abstraction layer library.
-This package contains tools for eos-dsal.
+The @PROJECT_NAME@ is Data Store Abstraction Layer library.
 
 %prep
 %setup -q -n %{sourcename}
@@ -68,7 +67,8 @@ cmake . -DUSE_POSIX_STORE=%{use_posix_store}     \
 	-DUSE_EOS_STORE=%{use_eos_store}       \
 	-DEOSUTILSINC:PATH=@EOSUTILSINC@         \
 	-DLIBEOSUTILS:PATH=@LIBEOSUTILS@	\
-	-DENABLE_DASSERT=%{enable_dassert}
+	-DENABLE_DASSERT=%{enable_dassert}	\
+	-DPROJECT_NAME_BASE=@PROJECT_NAME_BASE@
 
 make %{?_smp_mflags} || make %{?_smp_mflags} || make
 
@@ -82,21 +82,21 @@ mkdir -p %{buildroot}%{_dsal_include_dir}/
 mkdir -p %{buildroot}%{_sysconfdir}/dsal.d
 mkdir -p %{buildroot}%{_libdir}/pkgconfig
 install -m 644 include/*.h  %{buildroot}%{_dsal_include_dir}
-install -m 755 libeos-dsal.so %{buildroot}%{_dsal_lib_dir}
-install -m 644 eos-dsal.pc  %{buildroot}%{_libdir}/pkgconfig
-ln -s %{_dsal_lib_dir}/libeos-dsal.so %{buildroot}%{_libdir}/libeos-dsal.so
+install -m 755 lib%{_dsal_lib}.so %{buildroot}%{_dsal_lib_dir}
+install -m 644 %{_dsal_lib}.pc  %{buildroot}%{_libdir}/pkgconfig
+ln -s %{_dsal_lib_dir}/lib%{_dsal_lib}.so %{buildroot}%{_libdir}/lib%{_dsal_lib}.so
 
 %clean
 rm -rf $RPM_BUILD_ROOT
 
 %files
 %defattr(-,root,root)
-%{_libdir}/libeos-dsal.so*
-%{_dsal_lib_dir}/libeos-dsal.so*
+%{_libdir}/lib%{_dsal_lib}.so*
+%{_dsal_lib_dir}/lib%{_dsal_lib}.so*
 
 %files devel
 %defattr(-,root,root)
-%{_libdir}/pkgconfig/eos-dsal.pc
+%{_libdir}/pkgconfig/%{_dsal_lib}.pc
 %{_dsal_include_dir}/*.h
 
 %changelog
