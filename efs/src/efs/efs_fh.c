@@ -12,6 +12,7 @@
 
 #include <kvstore.h>
 #include "efs.h"
+#include "efs_internal.h"
 #include "efs_fh.h"
 #include <debug.h>
 #include <string.h> /* strcmp() */
@@ -100,6 +101,7 @@ int efs_fh_from_ino(struct efs_fs *fs, const efs_ino_t *ino_num,
 	int rc;
 	struct efs_fh *newfh = NULL;
 	struct kvstore *kvstor =  kvstore_get();
+	struct kvnode node = KVNODE_INIT_EMTPY;
 
 	dassert(kvstor);
 
@@ -107,7 +109,9 @@ int efs_fh_from_ino(struct efs_fs *fs, const efs_ino_t *ino_num,
 		      sizeof(struct efs_fh));
 	*newfh = EFS_FH_INIT;
 	if (stat == NULL) {
-		RC_WRAP_LABEL(rc, out, efs_get_stat, fs, ino_num, &newfh->stat);
+		RC_WRAP_LABEL(rc, out, efs_kvnode_load, &node, fs->kvtree,
+			      ino_num);
+		RC_WRAP_LABEL(rc, out, efs_get_stat, &node, &newfh->stat);
 	} else {
 		RC_WRAP_LABEL(rc, out, kvs_alloc, kvstor,
 			      (void **) &newfh->stat, sizeof(struct stat));
@@ -120,6 +124,7 @@ int efs_fh_from_ino(struct efs_fs *fs, const efs_ino_t *ino_num,
 	newfh = NULL;
 
 out:
+	kvnode_fini(&node);
 	if (unlikely(newfh)) {
 		efs_fh_destroy(newfh);
 	}
@@ -133,6 +138,7 @@ int efs_fh_lookup(const efs_cred_t *cred, struct efs_fh *fh, const char *name,
 	str256_t kname;
 	struct efs_fh *newfh = NULL;
 	struct kvstore *kvstor = kvstore_get();
+	struct kvnode node = KVNODE_INIT_EMTPY;
 
 	dassert(cred && fh && name && pfh && kvstor);
 
@@ -152,14 +158,16 @@ int efs_fh_lookup(const efs_cred_t *cred, struct efs_fh *fh, const char *name,
 	RC_WRAP_LABEL(rc, out, efs_tree_lookup, fh->fs, &fh->ino, &kname,
 		      &newfh->ino);
 	newfh->fs = fh->fs;
-	RC_WRAP_LABEL(rc, out, efs_get_stat, newfh->fs, &newfh->ino,
-		      &newfh->stat);
+	RC_WRAP_LABEL(rc, out, efs_kvnode_load, &node, newfh->fs->kvtree,
+		      &newfh->ino);
+	RC_WRAP_LABEL(rc, out, efs_get_stat, &node, &newfh->stat);
 	efs_fh_init_key(newfh);
 	*pfh = newfh;
 	newfh = NULL;
 
 	/* FIXME: Shouldn't we update parent.atime here? */
 out:
+	kvnode_fini(&node);
 	if (newfh) {
 		efs_fh_destroy(newfh);
 	}
