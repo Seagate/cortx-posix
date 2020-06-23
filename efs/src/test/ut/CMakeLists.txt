@@ -32,12 +32,18 @@ set(ut_efs_helper_SRC
 
 )
 
+set(ut_link_libs
+	${PROJECT_NAME_BASE}-utils
+	${PROJECT_NAME_BASE}-nsal
+	${PROJECT_NAME_BASE}-fs
+)
+
 add_library(ut_efs_helper STATIC ${ut_efs_helper_SRC})
 
 target_link_libraries(ut_efs_helper
-	eos-utils
-	eos-nsal
-	eos-efs
+	${PROJECT_NAME_BASE}-utils
+	${PROJECT_NAME_BASE}-nsal
+	${PROJECT_NAME_BASE}-fs
 	${STORE_LIBRARY}
 )
 
@@ -48,27 +54,15 @@ set(ut_efs_xattr_ops_SRC
 add_library(ut_efs_xattr_ops STATIC ${ut_efs_xattr_ops_SRC})
 
 target_link_libraries(ut_efs_xattr_ops
-	eos-utils
-	eos-nsal
-	eos-efs
 	ut_efs_helper
-	${STORE_LIBRARY}
 )
 
 target_link_libraries(ut_efs_fs_ops
-	eos-utils
-	eos-nsal
-	eos-efs
 	ut_efs_helper
-	${STORE_LIBRARY}
 )
 
 target_link_libraries(ut_efs_endpoint_ops
-	eos-utils
-	eos-nsal
-	eos-efs
 	ut_efs_helper
-	${STORE_LIBRARY}
 )
 
 target_link_libraries(ut_efs_dir_ops
@@ -113,7 +107,7 @@ link_directories(${CMAKE_EV_LIB})
 add_executable(ut_efs_management ut_efs_management.c)
 
 target_link_libraries(ut_efs_management
-	eos-efs
+	${PROJECT_NAME_BASE}-fs
 	json
 	event
 	ssl

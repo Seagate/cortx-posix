@@ -33,7 +33,7 @@
 #include <nsal.h> /* nsal_init,fini */
 #include "ut_efs_endpoint_dummy.h"
 
-#define LOG_FILE	"/var/log/cortx/efs/efs.log"
+#define LOG_FILE	"/var/log/cortx/fs/efs.log"
 #define	LOG_LEVEL	LOG_DEBUG
 
 static struct collection_item *cfg_items;

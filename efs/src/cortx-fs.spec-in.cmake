@@ -1,13 +1,13 @@
 %define sourcename @CPACK_SOURCE_PACKAGE_FILE_NAME@
 %global dev_version %{lua: extraver = string.gsub('@EOS_EFS_EXTRA_VERSION@', '%-', '.'); print(extraver) }
 
-Name: eos-efs
+Name: @PROJECT_NAME@
 Version: @EOS_EFS_BASE_VERSION@
 Release: %{dev_version}%{?dist}
-Summary: EOS file system
+Summary: @PROJECT_NAME_BASE@ file system
 License: Seagate
 Group: Development/Libraries
-Url: http://seagate.com/eos-efs
+Url: GHS://@PROJECT_NAME@
 Source: %{sourcename}.tar.gz
 BuildRequires: cmake gcc libini_config-devel
 Requires: libini_config
@@ -19,15 +19,16 @@ Provides: %{name} = %{version}-%{release}
 %global enable_dassert %{on_off_switch enable_dassert}
 
 # EOS NSAL library paths
-%define _efs_dir		@INSTALL_DIR_ROOT@/@PROJECT_NAME_BASE@/efs
+%define	_efs_lib		@PROJECT_NAME@
+%define _efs_dir		@INSTALL_DIR_ROOT@/@PROJECT_NAME_BASE@/fs
 %define _efs_lib_dir		%{_efs_dir}/lib
 %define _efs_bin_dir		%{_efs_dir}/bin
 %define _efs_conf_dir		%{_efs_dir}/conf
-%define _efs_log_dir		/var/log/@PROJECT_NAME_BASE@/efs
-%define _efs_include_dir	%{_includedir}/efs
+%define _efs_log_dir		/var/log/@PROJECT_NAME_BASE@/fs
+%define _efs_include_dir	%{_includedir}/fs
 
 %description
-The eos-efs is EOS file system.
+The @PROJECT_NAME@ is @PROJECT_NAME_BASE@ file system.
 
 %package devel
 Summary: Development file for the library eos-efs
@@ -36,8 +37,8 @@ Requires: %{name} = %{version}-%{release} pkgconfig
 Provides: %{name}-devel = %{version}-%{release}
 
 %description devel
-The eos-efs EOS file system.
-This package contains tools for eos-efs.
+The @PROJECT_NAME@ is @PROJECT_NAME_BASE@ file system.
+This package contains tools for @PROJECT_NAME@.
 
 %prep
 %setup -q -n %{sourcename}
@@ -49,7 +50,8 @@ cmake . -DEOSUTILSINC:PATH=@EOSUTILSINC@         \
 	-DLIBNSAL:PATH=@LIBNSAL@		 \
 	-DDSALINC:PATH=@DSALINC@		 \
 	-DLIBDSAL:PATH=@LIBDSAL@		\
-	-DENABLE_DASSERT=%{enable_dassert}
+	-DENABLE_DASSERT=%{enable_dassert}	\
+	-DPROJECT_NAME_BASE=@PROJECT_NAME_BASE@
 
 make %{?_smp_mflags} || make %{?_smp_mflags} || make
 
@@ -64,15 +66,15 @@ mkdir -p %{buildroot}%{_efs_bin_dir}
 mkdir -p %{buildroot}%{_efs_conf_dir}
 mkdir -p %{buildroot}%{_efs_log_dir}
 mkdir -p %{buildroot}%{_efs_include_dir}/
-mkdir -p %{buildroot}%{_sysconfdir}/efs
+mkdir -p %{buildroot}%{_sysconfdir}/cortx
 mkdir -p %{buildroot}%{_libdir}/pkgconfig
 install -m 644 include/*.h  %{buildroot}%{_efs_include_dir}
-install -m 755 libeos-efs.so %{buildroot}%{_efs_lib_dir}
-install -m 644 efs.conf %{buildroot}%{_efs_conf_dir}
+install -m 755 lib%{_efs_lib}.so %{buildroot}%{_efs_lib_dir}
+install -m 644 cortxfs.conf %{buildroot}%{_efs_conf_dir}
 install -m 755 efscli/efscli.py %{buildroot}%{_efs_bin_dir}/efscli
-install -m 644 eos-efs.pc  %{buildroot}%{_libdir}/pkgconfig
-ln -s %{_efs_lib_dir}/libeos-efs.so %{buildroot}%{_libdir}/libeos-efs.so
-ln -s %{_efs_conf_dir}/efs.conf %{buildroot}%{_sysconfdir}/efs/efs.conf
+install -m 644 %{_efs_lib}.pc  %{buildroot}%{_libdir}/pkgconfig
+ln -s %{_efs_lib_dir}/lib%{_efs_lib}.so %{buildroot}%{_libdir}/lib%{_efs_lib}.so
+ln -s %{_efs_conf_dir}/cortxfs.conf %{buildroot}%{_sysconfdir}/cortx/cortxfs.conf
 ln -s %{_efs_bin_dir}/efscli %{buildroot}%{_bindir}/efscli
 
 %clean
@@ -80,17 +82,17 @@ rm -rf $RPM_BUILD_ROOT
 
 %files
 %defattr(-,root,root)
-%{_libdir}/libeos-efs.so*
-%{_efs_lib_dir}/libeos-efs.so*
-%{_efs_conf_dir}/efs.conf
-%config(noreplace) %{_sysconfdir}/efs/efs.conf
+%{_libdir}/lib%{_efs_lib}.so*
+%{_efs_lib_dir}/lib%{_efs_lib}.so*
+%{_efs_conf_dir}/cortxfs.conf
+%config(noreplace) %{_sysconfdir}/cortx/cortxfs.conf
 %{_efs_bin_dir}/efscli
 %{_bindir}/efscli
 %{_efs_log_dir}
 
 %files devel
 %defattr(-,root,root)
-%{_libdir}/pkgconfig/eos-efs.pc
+%{_libdir}/pkgconfig/%{_efs_lib}.pc
 %{_efs_include_dir}/*.h
 
 %changelog

@@ -24,7 +24,7 @@
 #include "ut.h"
 #include "efs.h"
 
-#define DEFAULT_CONFIG "/etc/efs/efs.conf"
+#define DEFAULT_CONFIG "/etc/cortx/cortxfs.conf"
 #define CONF_FILE "/tmp/eos-fs/build-efs/test/ut/ut_efs.conf"
 #define ENV_FROM_STATE(__state) (*((struct ut_efs_params **)__state))
 

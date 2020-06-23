@@ -24,7 +24,7 @@
 #include "ut.h"
 #include "efs.h"
 
-#define DEFAULT_CONFIG "/etc/efs/efs.conf"
+#define DEFAULT_CONFIG "/etc/cortx/cortxfs.conf"
 
 struct ut_efs_params {
 	efs_fs_ctx_t fs_ctx;
