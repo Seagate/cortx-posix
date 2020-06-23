@@ -95,7 +95,7 @@ static void test_efs_endpoint_scan(void)
 int main(int argc, char *argv[])
 {
 	int rc = 0;
-	char *test_log = "/var/log/eos/test/ut/ut_efs.logs";
+	char *test_log = "/var/log/cortx/test/ut/ut_efs.logs";
 
 	printf("Endpoint ops Tests\n");
 	if (argc > 1) {
