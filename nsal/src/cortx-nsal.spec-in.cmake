@@ -43,7 +43,7 @@ Provides: %{name} = %{version}-%{release}
 %global enable_dassert %{on_off_switch enable_dassert}
 
 %description
-The @PROJECT_NAME@ is Namespace abstraction layer library. It uses @KVS_OPT@ as Key-Value Store.
+The @PROJECT_NAME@ is Namespace Abstraction Layer library.
 
 %package devel
 Summary: Development file for the library @PROJECT_NAME@
@@ -52,10 +52,8 @@ Requires: %{name} = %{version}-%{release} pkgconfig
 Requires: @RPM_DEVEL_REQUIRES@
 Provides: %{name}-devel = %{version}-%{release}
 
-
 %description devel
-The @PROJECT_NAME@ is Namespace abstraction layer library.
-This package contains tools for @PROJECT_NAME@.
+The @PROJECT_NAME@ is Namespace Abstraction Layer library.
 
 %prep
 %setup -q -n %{sourcename}
