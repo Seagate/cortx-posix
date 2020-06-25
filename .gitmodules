@@ -1,15 +1,15 @@
 [submodule "kvsfs-ganesha"]
 	path = kvsfs-ganesha
-	url = ../kvsfs-ganesha.git
+	url = https://github.com/Seagate/cortx-fs-ganesha.git
 [submodule "utils"]
 	path = utils
-	url = ../utils.git
+	url = https://github.com/Seagate/cortx-utils.git
 [submodule "nsal"]
 	path = nsal
-	url = ../nsal.git
+	url = https://github.com/Seagate/cortx-nsal.git
 [submodule "dsal"]
 	path = dsal
-	url = ../dsal.git
+	url = https://github.com/Seagate/cortx-dsal.git
 [submodule "efs"]
 	path = efs
-	url = ../efs.git
+	url = https://github.com/Seagate/cortx-fs.git
