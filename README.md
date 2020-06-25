@@ -1,3 +1,5 @@
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/7e6ffd004e794ecf945f076988a9185a)](https://www.codacy.com?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=Seagate/cortx-posix&amp;utm_campaign=Badge_Grade)
+
 # EOS-FS
 Support for different file access protocols (like SAMBA, NFS etc.) to Seagate EOS. Currently we only support NFS Ganesha (Userspace NFS).
 
