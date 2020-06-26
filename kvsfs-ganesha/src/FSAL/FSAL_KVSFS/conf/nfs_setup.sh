@@ -17,6 +17,8 @@ GANESHA_CONF_BAK=${GANESHA_CONF}.$$
 EFS_FS_CLI="/usr/bin/efscli"
 NFS_INITIALIZED=/var/lib/nfs/nfs_initialized
 NFS_SETUP_LOG=/var/log/nfs_setup.log
+DEFAULT_EXPORT_OPTION="proto=nfs,secType=sys,Filesystem_id=192.1,client=1,"
+DEFAULT_EXPORT_OPTION+="clients=*,Squash=no_root_squash,access_type=RW,protocols=4"
 
 function die {
 	log "error: $*"
@@ -39,6 +41,9 @@ function create_fs {
 	echo -e "\nCreating default file system $DEFAULT_FS ..."
 	run $EFS_FS_CLI fs create $DEFAULT_FS
 	[ $? -ne 0 ] && die "Failed to create $DEFAULT_FS"
+	echo -e "\nExporting default file system $DEFAULT_FS $DEFAULT_EXPORT_OPTION ..."
+	run $EFS_FS_CLI endpoint create $DEFAULT_FS $DEFAULT_EXPORT_OPTION
+	[ $? -ne 0 ] && die "Failed to create export $DEFAULT_FS "
 }
 
 function get_ip {
