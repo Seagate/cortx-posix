@@ -18,6 +18,7 @@
 #include <efs.h> /* efs_get_stat() */
 #include <debug.h> /* dassert() */
 #include <common/helpers.h> /* RC_WRAP_LABEL() */
+#include <limits.h> /* PATH_MAX */
 #include <string.h> /* memcpy() */
 #include <sys/time.h> /* gettimeofday() */
 #include <errno.h>  /* errno, -EINVAL */
@@ -223,37 +224,41 @@ int efs_readlink(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *lnk,
 		 char *content, size_t *size)
 {
 	int rc;
-	void *lnk_content_buf = NULL;
-	size_t content_size;
-	struct kvstore *kvstor = kvstore_get();
 	struct kvnode node = KVNODE_INIT_EMTPY;
-
-	dassert(kvstor);
+	struct kvstore *kvstor = kvstore_get();
+	buff_t value = { 0, NULL };
 
 	log_trace("ENTER: symlink_ino=%llu", *lnk);
 	dassert(cred && lnk && size);
 	dassert(*size != 0);
 
-	RC_WRAP_LABEL(rc, errfree, efs_get_symlink, efs_fs, lnk,
-		      &lnk_content_buf, &content_size);
+	RC_WRAP_LABEL(rc, errfree, efs_kvnode_load, &node, efs_fs->kvtree, lnk);
+	RC_WRAP_LABEL(rc, errfree, efs_update_stat, &node, STAT_ATIME_SET);
 
-	if (content_size > *size) {
+	/* Get symlink attributes */
+	RC_WRAP_LABEL(rc, errfree, efs_get_sysattr, &node, &value,
+		      EFS_SYS_ATTR_SYMLINK);
+
+	dassert(value.len <= PATH_MAX);
+
+	if (value.len > *size) {
 		rc = -ENOBUFS;
 		goto errfree;
 	}
 
-	memcpy(content, lnk_content_buf, content_size);
-	*size = content_size;
+	memcpy(content, value.buf, value.len);
+	*size = value.len;
 
-	RC_WRAP_LABEL(rc, errfree, efs_kvnode_load, &node, efs_fs->kvtree, lnk);
-	RC_WRAP_LABEL(rc, errfree, efs_update_stat, &node, STAT_ATIME_SET);
 	log_debug("Got link: content='%.*s'", (int) *size, content);
-	rc = 0;
 
 errfree:
 	kvnode_fini(&node);
-	kvs_free(kvstor, lnk_content_buf);
-	log_trace("EXIT: rc=%d", rc);
+
+	if (value.buf) {
+		kvs_free(kvstor, value.buf);
+	}
+
+	log_trace("efs_readlink: rc=%d", rc);
 	return rc;
 }
 /** Default mode for a symlink object.
@@ -312,7 +317,13 @@ int efs_link(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *ino,
 		return -EEXIST;
 
 	str256_from_cstr(k_name, dname, strlen(dname));
-	RC_WRAP_LABEL(rc, aborted, efs_tree_attach, efs_fs, dino, ino, &k_name);
+	node_id_t dnode_id, new_node_id;
+
+	ino_to_node_id(dino, &dnode_id);
+	ino_to_node_id(ino, &new_node_id);
+
+	RC_WRAP_LABEL(rc, aborted, kvtree_attach, efs_fs->kvtree, &dnode_id,
+		      &new_node_id, &k_name);
 
 	RC_WRAP_LABEL(rc, aborted, efs_kvnode_load, &node, efs_fs->kvtree, ino);
 	RC_WRAP_LABEL(rc, aborted, efs_update_stat, &node,
@@ -362,7 +373,9 @@ int efs_destroy_orphaned_file(struct efs_fs *efs_fs,
 	RC_WRAP_LABEL(rc, out, efs_del_stat, &node);
 
 	if (S_ISLNK(stat->st_mode)) {
-		RC_WRAP_LABEL(rc, out, efs_del_symlink, efs_fs, ino);
+		/* Delete symlink */
+		RC_WRAP_LABEL(rc, out, efs_del_sysattr, &node,
+			      EFS_SYS_ATTR_SYMLINK);
 	} else if (S_ISREG(stat->st_mode)) {
 		RC_WRAP_LABEL(rc, out, efs_ino_to_oid, efs_fs, ino, &oid);
 		RC_WRAP_LABEL(rc, out, dstore_obj_delete,
@@ -521,10 +534,18 @@ int efs_rename(struct efs_fs *efs_fs, efs_cred_t *cred,
                 s_mode = stat->st_mode;
                 kvs_free(kvstor, stat);
 
-		RC_WRAP_LABEL(rc, out, efs_tree_detach, efs_fs, sino_dir,
-			      &sino, &k_sname);
-		RC_WRAP_LABEL(rc, out, efs_tree_attach, efs_fs, dino_dir,
-			      &sino, &k_dname);
+		node_id_t snode_id, dnode_id, new_node_id;
+
+		ino_to_node_id(sino_dir, &snode_id);
+		ino_to_node_id(dino_dir, &dnode_id);
+		ino_to_node_id(&sino, &new_node_id);
+
+		RC_WRAP_LABEL(rc, out, kvtree_detach, efs_fs->kvtree, &snode_id,
+			      &k_sname);
+
+		RC_WRAP_LABEL(rc, out, kvtree_attach, efs_fs->kvtree, &dnode_id,
+			      &new_node_id, &k_dname);
+
 		if(S_ISDIR(s_mode)){
 			RC_WRAP_LABEL(rc, out, efs_update_stat, &snode,
 				      STAT_DECR_LINK);
@@ -587,8 +608,11 @@ int efs_rmdir(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *parent, char *
 
 	RC_WRAP_LABEL(rc, out, kvs_begin_transaction, kvstor, &index);
 	/* Detach the inode */
-	RC_WRAP_LABEL(rc, aborted, efs_tree_detach, efs_fs, parent,
-		      &ino, &kname);
+	node_id_t pnode_id;
+
+	ino_to_node_id(parent, &pnode_id);
+	RC_WRAP_LABEL(rc, aborted, kvtree_detach, efs_fs->kvtree, &pnode_id,
+		      &kname);
 
 	/* Remove its stat */
 	RC_WRAP_LABEL(rc, aborted, efs_kvnode_load, &child_node, efs_fs->kvtree,
@@ -661,7 +685,12 @@ int efs_detach(struct efs_fs *efs_fs, const efs_cred_t *cred,
 		      (efs_ino_t *) parent, EFS_ACCESS_DELETE_ENTITY);
 
 	kvs_begin_transaction(kvstor, &index);
-	RC_WRAP_LABEL(rc, out, efs_tree_detach, efs_fs, parent, obj, &k_name);
+
+	node_id_t pnode_id;
+
+	ino_to_node_id(parent, &pnode_id);
+	RC_WRAP_LABEL(rc, out, kvtree_detach, efs_fs->kvtree, &pnode_id,
+		      &k_name);
 
 	RC_WRAP_LABEL(rc, out, efs_kvnode_load, &node, efs_fs->kvtree, obj);
 	RC_WRAP_LABEL(rc, out, efs_update_stat, &node,

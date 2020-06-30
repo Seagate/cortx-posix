@@ -198,52 +198,11 @@ typedef void *efs_fs_ctx_t;
  * once all migration of efs completes.
  */
 /* Inode Attributes API */
-int efs_get_symlink(struct efs_fs *efs_fs, const efs_ino_t *ino,
-		    void **buf, size_t *buf_size);
-int efs_set_symlink(struct efs_fs *efs_fs, const efs_ino_t *ino,
-		    void *buf, size_t buf_size);
-int efs_del_symlink(struct efs_fs *efs_fs, const efs_ino_t *ino);
 int efs_amend_stat(struct stat *stat, int flags);
 
 int efs_create_entry(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *parent,
                      char *name, char *lnk, mode_t mode,
                      efs_ino_t *new_entry, enum efs_file_type type);
-
-/******************************************************************************/
-/* Tree API:
- *	- Attach/Detach an inode to/from another inode.
- *	- Get list of child and parent inodes.
- *	- Look up a parent/child of an inode.
- */
-
-/******************************************************************************/
-/** Removes an existing link between a parent node and a child node.
- * @param[in] ctx - Filesystem context
- * @param[in] parent_ino - Inode of the parent
- * @param[in] ino - Inode of the child
- * @param[in] node_name - Name of the entry in the `parent_ino` which is
- * associated with the given `ino`.
- * @return 0 if successful, otherwise -errno.
- */
-int efs_tree_detach(struct efs_fs *efs_fs,
-		    const efs_ino_t *parent_ino,
-		    const efs_ino_t *ino,
-		    const str256_t *node_name);
-
-/******************************************************************************/
-/** Create a new link between two nodes in a filesysytem.
- * @param[in] ctx - Filesystem context
- * @param[in] parent_ino - Inode of the parent
- * @param[in] ino - Inode of the child
- * @param[in] node_name - Name of a new entry in the `parent_ino` which will be
- * associated with the given `ino`.
- * @return 0 if successful, otherwise -errno.
- */
-int efs_tree_attach(struct efs_fs *efs_fs,
-		    const efs_ino_t *parent_ino,
-		    const efs_ino_t *ino,
-		    const str256_t *node_name);
-
 
 /******************************************************************************/
 /** Change the name of a link between a parent node and a child node without

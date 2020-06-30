@@ -18,11 +18,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <limits.h> /* PATH_MAX */
 #include <sys/time.h>
 #include <ini_config.h>
 #include <common/log.h>
 #include <common/helpers.h>
 #include "efs.h"
+#include "efs_internal.h"
 #include <dstore.h>
 #include <debug.h>
 #include <common.h> /* likely */
@@ -69,11 +71,17 @@ static inline const char *efs_key_type_to_str(efs_key_type_t ktype)
 	return "<fail>";
 }
 
+/* TODO: EOS-8582, will replace/remove key->md.type to original
+ *       macro if needed, as of now there was a mismatch
+ *       for kvtree system attributes key type and hence
+ *       efs_lookup is not working, so making efs and
+ *       kvtree system attribute key same
+ */
 #define DENTRY_KEY_INIT(__kfid, __name)			\
 {							\
 		.fid = __kfid,				\
 		.md = {					\
-			.type = EFS_KEY_TYPE_DIRENT,	\
+			.type = 20,			\
 			.version = EFS_VERSION_0,	\
 		},					\
 		.name = __name,				\
@@ -85,7 +93,7 @@ static inline const char *efs_key_type_to_str(efs_key_type_t ktype)
  * DENTRY_KEY_INIT are replaced with DENTRY_KEY_PTR_INIT */
 #define DENTRY_KEY_PTR_INIT(key, ino, fname)	\
 {							\
-		key->md.type = EFS_KEY_TYPE_DIRENT,	\
+		key->md.type = 20,                      \
 		key->md.version = EFS_VERSION_0,	\
 		key->fid.f_hi = (*ino),			\
 		key->fid.f_lo = 0,			\
@@ -111,33 +119,6 @@ static inline size_t efs_name_dsize(const str256_t *kname)
  */
 static inline size_t efs_dentry_key_dsize(const struct efs_dentry_key *key) {
 	return efs_dentry_key_psize + efs_name_dsize(&key->name);
-}
-
-/**
- * A kvnode is identified by a 128 bit node id. However, currently efs uses
- * 64 bit inodes in it's apis to identify the entities. The following apis
- * are a temporary arrangement to convert 64 bit inodes to 128 bit node ids.
- * @TODO: Cleanup these apis when efs filehandle (or equivalent) is
- * implemented. The filehandles would eventually use 128bit unique fids.
- */
-static inline int node_id_to_ino(const node_id_t *nid, efs_ino_t *ino)
-{
-	dassert(nid != NULL);
-	dassert(ino != NULL);
-
-	*ino = nid->f_hi;
-	return 0;
-}
-
-static inline int ino_to_node_id(const efs_ino_t *ino, node_id_t *nid)
-{
-	dassert(ino != NULL);
-	dassert(nid != NULL);
-
-	nid->f_hi = *ino;
-	nid->f_lo = 0;
-
-	return 0;
 }
 
 /* @todo rename this to PARENTDIR_KEY_INIT once all the instances of
@@ -515,28 +496,43 @@ out:
 	return rc;
 }
 
-int efs_get_symlink(struct efs_fs *efs_fs, const efs_ino_t *ino,
-		    void **buf, size_t *buf_size)
+int efs_set_sysattr(const struct kvnode *node, const buff_t value,
+                    enum efs_sys_attr_type attr_type)
 {
 	int rc;
-	*buf_size = 0;
-	RC_WRAP_LABEL(rc, out, efs_ns_get_inode_attr, efs_fs, ino, EFS_KEY_TYPE_SYMLINK,
-		      buf, buf_size);
-	dassert(*buf_size < INT_MAX);
-out:
+
+	rc = kvnode_set_sys_attr(node, attr_type, value);
+
+	log_trace("efs_set_sysattr:" OBJ_ID_F ", rc = %d",
+		  OBJ_ID_P(&node->node_id), rc);
+
 	return rc;
 }
 
-int efs_set_symlink(struct efs_fs *efs_fs, const efs_ino_t *ino,
-		  void *buf, size_t buf_size)
+int efs_get_sysattr(const struct kvnode *node, buff_t *value,
+                    enum efs_sys_attr_type attr_type)
 {
-	return efs_ns_set_inode_attr(efs_fs, ino, EFS_KEY_TYPE_SYMLINK,
-				     buf, buf_size);
+	int rc;
+
+	rc = kvnode_get_sys_attr(node, attr_type, value);
+
+	log_trace("efs_get_sysattr:" OBJ_ID_F ", rc = %d",
+		  OBJ_ID_P(&node->node_id), rc);
+
+	return rc;
 }
 
-int efs_del_symlink(struct efs_fs *efs_fs, const efs_ino_t *ino)
+int efs_del_sysattr(const struct kvnode *node,
+                    enum efs_sys_attr_type attr_type)
 {
-	return efs_ns_del_inode_attr(efs_fs, ino, EFS_KEY_TYPE_SYMLINK);
+	int rc;
+
+	rc = kvnode_del_sys_attr(node, attr_type);
+
+	log_trace("efs_del_sysattr:" OBJ_ID_F ", rc = %d",
+		  OBJ_ID_P(&node->node_id), rc);
+
+	return rc;
 }
 
 int efs_tree_create_root(struct efs_fs *efs_fs)
@@ -614,163 +610,6 @@ free_key:
 
 out:
         return rc;
-}
-
-int efs_tree_detach(struct efs_fs *efs_fs,
-		    const efs_ino_t *parent_ino,
-		    const efs_ino_t *ino,
-		    const str256_t *node_name)
-{
-	int rc;
-	struct efs_dentry_key *dentry_key = NULL;
-	struct efs_parentdir_key *parent_key = NULL;
-	uint64_t *parent_value = NULL;
-	struct kvstore *kvstor = kvstore_get();
-	struct kvs_idx index;
-	struct kvnode parent_node = KVNODE_INIT_EMTPY;
-
-	dassert(kvstor != NULL);
-
-	index = efs_fs->kvtree->index;
-
-	// Remove dentry
-	RC_WRAP_LABEL(rc, out, kvs_alloc, kvstor, (void **)&dentry_key,
-		      sizeof (*dentry_key));
-
-	DENTRY_KEY_PTR_INIT(dentry_key, parent_ino, node_name);
-
-	RC_WRAP_LABEL(rc, free_dentrykey, kvs_del, kvstor, &index, dentry_key,
-		      efs_dentry_key_dsize(dentry_key));
-
-	// Update parent link count
-	RC_WRAP_LABEL(rc, free_dentrykey, kvs_alloc, kvstor, (void **)&parent_key,
-		      sizeof (*parent_key));
-	PARENTDIR_KEY_PTR_INIT(parent_key, ino, parent_ino);
-	uint64_t val_size = 0;
-	RC_WRAP_LABEL(rc, free_parent_key, kvs_get, kvstor, &index,
-		      parent_key, sizeof (*parent_key),
-		      (void **)&parent_value, &val_size);
-
-	dassert(val_size == sizeof(*parent_value));
-	dassert(parent_value != NULL);
-	(*parent_value)--;
-
-	if (parent_value > 0){
-		RC_WRAP_LABEL(rc, free_parent_key, kvs_set, kvstor, &index,
-			      parent_key, sizeof (*parent_key),
-			      parent_value, sizeof(*parent_value));
-	} else {
-		RC_WRAP_LABEL(rc, free_parent_key, kvs_del, kvstor, &index,
-			      parent_key, sizeof (*parent_key));
-	}
-
-	kvs_free(kvstor, parent_value);
-	// Update stats
-	RC_WRAP_LABEL(rc, free_parent_key, efs_kvnode_load, &parent_node,
-		      efs_fs->kvtree, parent_ino);
-
-	RC_WRAP_LABEL(rc, free_parent_key, efs_update_stat, &parent_node,
-		      STAT_CTIME_SET|STAT_MTIME_SET);
-
-free_parent_key:
-	kvnode_fini(&parent_node);
-	kvs_free(kvstor, parent_key);
-
-free_dentrykey:
-	kvs_free(kvstor, dentry_key);
-
-out:
-	log_debug("tree_detach(%p,pino=%llu,ino=%llu,n=%.*s) = %d",
-		  efs_fs, *parent_ino, *ino, node_name->s_len, node_name->s_str, rc);
-	return rc;
-}
-
-int efs_tree_attach(struct efs_fs *efs_fs,
-		    const efs_ino_t *parent_ino,
-		    const efs_ino_t *ino,
-		    const str256_t *node_name)
-{
-	int rc;
-	struct efs_dentry_key *dentry_key;
-	struct efs_parentdir_key *parent_key;
-	node_id_t dentry_val;
-
-	uint64_t parent_value;
-	uint64_t val_size = 0;
-	uint64_t *parent_val_ptr = NULL;
-	struct kvstore *kvstor = kvstore_get();
-	struct kvs_idx index;
-	struct kvnode parent_node = KVNODE_INIT_EMTPY;
-
-	dassert(kvstor != NULL);
-	dassert(ino != NULL);
-	dassert(*ino >= EFS_ROOT_INODE);
-
-	index = efs_fs->kvtree->index;
-	// Add dentry
-	RC_WRAP_LABEL(rc, out, kvs_alloc, kvstor, (void **)&dentry_key,
-		      sizeof (*dentry_key));
-	/* @todo rename this to DENTRY_KEY_INIT once all the instances of
-	 * DENTRY_KEY_INIT are replaced with DENTRY_KEY_PTR_INIT */
-
-	DENTRY_KEY_PTR_INIT(dentry_key, parent_ino, node_name);
-
-	RC_WRAP_LABEL(rc, free_dentrykey, ino_to_node_id, ino, &dentry_val);
-
-	RC_WRAP_LABEL(rc, free_dentrykey, kvs_set, kvstor, &index,
-		      dentry_key, efs_dentry_key_dsize(dentry_key),
-		      &dentry_val, sizeof(dentry_val));
-
-
-	// Update parent link count
-	RC_WRAP_LABEL(rc, free_dentrykey, kvs_alloc, kvstor,
-		      (void **)&parent_key, sizeof (*parent_key));
-
-	/* @todo rename this to PARENT_KEY_INIT once all the instances of
-	 * PARENT_KEY_INIT are replaced with PARENT_DIR_KEY_PTR_INIT */
-	PARENTDIR_KEY_PTR_INIT(parent_key, ino, parent_ino);
-
-	rc = kvs_get(kvstor, &index, parent_key, sizeof(*parent_key),
-		     (void **)&parent_val_ptr, &val_size);
-	if (rc == -ENOENT) {
-		parent_value = 0;
-		rc = 0;
-	}
-
-	if (rc < 0) {
-		log_err("Failed to get parent key for %llu/%llu", *parent_ino,
-			 *ino);
-		goto free_parentkey;
-	}
-
-	if (parent_val_ptr != NULL) {
-		parent_value = *parent_val_ptr;
-		kvs_free(kvstor, parent_val_ptr);
-	}
-
-	parent_value++;
-	RC_WRAP_LABEL(rc, free_parentkey, kvs_set, kvstor, &index,
-		      parent_key, sizeof(*parent_key),
-		      (void *)&parent_value, sizeof(parent_value));
-
-	// Update stats
-	RC_WRAP_LABEL(rc, free_parentkey, efs_kvnode_load, &parent_node,
-		      efs_fs->kvtree, parent_ino);
-
-	RC_WRAP_LABEL(rc, free_parentkey, efs_update_stat, &parent_node,
-		      STAT_CTIME_SET|STAT_MTIME_SET);
-
-free_parentkey:
-	kvnode_fini(&parent_node);
-	kvs_free(kvstor, parent_key);
-
-free_dentrykey:
-	kvs_free(kvstor, dentry_key);
-
-out:
-	log_debug("tree_attach(%p,pino=%llu,ino=%llu,n=%.*s) = %d",
-		  efs_fs, *parent_ino, *ino, node_name->s_len, node_name->s_str, rc);
-	return rc;
 }
 
 int efs_tree_rename_link(struct efs_fs *efs_fs,
@@ -1084,7 +923,14 @@ int efs_create_entry(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *parent,
 	RC_WRAP_LABEL(rc, errfree, efs_alloc_dirent_key, namelen, &d_key); */
 
 	str256_from_cstr(k_name, name, strlen(name));
-	RC_WRAP_LABEL(rc, errfree, efs_tree_attach, efs_fs, parent, new_entry, &k_name);
+
+	node_id_t new_node_id, parent_node_id;
+
+	ino_to_node_id(new_entry, &new_node_id);
+	ino_to_node_id(parent, &parent_node_id);
+
+	RC_WRAP_LABEL(rc, errfree, kvtree_attach, efs_fs->kvtree,
+		      &parent_node_id, &new_node_id, &k_name);
 
 	/* Set the stats of the new file */
 	memset(&bufstat, 0, sizeof(struct stat));
@@ -1134,8 +980,14 @@ int efs_create_entry(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *parent,
 	RC_WRAP_LABEL(rc, errfree, efs_set_stat, &new_node);
 
 	if (type == EFS_FT_SYMLINK) {
-		RC_WRAP_LABEL(rc, errfree, efs_set_symlink, efs_fs, new_entry,
-		(void *)lnk, strlen(lnk));
+		buff_t value;
+
+		value.len = strnlen(lnk, PATH_MAX);
+		value.buf = (void *)lnk;
+
+		/* Set symlink */
+		RC_WRAP_LABEL(rc, errfree, efs_set_sysattr, &new_node, value,
+			      EFS_SYS_ATTR_SYMLINK);
 	}
 
 	if (type == EFS_FT_DIR) {
@@ -1151,14 +1003,15 @@ int efs_create_entry(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *parent,
 	RC_WRAP_LABEL(rc, errfree, efs_set_stat, &parent_node);
 
 	RC_WRAP(kvs_end_transaction, kvstor, &index);
-	return 0;
 
 errfree:
 	kvnode_fini(&new_node);
 	kvnode_fini(&parent_node);
 	kvs_free(kvstor, parent_stat);
-	log_trace("Exit rc=%d", rc);
-	kvs_discard_transaction(kvstor, &index);
+	log_trace("efs_create_entry: rc=%d", rc);
+	if (rc != 0) {
+		kvs_discard_transaction(kvstor, &index);
+	}
 	return rc;
 }
 
