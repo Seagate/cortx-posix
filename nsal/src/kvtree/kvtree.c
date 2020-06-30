@@ -39,6 +39,30 @@ struct child_node_key {
     .parent_id = *_node_id,                         \
 }
 
+/* The size of a child node key prefix */
+static const size_t kvtree_child_node_key_psize =
+	sizeof(struct child_node_key) - sizeof(str256_t);
+
+/* Dynamic size of a kname object */
+static inline size_t kvtree_name_dsize(const str256_t *kname)
+{
+	/* sizeof (len field) + actual len + size of null-terminator */
+	size_t result = sizeof(kname->s_len) + kname->s_len + 1;
+	/* Dynamic size cannot be more than the max size of the structure */
+	dassert(result <= sizeof(*kname));
+	return result;
+}
+
+/* Dynamic size of a child node key, i.e. the amount of bytest to be stored in
+ * the KVS storage.
+ */
+static inline
+	size_t kvtree_child_node_key_dsize(const struct child_node_key *key)
+{
+		return kvtree_child_node_key_psize +
+		       kvtree_name_dsize(&key->name);
+}
+
 /** Pattern size of a child node key, i.e. the size of a child node prefix. */
 static const size_t child_node_psize =
 	sizeof(struct child_node_key) - sizeof(str256_t);
@@ -191,7 +215,7 @@ int kvtree_attach(struct kvtree *tree, const node_id_t *parent_id,
 	CHILD_NODE_KEY_INIT(node_key, parent_id, node_name);
 
 	RC_WRAP_LABEL(rc, out, kvs_set, kvstor, &tree->index, node_key,
-	              sizeof(struct child_node_key), (void *)node_id,
+	              kvtree_child_node_key_dsize(node_key), (void *)node_id,
 	              sizeof(node_id_t));
 
 out:
@@ -223,7 +247,7 @@ int kvtree_detach(struct kvtree *tree, const node_id_t *parent_id,
 	CHILD_NODE_KEY_INIT(node_key, parent_id, node_name);
 
 	RC_WRAP_LABEL(rc, out, kvs_del, kvstor, &tree->index, node_key,
-	              sizeof(struct child_node_key));
+	              kvtree_child_node_key_dsize(node_key));
 
 out:
 	kvs_free(kvstor, node_key);
@@ -255,7 +279,8 @@ int kvtree_lookup(struct kvtree *tree, const node_id_t *parent_id,
 	CHILD_NODE_KEY_INIT(node_key, parent_id, node_name);
 
 	RC_WRAP_LABEL(rc, cleanup, kvs_get, kvstor, &tree->index, node_key,
-	              sizeof(struct child_node_key), (void **)&val_ptr, &val_size);
+	              kvtree_child_node_key_dsize(node_key), (void **)&val_ptr,
+		      &val_size);
 
 	if (node_id) {
 		dassert(val_ptr != NULL);

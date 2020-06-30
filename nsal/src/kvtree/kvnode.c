@@ -188,7 +188,6 @@ int kvnode_set_sys_attr(const struct kvnode *node, const int key,
 
 	dassert(node);
 	dassert(node->tree);
-	dassert(key != 0);
 	dassert(value.buf);
 	dassert(value.len != 0);
 
@@ -222,7 +221,6 @@ int kvnode_get_sys_attr(const struct kvnode *node, const int key,
 
 	dassert(node);
 	dassert(node->tree);
-	dassert(key != 0);
 
 	struct kvstore *kvstor = kvstore_get();
 	dassert(kvstor);
@@ -254,7 +252,6 @@ int kvnode_del_sys_attr(const struct kvnode *node, const int key)
 
 	dassert(node);
 	dassert(node->tree);
-	dassert(key != 0);
 
 	struct kvstore *kvstor = kvstore_get();
 
