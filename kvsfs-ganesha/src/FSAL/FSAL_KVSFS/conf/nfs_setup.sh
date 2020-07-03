@@ -67,15 +67,15 @@ function clovis_init {
 function efs_init {
 	log "Initializing EFS..."
 
-	# Backup efs.conf file
+	# Backup cortxfs.conf file
 	[ ! -e $CORTXFS_CONF_BAK ] && run cp $CORTXFS_CONF $CORTXFS_CONF_BAK
 
-	# Modify efs.conf
-	tmp_var=$(sed -n '/kvstore/=' $CORTXFS_CONF)
-	[ $? -ne 0 ] && die "Failed to access efs.conf file"
+	# Modify cortxfs.conf
+	tmp_var=$(sed -n '/\[log\]/ {=;q}' $CORTXFS_CONF)
+	[ $? -ne 0 ] && die "Failed to access cortxfs.conf file"
 
 	run sed -i "$tmp_var,\$d" $CORTXFS_CONF
-	[ $? -ne 0 ] && die "Failed to edit efs.conf file"
+	[ $? -ne 0 ] && die "Failed to edit cortxfs.conf file"
 
 	cat >> $CORTXFS_CONF << EOM
 [log]
@@ -97,7 +97,7 @@ proc_fid = $PROC_FID
 index_dir = $INDEX_DIR
 kvs_fid = $KVS_GLOBAL_FID
 EOM
-	[ $? -ne 0 ] && die "Failed to configure efs.conf"
+	[ $? -ne 0 ] && die "Failed to configure cortxfs.conf"
 
 	touch $NFS_INITIALIZED
 
