@@ -13,6 +13,7 @@
  *
  */
 
+#include <regex.h>
 #include "log.h"
 #include "config_parsing.h"
 #include "config_impl.h"
@@ -20,6 +21,179 @@
 #include "efs.h"
 
 struct ganesha_config *ganesha_config;
+
+/*
+ * The NFS Ganesha specific keywords are taken from
+ * nfs-ganesha-eos/src/config_samples/config.txt
+ * These rules might need update in future.
+ * Note:
+ * struct export_block  might also need update in future.
+ * TODO:
+ * Currently multiple client blocks per exports are not there.
+ * Jatinder confirms this is needed in future. Need a ticket
+ * to track it.
+ */
+
+#define FILESYSTEM_MAJOR_MINOR_REGEX "^[0-9]+\\.[0-9]+$"
+
+const char *SecType_keywords[] = {"none", "sys", "krb5", "krb5i", "krb5p"};
+const char *Squash_keywords[] = {
+		"root", "root_squash", "rootsquash", "rootid", "root_id_squash",
+		"rootidsquash", "all", "all_squash", "allsquash", "all_anomnymous",
+		"allanonymous", "no_root_squash", "none", "noidsquash"};
+const char *Access_Type_keywords[] = {"None", "RW", "RO", "MDONLY", "MDONLY_RO"};
+const char *Protocols_keywords[] = {"4", "NFS4", "V4", "NFSv4"};
+
+static int regex_match(const char *str, const char *pattern)
+{
+	regex_t preg;
+	int rc = 0;
+	size_t nmatch = 2;
+	regmatch_t pmatch[2];
+
+	rc = regcomp(&preg, pattern, REG_EXTENDED | REG_ICASE);
+	if (rc != 0) {
+		LogMajor(COMPONENT_FSAL, "regcomp() failed: %d", rc);
+		goto out;
+	}
+
+	rc = regexec(&preg, str, nmatch, pmatch, 0);
+	if (rc != 0) {
+		LogMajor(COMPONENT_FSAL, "regexec() failed: %d, %s, %s",
+			 rc, str, pattern);
+		goto out;
+	}
+out:
+	regfree(&preg);
+	return rc;
+}
+
+static int validate_export_block(const struct export_block *block)
+{
+	int rc = 0;
+	int idx = 0;
+	int array_nmemb = 0;
+
+	if (block == NULL) {
+		LogMajor(COMPONENT_FSAL, "block NULL");
+		rc = -EINVAL;
+		goto out;
+	}
+
+	if ((block->path.s_len == 0) || (block->path.s_str[0] == '\0')) {
+		LogMajor(COMPONENT_FSAL, "block->path empty");
+		rc = -EINVAL;
+		goto out;
+	}
+
+	if ((block->pseudo.s_len == 0) || (block->pseudo.s_str[0] == '\0')) {
+		LogMajor(COMPONENT_FSAL, "block->pseudo empty");
+		rc = -EINVAL;
+		goto out;
+	}
+
+	if ((block->fsal_block.name.s_len == 0) ||
+	   (block->fsal_block.name.s_str[0] == '\0')) {
+		LogMajor(COMPONENT_FSAL, "block->fsal_block.name empty");
+		rc = -EINVAL;
+		goto out;
+	}
+
+	if ((block->fsal_block.efs_config.s_len == 0) ||
+	    (block->fsal_block.efs_config.s_str[0] == '\0')) {
+		LogMajor(COMPONENT_FSAL, "block->fsal_block.efs_config empty");
+		rc = -EINVAL;
+		goto out;
+	}
+
+	array_nmemb = sizeof(SecType_keywords)/sizeof(SecType_keywords[0]);
+	for (idx = 0; idx < array_nmemb; idx++) {
+		if (!strcmp(block->sectype.s_str, SecType_keywords[idx]) &&
+			    block->sectype.s_len ==
+			    strlen(SecType_keywords[idx])) {
+			break;
+		}
+	}
+
+	if (idx == array_nmemb) {
+		LogMajor(COMPONENT_FSAL, "block->sectype invalid, %s",
+			 block->sectype.s_str);
+		rc = -EINVAL;
+		goto out;
+	}
+
+	if ((block->filesystem_id.s_len == 0) ||
+	    (block->filesystem_id.s_str[0] == '\0')) {
+		LogMajor(COMPONENT_FSAL, "block->filesystem_id empty");
+		rc = -EINVAL;
+		goto out;
+	}
+
+	if (regex_match(block->filesystem_id.s_str,
+		FILESYSTEM_MAJOR_MINOR_REGEX)) {
+		 LogMajor(COMPONENT_FSAL,
+			 "filesystem_id major.minor format err: %s",
+			 block->filesystem_id.s_str);
+		rc = -EINVAL;
+		goto out;
+	}
+
+	array_nmemb = sizeof(Squash_keywords)/sizeof(Squash_keywords[0]);
+	for (idx = 0; idx < array_nmemb; idx++) {
+		if (!strcmp(block->client_block.squash.s_str,
+		    Squash_keywords[idx]) && block->client_block.squash.s_len ==
+		    strlen(Squash_keywords[idx])) {
+			break;
+		}
+	}
+
+	if (idx == array_nmemb) {
+		LogMajor(COMPONENT_FSAL,
+			 "block->client_block.squash invalid, %s",
+			 block->client_block.squash.s_str);
+		rc = -EINVAL;
+		goto out;
+	}
+
+	array_nmemb = sizeof(Access_Type_keywords)/
+		      sizeof(Access_Type_keywords[0]);
+	for (idx = 0; idx < array_nmemb; idx++) {
+		if (!strcmp(block->client_block.access_type.s_str,
+		    Access_Type_keywords[idx]) &&
+		    block->client_block.access_type.s_len ==
+		    strlen(Access_Type_keywords[idx])) {
+			break;
+		}
+	}
+
+	if (idx == array_nmemb) {
+		LogMajor(COMPONENT_FSAL,
+			 "block->client_block.access_typeinvalid, %s",
+			 block->client_block.access_type.s_str);
+		rc = -EINVAL;
+		goto out;
+	}
+
+	array_nmemb = sizeof(Protocols_keywords)/sizeof(Protocols_keywords[0]);
+	for (idx = 0; idx < array_nmemb; idx++) {
+		if (!strcmp(block->client_block.protocols.s_str,
+		    Protocols_keywords[idx]) &&
+		    block->client_block.protocols.s_len ==
+		    strlen(Protocols_keywords[idx])) {
+			break;
+		}
+	}
+
+	if (idx == array_nmemb) {
+		LogMajor(COMPONENT_FSAL, "block->client_block.protocol, %s",
+			 block->client_block.protocols.s_str);
+		rc = -EINVAL;
+		goto out;
+	}
+
+out:
+	return rc;
+}
 
 /* Adds export block with Export_id=ep_id in ganesha config.
  *
@@ -49,6 +223,16 @@ int kvsfs_add_export(const char *ep_name, uint16_t ep_id, const char *ep_info)
 		LogMajor(COMPONENT_FSAL, "json object is corrupt");
 		goto out;
 	}
+
+	/* validate this export block */
+	rc = validate_export_block(export_block);
+	if (rc < 0) {
+		gsh_free(export_block);
+		LogMajor(COMPONENT_FSAL,
+			 "export block object has invalid params");
+		goto out;
+	}
+
 	/* add export block to list */
 	glist_add_tail(&ganesha_config->export_block.glist,
 				   &export_block->glist);
@@ -96,6 +280,16 @@ static int endpoint_scan_cb(const struct efs_endpoint_info *ep, void *cb_ctx)
 		gsh_free(export_block);
 		goto out;
 	}
+
+	/* validate this export block */
+	rc = validate_export_block(export_block);
+	if (rc < 0) {
+		LogMajor(COMPONENT_FSAL,
+			 "export block object has invalid params");
+		gsh_free(export_block);
+		goto out;
+	}
+
 	/* add export block found during scan to list */
 	glist_add(&ganesha_config->export_block.glist, &export_block->glist);
 out:
