@@ -75,58 +75,6 @@ static inline const char *efs_key_type_to_str(efs_key_type_t ktype)
 	return "<fail>";
 }
 
-/* TODO: EOS-8582, will replace/remove key->md.type to original
- *       macro if needed, as of now there was a mismatch
- *       for kvtree system attributes key type and hence
- *       efs_lookup is not working, so making efs and
- *       kvtree system attribute key same
- */
-#define DENTRY_KEY_INIT(__kfid, __name)			\
-{							\
-		.fid = __kfid,				\
-		.md = {					\
-			.type = 20,			\
-			.version = EFS_VERSION_0,	\
-		},					\
-		.name = __name,				\
-}
-
-#define DENTRY_KEY_PREFIX_INIT(__pino) DENTRY_KEY_INIT(__pino, {})
-
-/* @todo rename this to DENTRY_KEY_INIT once all the instances of
- * DENTRY_KEY_INIT are replaced with DENTRY_KEY_PTR_INIT */
-#define DENTRY_KEY_PTR_INIT(key, ino, fname)	\
-{							\
-		key->md.type = 20,                      \
-		key->md.version = EFS_VERSION_0,	\
-		key->fid.f_hi = (*ino),			\
-		key->fid.f_lo = 0,			\
-		key->name = *fname;			\
-}
-
-/** Pattern size of a dentry key, i.e. the size of a dentry prefix. */
-static const size_t efs_dentry_key_psize =
-	sizeof(struct efs_dentry_key) - sizeof(str256_t);
-
-/** Dynamic size of a kname object. */
-static inline size_t efs_name_dsize(const str256_t *kname)
-{
-	/* sizeof (len field) + actual len + size of null-terminator */
-	size_t result = sizeof(kname->s_len) + kname->s_len + 1;
-	/* Dynamic size cannot be more than the max size of the structure */
-	dassert(result <= sizeof(*kname));
-	return result;
-}
-
-/** Dynamic size of a dentry key, i.e. the amount of bytest to be stored in
- * the KVS storage.
- */
-static inline size_t efs_dentry_key_dsize(const struct efs_dentry_key *key) {
-	return efs_dentry_key_psize + efs_name_dsize(&key->name);
-}
-
-typedef efs_ino_t efs_dentry_val_t;
-
 #define INODE_ATTR_KEY_INIT(__kfid, __ktype)		\
 {							\
 		.fid = __kfid,				\
@@ -540,37 +488,26 @@ int efs_tree_rename_link(struct efs_fs *efs_fs,
 			 const str256_t *new_name)
 {
 	int rc;
-	struct efs_dentry_key *dentry_key;
-	node_id_t dentry_val;
 	struct kvstore *kvstor = kvstore_get();
 	struct kvs_idx index;
 	struct kvnode parent_node = KVNODE_INIT_EMTPY;
+	node_id_t id, pid;
 
 	dassert(kvstor != NULL);
 
 	index = efs_fs->kvtree->index;
 
-	RC_WRAP_LABEL(rc, out, kvs_alloc, kvstor,
-		      (void **)&dentry_key, sizeof (*dentry_key));
-
-	DENTRY_KEY_PTR_INIT(dentry_key, parent_ino, old_name);
-
+	RC_WRAP_LABEL(rc, out, ino_to_node_id, parent_ino, &pid);
 	// The caller must ensure that the entry exists prior renaming */
-	dassert(efs_tree_lookup(efs_fs, parent_ino, old_name, NULL) == 0);
+	dassert(kvtree_lookup(efs_fs->kvtree, &pid, old_name, NULL) == 0);
 
-	// Remove dentry
-	RC_WRAP_LABEL(rc, cleanup, kvs_del, kvstor, &index,
-		      dentry_key, efs_dentry_key_dsize(dentry_key));
+	RC_WRAP_LABEL(rc, out, ino_to_node_id, ino, &id);
 
-	dentry_key->name = *new_name;
+	RC_WRAP_LABEL(rc, out, kvtree_detach, efs_fs->kvtree, &pid,
+		      old_name);
 
-	RC_WRAP_LABEL(rc, cleanup, ino_to_node_id, ino, &dentry_val);
-
-	// Add dentry
-	RC_WRAP_LABEL(rc, cleanup, kvs_set, kvstor, &index,
-		      dentry_key, efs_dentry_key_dsize(dentry_key),
-		      &dentry_val, sizeof(dentry_val));
-	
+	RC_WRAP_LABEL(rc, out, kvtree_attach, efs_fs->kvtree, &pid,
+		      &id, new_name);
 
 	// Update ctime stat
 	RC_WRAP_LABEL(rc, cleanup, efs_kvnode_load, &parent_node,
@@ -580,103 +517,12 @@ int efs_tree_rename_link(struct efs_fs *efs_fs,
 
 cleanup:
 	kvnode_fini(&parent_node);
-	kvs_free(kvstor, dentry_key);
 
 out:
 	log_debug("tree_rename(%p,pino=%llu,ino=%llu,o=%.*s,n=%.*s) = %d",
 		  efs_fs, *parent_ino, *ino,
 		  old_name->s_len, old_name->s_str,
 		  new_name->s_len, new_name->s_str, rc);
-	return rc;
-}
-
-/* TODO:PERF: Callers can use stat.nlink (usually it is available) instead
- * of requesting an iteration over the dentries. This will allow us to eliminate
- * the extra call to the KVS.
- */
-int efs_tree_has_children(struct efs_fs *efs_fs,
-			  const efs_ino_t *ino,
-			  bool *has_children)
-{
-	int rc = 0;
-	bool result;
-	struct kvstore *kvstor = kvstore_get();
-	efs_fid_t kfid = {
-		.f_hi = *ino,
-		.f_lo = 0
-	};
-	struct efs_dentry_key prefix = DENTRY_KEY_PREFIX_INIT(kfid);
-
-	dassert(kvstor != NULL);
-
-	struct kvs_itr *iter = NULL;
-	struct kvs_idx index;
-
-	index = efs_fs->kvtree->index;
-
-	rc = kvs_itr_find(kvstor, &index, &prefix, efs_dentry_key_psize, &iter);
-	result = (rc == 0);
-
-	/* Check if we got an unexpected error from KVS */
-	if (rc != 0 && rc != -ENOENT) {
-		goto out;
-	} else {
-		rc = 0;
-	}
-
-	if (iter) {
-		kvs_itr_fini(kvstor, iter);
-	}
-
-	*has_children = result;
-
-out:
-	log_debug("%llu %s children, rc=%d",
-		  *ino, *has_children ? "has" : " doesn't have", rc);
-	return rc;
-}
-
-int efs_tree_lookup(struct efs_fs *efs_fs,
-		    const efs_ino_t *parent_ino,
-		    const str256_t *name,
-		    efs_ino_t *ino)
-{
-	struct efs_dentry_key *dkey = NULL;
-	efs_ino_t value = 0;
-	int rc;
-	uint64_t val_size = 0;
-	node_id_t *val_ptr = NULL;
-	struct kvstore *kvstor = kvstore_get();
-	struct kvs_idx index;
-
-	dassert(kvstor != NULL);
-
-	index = efs_fs->kvtree->index;
-
-	dassert(parent_ino && name);
-	RC_WRAP_LABEL(rc, out, kvs_alloc, kvstor, (void **)&dkey, sizeof (*dkey));
-
-	DENTRY_KEY_PTR_INIT(dkey, parent_ino, name);
-
-	RC_WRAP_LABEL(rc, cleanup, kvs_get, kvstor, &index,
-		      dkey, efs_dentry_key_dsize(dkey),
-		      (void **)&val_ptr, &val_size);
-
-	if (ino) {
-		dassert(val_ptr != NULL);
-		dassert(val_size == sizeof(*val_ptr));
-		RC_WRAP_LABEL(rc, cleanup, node_id_to_ino, val_ptr, ino);
-		dassert(*ino >= EFS_ROOT_INODE);
-		value = *ino;
-		kvs_free(kvstor, val_ptr);
-	}
-
-cleanup:
-	kvs_free(kvstor, dkey);
-
-out:
-	log_debug("GET %llu.dentries.%.*s=%llu, rc=%d",
-		  *parent_ino, name->s_len, name->s_str, value, rc);
 	return rc;
 }
 

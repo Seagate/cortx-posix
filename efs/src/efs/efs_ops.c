@@ -464,6 +464,7 @@ int efs_rename(struct efs_fs *efs_fs, efs_cred_t *cred,
 		      dnode = KVNODE_INIT_EMTPY;
 	const struct efs_rename_flags flags = pflags ? *pflags :
 		(const struct efs_rename_flags) EFS_RENAME_FLAGS_INIT;
+	node_id_t dnode_id;
 
 	dassert(kvstor);
 	dassert(cred);
@@ -520,16 +521,17 @@ int efs_rename(struct efs_fs *efs_fs, efs_cred_t *cred,
 		d_mode = stat->st_mode;
 		kvnode_fini(&dnode);
 		kvs_free(kvstor, stat);
-
 		if (S_ISDIR(s_mode) != S_ISDIR(d_mode)) {
 			log_warn("Incompatible source and destination %d,%d.",
 				 (int) s_mode, (int) d_mode);
 			rc = -ENOTDIR;
 			goto out;
 		}
+		RC_WRAP_LABEL(rc, out, ino_to_node_id, &dino, &dnode_id);
 		if (S_ISDIR(d_mode)) {
-			RC_WRAP_LABEL(rc, out, efs_tree_has_children, efs_fs,
-				      &dino, &is_dst_non_empty_dir);
+			RC_WRAP_LABEL(rc, out, kvtree_has_children,
+				      efs_fs->kvtree, &dnode_id,
+				      &is_dst_non_empty_dir);
 		}
 		if (is_dst_non_empty_dir) {
 			log_warn("Destination is not empty (%llu:%s)",
@@ -571,10 +573,9 @@ int efs_rename(struct efs_fs *efs_fs, efs_cred_t *cred,
                 s_mode = stat->st_mode;
                 kvs_free(kvstor, stat);
 
-		node_id_t snode_id, dnode_id, new_node_id;
+		node_id_t snode_id, new_node_id;
 
 		ino_to_node_id(sino_dir, &snode_id);
-		ino_to_node_id(dino_dir, &dnode_id);
 		ino_to_node_id(&sino, &new_node_id);
 
 		RC_WRAP_LABEL(rc, out, kvtree_detach, efs_fs->kvtree, &snode_id,
@@ -618,6 +619,7 @@ int efs_rmdir(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *parent, char *
 	struct kvnode child_node = KVNODE_INIT_EMTPY,
 		      parent_node = KVNODE_INIT_EMTPY;
 	dstore_oid_t oid;
+	node_id_t id;
 
 	dassert(efs_fs && cred && parent && name && kvstor);
 	dassert(strlen(name) <= NAME_MAX);
@@ -630,10 +632,11 @@ int efs_rmdir(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *parent, char *
 	RC_WRAP_LABEL(rc, out, efs_lookup, efs_fs, cred, parent, name,
 		      &ino);
 
-	RC_WRAP_LABEL(rc, out, efs_tree_has_children, efs_fs,
-		      &ino, &is_non_empty_dir);
+	RC_WRAP_LABEL(rc, out, ino_to_node_id, &ino, &id);
 
 	/* Check if directory empty */
+	RC_WRAP_LABEL(rc, out, kvtree_has_children, efs_fs->kvtree, &id,
+		      &is_non_empty_dir);
 	if (is_non_empty_dir) {
 		 rc = -ENOTEMPTY;
 		 log_debug("ctx=%p ino=%llu name=%s not empty", efs_fs,

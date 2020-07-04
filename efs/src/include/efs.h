@@ -238,25 +238,6 @@ int efs_tree_rename_link(struct efs_fs *efs_fs,
 			 const str256_t *new_name);
 
 /******************************************************************************/
-/** Check if the given inode has at least one child inode linked into it. */
-int efs_tree_has_children(struct efs_fs *efs_fs,
-			  const efs_ino_t *ino,
-			  bool *has_children);
-
-/******************************************************************************/
-/* Get the inode of an object linked into a parent inode.
- * @param[in] parent_ino - Inode of the parent object.
- * @param[in] name - Name of the object to be found.
- * @param[out, optional] ino - Inode of the found object.
- * @return 0 if successfull, otherwise -errno, including -ENOENT
- * if the object does not exist.
- */
-int efs_tree_lookup(struct efs_fs *efs_fs,
-		    const efs_ino_t *parent_ino,
-		    const str256_t *name,
-		    efs_ino_t *ino);
-
-/******************************************************************************/
 /* EFS internal data types */
 
 /** Version of a efs representation. */
@@ -306,17 +287,6 @@ typedef struct efs_key_md efs_key_md_t;
 struct efs_gi_index_key {
 	efs_key_md_t md;
 	uint64_t fs_id;
-} __attribute((packed));
-
-/* Key for parent -> child mapping.
- * Version 1: key = (parent, enrty_name), value = child.
- * NOTE: This key has variable size.
- * @see efs_parentdir_key for reverse mapping.
- */
-struct efs_dentry_key {
-	efs_key_md_t md;
-	efs_fid_t fid;
-	str256_t name;
 } __attribute((packed));
 
 /* A generic key type for all attributes (properties) of an inode object */

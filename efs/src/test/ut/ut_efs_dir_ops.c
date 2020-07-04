@@ -833,7 +833,7 @@ static int dir_ops_setup(void **state)
 
 	ut_assert_not_null(ut_dir_obj);
 
-	ut_dir_obj->name_list = calloc(sizeof(char *), 3);
+	ut_dir_obj->name_list = calloc(sizeof(char *), 10);
 
 	if(ut_dir_obj->name_list == NULL) {
 		rc = -ENOMEM;
