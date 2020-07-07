@@ -758,29 +758,30 @@ struct kvsfs_readdir_cb_ctx {
 #define KVSFS_FIRST_COOKIE 3
 
 /** A callback to be called for each READDIR entry.
- * @param[in, out] ctx Callback state (context).
- * @param[in] name Name of the dentry.
- * @param[in] ino Inode of the dentry.
+ * @param[in, out] ctx  - Callback state (context).
+ * @param[in]      name - Name of the dentry.
+ * @param[in]      stat - stat attributes of particular dentry to be used in
+ *                        callback
  * @retval true if more entries are requested.
  * @retval false if iterations must be interrupted.
  * @see populate_dirent in nfs-ganesha.
- * NOTE: "ino" is unused but it is reserved for futher migrations
- * to the recent nfs-ganesha. It will allow us to avoid lookup() call and
- * directly call getattr().
 */
 static bool kvsfs_readdir_cb(void *ctx, const char *name,
-			     const efs_ino_t *ino)
+                             const struct stat *stat)
 {
+	bool retval;
 	struct kvsfs_readdir_cb_ctx *cb_ctx = ctx;
 	enum fsal_dir_result dir_res;
 	struct attrlist attrs;
 	struct fsal_obj_handle *obj;
+	efs_ino_t child_ino = stat->st_ino;
+	efs_cred_t cred  = EFS_CRED_INIT_FROM_OP;
 
 	assert(cb_ctx != NULL);
 	assert(name != NULL);
-	assert(ino != NULL);
 
-	T_ENTER("dentry[%d]=%s, ino=%d", (int) cb_ctx->where, name, (int) *ino);
+	T_ENTER("dentry[%d]=%s, ino=%llu", (int)cb_ctx->where, name,
+		(int)child_ino);
 	/* A small state machine for dir_continue and eof logic:
 	 * even if cb_ctx->fsal_cb returned false, we still have to
 	 * check if it was the last dir entry.
@@ -789,36 +790,21 @@ static bool kvsfs_readdir_cb(void *ctx, const char *name,
 	if (!cb_ctx->dir_continue) {
 		cb_ctx->eof = false;
 		T_EXIT("%s", "USER_CANCELED");
-		return false;
+		retval = false;
+		goto err_out;
 	}
 
 	if (cb_ctx->where < cb_ctx->whence) {
 		cb_ctx->where++;
 		T_EXIT("%s", "SKIP");
-		return true;
+		retval = true;
+		goto err_out;
 	}
 
 	fsal_prepare_attrs(&attrs, cb_ctx->attrmask);
 
-	/* TODO:PORTING: move into a separate function to obtain attrs from
-	 * efs
-	 */
-	{
-		efs_cred_t cred = EFS_CRED_INIT_FROM_OP;
-		struct stat stat;
-		int retval;
-		efs_ino_t object = *ino;
-
-		retval = efs_getattr(cb_ctx->parent->efs_fs, &cred, &object,
-				     &stat);
-		if (retval < 0) {
-			cb_ctx->inner_rc = retval;
-			goto err_out;
-		}
-
-		construct_handle(op_ctx->fsal_export, &object, &stat, &obj);
-		posix2fsal_attributes_all(&stat, &attrs);
-	}
+	construct_handle(op_ctx->fsal_export, &child_ino, stat, &obj);
+	posix2fsal_attributes_all(stat, &attrs);
 
 	T_TRACE("READDIR_CB: %s, %p, %d", name, obj, (int) cb_ctx->where);
 
@@ -827,16 +813,15 @@ static bool kvsfs_readdir_cb(void *ctx, const char *name,
 
 	fsal_release_attrs(&attrs);
 
-	cb_ctx->dir_continue = dir_res == DIR_CONTINUE;
+	cb_ctx->dir_continue = (dir_res == DIR_CONTINUE);
 
 	cb_ctx->where++;
 
 	T_EXIT("NEED_NEXT %d, %d", (int) cb_ctx->dir_continue, (int) dir_res);
-	return true;
+	retval = true;
 
 err_out:
-	T_EXIT("CANCEL_ERROR %d", (int) cb_ctx->inner_rc);
-	return false;
+	return retval;
 }
 
 static fsal_status_t kvsfs_readdir(struct fsal_obj_handle *dir_hdl,
