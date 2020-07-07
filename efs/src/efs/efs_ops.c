@@ -27,6 +27,14 @@
 #include <common.h> /* likely */
 #include "kvtree.h"
 
+/* Internal efs structure which holds the information given
+ * by upper layer in case of readdir operation
+ */
+struct efs_readdir_ctx {
+	efs_readdir_cb_t cb;
+	void *ctx;
+};
+
 int efs_getattr(struct efs_fs *efs_fs, const efs_cred_t *cred,
 		const efs_ino_t *ino, struct stat *bufstat)
 {
@@ -137,6 +145,31 @@ out:
 	return rc;
 }
 
+bool efs_readdir_cb(void *cb_ctx, const char *name, const struct kvnode *node)
+{
+	bool retval = false;
+	int  errcode;
+	struct stat *child_stat = NULL;
+	struct kvstore *kvstor = kvstore_get();
+	struct efs_readdir_ctx *cb_info = cb_ctx;
+
+	errcode = efs_get_stat(node, &child_stat);
+	/* This error code is not propogated to caller as it expect true/false
+	 * and based on that it take the decision to further process the child,
+	 * so the error condtion should be asserted here.
+	 */
+	dassert(errcode == 0);
+
+	retval = cb_info->cb(cb_info->ctx, name, child_stat);
+
+	kvs_free(kvstor, child_stat);
+
+	log_trace("efs_readdir_cb:" NODE_ID_F ", errcode=%d, retVal = %d",
+		  NODE_ID_P(&node->node_id), errcode, (int)retval);
+
+	return retval;
+}
+
 int efs_readdir(struct efs_fs *efs_fs,
 		const efs_cred_t *cred,
 		const efs_ino_t *dir_ino,
@@ -144,15 +177,17 @@ int efs_readdir(struct efs_fs *efs_fs,
 		void *cb_ctx)
 {
 	int rc;
+	struct efs_readdir_ctx cb_info = { .cb = cb, .ctx = cb_ctx};
 	struct kvnode node = KVNODE_INIT_EMTPY;
-	RC_WRAP_LABEL(rc, out, efs_access, efs_fs, (efs_cred_t *) cred,
-			(efs_ino_t *) dir_ino,
-			EFS_ACCESS_LIST_DIR);
 
-	RC_WRAP_LABEL(rc, out, efs_tree_iter_children, efs_fs, dir_ino,
-			cb, cb_ctx);
+	RC_WRAP_LABEL(rc, out, efs_access, efs_fs, (efs_cred_t *)cred,
+                      (efs_ino_t *)dir_ino, EFS_ACCESS_LIST_DIR);
 
 	RC_WRAP_LABEL(rc, out, efs_kvnode_load, &node, efs_fs->kvtree, dir_ino);
+
+	RC_WRAP_LABEL(rc, out, kvtree_iter_children, efs_fs->kvtree,
+		      &node.node_id, efs_readdir_cb, &cb_info);
+
 	RC_WRAP_LABEL(rc, out, efs_update_stat, &node, STAT_ATIME_SET);
 
 out:

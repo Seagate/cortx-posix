@@ -29,7 +29,8 @@ struct readdir_ctx {
 /**
  * Call-back function for readdir
  */
-static bool test_readdir_cb(void *ctx, const char *name, const efs_ino_t *ino)
+static bool test_readdir_cb(void *ctx, const char *name,
+                            const struct stat *stat)
 {
 	struct readdir_ctx *readdir_ctx = ctx;
 

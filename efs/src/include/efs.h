@@ -233,20 +233,6 @@ int efs_tree_lookup(struct efs_fs *efs_fs,
 		    const str256_t *name,
 		    efs_ino_t *ino);
 
-/** A callback to be used in efs_readddir.
- * @retval true continue iteration.
- * @retval false stop iteration.
- */
-typedef bool (*efs_readdir_cb_t)(void *ctx, const char *name,
-				 const efs_ino_t *ino);
-
-/******************************************************************************/
-/** Walk over children (dentries) if an inode (directory). */
-int efs_tree_iter_children(struct efs_fs *efs_fs,
-			   const efs_ino_t *ino,
-			   efs_readdir_cb_t cb,
-			   void *cb_ctx);
-
 /******************************************************************************/
 /* EFS internal data types */
 
@@ -387,15 +373,20 @@ int efs_setattr(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *ino,
 int efs_access(struct efs_fs *efs_fs, const efs_cred_t *cred,
                const efs_ino_t *ino, int flags);
 
-/** A callback to be used in efs_readddir.
+/** A upper layer callback to be used in efs_readddir_cb fucntion.
+ * @param[in, out] ctx       - Callback state
+ * @param[in]     name       - Name of the dentry
+ * @param[in]     child_stat - stat attributes of particular dentry to be used
+ *                             in callback
  * @retval true continue iteration.
  * @retval false stop iteration.
  */
 typedef bool (*efs_readdir_cb_t)(void *ctx, const char *name,
-				 const efs_ino_t *ino);
+                                 const struct stat *child_stat);
 
-/** Walk over a directory "dir_ino" and call cb(cb_ctx, entry_name, entry_ino)
- * for each dentry.
+/* Walk over a directory "dir_ino" and call cb(cb_ctx, entry_name, node) which
+ * will make a call to upper layer cb(cb_ctx, entry_name, child_stat) for
+ * each dentry.
  * @param fs_ctx - File system context
  * @param cred -  pointer to user's credentials
  * @param dir_no - pointer to directory inode
