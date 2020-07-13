@@ -268,9 +268,6 @@ int efs_fs_create(const str256_t *fs_name)
 	memcpy(fs_node->efs_fs.ns, ns, ns_size);
 	fs_node->efs_fs.tenant = NULL;
 
-	/* @TODO This whole code of index open-close, efs_tree_create_root is
-	 * repetitive and will be removed in second phase of kvtree */
-
 	struct kvtree *kvtree = NULL;
 	struct stat bufstat;
 
@@ -297,7 +294,6 @@ int efs_fs_create(const str256_t *fs_name)
 		      &fs_node->efs_fs);
 	RC_WRAP_LABEL(rc, free_fs_node, kvtree_fini, fs_node->efs_fs.kvtree);
 
-	rc = efs_tree_create_root(&fs_node->efs_fs);
 free_info:
 
 	if (rc == 0) {
@@ -437,8 +433,6 @@ int efs_fs_delete(const str256_t *fs_name)
 	RC_WRAP_LABEL(rc, out, kvtree_init, fs->ns, fs->kvtree);
 	RC_WRAP_LABEL(rc, out, efs_ino_num_gen_fini, fs);
 	RC_WRAP_LABEL(rc, out, kvtree_fini, fs->kvtree);
-
-	RC_WRAP_LABEL(rc, out, efs_tree_delete_root, fs);
 
 	/* delete kvtree */
 	RC_WRAP_LABEL(rc, out, kvtree_delete, fs->kvtree);
