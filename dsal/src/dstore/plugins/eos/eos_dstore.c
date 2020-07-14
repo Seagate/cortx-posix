@@ -263,10 +263,34 @@ int eos_ds_obj_read(struct dstore *dstore, void *ctx, dstore_oid_t *oid,
 	 	    off_t offset, size_t buffer_size, void *buffer,
 		    bool *end_of_file, struct stat *stat)
 {
-	int rc;
-	ssize_t read_bytes;
+	bool local_eof = false;
+	int rc = 0;
+	ssize_t read_bytes = 0;
 	ssize_t bsize;
 	struct m0_uint128 fid;
+
+	/* Following are the cases which needs to be handled to ensure we are
+	 * not reading the data more than data written on file
+	 * 1. If file is empty( i.e: stat->st_size == 0) return immediately
+	 * with data read = 0 and EOF = true.
+	 * 2. If read offset is beyond the data written( i.e: stat->st_size <
+	 * offset from where we are reading) then return immediately with data
+	 * read = 0 and EOF = true.
+	 * 3. If amount of data to be read exceed the EOF( i.e: stat->st_size <
+	 * ( offset + buffer_size ) ) then read the only available data with
+	 * read_bytes = available bytes and EOF = true.
+	 * 4. Read is within the written data so read the requested data and
+	 * EOF =  true if stat->st_size == (offset + buffer_size) i.e boundary
+	 * condition otherwise false
+	 */
+	if (stat->st_size == 0 || stat->st_size < offset) {
+		local_eof = true;
+		goto out;
+	} else if (stat->st_size <= (offset + buffer_size)) {
+		/* Let's read only written bytes */
+		local_eof = true;
+		buffer_size = stat->st_size - offset;
+	}
 
 	m0_fid_copy((struct m0_uint128 *)oid, &fid);
 
@@ -283,8 +307,12 @@ int eos_ds_obj_read(struct dstore *dstore, void *ctx, dstore_oid_t *oid,
 		goto out;
 	}
 
+	dassert(read_bytes == buffer_size);
+
 	RC_WRAP_LABEL(rc, out, update_stat, stat, UP_ST_READ, 0);
+
 	rc = read_bytes;
+	*end_of_file = local_eof;
 out:
 	log_debug("oid=%" PRIx64 ":%" PRIx64 " read_bytes=%lu",
 		  oid->f_hi, oid->f_lo, read_bytes);
