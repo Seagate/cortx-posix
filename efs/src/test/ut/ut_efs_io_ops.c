@@ -307,20 +307,27 @@ static int rw_mixed_range(void **state, efs_file_open_t *fd, uint64_t w_offset,
 
 	rc = efs_write(ut_efs_obj->efs_fs, &ut_efs_obj->cred, fd,
 			ut_io_obj->buf_in, w_size, w_offset);
-	
+
 	ut_assert_int_equal(rc, w_size);
 	rc = 0;
 
 	rc = efs_read(ut_efs_obj->efs_fs, &ut_efs_obj->cred, fd, buf_out,
 			r_size, r_offset);
 
-	ut_assert_int_equal(rc, r_size);
-	rc = 0;
+	if (rc == r_size) {
+		/* Data read from hole should match as expected */
+		rc = memcmp(ut_io_obj->data, buf_out + w_size, r_size - w_size);
+		ut_assert_int_equal(rc, 0);
+	}
+	else {
+		/* No holes left in a file, we should be reading only written
+		 * number of bytes
+		 */
+		ut_assert_int_equal(rc, w_size);
+	}
 
+	/* Data written should be there in read data bytes */
 	rc = memcmp(ut_io_obj->buf_in, buf_out, w_size);
-	ut_assert_int_equal(rc, 0);
-
-	rc = memcmp(ut_io_obj->data, buf_out + w_size, r_size - w_size);
 	ut_assert_int_equal(rc, 0);
 
 	free(buf_out);
