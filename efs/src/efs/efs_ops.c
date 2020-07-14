@@ -261,11 +261,13 @@ int efs_readlink(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *lnk,
 	int rc;
 	struct kvnode node = KVNODE_INIT_EMTPY;
 	struct kvstore *kvstor = kvstore_get();
-	buff_t value = { 0, NULL };
+	buff_t value;
 
 	log_trace("ENTER: symlink_ino=%llu", *lnk);
 	dassert(cred && lnk && size);
 	dassert(*size != 0);
+
+	buff_init(&value, NULL, 0);
 
 	RC_WRAP_LABEL(rc, errfree, efs_kvnode_load, &node, efs_fs->kvtree, lnk);
 	RC_WRAP_LABEL(rc, errfree, efs_update_stat, &node, STAT_ATIME_SET);

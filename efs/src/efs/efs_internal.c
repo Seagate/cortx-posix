@@ -807,16 +807,16 @@ int efs_create_entry(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *parent,
 		     char *name, char *lnk, mode_t mode,
 		     efs_ino_t *new_entry, enum efs_file_type type)
 {
-	int	rc;
-	struct	stat bufstat;
-	struct	timeval t;
-	size_t	namelen;
+	int rc;
+	struct stat bufstat;
+	struct timeval t;
+	size_t namelen;
 	str256_t k_name;
-	struct  stat *parent_stat = NULL;
 	struct kvstore *kvstor = kvstore_get();
 	struct kvs_idx index;
-	struct kvnode new_node    = KVNODE_INIT_EMTPY,
-		      parent_node = KVNODE_INIT_EMTPY;
+	struct kvnode new_node = KVNODE_INIT_EMTPY,
+	              parent_node = KVNODE_INIT_EMTPY;
+	node_id_t new_node_id, parent_node_id;
 
 	dassert(kvstor);
 	index = efs_fs->kvtree->index;
@@ -841,12 +841,6 @@ int efs_create_entry(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *parent,
 		return -EEXIST;
 
 	RC_WRAP(efs_next_inode, efs_fs, new_entry);
-	RC_WRAP_LABEL(rc, errfree, efs_kvnode_load, &parent_node,
-		      efs_fs->kvtree, parent);
-	RC_WRAP_LABEL(rc, errfree, efs_get_stat, &parent_node, &parent_stat);
-
-	kvnode_fini(&parent_node);
-
 	RC_WRAP(kvs_begin_transaction, kvstor, &index);
 
 	/* @todo: Alloc mero bufvecs and use it for key to avoid extra mem copy
@@ -854,13 +848,11 @@ int efs_create_entry(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *parent,
 
 	str256_from_cstr(k_name, name, strlen(name));
 
-	node_id_t new_node_id, parent_node_id;
-
 	ino_to_node_id(new_entry, &new_node_id);
 	ino_to_node_id(parent, &parent_node_id);
 
 	RC_WRAP_LABEL(rc, errfree, kvtree_attach, efs_fs->kvtree,
-		      &parent_node_id, &new_node_id, &k_name);
+	              &parent_node_id, &new_node_id, &k_name);
 
 	/* Set the stats of the new file */
 	memset(&bufstat, 0, sizeof(struct stat));
@@ -905,43 +897,45 @@ int efs_create_entry(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *parent,
 		rc = -EINVAL;
 		goto errfree;
 	}
+	/*Create node for new entry and set its stats */
 	RC_WRAP_LABEL(rc, errfree, efs_kvnode_init, &new_node, efs_fs->kvtree,
-		      new_entry, &bufstat);
+	              new_entry, &bufstat);
 	RC_WRAP_LABEL(rc, errfree, efs_set_stat, &new_node);
 
 	if (type == EFS_FT_SYMLINK) {
 		buff_t value;
 
-		value.len = strnlen(lnk, PATH_MAX);
-		value.buf = (void *)lnk;
+		buff_init(&value, lnk, strnlen(lnk, PATH_MAX));
 
 		/* Set symlink */
 		RC_WRAP_LABEL(rc, errfree, efs_set_sysattr, &new_node, value,
-			      EFS_SYS_ATTR_SYMLINK);
+		              EFS_SYS_ATTR_SYMLINK);
 	}
+
+	/* Load parent node to update its stats */
+	RC_WRAP_LABEL(rc, errfree, efs_kvnode_load, &parent_node,
+	              efs_fs->kvtree, parent);
 
 	if (type == EFS_FT_DIR) {
 		/* Child dir has a "hardlink" to the parent ("..") */
-		RC_WRAP_LABEL(rc, errfree, efs_amend_stat, parent_stat,
+		RC_WRAP_LABEL(rc, errfree, efs_update_stat, &parent_node,
 			      STAT_CTIME_SET | STAT_MTIME_SET | STAT_INCR_LINK);
 	} else {
-		RC_WRAP_LABEL(rc, errfree, efs_amend_stat, parent_stat,
-			      STAT_CTIME_SET | STAT_MTIME_SET);
+		RC_WRAP_LABEL(rc, errfree, efs_update_stat, &parent_node,
+		              STAT_CTIME_SET | STAT_MTIME_SET);
 	}
-	RC_WRAP_LABEL(rc, errfree, efs_kvnode_init, &parent_node,
-		      efs_fs->kvtree, parent, parent_stat);
-	RC_WRAP_LABEL(rc, errfree, efs_set_stat, &parent_node);
 
 	RC_WRAP(kvs_end_transaction, kvstor, &index);
 
 errfree:
 	kvnode_fini(&new_node);
 	kvnode_fini(&parent_node);
-	kvs_free(kvstor, parent_stat);
-	log_trace("efs_create_entry: rc=%d", rc);
+
 	if (rc != 0) {
 		kvs_discard_transaction(kvstor, &index);
 	}
+
+	log_trace("efs_create_entry: rc=%d", rc);
 	return rc;
 }
 
