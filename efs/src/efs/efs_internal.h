@@ -105,7 +105,7 @@ int efs_set_stat(struct kvnode *node);
  *
  * @return - 0 on sucess on failure error code given by kvnode APIs
  */
-int efs_get_stat(struct kvnode *node, struct stat **bufstat);
+int efs_get_stat(const struct kvnode *node, struct stat **bufstat);
 
 /* Delete the stat associated with particular file inode held by given kvnode
  *

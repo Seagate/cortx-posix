@@ -351,7 +351,7 @@ int efs_kvnode_load(struct kvnode *node, struct kvtree *tree,
 	return rc;
 }
 
-int efs_get_stat(struct kvnode *node, struct stat **bufstat)
+int efs_get_stat(const struct kvnode *node, struct stat **bufstat)
 {
 	int rc = 0;
 	uint16_t attr_size;
@@ -756,76 +756,6 @@ cleanup:
 out:
 	log_debug("GET %llu.dentries.%.*s=%llu, rc=%d",
 		  *parent_ino, name->s_len, name->s_str, value, rc);
-	return rc;
-}
-
-int efs_tree_iter_children(struct efs_fs *efs_fs,
-			   const efs_ino_t *ino,
-			   efs_readdir_cb_t cb,
-			   void *cb_ctx)
-{
-	efs_fid_t kfid = {
-		.f_hi = *ino,
-		.f_lo = 0
-	};
-	struct efs_dentry_key prefix = DENTRY_KEY_PREFIX_INIT(kfid);
-	int rc;
-	size_t klen, vlen;
-	bool need_next = true;
-	bool has_next = true;
-
-	struct kvstore *kvstor = kvstore_get();
-
-	dassert(kvstor != NULL);
-
-	struct kvs_idx index;
-	struct kvs_itr *iter = NULL;
-	const struct efs_dentry_key *key = NULL;
-	efs_ino_t child_ino;
-	const node_id_t *value = NULL;
-	const char *dentry_name_str;
-
-	index = efs_fs->kvtree->index;
-
-	if (kvs_itr_find(kvstor, &index, &prefix, efs_dentry_key_psize, &iter)) {
-		rc = iter->inner_rc;
-		goto out;
-	}
-
-	while (need_next && has_next) {
-		kvs_itr_get(kvstor, iter, (void**) &key, &klen, (void **) &value, &vlen);
-		/* A dentry cannot be empty. */
-		dassert(klen > efs_dentry_key_psize);
-		/* The klen is limited by the size of the dentry structure. */
-		dassert(klen <= sizeof(struct efs_dentry_key));
-		dassert(key);
-
-		dassert(vlen == sizeof(*value));
-		dassert(value);
-
-		dassert(key->name.s_len != 0);
-		dentry_name_str = efs_name_as_cstr(&key->name);
-		
-		RC_WRAP_LABEL(rc, out, node_id_to_ino, value, &child_ino);
-		
-		log_debug("NEXT %s = %llu", dentry_name_str, child_ino);
-		need_next = cb(cb_ctx, dentry_name_str, &child_ino);
-		rc = kvs_itr_next(kvstor, iter);
-		has_next = (rc == 0);
-
-		log_debug("NEXT_STEP (%d,%d,%d)",
-			  (int) need_next, (int) has_next, iter->inner_rc);
-	}
-
-	/* Check if iteration was interrupted by an internal KVS error */
-	if (need_next && !has_next) {
-		rc = iter->inner_rc == -ENOENT ? 0 : iter->inner_rc;
-	} else {
-		rc = 0;
-	}
-
-out:
-	kvs_itr_fini(kvstor, iter);
 	return rc;
 }
 
