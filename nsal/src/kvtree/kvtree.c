@@ -319,27 +319,38 @@ int kvtree_iter_children(struct kvtree *tree, const node_id_t *parent_id,
 	              child_node_psize, &iter);
 
 	while (need_next && has_next) {
-		kvs_itr_get(kvstor, iter, (void**)&key, &klen, (void **)&value, &vlen);
+		kvs_itr_get(kvstor, iter, (void**)&key, &klen, (void **)&value,
+			    &vlen);
+
 		/*Child name cannot be empty*/
 		dassert(klen > child_node_psize);
-		/* The klen is limited by the size of the child node structure. */
+		/* The klen is limited by the size of the child node structure.
+		 */
 		dassert(klen <= sizeof(struct child_node_key));
 		dassert(key);
 
-		dassert(vlen == sizeof(*value));
 		dassert(value);
+		dassert(vlen == sizeof(*value));
 
 		dassert(key->name.s_len != 0);
 
 		child_node_name = key->name.s_str;
-		child_node.node_id = *value;
 
-		log_debug("NEXT %s =" NODE_ID_F, child_node_name, NODE_ID_P(value));
+		/* As we have the node ID, let's load the kvnode which will be
+		 * fully initialized so that callback being called from this API
+		 * will utilize it.
+		 */
+		kvnode_load(tree, value, &child_node);
+
+		log_debug("NEXT %s =" NODE_ID_F, child_node_name,
+			  NODE_ID_P(value));
 
 		need_next = cb(cb_ctx, child_node_name, &child_node);
 
 		rc = kvs_itr_next(kvstor, iter);
 		has_next = (rc == 0);
+
+		kvnode_fini(&child_node);
 
 		log_debug("NEXT_STEP need_next = %d, has_next = %d, rc=%d",
 		          (int)need_next, (int)has_next, rc);
