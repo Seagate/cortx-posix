@@ -28,6 +28,8 @@ enum efs_sys_attr_type
    EFS_SYS_ATTR_MAX
 };
 
+#define EFS_ROOT_INODE_NUM_GEN_START (EFS_ROOT_INODE + 1)
+
 /**
  * A kvnode is identified by a 128 bit node id. However, currently efs uses
  * 64 bit inodes in it's apis to identify the entities. The following apis

@@ -165,4 +165,24 @@ int efs_endpoint_delete(const str256_t *name);
  */
 void efs_fs_get_endpoint(const struct efs_fs *fs, void **info);
 
+/**
+ * Initialize the sys attribute for root's id which will be used for
+ * inode number generation (ref. EFS_SYS_ATTR_INO_NUM_GEN)
+ *
+ * @param efs_fs - Valid file system context.
+ *
+ * @return 0 if successful, a negative "-errno" value in case of failure
+ */
+int efs_ino_num_gen_init(struct efs_fs *efs_fs);
+
+/**
+ * Deinit the sys attribute for root's id which was setup earlier via
+ * efs_setup_ino_num_gen()
+ *
+ * @param efs_fs - Valid file system context.
+ *
+ * @return 0 if successful, a negative "-errno" value in case of failure
+ */
+int efs_ino_num_gen_fini(struct efs_fs *efs_fs);
+
 #endif /* _FS_H_ */
