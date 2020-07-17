@@ -142,4 +142,13 @@ typedef bool (*kvtree_iter_children_cb)(void *cb_ctx, const char *name,
 int kvtree_iter_children(struct kvtree *tree, const node_id_t *parent_id,
                          kvtree_iter_children_cb cb, void *cb_ctx);
 
+ /* Check if the passed kvnode has at least one child kvnode linked into it
+ * @param[in] tree - kvtree pointer to check the existence of child nodes .
+ * @param[in] parent_id - node id  of the kvnode
+ * @param[out] has_children - Flag denoting existence of children
+ *
+ * @return 0 if successful, a negative "-errno" value in case of failure
+ */
+int kvtree_has_children(struct kvtree *tree, const node_id_t *parent_id,
+                        bool *has_children);
 #endif /* _KVTREE_H_ */
