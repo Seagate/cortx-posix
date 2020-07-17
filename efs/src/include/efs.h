@@ -171,24 +171,6 @@ typedef struct efs_cred__ {
 } efs_cred_t;
 
 /**
- * Create the root of the namespace.
- *
- * @param index - File system index.
- *
- * @return 0 if successful, a negative "-errno" value in case of failure
- */
-int efs_tree_create_root(struct efs_fs *efs_fs);
-
-/**
- * Delete the root of the namespace.
- *
- * @param index - File system index.
- *
- * @return 0 if successful, a negative "-errno" value in case of failure
- */
-int efs_tree_delete_root(struct efs_fs *efs_fs);
-
-/**
  * Initialize the sys attribute for root's id which will be used for
  * inode number generation (ref. EFS_SYS_ATTR_INO_NUM_GEN)
  *
@@ -199,7 +181,7 @@ int efs_tree_delete_root(struct efs_fs *efs_fs);
 int efs_ino_num_gen_init(struct efs_fs *efs_fs);
 
 /**
- * Destroy the sys attribute for root's id which was setup earlier via
+ * Deinit the sys attribute for root's id which was setup earlier via
  * efs_setup_ino_num_gen()
  *
  * @param efs_fs - Valid file system context.
@@ -207,6 +189,26 @@ int efs_ino_num_gen_init(struct efs_fs *efs_fs);
  * @return 0 if successful, a negative "-errno" value in case of failure
  */
 int efs_ino_num_gen_fini(struct efs_fs *efs_fs);
+
+/**
+ * Initialize the sys attribute for root's id which will be used for
+ * inode number generation (ref. EFS_SYS_ATTR_INO_NUM_GEN)
+ *
+ * @param efs_fs - Valid file system context.
+ *
+ * @return 0 if successful, a negative "-errno" value in case of failure
+ */
+int efs_init_ino_num_gen(struct efs_fs *efs_fs);
+
+/**
+ * Destroy the sys attribute for root's id which was setup earlier via
+ * efs_setup_ino_num_gen()
+ *
+ * @param efs_fs - Valid file system context.
+ *
+ * @return 0 if successful, a negative "-errno" value in case of failure
+ */
+int efs_deinit_ino_num_gen(struct efs_fs *efs_fs);
 
 int efs_access_check(const efs_cred_t *cred, const struct stat *stat,
                      int flags);
@@ -316,17 +318,6 @@ struct efs_dentry_key {
 	efs_fid_t fid;
 	str256_t name;
 } __attribute((packed));
-
-/* Key for child -> parent mapping.
- * Version 1: key = (parent, child), value = link_count, where
- * link_count is the amount of links between the parent and the child nodes.
- * @see efs_dentry_key for direct mapping.
- */
-struct efs_parentdir_key {
-	efs_fid_t fid;
-	efs_key_md_t md;
-	efs_ino_t pino;
-} __attribute__((packed));
 
 /* A generic key type for all attributes (properties) of an inode object */
 struct efs_inode_attr_key {

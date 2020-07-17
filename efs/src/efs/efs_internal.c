@@ -125,17 +125,6 @@ static inline size_t efs_dentry_key_dsize(const struct efs_dentry_key *key) {
 	return efs_dentry_key_psize + efs_name_dsize(&key->name);
 }
 
-/* @todo rename this to PARENTDIR_KEY_INIT once all the instances of
- * PARENTDIR_KEY_INIT are replaced with PARENTDIR_KEY_PTR_INIT */
-#define PARENTDIR_KEY_PTR_INIT(pkey, __ino, __pino)	\
-{							\
-		pkey->fid.f_hi = *__ino,		\
-		pkey->fid.f_lo = 0,			\
-		pkey->md.type = EFS_KEY_TYPE_PARENT,	\
-		pkey->md.version = EFS_VERSION_0,	\
-		pkey->pino = *__pino;			\
-}
-
 typedef efs_ino_t efs_dentry_val_t;
 
 #define INODE_ATTR_KEY_INIT(__kfid, __ktype)		\
@@ -520,42 +509,6 @@ int efs_del_sysattr(const struct kvnode *node,
 	return rc;
 }
 
-int efs_tree_create_root(struct efs_fs *efs_fs)
-{
-	int rc = 0;
-	struct efs_parentdir_key *parent_key = NULL;
-	struct kvstore *kvstor = kvstore_get();
-	efs_ino_t ino;
-	kvs_idx_fid_t ns_fid;
-	struct kvs_idx ns_index;
-
-	ns_get_fid(efs_fs->ns, &ns_fid);
-	RC_WRAP_LABEL(rc, out, kvs_index_open, kvstor, &ns_fid, &ns_index);
-	efs_fs->kvtree->index = ns_index;
-	
-	ino = EFS_ROOT_INODE;
-	efs_ino_t v = 0;
-
-	dassert(kvstor != NULL);
-
-        RC_WRAP_LABEL(rc, out, kvs_alloc, kvstor, (void **)&parent_key,
-		      sizeof (*parent_key));
-
-        PARENTDIR_KEY_PTR_INIT(parent_key, &ino, &ino);
-
-	/* number-of-links */
-        v = 1;
-
-        RC_WRAP_LABEL(rc, free_key, kvs_set, kvstor, &ns_index, parent_key,
-		      sizeof(*parent_key),(void *)&v, sizeof(v));
-
-	kvs_index_close(kvstor, &ns_index);
-free_key:
-	kvs_free(kvstor, parent_key);
-out:
-        return rc;
-}
-
 int efs_ino_num_gen_init(struct efs_fs *efs_fs)
 {
 	int rc;
@@ -578,38 +531,6 @@ int efs_ino_num_gen_fini(struct efs_fs *efs_fs)
 
 	log_trace("efs_ino_num_gen_fini() ends, rc:%d", rc);
 	return rc;
-}
-
-int efs_tree_delete_root(struct efs_fs *efs_fs)
-{
-	int rc = 0;
-	efs_ino_t ino;
-	ino = EFS_ROOT_INODE;
-	struct efs_parentdir_key *parent_key = NULL;
-	struct kvstore *kvstor = kvstore_get();
-	kvs_idx_fid_t ns_fid;
-	struct kvs_idx ns_index;
-
-	ns_get_fid(efs_fs->ns, &ns_fid);
-	RC_WRAP_LABEL(rc, out, kvs_index_open, kvstor, &ns_fid, &ns_index);
-	efs_fs->kvtree->index = ns_index;
-
-	dassert(kvstor != NULL);
-
-	RC_WRAP_LABEL(rc, out, kvs_alloc, kvstor, (void **)&parent_key,
-		      sizeof(struct efs_parentdir_key));
-
-	PARENTDIR_KEY_PTR_INIT(parent_key, &ino, &ino);
-
-	RC_WRAP_LABEL(rc, free_key, kvs_del, kvstor, &ns_index, parent_key,
-	               sizeof(struct efs_parentdir_key));
-
-	kvs_index_close(kvstor, &ns_index);
-free_key:
-        kvs_free(kvstor, parent_key);
-
-out:
-        return rc;
 }
 
 int efs_tree_rename_link(struct efs_fs *efs_fs,
