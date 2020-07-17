@@ -142,24 +142,24 @@ endif(USE_KVS_REDIS)
 
 # Check for EOS
 if(USE_KVS_EOS OR USE_MERO_STORE)
-  find_library(HAVE_MERO mero)
+  find_library(HAVE_MERO motr)
   check_library_exists(
-	mero
+	motr
 	m0_clovis_init
 	""
 	HAVE_MERO
 	)
   check_include_files("mero/config.h" HAVE_MERO_H)
 
-  find_library(HAVE_MERO_HELPERS mero-helpers)
+  find_library(HAVE_MERO_HELPERS motr-helpers)
   check_library_exists(
-	mero-helpers
+	motr-helpers
 	m0_ufid_init
 	""
 	HAVE_MERO_HELPERS
 	)
   if((NOT HAVE_MERO) OR (NOT HAVE_MERO_H) OR (NOT HAVE_MERO_HELPERS))
-      message(FATAL_ERROR "Cannot find MERO")
+      message(FATAL_ERROR "Cannot find MOTR")
   endif((NOT HAVE_MERO) OR (NOT HAVE_MERO_H) OR (NOT HAVE_MERO_HELPERS))
 endif(USE_KVS_EOS OR USE_MERO_STORE)
 
@@ -211,8 +211,8 @@ add_library(${LIB_NSAL} SHARED
 	)
 
 target_link_libraries(${LIB_NSAL}
-  mero
-  mero-helpers
+  motr
+  motr-helpers
   ini_config
   ${PROJECT_NAME_BASE}-utils
   cmocka
