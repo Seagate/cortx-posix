@@ -24,6 +24,7 @@
 enum efs_sys_attr_type
 {
    EFS_SYS_ATTR_SYMLINK = 1,
+   EFS_SYS_ATTR_INO_NUM_GEN,
    EFS_SYS_ATTR_MAX
 };
 
