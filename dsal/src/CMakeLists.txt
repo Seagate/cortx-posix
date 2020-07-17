@@ -95,25 +95,25 @@ endif((NOT HAVE_INI_CONFIG) OR (NOT HAVE_INI_CONFIG_H))
 
 # Check for EOS
 if(USE_EOS_STORE)
-  find_library(HAVE_EOS mero)
+  find_library(HAVE_EOS motr)
   check_library_exists(
-	mero
+	motr
 	m0_clovis_init
 	""
 	HAVE_EOS
 	)
   check_include_files("mero/config.h" HAVE_EOS_H)
 
-  find_library(HAVE_EOS_HELPERS mero-helpers)
+  find_library(HAVE_EOS_HELPERS motr-helpers)
   check_library_exists(
-	mero-helpers
+	motr-helpers
 	m0_ufid_init
 	""
 	HAVE_EOS_HELPERS
 	)
 
   if((NOT HAVE_EOS) OR (NOT HAVE_EOS_H) OR (NOT HAVE_EOS_HELPERS))
-      message(FATAL_ERROR "Cannot find EOS")
+      message(FATAL_ERROR "Cannot find MOTR")
   endif((NOT HAVE_EOS) OR (NOT HAVE_EOS_H) OR (NOT HAVE_EOS_HELPERS))
 endif(USE_EOS_STORE)
 
@@ -152,8 +152,8 @@ add_library(${LIB_DSAL} SHARED
 	)
 
 target_link_libraries(${LIB_DSAL}
-  mero
-  mero-helpers
+  motr
+  motr-helpers
   ini_config
   ${PROJECT_NAME_BASE}-utils
 )
