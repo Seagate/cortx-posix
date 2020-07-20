@@ -21,6 +21,7 @@
 #include <common/helpers.h> /* RC_WRAP_LABEL */
 #include <common.h> /* unlikely */
 #include <common/log.h> /* log_err() */
+#include "kvtree.h" /* kvtree_lookup() */
 
 /**
  * A unique key to be used in containers (maps, sets).
@@ -139,6 +140,7 @@ int efs_fh_lookup(const efs_cred_t *cred, struct efs_fh *fh, const char *name,
 	struct efs_fh *newfh = NULL;
 	struct kvstore *kvstor = kvstore_get();
 	struct kvnode node = KVNODE_INIT_EMTPY;
+	node_id_t pid, id;
 
 	dassert(cred && fh && name && pfh && kvstor);
 
@@ -155,8 +157,15 @@ int efs_fh_lookup(const efs_cred_t *cred, struct efs_fh *fh, const char *name,
 	RC_WRAP_LABEL(rc, out, kvs_alloc, kvstor, (void **) &newfh,
 		      sizeof(struct efs_fh));
 	*newfh = EFS_FH_INIT;
-	RC_WRAP_LABEL(rc, out, efs_tree_lookup, fh->fs, &fh->ino, &kname,
-		      &newfh->ino);
+
+	RC_WRAP_LABEL(rc, out, ino_to_node_id, &fh->ino, &pid);
+
+	RC_WRAP_LABEL(rc, out, kvtree_lookup, fh->fs->kvtree, &pid, &kname,
+		      &id);
+
+	node_id_to_ino(&id, &newfh->ino);
+	dassert(newfh->ino >= EFS_ROOT_INODE);
+
 	newfh->fs = fh->fs;
 	RC_WRAP_LABEL(rc, out, efs_kvnode_load, &node, newfh->fs->kvtree,
 		      &newfh->ino);
