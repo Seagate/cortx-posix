@@ -84,13 +84,6 @@ static int io_test_teardown(void **state)
  * Expected Behavior:
  *  1. No errors from EFS API.
  *  2. Data read should be zeros.
- *
- * Bug Description:
- *  From file of size zero, when data is read,
- *  return value should be zero, inicating
- *  no data is read.
- *  Unlike expected behavior, currently it returns
- *  read_size passed to be read.
  */
 static void test_r_empty_file(void **state)
 {
@@ -118,26 +111,6 @@ static void test_r_empty_file(void **state)
 	rc = efs_read(ut_efs_obj->efs_fs, &ut_efs_obj->cred, &fd, buf_out,
 			BLOCK_SIZE, 0);
 
-	/* Right now EFS is not able to handle read() correctly
-	 * and it returns the requested size instead of
-	 * returning 0 when file size is 0.
-	 * This is a known bug, and it need to be fixed
-	 * eventually.
-	 * When ENABLE_KNOWN_BUG_READ_PAST_EOF is defined
-	 * the right assertion check is used. Right now,
-	 * it is disable
-	 */
-
-	#ifdef ENABLE_KNOWN_BUG_READ_PAST_EOF
-		ut_assert_int_equal(rc, 0);
-	#else
-		ut_assert_int_equal(rc, BLOCK_SIZE);
-	#endif
-
-	rc = 0;
-
-	rc = memcmp(buf_out, ut_io_obj->data, BLOCK_SIZE);
-
 	ut_assert_int_equal(rc, 0);
 
 	free(buf_out);
@@ -160,7 +133,6 @@ static int rw_mixed_range(void **state, efs_file_open_t *fd, uint64_t w_offset,
 {
 	int rc = 0;
 	char *buf_out;
-
 	struct ut_io_env *ut_io_obj = IO_ENV_FROM_STATE(state);
 	struct ut_efs_params *ut_efs_obj = &ut_io_obj->ut_efs_obj;
 
@@ -171,17 +143,24 @@ static int rw_mixed_range(void **state, efs_file_open_t *fd, uint64_t w_offset,
 			ut_io_obj->buf_in, w_size, w_offset);
 
 	ut_assert_int_equal(rc, w_size);
-	rc = 0;
 
 	rc = efs_read(ut_efs_obj->efs_fs, &ut_efs_obj->cred, fd, buf_out,
 			r_size, r_offset);
 
-	ut_assert_int_equal(rc, r_size);
+	if (rc == r_size) {
+		/* Data read from hole should match as expected */
+		rc = memcmp(ut_io_obj->data, buf_out + w_size, r_size - w_size);
+		ut_assert_int_equal(rc, 0);
+	}
+	else {
+		/* No holes left in a file, we should be reading only written
+		 * number of bytes
+		 */
+		ut_assert_int_equal(rc, w_size);
+	}
 
+	/* Data written should be there in read data bytes */
 	rc = memcmp(ut_io_obj->buf_in, buf_out, w_size);
-	ut_assert_int_equal(rc, 0);
-
-	rc = memcmp(ut_io_obj->data, buf_out + w_size, r_size - w_size);
 	ut_assert_int_equal(rc, 0);
 
 	free(buf_out);
