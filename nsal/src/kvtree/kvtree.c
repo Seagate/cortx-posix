@@ -298,6 +298,37 @@ out:
 	return rc;
 }
 
+int kvtree_has_children(struct kvtree *tree, const node_id_t *parent_id,
+                        bool *has_children)
+{
+	int rc;
+	struct kvstore *kvstor = kvstore_get();
+	struct kvs_itr *iter = NULL;
+
+	dassert(kvstor != NULL);
+	dassert(tree != NULL);
+	dassert(parent_id != NULL);
+	dassert (has_children != NULL);
+
+	struct child_node_key prefix = CHILD_NODE_PREFIX_INIT(parent_id);
+
+	rc = kvs_itr_find(kvstor, &tree->index, &prefix, child_node_psize,
+			 &iter);
+	*has_children = (rc == 0);
+
+	if (rc == -ENOENT)  {
+		rc = 0;
+	}
+
+	if (iter) {
+		kvs_itr_fini(kvstor, iter);
+	}
+	log_debug("kvtree=%p," NODE_ID_F " %s children, rc=%d", tree,
+		  NODE_ID_P(parent_id), *has_children ? "has" : "doesn't have",
+		  rc);
+	return rc;
+}
+
 int kvtree_iter_children(struct kvtree *tree, const node_id_t *parent_id,
                          kvtree_iter_children_cb cb, void *cb_ctx)
 {

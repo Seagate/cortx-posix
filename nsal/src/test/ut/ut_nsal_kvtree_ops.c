@@ -565,6 +565,69 @@ static bool test_kvtree_iter_cb(void *ctx,  const char *name,
 }
 
 /**
+ * Test to verify if children for a parent kvnode exist.
+ * Strategy:
+ *  1. Root node is the parent kvnode.
+ *  2. Verify that no children exist.
+ *  3. Create child  kvnodes.
+ *  4. Attach all kvnodes to the parent kvnode.
+ *  5. Verify that child kvnodes exist for the parent.
+ *  6. Delete all the child kvnodes.
+ *  7. Verify that no children exist.
+ * Expected behavior:
+ *  1. No errors from kvtree API.
+ *  2. Verify the correct existence of child kvnodes.
+ */
+static void test_kvtree_has_children()
+{
+	int rc = 0, i;
+	/* Dummy data used for all 5 children. */
+	struct info test_info = {"sample.child.node", 1000, 2000};
+	/* This node_id is used with f_hi incremented by 1 for each child node.*/
+	node_id_t child_id;
+	str256_t node_name;
+	bool has_children;
+
+	child_id = KVNODE_ID_INIT(80);
+
+	rc = kvtree_has_children(test_kvtree, &test_kvtree->root_node_id,
+				 &has_children);
+	ut_assert_int_equal(rc, 0);
+	ut_assert_false(has_children);
+
+	for (i = 0; i < 5; i++) {
+		str256_from_cstr(node_name, children[i], strlen(children[i]));
+
+		ut_internal_kvnode_create(&test_info, child_id);
+
+		rc = kvtree_attach(test_kvtree, &test_kvtree->root_node_id, &child_id,
+		                   &node_name);
+		ut_assert_int_equal(rc, 0);
+
+		child_id.f_hi++;
+	}
+	rc = kvtree_has_children(test_kvtree, &test_kvtree->root_node_id,
+				 &has_children);
+	ut_assert_int_equal(rc, 0);
+	ut_assert_true(has_children);
+
+	child_id.f_hi = 80;
+	for (i = 0; i < 5; i++) {
+		str256_from_cstr(node_name, children[i], strlen(children[i]));
+		rc = kvtree_detach(test_kvtree, &test_kvtree->root_node_id, &node_name);
+		ut_assert_int_equal(rc, 0);
+
+		ut_internal_kvnode_delete(child_id);
+
+		child_id.f_hi++;
+	}
+	rc = kvtree_has_children(test_kvtree, &test_kvtree->root_node_id,
+				 &has_children);
+	ut_assert_int_equal(rc, 0);
+	ut_assert_false(has_children);
+}
+
+/**
  * Test to iterate over all the children of a parent kvnode.
  * Description: Iterate over all the children of a parent kvnode.
  * Strategy:
@@ -956,6 +1019,7 @@ int main(void)
 		ut_test_case(test_kvtree_attach_detach, NULL, NULL),
 		ut_test_case(test_kvtree_detach_nonexist, NULL, NULL),
 		ut_test_case(test_kvtree_lookup_nonexist, NULL, NULL),
+		ut_test_case(test_kvtree_has_children, NULL, NULL),
 		ut_test_case(test_kvtree_iter_children, NULL, NULL),
 		ut_test_case(test_kvtree_iter_children_empty, NULL, NULL),
 		ut_test_case(test_kvnode_set_sys_attr, NULL, NULL),
