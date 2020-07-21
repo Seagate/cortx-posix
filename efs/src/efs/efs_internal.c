@@ -660,7 +660,7 @@ int efs_create_entry(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *parent,
 		rc = -EINVAL;
 		goto errfree;
 	}
-	/*Create node for new entry and set its stats */
+	/* Create node for new entry and set its stats */
 	RC_WRAP_LABEL(rc, errfree, efs_kvnode_init, &new_node, efs_fs->kvtree,
 	              new_entry, &bufstat);
 	RC_WRAP_LABEL(rc, errfree, efs_set_stat, &new_node);

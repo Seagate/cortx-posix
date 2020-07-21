@@ -101,7 +101,6 @@ int efs_endpoint_scan(int (*efs_scan_cb)(const struct efs_endpoint_info *info,
 #define EFS_DEFAULT_CONFIG "/etc/cortx/cortxfs.conf"
 
 #define EFS_ROOT_INODE 2LL
-#define EFS_ROOT_INODE_NUM_GEN_START (EFS_ROOT_INODE + 1)
 #define EFS_ROOT_UID 0
 
 typedef unsigned long long int efs_ino_t;
@@ -169,46 +168,6 @@ typedef struct efs_cred__ {
         uid_t uid;
         gid_t gid;
 } efs_cred_t;
-
-/**
- * Initialize the sys attribute for root's id which will be used for
- * inode number generation (ref. EFS_SYS_ATTR_INO_NUM_GEN)
- *
- * @param efs_fs - Valid file system context.
- *
- * @return 0 if successful, a negative "-errno" value in case of failure
- */
-int efs_ino_num_gen_init(struct efs_fs *efs_fs);
-
-/**
- * Deinit the sys attribute for root's id which was setup earlier via
- * efs_setup_ino_num_gen()
- *
- * @param efs_fs - Valid file system context.
- *
- * @return 0 if successful, a negative "-errno" value in case of failure
- */
-int efs_ino_num_gen_fini(struct efs_fs *efs_fs);
-
-/**
- * Initialize the sys attribute for root's id which will be used for
- * inode number generation (ref. EFS_SYS_ATTR_INO_NUM_GEN)
- *
- * @param efs_fs - Valid file system context.
- *
- * @return 0 if successful, a negative "-errno" value in case of failure
- */
-int efs_init_ino_num_gen(struct efs_fs *efs_fs);
-
-/**
- * Destroy the sys attribute for root's id which was setup earlier via
- * efs_setup_ino_num_gen()
- *
- * @param efs_fs - Valid file system context.
- *
- * @return 0 if successful, a negative "-errno" value in case of failure
- */
-int efs_deinit_ino_num_gen(struct efs_fs *efs_fs);
 
 int efs_access_check(const efs_cred_t *cred, const struct stat *stat,
                      int flags);

@@ -72,32 +72,85 @@ int efs_fs_lookup(const str256_t *name, struct efs_fs **fs)
 	}
 
 out:
+	if (rc == 0) {
+		/**
+		 * Any incore struct efs_fs entry found in fs_list must have
+		 * kvtree for the root node attached.
+		 * If not, then it is a bug!
+		 **/
+		dassert(fs_node->efs_fs.kvtree != NULL);
+	}
+
 	log_debug(STR256_F " rc=%d", STR256_P(name), rc);
 	return rc;
 }
 
 void fs_ns_scan_cb(struct namespace *ns, size_t ns_size)
 {
+	str256_t *fs_name = NULL;
 	struct efs_fs_node *fs_node = NULL;
+
+	/**
+	 * Before this fs can be added to the incore list fs_list, we must
+	 * prepare the incore structure to be usable by others, i.e.
+	 * the kvtree and namespace should be attached.
+	 */
+	ns_get_name(ns, &fs_name);
+	log_info("%s:%d trying to load FS: " STR256_F,
+		 __func__, __LINE__, STR256_P(fs_name));
 
 	fs_node = malloc(sizeof(struct efs_fs_node));
 	if (fs_node == NULL) {
-                log_err("Could not allocate memory for efs_fs_node");
-		return;
+	    log_err("%s:%d failed to load FS: " STR256_F
+		    " , could not allocate memory for efs_fs_node!",
+		     __func__, __LINE__, STR256_P(fs_name));
+	    goto out_failed;
 	}
 
 	fs_node->efs_fs.ns = malloc(ns_size);
 	if (fs_node->efs_fs.ns == NULL) {
-                log_err("Could not allocate memory for ns object");
-		free(fs_node);
-		return;
+	    log_err("%s:%d failed to load FS: " STR256_F
+		    " , could not allocate memory for ns object!",
+		     __func__, __LINE__, STR256_P(fs_name));
+	    goto out_failed;
 	}
 
 	memcpy(fs_node->efs_fs.ns, ns, ns_size);
 
-	fs_node->efs_fs.kvtree = NULL;
+	fs_node->efs_fs.kvtree = malloc(sizeof(struct kvtree));
+	if (!fs_node->efs_fs.kvtree) {
+	    log_err("%s:%d failed to load FS: " STR256_F
+		    " , could not allocate memory for kvtree object!",
+		     __func__, __LINE__, STR256_P(fs_name));
+	    goto out_failed;
+	}
+
+	if (kvtree_init(fs_node->efs_fs.ns, fs_node->efs_fs.kvtree) != 0) {
+	    log_err("%s:%d failed to load FS: " STR256_F
+		    " , kvtree_init() failed!", __func__, __LINE__,
+		    STR256_P(fs_name));
+	    goto out_failed;
+	}
 
 	LIST_INSERT_HEAD(&fs_list, fs_node, link);
+	log_info("%s: FS:" STR256_F " loaded from disk, ptr:%p",
+		 __func__, STR256_P(fs_name), &fs_node->efs_fs);
+	return;
+
+out_failed:
+
+	log_info("%s: FS:" STR256_F " failed to load from disk",
+		 __func__, STR256_P(fs_name));
+
+	if (fs_node) {
+		if (fs_node->efs_fs.ns) {
+			free(fs_node->efs_fs.ns);
+		}
+		if (fs_node->efs_fs.kvtree) {
+			free(fs_node->efs_fs.kvtree);
+		}
+		free(fs_node);
+	}
 }
 
 static int endpoint_tenant_scan_cb(void *cb_ctx, struct tenant *tenant)
@@ -292,7 +345,6 @@ int efs_fs_create(const str256_t *fs_name)
 		      fs_node->efs_fs.kvtree);
 	RC_WRAP_LABEL(rc, free_fs_node, efs_ino_num_gen_init,
 		      &fs_node->efs_fs);
-	RC_WRAP_LABEL(rc, free_fs_node, kvtree_fini, fs_node->efs_fs.kvtree);
 
 free_info:
 
@@ -430,7 +482,6 @@ int efs_fs_delete(const str256_t *fs_name)
 		goto out;
 	}
 
-	RC_WRAP_LABEL(rc, out, kvtree_init, fs->ns, fs->kvtree);
 	RC_WRAP_LABEL(rc, out, efs_ino_num_gen_fini, fs);
 	RC_WRAP_LABEL(rc, out, kvtree_fini, fs->kvtree);
 
@@ -485,22 +536,15 @@ int efs_fs_open(const char *fs_name, struct efs_fs **ret_fs)
 	ns_get_fid(fs->ns, &ns_fid);
 	//RC_WRAP_LABEL(rc, error, kvs_index_open, kvstor, &ns_fid, index);
 
-	if (fs->kvtree == NULL) {
-		fs->kvtree = malloc(sizeof(struct kvtree));
-		if (!fs->kvtree) {
-			rc = -ENOMEM;
-			goto out;
-		}
-	}
-	rc = kvtree_init(fs->ns, fs->kvtree);
 	*ret_fs = fs;
 
 error:
+	log_info("efs_fs_open done, FS: %s, rc: %d, ptr: %p",
+		 fs_name, rc, fs);
 	if (rc != 0) {
 		log_err("Cannot open fid for fs_name=%s, rc:%d", fs_name, rc);
 	}
 
-out:
 	return rc;
 }
 
