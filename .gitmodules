@@ -4,9 +4,6 @@
 [submodule "nsal"]
 	path = nsal
 	url = https://github.com/Seagate/cortx-nsal.git
-[submodule "dsal"]
-	path = dsal
-	url = https://github.com/Seagate/cortx-dsal.git
 [submodule "efs"]
 	path = efs
 	url = https://github.com/Seagate/cortx-fs.git
