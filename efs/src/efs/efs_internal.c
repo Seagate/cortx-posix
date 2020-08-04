@@ -57,14 +57,14 @@ static inline const char *efs_key_type_to_str(efs_key_type_t ktype)
 		return "oid";
 	case EFS_KEY_TYPE_GI_INDEX: /* @todo remove when default fs is gone */
 		return "index";
-        case EFS_KEY_TYPE_FS_ID_FID:
-                return "fid";
-        case EFS_KEY_TYPE_FS_NAME:
-                return "fsid";
-        case EFS_KEY_TYPE_FS_ID:
-                return "fsname";
-        case EFS_KEY_TYPE_FS_ID_NEXT:
-                return "fsidnext";
+	case EFS_KEY_TYPE_FS_ID_FID:
+		return "fid";
+	case EFS_KEY_TYPE_FS_NAME:
+		return "fsid";
+	case EFS_KEY_TYPE_FS_ID:
+		return "fsname";
+	case EFS_KEY_TYPE_FS_ID_NEXT:
+		return "fsidnext";
 	case EFS_KEY_TYPE_INO_NUM_GEN:
 		return "ino_counter";
 	case EFS_KEY_TYPE_INVALID:
