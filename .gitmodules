@@ -1,3 +1,0 @@
-[submodule "kvsfs-ganesha"]
-	path = kvsfs-ganesha
-	url = https://github.com/Seagate/cortx-fs-ganesha.git
