@@ -1,8 +1,8 @@
 %define sourcename @CPACK_SOURCE_PACKAGE_FILE_NAME@
-%global dev_version %{lua: extraver = string.gsub('@EOS_UTILS_EXTRA_VERSION@', '%-', '.'); print(extraver) }
+%global dev_version %{lua: extraver = string.gsub('@CORTX_FS_UTILS_EXTRA_VERSION@', '%-', '.'); print(extraver) }
 
 Name: @PROJECT_NAME@
-Version: @EOS_UTILS_BASE_VERSION@
+Version: @CORTX_FS_UTILS_BASE_VERSION@
 Release: %{dev_version}%{?dist}
 Summary: General Purpose Utilities
 URL: GHS://@PROJECT_NAME@
@@ -14,13 +14,13 @@ BuildRequires: cmake gcc
 #BuildRequires: @RPM_DEVEL_REQUIRES@
 Provides: %{name} = %{version}-%{release}
 
-# EOS UTILS library paths
+# CORTX FS UTILS library paths
 %define _utils_lib		@PROJECT_NAME@
 %define _utils_dir		@INSTALL_DIR_ROOT@/@PROJECT_NAME_BASE@/utils
 %define _utils_lib_dir		%{_utils_dir}/lib
 %define _utils_include_dir	%{_includedir}/@PROJECT_NAME_BASE@-utils
 
-# Conditionally enable/disable eos-utils options.
+# Conditionally enable/disable cortx-fs-utils options.
 %define on_off_switch() %%{?with_%1:ON}%%{!?with_%1:OFF}
 
 # A few explanation about %bcond_with and %bcond_without
