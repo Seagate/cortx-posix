@@ -1,8 +1,8 @@
 %define sourcename @CPACK_SOURCE_PACKAGE_FILE_NAME@
-%global dev_version %{lua: extraver = string.gsub('@CORTX_FS_UTILS_EXTRA_VERSION@', '%-', '.'); print(extraver) }
+%global dev_version %{lua: extraver = string.gsub('@EOS_UTILS_EXTRA_VERSION@', '%-', '.'); print(extraver) }
 
 Name: @PROJECT_NAME@
-Version: @CORTX_FS_UTILS_BASE_VERSION@
+Version: @EOS_UTILS_BASE_VERSION@
 Release: %{dev_version}%{?dist}
 Summary: General Purpose Utilities
 URL: GHS://@PROJECT_NAME@
