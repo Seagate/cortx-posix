@@ -247,7 +247,7 @@ function usage {
 usage: $0 {init|cleanup} [-h] [-f] [-p] [-P <Profile>] [-F <Process FID>] [-k <KVS FID>] [-e <Local export>] [-E <HA export>]
 options:
   -h help
-  -f force initialisation
+  -f force initialization
   -p prompt
   -P Profile. Default is <0x7000000000000001:0>
   -F Process FID. Default is <0x7200000000000000:0>
