@@ -22,10 +22,10 @@
  * The KVnode module API allows users to perform operations on kvnode which
  * is an in-memory representation of a node.
  *
- * kvnode_init - Constructor for initialising node without looking it up on disk.
+ * kvnode_init - Constructor for initializing node without looking it up on disk.
  *               Use-case: Creating a new file/dir/symlink (non-existing file
  *               object).
- * kvnode_load - Constructor for initialising node using information stored on
+ * kvnode_load - Constructor for initializing node using information stored on
  *               disk (de-serialize).
  *               This function requires node to be initialized and dumped to
  *               the disk.
