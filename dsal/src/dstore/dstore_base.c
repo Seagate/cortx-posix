@@ -1,7 +1,7 @@
 /*
  * Filename:         dstore_base.c
  * Description:      Contains implementation of basic dstore
- * 		     framework APIs.
+ *                   framework APIs.
 
  * Do NOT modify or remove this copyright and confidentiality notice!
  * Copyright (c) 2019, Seagate Technology, LLC.
@@ -201,7 +201,7 @@ int dstore_obj_close(struct dstore_obj *obj)
 	RC_WRAP_LABEL(rc, out, dstore->dstore_ops->obj_close, obj);
 
 out:
-	log_trace("close << (%d)", rc);
+	log_trace("close <<< (%d)", rc);
 	return rc;
 }
 
