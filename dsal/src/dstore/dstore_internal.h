@@ -1,32 +1,39 @@
 /*
  * Filename:         dstore_internal.h
  * Description:      Private DSAL API.
-
- * Do NOT modify or remove this copyright and confidentiality notice!
- * Copyright (c) 2019, Seagate Technology, LLC.
- * The code contained herein is CONFIDENTIAL to Seagate Technology, LLC.
- * Portions are also trade secret. Any use, duplication, derivation,
- * distribution or disclosure of this code, for any reason, not expressly
- * authorized is prohibited. All other rights are expressly reserved by
- * Seagate Technology, LLC.
+ *
+ * Copyright (c) 2020 Seagate Technology LLC and/or its Affiliates
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU Affero General Public License for more details.
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ * For any questions about this software or licensing,
+ * please email opensource@seagate.com or cortx-questions@seagate.com.*
  *
  * This file defines an API that is used and implemented by DSAL
- * backends ("plugins").
- * Each backend must implement the vtable (dstore_ops) and correspondingly
- * extend the basic data types used by the vtable (ops and objects).
- * Note: This is a private API and it should not be visible to users.
- */
+ * backends("plugins").
+ * Each backend must implement the vtable(dstore_ops) and correspondingly
+ * extend the basic data types used by the vtable(ops and objects)
+ * Note : This is a private API and it should not be visible to users.
+ * 
+*/
 #ifndef _DSTORE_INTERNAL_H
 #define _DSTORE_INTERNAL_H
 
 #include "dstore.h" /* import public data types */
 
 struct dstore_ops;
-static inline
-bool dstore_ops_invariant(const struct dstore_ops *ops);
+static inline bool dstore_ops_invariant(const struct dstore_ops *ops);
 
-struct dstore {
-	/* Type of dstore, currently eos supported */
+struct dstore
+{
+	/* Type of dstore, currently cortx supported */
 	char *type;
 	/* Config for the dstore specified type */
 	struct collection_item *cfg;
@@ -36,8 +43,7 @@ struct dstore {
 	int flags;
 };
 
-static inline
-bool dstore_invariant(const struct dstore *dstore)
+static inline bool dstore_invariant(const struct dstore *dstore)
 {
 	/* Condition:
 	 *	Dstore backend operations should be valid.
@@ -46,7 +52,6 @@ bool dstore_invariant(const struct dstore *dstore)
 
 	return ops_are_valid;
 }
-
 
 /** A base object for DSAL operations.
  *
@@ -85,7 +90,8 @@ bool dstore_invariant(const struct dstore *dstore)
  *	}
  * @{endcode}
  */
-struct dstore_obj {
+struct dstore_obj
+{
 	/** A weak (borrowed) reference to the dstore
 	 * where this object was open.
 	 */
@@ -109,8 +115,7 @@ struct dstore_obj {
 	uint8_t priv[0];
 };
 
-static inline
-bool dstore_obj_invariant(const struct dstore_obj *obj)
+static inline bool dstore_obj_invariant(const struct dstore_obj *obj)
 {
 	/* Condition:
 	 *	Object should have a reference to dstore.
@@ -129,14 +134,14 @@ bool dstore_obj_invariant(const struct dstore_obj *obj)
  * because right now io_vec is immutable (the nr field
  * should not be modified after vector is created).
  */
-struct dstore_io_buf {
+struct dstore_io_buf
+{
 	uint8_t *buf;
 	uint64_t size;
 	uint64_t offset;
 };
 
-static inline
-bool dstore_io_buf_invariant(const struct dstore_io_buf *io_buf)
+static inline bool dstore_io_buf_invariant(const struct dstore_io_buf *io_buf)
 {
 	/* Condition:
 	 *	Non-empty buffer should have "size" field set.
@@ -167,7 +172,8 @@ bool dstore_io_buf_invariant(const struct dstore_io_buf *io_buf)
  * Considering these points, the essential parts of IO interface (data vector
  * and data buffer) were made to be opaque for the callers.
  */
-struct dstore_io_vec {
+struct dstore_io_vec
+{
 	/* Array of pointers to data buffers. */
 	uint8_t **dbufs;
 	/** Array of data buffer sizes. */
@@ -195,8 +201,7 @@ struct dstore_io_vec {
 	struct dstore_io_buf edbuf;
 };
 
-static inline
-bool dstore_io_vec_invariant(const struct dstore_io_vec *io_vec)
+static inline bool dstore_io_vec_invariant(const struct dstore_io_vec *io_vec)
 {
 	/* Condition:
 	 *	If vector has elements then the corresponding fields
@@ -205,8 +210,8 @@ bool dstore_io_vec_invariant(const struct dstore_io_vec *io_vec)
 	 * we need to implement Alloc/Free operations.
 	 */
 	bool non_empty_vec_has_data = ((!io_vec->nr) ||
-				       (io_vec->dbufs && io_vec->svec &&
-					io_vec->ovec && io_vec->bsize));
+								   (io_vec->dbufs && io_vec->svec &&
+									io_vec->ovec && io_vec->bsize));
 	/* Condition:
 	 *	The embedded buffer should always be in the right state
 	 *	(whether it is empty or not).
@@ -216,8 +221,7 @@ bool dstore_io_vec_invariant(const struct dstore_io_vec *io_vec)
 }
 
 /** Check if io_vec is just a single buffer embedded into io_vec itself. */
-static inline
-bool dstore_io_vec_is_embed(const struct dstore_io_vec *v)
+static inline bool dstore_io_vec_is_embed(const struct dstore_io_vec *v)
 {
 	return v->edbuf.buf != NULL && v->dbufs == &v->edbuf.buf;
 }
@@ -230,8 +234,7 @@ bool dstore_io_vec_is_embed(const struct dstore_io_vec *v)
  * Therefore, this function is highly unsafe and it can be used only at
  * initialization steps.
  */
-static inline
-void dstore_io_vec_set_from_edbuf(struct dstore_io_vec *v)
+static inline void dstore_io_vec_set_from_edbuf(struct dstore_io_vec *v)
 {
 	v->dbufs = &v->edbuf.buf;
 	v->svec = &v->edbuf.size;
@@ -241,24 +244,24 @@ void dstore_io_vec_set_from_edbuf(struct dstore_io_vec *v)
 }
 
 /** Moves io_vec value from one object into another. */
-static inline
-void dstore_io_vec_move(struct dstore_io_vec *dst, struct dstore_io_vec *src)
+static inline void dstore_io_vec_move(struct dstore_io_vec *dst, struct dstore_io_vec *src)
 {
 	/* copy embedded buffer state */
 	dst->edbuf = src->edbuf;
 
 	/* update refs for embedded case */
-	if (dstore_io_vec_is_embed(src)) {
+	if (dstore_io_vec_is_embed(src))
+	{
 		dstore_io_vec_set_from_edbuf(dst);
 	}
 
 	/* nullify the source */
-	*src = (struct dstore_io_vec) { .nr = 0 };
+	*src = (struct dstore_io_vec){.nr = 0};
 }
 
-
 /** IO operations available for a datastore object. */
-enum dstore_io_op_type {
+enum dstore_io_op_type
+{
 	/** Pre-allocates (reserves) storage space. */
 	DSTORE_IO_OP_ALLOC,
 	/** De-allocates storage space (TRIM/UNMAP). */
@@ -274,7 +277,8 @@ enum dstore_io_op_type {
  * should extend the structure if it requires additional
  * fields.
  */
-struct dstore_io_op {
+struct dstore_io_op
+{
 	/** IO type */
 	enum dstore_io_op_type type;
 	/** A weak (non-owning) pointer to the object used
@@ -300,8 +304,7 @@ struct dstore_io_op {
 	uint8_t priv[0];
 };
 
-static inline
-bool dstore_io_op_invariant(const struct dstore_io_op *op)
+static inline bool dstore_io_op_invariant(const struct dstore_io_op *op)
 {
 	/* Condition:
 	 *	Op type should be a supported operation.
@@ -327,7 +330,7 @@ bool dstore_io_op_invariant(const struct dstore_io_op *op)
 	bool has_needed_data = (op->data.nr != 0);
 
 	return op_is_supported && has_valid_vec && has_needed_data &&
-		has_ref_to_obj;
+		   has_ref_to_obj;
 }
 
 /** Vtable for DSAL backends.
@@ -336,49 +339,50 @@ bool dstore_io_op_invariant(const struct dstore_io_op *op)
  * NOTE: This is a private interface not exposed to
  * the user.
  */
-struct dstore_ops {
+struct dstore_ops
+{
 	/* dstore module init/fini */
-	int (*init) (struct collection_item *cfg);
-	int (*fini) (void);
+	int (*init)(struct collection_item *cfg);
+	int (*fini)(void);
 
 	/* TODO: "ctx" should be removed from the interface
 	 * because it carries no useful information.
 	 * TODO: This function does not have well-defined behavior
 	 * yet. This needs to be addressed.
 	 */
-	int (*obj_create) (struct dstore *dstore, void *ctx,
-			   dstore_oid_t *oid);
+	int (*obj_create)(struct dstore *dstore, void *ctx,
+					  dstore_oid_t *oid);
 
 	/* TODO: "ctx" should be removed from the interface
 	 * because it carries no useful information.
 	 * TODO: This function does not have well-defined behavior
 	 * yet. This needs to be addressed.
 	 */
-	int (*obj_delete) (struct dstore *dstore, void *ctx,
-			   dstore_oid_t *oid);
+	int (*obj_delete)(struct dstore *dstore, void *ctx,
+					  dstore_oid_t *oid);
 
 	/* FIXME: Deprecated interface */
-	int (*obj_read) (struct dstore *dstore, void *ctx,
-			 dstore_oid_t *oid, off_t offset,
-			 size_t buffer_size, void *buffer, bool *end_of_file,
-			 struct stat *stat);
+	int (*obj_read)(struct dstore *dstore, void *ctx,
+					dstore_oid_t *oid, off_t offset,
+					size_t buffer_size, void *buffer, bool *end_of_file,
+					struct stat *stat);
 
 	/* FIXME: Deprecated interface */
-	int (*obj_write) (struct dstore *dstore, void *ctx,
-			  dstore_oid_t *oid, off_t offset,
-			  size_t buffer_size,
-			  void *buffer, bool *fsal_stable, struct stat *stat);
+	int (*obj_write)(struct dstore *dstore, void *ctx,
+					 dstore_oid_t *oid, off_t offset,
+					 size_t buffer_size,
+					 void *buffer, bool *fsal_stable, struct stat *stat);
 
 	/* FIXME: Deprecated interface */
-	int (*obj_resize) (struct dstore *dstore, void *ctx,
-			   dstore_oid_t *oid,
-		           size_t old_size, size_t new_size);
+	int (*obj_resize)(struct dstore *dstore, void *ctx,
+					  dstore_oid_t *oid,
+					  size_t old_size, size_t new_size);
 
 	/*
 	 * TODO: This function does not have well-defined behavior
 	 * yet. This needs to be addressed.
 	 */
-	int (*obj_get_id) (struct dstore *dstore, dstore_oid_t *oid);
+	int (*obj_get_id)(struct dstore *dstore, dstore_oid_t *oid);
 
 	/* DSAL.OPEN Interface.
 	 * This function should create a new in-memory representation
@@ -394,8 +398,8 @@ struct dstore_ops {
 	 * return an existing object.
 	 */
 	int (*obj_open)(struct dstore *dstore,
-			const dstore_oid_t *oid,
-			struct dstore_obj **obj);
+					const dstore_oid_t *oid,
+					struct dstore_obj **obj);
 
 	/* DSAL.CLOSE Interface.
 	 * This function should release all resources associated
@@ -411,11 +415,11 @@ struct dstore_ops {
 	 * given inputs.
 	 */
 	int (*io_op_init)(struct dstore_obj *obj,
-			  enum dstore_io_op_type type,
-			  struct dstore_io_vec *bvec,
-			  dstore_io_op_cb_t cb,
-			  void *cb_ctx,
-			  struct dstore_io_op **out);
+					  enum dstore_io_op_type type,
+					  struct dstore_io_vec *bvec,
+					  dstore_io_op_cb_t cb,
+					  void *cb_ctx,
+					  struct dstore_io_op **out);
 
 	/** DSAL.OP_FINI Interface.
 	 * This function releases all the resources take by
@@ -464,43 +468,40 @@ struct dstore_ops {
 	void (*free_buf)(struct dstore *, void *);
 };
 
-static inline
-bool dstore_ops_invariant(const struct dstore_ops *ops)
+static inline bool dstore_ops_invariant(const struct dstore_ops *ops)
 {
 	/* Condition:
 	 *	All callbacks should be available except those
 	 *	which are not implemented (or not in use right now).
 	 */
-	return
-		ops->init &&
-		ops->fini &&
-		ops->obj_create &&
-		ops->obj_delete &&
-		ops->obj_read &&
-		ops->obj_write &&
-		ops->obj_resize &&
-		ops->obj_get_id &&
-		ops->obj_open &&
-		ops->obj_close &&
-		ops->io_op_init &&
-		ops->io_op_submit &&
-		ops->io_op_wait &&
+	return ops->init &&
+		   ops->fini &&
+		   ops->obj_create &&
+		   ops->obj_delete &&
+		   ops->obj_read &&
+		   ops->obj_write &&
+		   ops->obj_resize &&
+		   ops->obj_get_id &&
+		   ops->obj_open &&
+		   ops->obj_close &&
+		   ops->io_op_init &&
+		   ops->io_op_submit &&
+		   ops->io_op_wait &&
 
-		/* AllocBuf/FreeBuf interfaces are not in use right now. */
+	/* AllocBuf/FreeBuf interfaces are not in use right now. */
 #if 0
 		ops->alloc_buf &&
 		ops->free_buf &&
 #endif
-		true;
+		   true;
 }
 
 /* FIXME: This structure does not belong here.
- * It should be moved into eos-related directory.
+ * It should be moved into cortx-related directory.
  * The consumer (dstore.c) should include this file separately.
  * It will help to remove dependencies between DSAL backends.
  */
-extern const struct dstore_ops eos_dstore_ops;
-
+extern const struct dstore_ops cortx_dstore_ops;
 
 /** A helper for DSTORE backends: initializes already-allocated
  * IO operation using the given arguments.
@@ -508,14 +509,13 @@ extern const struct dstore_ops eos_dstore_ops;
  * implementation of DSAL.OP_INIT interface.
  */
 void dstore_io_op_init(struct dstore_obj *obj,
-		       enum dstore_io_op_type type,
-		       struct dstore_io_vec *bvec,
-		       dstore_io_op_cb_t cb,
-		       void *cb_ctx,
-		       struct dstore_io_op *op);
+					   enum dstore_io_op_type type,
+					   struct dstore_io_vec *bvec,
+					   dstore_io_op_cb_t cb,
+					   void *cb_ctx,
+					   struct dstore_io_op *op);
 
-static inline
-const obj_id_t *dstore_obj_id(const struct dstore_obj *obj)
+static inline const obj_id_t *dstore_obj_id(const struct dstore_obj *obj)
 {
 	return &obj->oid;
 }

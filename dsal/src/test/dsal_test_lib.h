@@ -3,17 +3,21 @@
  * Description:		Defines a set of functions used across the DSAL
  *			unit tests modules (dsal_test_*.c).
  *
- * Do NOT modify or remove this copyright and confidentiality notice!
- * Copyright (c) 2019, Seagate Technology, LLC.
- * The code contained herein is CONFIDENTIAL to Seagate Technology, LLC.
- * Portions are also trade secret. Any use, duplication, derivation,
- * distribution or disclosure of this code, for any reason, not expressly
- * authorized is prohibited. All other rights are expressly reserved by
- * Seagate Technology, LLC.
- *
- * Defines a small set of functions to be used across all the testcases/groups
- * for DSAL layer (dsal test library == dtlib).
-*/
+ * Copyright (c) 2020 Seagate Technology LLC and/or its Affiliates
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU Affero General Public License for more details.
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ * For any questions about this software or licensing,
+ * please email opensource@seagate.com or cortx-questions@seagate.com.*
+ */
+
 #ifndef DSAL_TEST_LIB_H_
 #define DSAL_TEST_LIB_H_
 /******************************************************************************/
@@ -53,14 +57,15 @@ static inline void dtlib_fill_data_block(uint8_t *data, size_t size)
 	uint8_t value = 0;
 	size_t i;
 
-	for (i = 0; i < size; i++) {
+	for (i = 0; i < size; i++)
+	{
 		data[i] = value;
 		value++;
 	}
 }
 
-#define DSAL_UT_RUN(_test_group, _setup, _teardown) ut_run(_test_group,\
-	sizeof(_test_group)/sizeof(_test_group[0]), _setup, _teardown)
+#define DSAL_UT_RUN(_test_group, _setup, _teardown) ut_run(_test_group, \
+														   sizeof(_test_group) / sizeof(_test_group[0]), _setup, _teardown)
 
 /******************************************************************************/
 #endif /* DSAL_TEST_LIB_H_ */

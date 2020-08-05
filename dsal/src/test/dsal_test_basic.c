@@ -3,21 +3,27 @@
  * Filename:		dsal_test_basic.c
  * Description:		Test group for very basic DSAL tests.
  *
- * Do NOT modify or remove this copyright and confidentiality notice!
- * Copyright (c) 2019, Seagate Technology, LLC.
- * The code contained herein is CONFIDENTIAL to Seagate Technology, LLC.
- * Portions are also trade secret. Any use, duplication, derivation,
- * distribution or disclosure of this code, for any reason, not expressly
- * authorized is prohibited. All other rights are expressly reserved by
- * Seagate Technology, LLC.
+ * Copyright (c) 2020 Seagate Technology LLC and/or its Affiliates
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU Affero General Public License for more details.
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ * For any questions about this software or licensing,
+ * please email opensource@seagate.com or cortx-questions@seagate.com.*
  */
 /******************************************************************************/
-#include <stdio.h> /* *printf */
-#include <memory.h> /* mem* functions */
-#include <assert.h> /* asserts */
-#include <errno.h> /* errno codes */
-#include <stdlib.h> /* alloc, free */
-#include "dstore.h" /* dstore operations to be tested */
+#include <stdio.h>		   /* *printf */
+#include <memory.h>		   /* mem* functions */
+#include <assert.h>		   /* asserts */
+#include <errno.h>		   /* errno codes */
+#include <stdlib.h>		   /* alloc, free */
+#include "dstore.h"		   /* dstore operations to be tested */
 #include "dstore_bufvec.h" /* data buffers and vectors */
 #include "dsal_test_lib.h" /* DSAL-specific helpers for tests */
 
@@ -26,7 +32,8 @@
  * The environment is prepared by setup() and cleaned up by teardown()
  * calls.
  */
-struct env {
+struct env
+{
 	/* Object ID to be used in the test cases.
 	 * Rationale of keeping it global:
 	 * 1. Each test case is responsibe for releasing this ID.
@@ -43,7 +50,7 @@ struct env {
 	struct dstore *dstore;
 };
 
-#define ENV_FROM_STATE(__state) (*((struct env **) __state))
+#define ENV_FROM_STATE(__state) (*((struct env **)__state))
 
 /*****************************************************************************/
 /* Description: Test create and delete operation.
@@ -329,7 +336,8 @@ int main(int argc, char *argv[])
 	};
 
 	rc = dtlib_setup(argc, argv);
-	if (rc) {
+	if (rc)
+	{
 		printf("Failed to set up the test group environment");
 		goto out;
 	}
