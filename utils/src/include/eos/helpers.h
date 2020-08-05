@@ -1,6 +1,6 @@
 /*
  * Filename:         helpers.h
- * Description:      Contains declarations of cortx fs functionality needed
+ * Description:      Contains declarations of cortx functionality needed
  * 		     by nsal, efs, dsal
  * Contains declarations of cortx funnctionality needed by nsal, efs, dsal.
  *

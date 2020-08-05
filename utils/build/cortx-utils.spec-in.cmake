@@ -14,13 +14,13 @@ BuildRequires: cmake gcc
 #BuildRequires: @RPM_DEVEL_REQUIRES@
 Provides: %{name} = %{version}-%{release}
 
-# CORTX FS UTILS library paths
+# CORTX UTILS library paths
 %define _utils_lib		@PROJECT_NAME@
 %define _utils_dir		@INSTALL_DIR_ROOT@/@PROJECT_NAME_BASE@/utils
 %define _utils_lib_dir		%{_utils_dir}/lib
 %define _utils_include_dir	%{_includedir}/@PROJECT_NAME_BASE@-utils
 
-# Conditionally enable/disable cortx-fs-utils options.
+# Conditionally enable/disable cortx-utils options.
 %define on_off_switch() %%{?with_%1:ON}%%{!?with_%1:OFF}
 
 # A few explanation about %bcond_with and %bcond_without
