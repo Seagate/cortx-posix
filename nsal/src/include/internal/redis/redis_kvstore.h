@@ -1,6 +1,6 @@
 /*
  * Filename:         redis_kvstore.h
- * Description:      Provides EOS specific implementation of
+ * Description:      Provides CORTX specific implementation of
  *                  KVStore module of NSAL.
 
  * Do NOT modify or remove this copyright and confidentiality notice!
