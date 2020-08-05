@@ -1,6 +1,6 @@
 /*
  * Filename:         efs_internal.h
- * Description:      EOS file system internal APIs
+ * Description:      CORTX file system internal APIs
  * This file contains EFS file system internal APIs
  *
  * Copyright (c) 2020 Seagate Technology LLC and/or its Affiliates
