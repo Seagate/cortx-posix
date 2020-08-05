@@ -1,7 +1,6 @@
 /*
  * Filename:         efs_fops.c
- * Description:      EOS file system file operations
- * This file contains EFS file system file operations
+ * Description:      CORTX file system file operations
  *
  * Copyright (c) 2020 Seagate Technology LLC and/or its Affiliates
  * This program is free software: you can redistribute it and/or modify

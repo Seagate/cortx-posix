@@ -1,7 +1,6 @@
 /*
  * Filename:         efs_xattr.c
- * Description:      EOS file system XATTR interfaces
- * This file contains EFS file system XATTR interfaces.
+ * Description:      CORTX file system XATTR interfaces
  *
  * Copyright (c) 2020 Seagate Technology LLC and/or its Affiliates
  * This program is free software: you can redistribute it and/or modify

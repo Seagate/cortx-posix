@@ -1,6 +1,6 @@
 /*
  * Filename:         efs.h
- * Description:      EOS file system interfaces
+ * Description:      CORTX file system interfaces
  * This file contains EFS file system interfaces.
  *
  * Copyright (c) 2020 Seagate Technology LLC and/or its Affiliates
