@@ -550,6 +550,6 @@ error:
 
 void efs_fs_close(struct efs_fs *efs_fs)
 {
-	kvtree_fini(efs_fs->kvtree);
-
+	// This is empty placeholder for future use
+	log_warn("Unused function is being called!");
 }
