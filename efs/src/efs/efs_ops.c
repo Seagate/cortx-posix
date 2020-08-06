@@ -340,6 +340,7 @@ int efs_link(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *ino,
 	struct kvstore *kvstor = kvstore_get();
 	struct kvs_idx index;
 	struct kvnode node = KVNODE_INIT_EMTPY;
+	struct kvnode pnode = KVNODE_INIT_EMTPY;
 
 	dassert(cred && ino && dname && dino && kvstor);
 
@@ -366,12 +367,17 @@ int efs_link(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *ino,
 	RC_WRAP_LABEL(rc, aborted, efs_update_stat, &node,
 		      STAT_CTIME_SET|STAT_INCR_LINK);
 
-	log_trace("EXIT: rc=%d ino=%llu dino=%llu dname=%s", rc, *ino, *dino, dname);
+	RC_WRAP_LABEL(rc, aborted, efs_kvnode_load, &pnode, efs_fs->kvtree, dino);
+	RC_WRAP_LABEL(rc, aborted, efs_update_stat, &pnode,
+		      STAT_MTIME_SET|STAT_CTIME_SET);
+
 	RC_WRAP(kvs_end_transaction, kvstor, &index);
-	return rc;
 aborted:
+	kvnode_fini(&pnode);
 	kvnode_fini(&node);
-	kvs_discard_transaction(kvstor, &index);
+	if (rc != 0) {
+		kvs_discard_transaction(kvstor, &index);
+	}
 	log_trace("EXIT: rc=%d ino=%llu dino=%llu dname=%s", rc, *ino, *dino, dname);
 	return rc;
 }
@@ -663,7 +669,7 @@ int efs_rmdir(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *parent, char *
 	RC_WRAP_LABEL(rc, aborted, efs_kvnode_load, &parent_node,
 		      efs_fs->kvtree, parent);
 	RC_WRAP_LABEL(rc, aborted, efs_update_stat, &parent_node,
-		      STAT_DECR_LINK);
+		      STAT_DECR_LINK|STAT_MTIME_SET|STAT_CTIME_SET);
 
 	RC_WRAP_LABEL(rc, aborted, efs_ino_to_oid, efs_fs, &ino, &oid);
 
@@ -715,6 +721,7 @@ int efs_detach(struct efs_fs *efs_fs, const efs_cred_t *cred,
 	struct kvstore *kvstor = kvstore_get();
 	struct kvs_idx index;
 	struct kvnode node = KVNODE_INIT_EMTPY;
+	struct kvnode pnode = KVNODE_INIT_EMTPY;
 
 	dassert(kvstor != NULL);
 
@@ -735,9 +742,15 @@ int efs_detach(struct efs_fs *efs_fs, const efs_cred_t *cred,
 	RC_WRAP_LABEL(rc, out, efs_kvnode_load, &node, efs_fs->kvtree, obj);
 	RC_WRAP_LABEL(rc, out, efs_update_stat, &node,
 		      STAT_CTIME_SET|STAT_DECR_LINK);
+
+	RC_WRAP_LABEL(rc, out, efs_kvnode_load, &pnode, efs_fs->kvtree, parent);
+	RC_WRAP_LABEL(rc, out, efs_update_stat, &pnode,
+		      STAT_CTIME_SET|STAT_MTIME_SET);
+
 	kvs_end_transaction(kvstor, &index);
 
 out:
+	kvnode_fini(&pnode);
 	kvnode_fini(&node);
 	if (rc != 0) {
 		kvs_discard_transaction(kvstor, &index);
