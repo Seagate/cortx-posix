@@ -1,7 +1,6 @@
 #!/bin/bash
-
 # Variables
-PROFILE="0x7000000000000001:0"
+PROFILE='<0x7000000000000001:0>'
 PROC_FID='<0x7200000000000000:0>'
 INDEX_DIR=/tmp
 # Global idx (meta index)
@@ -50,46 +49,22 @@ function create_fs {
 function get_ip {
 	# Get ip address
 	v1=$(lctl list_nids 2> /dev/null)
-	ip_add=${v1::-4}
-
-	[ -n "$PROVI_SETUP" ] && return
-
-	# Set LOC_EP and HA_EP for Dev env
-	LOC_EP="$ip_add$LOC_EXPORT_ID"
-	HA_EP="$ip_add$HA_EXPORT_ID"
-}
-
-function get_ep {
-	[ -n "$EP" ] && return || EP=1
-
-	host_name=$(hostname -f )
-	hctl_status=$(hctl status --json | jq '.')
-
-	cluster_info=$(echo $hctl_status | jq '.nodes[]')
-	node_info=$(echo $cluster_info | jq --arg h_name $host_name '. | select(.name == $h_name)')
-
-	PROFILE=$(echo $hctl_status | jq '.profile' | sed 's/[,"]//g')
-	HA_EP=$(echo $node_info | jq '.svcs[] | select(.name == "hax") | .ep' | sed 's/[,"]//g')
-
-	m0client_info=$(echo $node_info | jq '[.svcs[] | select(.name == "m0_client")][0]')
-	LOC_EP=$(echo $m0client_info | jq '.ep' | sed 's/[,"]//g')
-	PROC_FID=$(echo $m0client_info | jq '.fid' | sed 's/[,"]//g')
+	v2=${v1::-4}
+        echo "$v2"
 }
 
 function clovis_init {
 	log "Initializing Clovis..."
 
 	# Create Clovis global idx
-	run m0clovis -l $LOC_EP -h $HA_EP -p $PROFILE -f $PROC_FID index create\
-		"$KVS_GLOBAL_FID"
+	run m0clovis -l $ip_add$LOC_EXPORT_ID -h $ip_add$HA_EXPORT_ID -p $PROFILE -f $PROC_FID index create "$KVS_GLOBAL_FID"
 	# Create Clovis fs_meta idx
-	run m0clovis -l $LOC_EP -h $HA_EP -p $PROFILE -f $PROC_FID index create\
-		"$KVS_NS_META_FID"
+	run m0clovis -l $ip_add$LOC_EXPORT_ID -h $ip_add$HA_EXPORT_ID -p $PROFILE -f $PROC_FID index create "$KVS_NS_META_FID"
 
 	[ $? -ne 0 ] && die "Failed to Initialise Clovis Global index"
 }
 
-function prepare_fs_conf {
+function efs_init {
 	log "Initializing EFS..."
 
 	# Backup cortxfs.conf file
@@ -115,8 +90,8 @@ ns_meta_fid = $KVS_NS_META_FID
 type = eos
 
 [mero]
-local_addr = $LOC_EP
-ha_addr = $HA_EP
+local_addr = $ip_add$LOC_EXPORT_ID
+ha_addr = $ip_add$HA_EXPORT_ID
 profile = $PROFILE
 proc_fid = $PROC_FID
 index_dir = $INDEX_DIR
@@ -125,6 +100,8 @@ EOM
 	[ $? -ne 0 ] && die "Failed to configure cortxfs.conf"
 
 	touch $NFS_INITIALIZED
+
+
 }
 
 function prepare_ganesha_conf {
@@ -199,30 +176,23 @@ EOM
 }
 
 function check_prerequisites {
-	# Check prerequisites only once
-	[ -n "PRE_REQ" ] && return || PRE_REQ=1
+	lctl list_nids > /dev/null 2>&1 || die "Mero not active"
+	# Check mero
+	tmp_var=$(rpm --version mero)
+	[ -z "$tmp_var" ] && die "Mero RPMs not installed"
 
-	# Prerequisites specifc to Dev environment
-	if [ -z "PROVI_SETUP" ]; then
-		lctl list_nids > /dev/null 2>&1 || die "Mero not active"
-		# Check mero
-		tmp_var=$(rpm --version mero)
-		[ -z "$tmp_var" ] && die "Mero RPMs not installed"
+	# Check mero status
+	tmp_var=$(systemctl is-active mero-kernel)
+	[[ "$tmp_var" -ne "active" ]] && die "Mero-kernel is inactive"
 
-		# Check mero status
-		tmp_var=$(systemctl is-active mero-kernel)
-		[[ "$tmp_var" -ne "active" ]] && die "Mero-kernel is inactive"
+	# Check mero services
+	tmp_var=$(pgrep m0)
+	[ -z "$tmp_var" ] && die "Mero services not activate"
 
-		# Check mero services
-		tmp_var=$(pgrep m0)
-		[ -z "$tmp_var" ] && die "Mero services not activate"
-	fi
-
-	# Check SElinux status
+	#check SElinux status
 	tmp_var="$(getenforce)"
 	if [ "$tmp_var" == "Enforcing" ]; then
-		die "EOS NFS cannot work with SELinux enabled. Please disable \
-			it using \"setenforce Permissive\""
+		die "EOS NFS cannot work with SELinux enabled. Please disable it using \"setenforce Permissive\""
 	fi
 
 	# Check nfs-ganesha
@@ -231,7 +201,9 @@ function check_prerequisites {
 }
 
 function eos_nfs_init {
-	[ -n "$PROVI_SETUP" ] && get_ep
+	# Check if NFS is already initialized
+	[[ -e $NFS_INITIALIZED && -z "$force" ]] &&
+		[ "$(cat $NFS_INITIALIZED)" = "success" ] && die "NFS already initialzed"
 
 	# Cleanup before initialization
 	eos_nfs_cleanup
@@ -239,32 +211,19 @@ function eos_nfs_init {
 	# Initialize clovis
 	clovis_init
 
-	echo -e "\nNFS Initialization is complete"
-}
-
-function eos_nfs_config {
-	[ -n "$PROVI_SETUP" ] && get_ep
-
-	# Check if NFS is already initialized
-	[[ -e $NFS_INITIALIZED && -z "$force" ]] &&
-		[ "$(cat $NFS_INITIALIZED)" = "success" ] && die "NFS already initialzed"
-
-	# Check prerequisites
-	check_prerequisites
-
-	# Prepare cortxfs.conf
-	prepare_fs_conf
+	efs_init
 
 	# Prepare ganesha.conf
 	prepare_ganesha_conf
 
 	# Start NFS Ganesha Server
 	systemctl restart nfs-ganesha || die "Failed to start NFS-Ganesha"
+	#[ $? -ne 0 ] && die "Failed to start NFS-Ganesha"
 
 	# Create default FS
 	if [ -n "$DEFAULT_FS" ]; then
-		create_fs
-		systemctl restart nfs-ganesha || die "Failed to start NFS-Ganesha"
+	create_fs
+	systemctl restart nfs-ganesha || die "Failed to start NFS-Ganesha"
 	fi
 
 	echo success > cat $NFS_INITIALIZED
@@ -272,19 +231,12 @@ function eos_nfs_config {
 }
 
 function eos_nfs_cleanup {
-	[ -n "$PROVI_SETUP" ] && get_ep
-
-	# Check prerequisites
-	check_prerequisites
-
 	# Stop nfs-ganesha service if running
 	systemctl status nfs-ganesha > /dev/null && systemctl stop nfs-ganesha
 
 	# Drop index if previosly created
-	run m0clovis -l $LOC_EP -h $HA_EP -p $PROFILE -f $PROC_FID index drop\
-		"$KVS_GLOBAL_FID"
-	run m0clovis -l $LOC_EP -h $HA_EP -p $PROFILE -f $PROC_FID index drop\
-		"$KVS_NS_META_FID"
+	run m0clovis -l $ip_add$LOC_EXPORT_ID -h $ip_add$HA_EXPORT_ID -p $PROFILE -f $PROC_FID index drop "$KVS_GLOBAL_FID"
+	run m0clovis -l $ip_add$LOC_EXPORT_ID -h $ip_add$HA_EXPORT_ID -p $PROFILE -f $PROC_FID index drop "$KVS_NS_META_FID"
 
 	rm -f $NFS_INITIALIZED
 	echo "NFS cleanup is complete"
@@ -292,26 +244,16 @@ function eos_nfs_cleanup {
 
 function usage {
 	cat <<EOF
-usage: $0 {init|config|setup|cleanup} [-h] [-f] [-p] [-q] [-d <FS name>]
-Command:
-  init      Create clovis indexes
-  config    Prepare conf files and start NFS-Ganesha
-  setup     Complete setup: init and config command
-  cleanup   Stop NFS-Ganesha and drop indexes
-Options:
-  -h Help
-  -f Force initialization
-  -p Prompt
-  -q To perform Setup on Provisioner VM
-  -d To create FS
-
-Default values used for Index creation on Dev env are-
-   Profile:               <0x7000000000000001:0>
-   Process FID:           <0x7200000000000000:0>
-   Local Export Suffix:   @tcp:12345:44:301
-   HA Export Suffix:      @tcp:12345:45:1
-   KVS Golbal FID:        <0x780000000000000b:1>
-   KVS NS Meta FID:       <0x780000000000000b:2>
+usage: $0 {init|cleanup} [-h] [-f] [-p] [-P <Profile>] [-F <Process FID>] [-k <KVS FID>] [-e <Local export>] [-E <HA export>]
+options:
+  -h help
+  -f force initialization
+  -p prompt
+  -P Profile. Default is <0x7000000000000001:0>
+  -F Process FID. Default is <0x7200000000000000:0>
+  -k KVS FID. Default is <0x780000000000000b:1>
+  -e Local Export Suffix. Default is @tcp:12345:44:301
+  -E HA Export Suffix. Default is @tcp:12345:45:1
 EOF
 	exit 1
 }
@@ -322,7 +264,7 @@ EOF
 
 cmd=$1; shift 1
 
-getopt --options "hfpqd:" --name nfs_setup
+getopt --options "hfpP:F:k:e:E:d:" --name nfs_setup
 [[ $? -ne 0 ]] && usage
 
 while [ ! -z $1 ]; do
@@ -330,7 +272,11 @@ while [ ! -z $1 ]; do
 		-h ) usage;;
 		-f ) force=1;;
 		-p ) prompt=1;;
-		-q ) PROVI_SETUP=1;;
+		-P ) PROFILE=$2; shift 1;;
+		-F ) PROC_FID=$2; shift 1;;
+		-k ) KVS_GLOBAL_FID=$2; shift 1;;
+		-e ) LOC_EXPORT_ID=$2; shift 1;;
+		-E ) HA_EXPORT_ID=$2; shift 1;;
 		-d ) DEFAULT_FS=$2; shift 1;;
 		 * ) usage ;;
 	esac
@@ -338,23 +284,19 @@ while [ ! -z $1 ]; do
 done
 
 if [ ! -e $EFS_FS_CLI ]; then
-	die "efscli is not installed in the location $EFS_FS_CLI. Please install\
-		the corresponding RPM."
+  die "efscli is not installed in the location $EFS_FS_CLI. Please install the corresponding RPM."
 fi
 
 # Get path and Pseudo path
 [ -n "$DEFAULT_FS" ] && FS_PATH="$DEFAULT_FS"
 
 # Getip address
-get_ip
+ip_add=$(get_ip)
 #check for lent
-[ -z $ip_add ] && die "Could not determine IP address. Please ensure lnet is\
-	configured !!!"
+[ -z $ip_add ] && die "Could not determine IP address. Please ensure lnet is configured !!!"
 
 case $cmd in
-	init    ) eos_nfs_init;;
-	config	) eos_nfs_config;;
-	setup	) eos_nfs_init; eos_nfs_config;;
-	cleanup ) eos_nfs_cleanup;;
+	init    ) check_prerequisites; eos_nfs_init;;
+	cleanup ) check_prerequisites; eos_nfs_cleanup;;
 	*       ) usage;;
 esac
