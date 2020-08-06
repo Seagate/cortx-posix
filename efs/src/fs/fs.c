@@ -97,13 +97,13 @@ void fs_ns_scan_cb(struct namespace *ns, size_t ns_size)
 	 */
 	ns_get_name(ns, &fs_name);
 	log_info("%d trying to load FS: " STR256_F,
-		  __LINE__, STR256_P(fs_name));
+		 __LINE__, STR256_P(fs_name));
 
 	fs_node = malloc(sizeof(struct efs_fs_node));
 	if (fs_node == NULL) {
 	    log_err("%d failed to load FS: " STR256_F
 		    " , could not allocate memory for efs_fs_node!",
-		     __LINE__, STR256_P(fs_name));
+		    __LINE__, STR256_P(fs_name));
 	    goto out_failed;
 	}
 
@@ -111,7 +111,7 @@ void fs_ns_scan_cb(struct namespace *ns, size_t ns_size)
 	if (fs_node->efs_fs.ns == NULL) {
 	    log_err("%d failed to load FS: " STR256_F
 		    " , could not allocate memory for ns object!",
-		     __LINE__, STR256_P(fs_name));
+		    __LINE__, STR256_P(fs_name));
 	    goto out_failed;
 	}
 
@@ -121,7 +121,7 @@ void fs_ns_scan_cb(struct namespace *ns, size_t ns_size)
 	if (!fs_node->efs_fs.kvtree) {
 	    log_err("%d failed to load FS: " STR256_F
 		    " , could not allocate memory for kvtree object!",
-		     __LINE__, STR256_P(fs_name));
+		    __LINE__, STR256_P(fs_name));
 	    goto out_failed;
 	}
 
@@ -136,7 +136,7 @@ void fs_ns_scan_cb(struct namespace *ns, size_t ns_size)
 	if (!fs_node->efs_fs.root_node) {
 		log_err("%d failed to load FS: " STR256_F
 			" , could not allocate memory for kvnode object!",
-			 __LINE__, STR256_P(fs_name));
+			__LINE__, STR256_P(fs_name));
 		goto out_failed;
 	}
 
@@ -153,21 +153,28 @@ void fs_ns_scan_cb(struct namespace *ns, size_t ns_size)
 
 	LIST_INSERT_HEAD(&fs_list, fs_node, link);
 	log_info("FS:" STR256_F " loaded from disk, ptr:%p",
-		  STR256_P(fs_name), &fs_node->efs_fs);
+		 STR256_P(fs_name), &fs_node->efs_fs);
 	return;
 
 out_failed:
 
 	log_info("FS:" STR256_F " failed to load from disk",
-		  STR256_P(fs_name));
+		 STR256_P(fs_name));
 
 	if (fs_node) {
 		if (fs_node->efs_fs.ns) {
 			free(fs_node->efs_fs.ns);
 		}
+		if (fs_node->efs_fs.root_node) {
+			/* kvnode_fini is a no-op if root_node is not loaded */
+			kvnode_fini(fs_node->efs_fs.root_node);
+			free(fs_node->efs_fs.root_node);
+		}
 		if (fs_node->efs_fs.kvtree) {
+			kvtree_fini(fs_node->efs_fs.kvtree);
 			free(fs_node->efs_fs.kvtree);
 		}
+
 		free(fs_node);
 	}
 }
@@ -397,15 +404,15 @@ free_fs_node:
 		{
 			free(fs_node->efs_fs.ns);
 		}
-		if (kvtree)
-		{
-			kvtree_fini(fs_node->efs_fs.kvtree);
-			free(fs_node->efs_fs.kvtree);
-		}
 		if (root_node)
 		{
 			kvnode_fini(fs_node->efs_fs.root_node);
 			free(fs_node->efs_fs.root_node);
+		}
+		if (kvtree)
+		{
+			kvtree_fini(fs_node->efs_fs.kvtree);
+			free(fs_node->efs_fs.kvtree);
 		}
 
 		free(fs_node);
