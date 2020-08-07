@@ -17,6 +17,7 @@ Provides: %{name} = %{version}-%{release}
 %define _fsal_ganesha_dir	@INSTALL_DIR_ROOT@/@PROJECT_NAME_BASE@/%{_fsal_ganesha_lib}
 %define _fsal_ganesha_lib_dir	%{_fsal_ganesha_dir}/lib
 %define _fsal_ganesha_bin_dir	%{_fsal_ganesha_dir}/bin
+%define _nfs_conf_dir @INSTALL_DIR_ROOT@/@PROJECT_NAME_BASE@/nfs/conf
 
 %description
 NFS-Ganesha FSAL for @PROJECT_NAME_BASE@-fs
@@ -36,10 +37,12 @@ mkdir -p %{buildroot}%{_fsal_ganesha_dir}
 mkdir -p %{buildroot}%{_fsal_ganesha_lib_dir}
 mkdir -p %{buildroot}%{_fsal_ganesha_bin_dir}
 mkdir -p %{buildroot}%{_libdir}/ganesha/
+mkdir -p %{buildroot}%{_nfs_conf_dir}
 cd %{_lib_path}
 install -m 755 lib%{_fsal_ganesha_lib}.so* %{buildroot}%{_fsal_ganesha_lib_dir}
 install -m 755 %{_nfs_setup_dir}/nfs_setup.sh %{buildroot}%{_fsal_ganesha_bin_dir}
 install -m 755 %{_nfs_setup_dir}/nfs_setup_legacy.sh %{buildroot}%{_fsal_ganesha_bin_dir}
+install -m 664 %{_nfs_setup_dir}/setup.yaml %{buildroot}%{_nfs_conf_dir}
 ln -s %{_fsal_ganesha_lib_dir}/lib%{_fsal_ganesha_lib}.so.4.2.0 %{buildroot}%{_libdir}/ganesha/libfsal%{_fs_lib}.so.4.2.0
 ln -s %{_fsal_ganesha_lib_dir}/lib%{_fsal_ganesha_lib}.so.4 %{buildroot}%{_libdir}/ganesha/libfsal%{_fs_lib}.so.4
 ln -s %{_fsal_ganesha_lib_dir}/lib%{_fsal_ganesha_lib}.so %{buildroot}%{_libdir}/ganesha/libfsal%{_fs_lib}.so
@@ -61,6 +64,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_sbindir}/nfs_setup
 %{_fsal_ganesha_bin_dir}/nfs_setup_legacy.sh
 %{_sbindir}/nfs_setup_legacy
+%{_nfs_conf_dir}/setup.yaml
 
 %changelog
 * Mon Jan 25 2019 Ashay Shirwadkar <ashay.shirwadkar@seagate.com> - 1.0.0
