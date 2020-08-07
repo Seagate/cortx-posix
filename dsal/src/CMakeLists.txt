@@ -56,8 +56,8 @@ if (USE_POSIX_OBJ OR USE_EOS_STORE)
 endif(USE_POSIX_OBJ OR USE_EOS_STORE)
 
 if (USE_EOS_STORE)
-  set(RPM_REQUIRES "mero ${RPM_REQUIRES}")
-  set(RPM_DEVEL_REQUIRES "mero-devel ${RPM_DEVEL_REQUIRES}")
+  set(RPM_REQUIRES "motr ${RPM_REQUIRES}")
+  set(RPM_DEVEL_REQUIRES "motr-devel ${RPM_DEVEL_REQUIRES}")
 endif (USE_EOS_STORE)
 
 if (USE_EOS_STORE)
@@ -102,7 +102,7 @@ if(USE_EOS_STORE)
 	""
 	HAVE_EOS
 	)
-  check_include_files("mero/config.h" HAVE_EOS_H)
+  check_include_files("motr/config.h" HAVE_EOS_H)
 
   find_library(HAVE_EOS_HELPERS motr-helpers)
   check_library_exists(
