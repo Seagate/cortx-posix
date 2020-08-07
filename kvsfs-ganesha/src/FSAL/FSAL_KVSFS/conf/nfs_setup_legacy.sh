@@ -100,8 +100,6 @@ EOM
 	[ $? -ne 0 ] && die "Failed to configure cortxfs.conf"
 
 	touch $NFS_INITIALIZED
-
-
 }
 
 function prepare_ganesha_conf {
@@ -176,18 +174,18 @@ EOM
 }
 
 function check_prerequisites {
-	lctl list_nids > /dev/null 2>&1 || die "Mero not active"
-	# Check mero
-	tmp_var=$(rpm --version mero)
-	[ -z "$tmp_var" ] && die "Mero RPMs not installed"
+	lctl list_nids > /dev/null 2>&1 || die "lnet not active"
+	# Check 
+	rpm -q cortx-motr > /dev/null 2>&1
+	[[ $? -ne 0 ]] && die "cortx-motr RPMs not installed"
 
-	# Check mero status
-	tmp_var=$(systemctl is-active mero-kernel)
-	[[ "$tmp_var" -ne "active" ]] && die "Mero-kernel is inactive"
+	# Check  status
+	tmp_var=$(systemctl is-active motr-kernel)
+	[[ "$tmp_var" -ne "active" ]] && die "motr-kernel is inactive"
 
-	# Check mero services
+	# Check  services
 	tmp_var=$(pgrep m0)
-	[ -z "$tmp_var" ] && die "Mero services not activate"
+	[ -z "$tmp_var" ] && die "cortx-motr services not activate"
 
 	#check SElinux status
 	tmp_var="$(getenforce)"
@@ -195,18 +193,18 @@ function check_prerequisites {
 		die "EOS NFS cannot work with SELinux enabled. Please disable it using \"setenforce Permissive\""
 	fi
 
-	# Check nfs-ganesha
-	tmp_var=$(rpm --version nfs-ganesha)
-	[ -z "$tmp_var" ] && die "NFS RPMs not installed "
+	# Check nfs-ganesha rpms
+	rpm -q nfs-ganesha > /dev/null 2>&1
+	[ $? -ne 0 ] && die "NFS RPMs not installed "
 }
 
-function eos_nfs_init {
+function cortx_nfs_init {
 	# Check if NFS is already initialized
 	[[ -e $NFS_INITIALIZED && -z "$force" ]] &&
 		[ "$(cat $NFS_INITIALIZED)" = "success" ] && die "NFS already initialzed"
 
 	# Cleanup before initialization
-	eos_nfs_cleanup
+	cortx_nfs_cleanup
 
 	# Initialize clovis
 	clovis_init
@@ -230,7 +228,7 @@ function eos_nfs_init {
 	echo -e "\nNFS setup is complete"
 }
 
-function eos_nfs_cleanup {
+function cortx_nfs_cleanup {
 	# Stop nfs-ganesha service if running
 	systemctl status nfs-ganesha > /dev/null && systemctl stop nfs-ganesha
 
@@ -296,7 +294,7 @@ ip_add=$(get_ip)
 [ -z $ip_add ] && die "Could not determine IP address. Please ensure lnet is configured !!!"
 
 case $cmd in
-	init    ) check_prerequisites; eos_nfs_init;;
-	cleanup ) check_prerequisites; eos_nfs_cleanup;;
+	init    ) check_prerequisites; cortx_nfs_init;;
+	cleanup ) check_prerequisites; cortx_nfs_cleanup;;
 	*       ) usage;;
 esac

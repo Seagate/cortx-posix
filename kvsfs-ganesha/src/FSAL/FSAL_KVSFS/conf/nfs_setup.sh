@@ -209,7 +209,7 @@ function check_prerequisites {
 
 		# Check cortx-motr rpms
 		rpm -q cortx-motr > /dev/null 2>&1
-		[[ $? -ne 0 ]] && die "cortx-motr RPMs not installed"
+		[ $? -ne 0 ] && die "cortx-motr RPMs not installed"
 
 		# Check cortx-motr kernel status
 		tmp_var=$(systemctl is-active motr-kernel)
@@ -227,9 +227,9 @@ function check_prerequisites {
 			it using \"setenforce Permissive\""
 	fi
 
-	# Check nfs-ganesha
-	tmp_var=$(rpm --version nfs-ganesha)
-	[ -z "$tmp_var" ] && die "NFS RPMs not installed "
+	# Check nfs-ganesha rpms
+	rpm -q nfs-ganesha > /dev/null 2>&1
+	[ $? -ne 0 ] && die "NFS RPMs not installed "
 }
 
 function cortx_nfs_init {
