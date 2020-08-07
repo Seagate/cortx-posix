@@ -102,7 +102,7 @@ void fs_ns_scan_cb(struct namespace *ns, size_t ns_size)
 	log_info("%d trying to load FS: " STR256_F,
 		 __LINE__, STR256_P(fs_name));
 
-	fs_node = malloc(sizeof(struct efs_fs_node));
+	fs_node = calloc(1, sizeof(struct efs_fs_node));
 	if (fs_node == NULL) {
 	    log_err("%d failed to load FS: " STR256_F
 		    " , could not allocate memory for efs_fs_node!",
@@ -110,7 +110,7 @@ void fs_ns_scan_cb(struct namespace *ns, size_t ns_size)
 	    goto out_failed;
 	}
 
-	fs_node->efs_fs.ns = malloc(ns_size);
+	fs_node->efs_fs.ns = calloc(1, ns_size);
 	if (fs_node->efs_fs.ns == NULL) {
 	    log_err("%d failed to load FS: " STR256_F
 		    " , could not allocate memory for ns object!",
@@ -120,7 +120,7 @@ void fs_ns_scan_cb(struct namespace *ns, size_t ns_size)
 
 	memcpy(fs_node->efs_fs.ns, ns, ns_size);
 
-	fs_node->efs_fs.kvtree = malloc(sizeof(struct kvtree));
+	fs_node->efs_fs.kvtree = calloc(1, sizeof(struct kvtree));
 	if (!fs_node->efs_fs.kvtree) {
 	    log_err("%d failed to load FS: " STR256_F
 		    " , could not allocate memory for kvtree object!",
