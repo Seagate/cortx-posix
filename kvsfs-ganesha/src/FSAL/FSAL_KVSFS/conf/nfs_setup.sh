@@ -200,23 +200,25 @@ EOM
 
 function check_prerequisites {
 	# Check prerequisites only once
-	[ -n "PRE_REQ" ] && return || PRE_REQ=1
+	[ -n "$PRE_REQ" ] && return || PRE_REQ=1
 
 	# Prerequisites specifc to Dev environment
-	if [ -z "PROVI_SETUP" ]; then
-		lctl list_nids > /dev/null 2>&1 || die "Mero not active"
-		# Check mero
-		tmp_var=$(rpm --version mero)
-		[ -z "$tmp_var" ] && die "Mero RPMs not installed"
+	if [ -z "$PROVI_SETUP" ]; then
+		# Check lnet status
+		lctl list_nids > /dev/null 2>&1 || die "lnet not active"
 
-		# Check mero status
-		tmp_var=$(systemctl is-active mero-kernel)
-		[[ "$tmp_var" -ne "active" ]] && die "Mero-kernel is inactive"
+		# Check cortx-motr rpms
+		rpm -q cortx-motr > /dev/null 2>&1
+		[[ $? -ne 0 ]] && die "cortx-motr RPMs not installed"
 
-		# Check mero services
+		# Check cortx-motr kernel status
+		tmp_var=$(systemctl is-active motr-kernel)
+		[[ "$tmp_var" != "active" ]] && die "cortx-motr kernel is inactive"
+
+		# Check cortx-motr services
 		tmp_var=$(pgrep m0)
-		[ -z "$tmp_var" ] && die "Mero services not activate"
-	fi
+		[ -z "$tmp_var" ] && die "cortx-motr services not activate"
+	fi	
 
 	# Check SElinux status
 	tmp_var="$(getenforce)"
@@ -230,11 +232,11 @@ function check_prerequisites {
 	[ -z "$tmp_var" ] && die "NFS RPMs not installed "
 }
 
-function eos_nfs_init {
+function cortx_nfs_init {
 	[ -n "$PROVI_SETUP" ] && get_ep
 
 	# Cleanup before initialization
-	eos_nfs_cleanup
+	cortx_nfs_cleanup
 
 	# Initialize clovis
 	clovis_init
@@ -242,7 +244,7 @@ function eos_nfs_init {
 	echo -e "\nNFS Initialization is complete"
 }
 
-function eos_nfs_config {
+function cortx_nfs_config {
 	[ -n "$PROVI_SETUP" ] && get_ep
 
 	# Check if NFS is already initialized
@@ -271,7 +273,7 @@ function eos_nfs_config {
 	echo -e "\nNFS setup is complete"
 }
 
-function eos_nfs_cleanup {
+function cortx_nfs_cleanup {
 	[ -n "$PROVI_SETUP" ] && get_ep
 
 	# Check prerequisites
@@ -352,9 +354,9 @@ get_ip
 	configured !!!"
 
 case $cmd in
-	init    ) eos_nfs_init;;
-	config	) eos_nfs_config;;
-	setup	) eos_nfs_init; eos_nfs_config;;
-	cleanup ) eos_nfs_cleanup;;
+	init    ) cortx_nfs_init;;
+	config	) cortx_nfs_config;;
+	setup	) cortx_nfs_init; cortx_nfs_config;;
+	cleanup ) cortx_nfs_cleanup;;
 	*       ) usage;;
 esac
