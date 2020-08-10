@@ -30,13 +30,14 @@
  */
 
 #include <stdint.h>
+#include <common/log.h>
 #include <config_parsing.h>
 #include <fsal_types.h>
 #include <FSAL/fsal_config.h>
 #include <FSAL/fsal_commonlib.h>
 #include "fsal_internal.h"
 #include "kvsfs_methods.h"
-#include "efs.h"
+#include <efs.h>
 
 static struct config_item ds_array_params[] = {
 	CONF_MAND_IP_ADDR("DS_Addr", "127.0.0.1",
@@ -49,7 +50,7 @@ static struct config_item ds_array_params[] = {
 static struct config_item pnfs_params[] = {
 	CONF_MAND_UI32("Stripe_Unit", 8192, 1024*1024, 1024,
 		       kvsfs_exp_pnfs_parameter, stripe_unit),
-	CONF_ITEM_BOOL("pnfs_enabled", false,
+	CONF_ITEM_BOOL("pnfs_enabled", true,
 		       kvsfs_exp_pnfs_parameter, pnfs_enabled),
 
 	CONF_MAND_UI32("Nb_Dataserver", 1, 4, 1,
@@ -125,6 +126,7 @@ fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
 	fsal_status_t status = { ERR_FSAL_NO_ERROR, 0 };
 	int retval = 0;
 	fsal_errors_t fsal_error = ERR_FSAL_INVAL;
+	struct efs_fs *efs_fs = NULL;
 
 	uint16_t fsid =	op_ctx->ctx_export->export_id;
 	LogEvent(COMPONENT_FSAL, "export id %d", (int)fsid);
@@ -151,9 +153,16 @@ fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
 		LogEvent(COMPONENT_FSAL, "EFS API is running");
 	}
 
+	retval = efs_fs_open(op_ctx->ctx_export->fullpath, &efs_fs);
+	if (retval != 0) {
+		LogMajor(COMPONENT_FSAL, "FS open failed :%s",
+			 op_ctx->ctx_export->fullpath);
+		goto err_fs_open;
+	}
+
 	retval = fsal_attach_export(fsal_hdl, &myself->export.exports);
 	if (retval != 0)
-		goto err_locked;	/* seriously bad */
+		goto err_attach;	/* seriously bad */
 	myself->export.fsal = fsal_hdl;
 
 	op_ctx->fsal_export = &myself->export;
@@ -167,20 +176,10 @@ fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
 					    fso_pnfs_mds_supported) &&
 					    myself->pnfs_param.pnfs_enabled;
 
-	struct efs_fs *efs_fs = NULL;
-
-	retval = efs_fs_open(op_ctx->ctx_export->fullpath, &efs_fs);
-	if (retval != 0) {
-		LogMajor(COMPONENT_FSAL, "FS open failed :%s",
-			 op_ctx->ctx_export->fullpath);
-		goto errout;
-	}
-
 	myself->efs_fs = efs_fs;
 	myself->fs_id = fsid;
 
 	/* TODO:PORTING: pNFS support */
-#if 0
 	if (myself->pnfs_ds_enabled) {
 		struct fsal_pnfs_ds *pds = NULL;
 
@@ -190,8 +189,9 @@ fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
 			goto err_locked;
 
 		/* special case: server_id matches export_id */
-		pds->id_servers = op_ctx->export->export_id;
-		pds->mds_export = op_ctx->export;
+		pds->id_servers = op_ctx->ctx_export->export_id;
+		pds->mds_export = op_ctx->ctx_export;
+      pds->mds_fsal_export = op_ctx->fsal_export;
 
 		if (!pnfs_ds_insert(pds)) {
 			LogCrit(COMPONENT_CONFIG,
@@ -205,22 +205,29 @@ fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
 
 		LogInfo(COMPONENT_FSAL,
 			"kvsfs_fsal_create: pnfs DS was enabled for [%s]",
-			op_ctx->export->fullpath);
+			op_ctx->ctx_export->fullpath);
 	}
 
 	if (myself->pnfs_mds_enabled) {
 		LogInfo(COMPONENT_FSAL,
 			"kvsfs_fsal_create: pnfs MDS was enabled for [%s]",
-			op_ctx->export->fullpath);
+			op_ctx->ctx_export->fullpath);
 		export_ops_pnfs(&myself->export.exp_ops);
+      fsal_ops_pnfs(&myself->export.fsal->m_ops);
 	}
-#endif
+
 
 	return fsalstat(ERR_FSAL_NO_ERROR, 0);
 
-err_locked:
+err_attach:
 	if (myself->export.fsal != NULL)
 		fsal_detach_export(fsal_hdl, &myself->export.exports);
+	efs_fs_close(efs_fs);
+
+err_fs_open:
+	if (retval != -ENOENT)
+		efs_fini();
+
 errout:
 	/* elvis has left the building */
 	gsh_free(myself);

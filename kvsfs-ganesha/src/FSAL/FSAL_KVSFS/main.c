@@ -106,6 +106,10 @@ static struct config_item kvsfs_params[] = {
 		       kvsfs_fsal_module, fs_info.umask),
 	CONF_ITEM_BOOL("auth_xdev_export", false,
 		       kvsfs_fsal_module, fs_info.auth_exportpath_xdev),
+	CONF_ITEM_BOOL("pnfs_ds", true,
+			kvsfs_fsal_module, fs_info.pnfs_ds),
+	CONF_ITEM_BOOL("pnfs_mds", true,
+			kvsfs_fsal_module, fs_info.pnfs_mds),        
 	CONFIG_EOL
 };
 
@@ -170,7 +174,7 @@ MODULE_INIT void kvsfs_load(void)
 	retval = register_fsal(myself, module_name,
 			       FSAL_MAJOR_VERSION,
 			       FSAL_MINOR_VERSION,
-			       FSAL_ID_NO_PNFS);
+			       FSAL_ID_EXPERIMENTAL);
 	if (retval != 0) {
 		LogCrit(COMPONENT_FSAL,
 			"KVSFS FSAL module failed to register iself.");
@@ -184,8 +188,8 @@ MODULE_INIT void kvsfs_load(void)
 	myself->m_ops.init_config = kvsfs_init_config;
 
 	/* Set up pNFS opterations */
-	/* myself->m_ops.fsal_pnfs_ds_ops = kvsfs_pnfs_ds_ops_init */;
-	/* myself->m_ops.getdeviceinfo = kvsfs_getdeviceinfo */;
+	 myself->m_ops.fsal_pnfs_ds_ops = kvsfs_pnfs_ds_ops_init;
+	 myself->m_ops.getdeviceinfo = kvsfs_getdeviceinfo;
 
 	/* Initialize fsal_obj_handle for FSAL */
 	kvsfs_handle_ops_init(&KVSFS.handle_ops);

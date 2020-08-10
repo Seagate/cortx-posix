@@ -73,15 +73,6 @@
 /******************************************************************************/
 /* Internal data types */
 
-/** KVSFS-related data for a file state object. */
-struct kvsfs_file_state {
-	/** The open and share mode etc. */
-	fsal_openflags_t openflags;
-
-	/** The EFS file descriptor. */
-	efs_file_open_t efs_fd;
-};
-
 /** KVSFS version of a file state object.
  * @see kvsfs_alloc_state and kvsfs_free_state.
  */
@@ -91,28 +82,6 @@ struct kvsfs_state_fd {
 	/* data */
 	struct kvsfs_file_state kvsfs_fd;
 };
-
-struct kvsfs_fsal_obj_handle {
-	/* Base Handle */
-	struct fsal_obj_handle obj_handle;
-
-	/* EFS Handle */
-	struct efs_fh *handle;
-
-	/* TODO:EOS-3288
-	 * This field will removed and replaced
-	 * by a call to struct efs_fh
-	 */
-	/* EFS Context */
-	struct efs_fs *efs_fs;
-
-	/* Global state is disabled because we don't support NFv3. */
-	/* struct kvsfs_file_state global_fd; */
-
-	/* Share reservations */
-	struct fsal_share share;
-};
-
 static inline efs_ino_t *
 kvsfs_fh_to_ino(struct efs_fh *kvsfs_fh)
 {
@@ -2705,7 +2674,7 @@ static fsal_status_t kvsfs_close2(struct fsal_obj_handle *obj_hdl,
 		break;
 	case STATE_TYPE_LAYOUT:
 		/* Unsupported (yet) state types. */
-		assert(0); // Non-implemented
+		//assert(0); // Non-implemented
 		break;
 
 	case STATE_TYPE_NLM_LOCK:
@@ -3044,7 +3013,7 @@ void kvsfs_handle_ops_init(struct fsal_obj_ops *ops)
 	 */
 
 	ops->lease_op2 = kvsfs_lease_op2;
-
+   handle_ops_pnfs(ops);
 	/* TODO:PORTING: Disable xattrs support */
 #if 0
 	/* xattr related functions */

@@ -24,7 +24,7 @@
  */
 
 /* TODO:PORTING: pNFS support is disabled */
-#if 0
+
 #include "config.h"
 
 #include <assert.h>
@@ -39,7 +39,7 @@
 #include "fsal.h"
 #include "fsal_internal.h"
 #include "fsal_convert.h"
-#include "fsal_private.h"
+//#include "fsal_private.h"
 #include "FSAL/fsal_config.h"
 #include "FSAL/fsal_commonlib.h"
 #include "kvsfs_methods.h"
@@ -170,6 +170,7 @@ nfsstat4 kvsfs_getdeviceinfo(struct fsal_module *fsal_hdl,
 	export=	container_of(exp_hdl, struct kvsfs_fsal_export, export);
 	pnfs_exp_param = &export->pnfs_param;
 
+	LogDebug(COMPONENT_PNFS,">> ENTER kvsfs_getdeviceinfo\n");
 	printf("---> pnsf_exp_param = %p\n", pnfs_exp_param);	
 
 	/* Sanity check on type */
@@ -216,17 +217,32 @@ nfsstat4 kvsfs_getdeviceinfo(struct fsal_module *fsal_hdl,
 		fsal_multipath_member_t host;
 
 		ds = &pnfs_exp_param->ds_array[i];
-		LogDebug(COMPONENT_PNFS,
+		
+		// Ganesha parsing code in config_parsing does not store the AF family value.
+		// Check if this is a IPV4 mapped IPV6 address, if not, this is a V4 address.
+		unsigned long dsaddr = INADDR_NONE;
+		struct sockaddr_in6 *addr = (struct sockaddr_in6 *)(&ds->ipaddr);
+		
+		if(IN6_IS_ADDR_V4MAPPED(&addr->sin6_addr))
+		{
+			dsaddr = ((struct in_addr *)(addr->sin6_addr.s6_addr+12))->s_addr;
+			LogDebug(COMPONENT_PNFS,
 			"advertises DS addr=%u.%u.%u.%u port=%u",
-			(ntohl(ds->ipaddr.sin_addr.s_addr) & 0xFF000000) >> 24,
-			(ntohl(ds->ipaddr.sin_addr.s_addr) & 0x00FF0000) >> 16,
-			(ntohl(ds->ipaddr.sin_addr.s_addr) & 0x0000FF00) >> 8,
-			(unsigned int)ntohl(ds->ipaddr.sin_addr.s_addr) & 0x000000FF,
-			(unsigned short)ntohs(ds->ipport));
-
+			(ntohl(dsaddr) & 0xFF000000) >> 24,
+			(ntohl(dsaddr) & 0x00FF0000) >> 16,
+			(ntohl(dsaddr) & 0x0000FF00) >> 8,
+			(unsigned int)ntohl(dsaddr) & 0x000000FF,
+			(unsigned short)(ds->ipport));
+		}
+		else
+		{
+			// This should be a V4 address
+			LogDebug(COMPONENT_PNFS, "\n This is a v4 address\n");
+			dsaddr = ((struct sockaddr_in *)(&ds->ipaddr))->sin_addr.s_addr;
+		}
 		host.proto = IPPROTO_TCP;
-		host.addr = ntohl(ds->ipaddr.sin_addr.s_addr);
-		host.port = ntohs(ds->ipport);
+		host.addr = ntohl(dsaddr);
+		host.port = ds->ipport;
 		nfs_status = FSAL_encode_v4_multipath(
 				da_addr_body,
 				1,
@@ -275,7 +291,11 @@ export_ops_pnfs(struct export_ops *ops)
 	ops->fs_maximum_segments = kvsfs_fs_maximum_segments;
 	ops->fs_loc_body_size = kvsfs_fs_loc_body_size;
 }
-
+void fsal_ops_pnfs(struct fsal_ops *ops)
+{
+	ops->getdeviceinfo = kvsfs_getdeviceinfo;
+	ops->fs_da_addr_size = kvsfs_fs_da_addr_size;
+}
 /**
  * @brief Grant a layout segment.
  *
@@ -308,7 +328,7 @@ kvsfs_layoutget(struct fsal_obj_handle *obj_hdl,
 	struct kvsfs_file_handle kvsfs_ds_handle;
 	uint32_t stripe_unit = 0;
 	nfl_util4 util = 0;
-	struct pnfs_deviceid deviceid = DEVICE_ID_INIT_ZERO(FSAL_ID_NO_PNFS);
+	struct pnfs_deviceid deviceid = DEVICE_ID_INIT_ZERO(FSAL_ID_EXPERIMENTAL);
 	nfsstat4 nfs_status = 0;
 	struct gsh_buffdesc ds_desc;
 
@@ -348,8 +368,8 @@ kvsfs_layoutget(struct fsal_obj_handle *obj_hdl,
 	res->segment.length = NFS4_UINT64_MAX;
 
 	stripe_unit = pnfs_exp_param->stripe_unit;
-	/* util |= stripe_unit | NFL4_UFLG_COMMIT_THRU_MDS; */
-	util |= stripe_unit & ~NFL4_UFLG_MASK;
+	 util |= stripe_unit | NFL4_UFLG_COMMIT_THRU_MDS;
+	//util |= stripe_unit & ~NFL4_UFLG_MASK;
 
 	if (util != stripe_unit)
 		LogEvent(COMPONENT_PNFS,
@@ -374,7 +394,7 @@ kvsfs_layoutget(struct fsal_obj_handle *obj_hdl,
 			util,
 			0,
 			0,
-			&req_ctx->export->export_id,
+			&req_ctx->ctx_export->export_id,
 			1,
 			&ds_desc);
 	if (nfs_status) {
@@ -486,4 +506,4 @@ handle_ops_pnfs(struct fsal_obj_ops *ops)
 	ops->layoutreturn = kvsfs_layoutreturn;
 	ops->layoutcommit = kvsfs_layoutcommit;
 }
-#endif
+
