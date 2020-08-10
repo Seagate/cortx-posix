@@ -153,16 +153,10 @@ fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
 		LogEvent(COMPONENT_FSAL, "EFS API is running");
 	}
 
-	retval = efs_fs_open(op_ctx->ctx_export->fullpath, &efs_fs);
-	if (retval != 0) {
-		LogMajor(COMPONENT_FSAL, "FS open failed :%s",
-			 op_ctx->ctx_export->fullpath);
-		goto err_fs_open;
-	}
 
 	retval = fsal_attach_export(fsal_hdl, &myself->export.exports);
 	if (retval != 0)
-		goto err_attach;	/* seriously bad */
+		goto err_locked;	/* seriously bad */
 	myself->export.fsal = fsal_hdl;
 
 	op_ctx->fsal_export = &myself->export;
@@ -176,6 +170,16 @@ fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
 					    fso_pnfs_mds_supported) &&
 					    myself->pnfs_param.pnfs_enabled;
 
+	struct efs_fs *efs_fs = NULL;
+
+
+	retval = efs_fs_open(op_ctx->ctx_export->fullpath, &efs_fs);
+	if (retval != 0) {
+		LogMajor(COMPONENT_FSAL, "FS open failed :%s",
+			 op_ctx->ctx_export->fullpath);
+		goto err_fs_open;
+	}
+	
 	myself->efs_fs = efs_fs;
 	myself->fs_id = fsid;
 
@@ -191,7 +195,7 @@ fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
 		/* special case: server_id matches export_id */
 		pds->id_servers = op_ctx->ctx_export->export_id;
 		pds->mds_export = op_ctx->ctx_export;
-      pds->mds_fsal_export = op_ctx->fsal_export;
+      		pds->mds_fsal_export = op_ctx->fsal_export;
 
 		if (!pnfs_ds_insert(pds)) {
 			LogCrit(COMPONENT_CONFIG,
