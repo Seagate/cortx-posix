@@ -176,7 +176,7 @@ fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
 	if (retval != 0) {
 		LogMajor(COMPONENT_FSAL, "FS open failed :%s",
 			 op_ctx->ctx_export->fullpath);
-		goto err_fs_open;
+		goto errout;
 	}
 	
 	myself->efs_fs = efs_fs;
