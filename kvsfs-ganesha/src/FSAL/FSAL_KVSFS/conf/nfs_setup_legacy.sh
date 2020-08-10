@@ -53,19 +53,22 @@ function get_ip {
         echo "$v2"
 }
 
-function clovis_init {
-	log "Initializing Clovis..."
+function motr_lib_init {
+	log "Initializing motr_lib..."
 
-	# Create Clovis global idx
-	run m0clovis -l $ip_add$LOC_EXPORT_ID -h $ip_add$HA_EXPORT_ID -p $PROFILE -f $PROC_FID index create "$KVS_GLOBAL_FID"
-	# Create Clovis fs_meta idx
-	run m0clovis -l $ip_add$LOC_EXPORT_ID -h $ip_add$HA_EXPORT_ID -p $PROFILE -f $PROC_FID index create "$KVS_NS_META_FID"
+	# Create motr_lib global idx
+	run m0clovis -l $ip_add$LOC_EXPORT_ID -h $ip_add$HA_EXPORT_ID -p $PROFILE\
+		-f $PROC_FID index create "$KVS_GLOBAL_FID"
+	[ $? -ne 0 ] && die "Failed to Initialise motr_lib Global index"
 
-	[ $? -ne 0 ] && die "Failed to Initialise Clovis Global index"
+	# Create motr_lib fs_meta idx
+	run m0clovis -l $ip_add$LOC_EXPORT_ID -h $ip_add$HA_EXPORT_ID -p $PROFILE\
+		-f $PROC_FID index create "$KVS_NS_META_FID"
+	[ $? -ne 0 ] && die "Failed to Initialise motr_lib fs_meta index"
 }
 
-function efs_init {
-	log "Initializing EFS..."
+function cortx_fs_init {
+	log "Initializing Cortx-FS..."
 
 	# Backup cortxfs.conf file
 	[ ! -e $CORTXFS_CONF_BAK ] && run cp $CORTXFS_CONF $CORTXFS_CONF_BAK
@@ -175,22 +178,24 @@ EOM
 
 function check_prerequisites {
 	lctl list_nids > /dev/null 2>&1 || die "lnet not active"
-	# Check 
+
+	# Check cortx-motr rpms
 	rpm -q cortx-motr > /dev/null 2>&1
 	[[ $? -ne 0 ]] && die "cortx-motr RPMs not installed"
 
-	# Check  status
+	# Check motr-kernel status
 	tmp_var=$(systemctl is-active motr-kernel)
 	[[ "$tmp_var" -ne "active" ]] && die "motr-kernel is inactive"
 
-	# Check  services
+	# Check motr services
 	tmp_var=$(pgrep m0)
 	[ -z "$tmp_var" ] && die "cortx-motr services not activate"
 
-	#check SElinux status
+	# Check SElinux status
 	tmp_var="$(getenforce)"
 	if [ "$tmp_var" == "Enforcing" ]; then
-		die "EOS NFS cannot work with SELinux enabled. Please disable it using \"setenforce Permissive\""
+		die "Cortx NFS cannot work with SELinux enabled. Please disable it \
+			using \"setenforce Permissive\""
 	fi
 
 	# Check nfs-ganesha rpms
@@ -206,25 +211,25 @@ function cortx_nfs_init {
 	# Cleanup before initialization
 	cortx_nfs_cleanup
 
-	# Initialize clovis
-	clovis_init
+	# Initialize motr_lib
+	motr_lib_init
 
-	efs_init
+	# Prepare cortx-fs.conf
+	cortx_fs_init
 
 	# Prepare ganesha.conf
 	prepare_ganesha_conf
 
 	# Start NFS Ganesha Server
 	systemctl restart nfs-ganesha || die "Failed to start NFS-Ganesha"
-	#[ $? -ne 0 ] && die "Failed to start NFS-Ganesha"
 
 	# Create default FS
 	if [ -n "$DEFAULT_FS" ]; then
-	create_fs
-	systemctl restart nfs-ganesha || die "Failed to start NFS-Ganesha"
+		create_fs
+		systemctl restart nfs-ganesha || die "Failed to start NFS-Ganesha"
 	fi
 
-	echo success > cat $NFS_INITIALIZED
+	echo success > $NFS_INITIALIZED
 	echo -e "\nNFS setup is complete"
 }
 
@@ -233,8 +238,13 @@ function cortx_nfs_cleanup {
 	systemctl status nfs-ganesha > /dev/null && systemctl stop nfs-ganesha
 
 	# Drop index if previosly created
-	run m0clovis -l $ip_add$LOC_EXPORT_ID -h $ip_add$HA_EXPORT_ID -p $PROFILE -f $PROC_FID index drop "$KVS_GLOBAL_FID"
-	run m0clovis -l $ip_add$LOC_EXPORT_ID -h $ip_add$HA_EXPORT_ID -p $PROFILE -f $PROC_FID index drop "$KVS_NS_META_FID"
+	run m0clovis -l $ip_add$LOC_EXPORT_ID -h $ip_add$HA_EXPORT_ID -p $PROFILE\
+		-f $PROC_FID index drop "$KVS_GLOBAL_FID"
+	run m0clovis -l $ip_add$LOC_EXPORT_ID -h $ip_add$HA_EXPORT_ID -p $PROFILE\
+		-f $PROC_FID index drop "$KVS_NS_META_FID"
+
+	# Delete export entries
+	prepare_ganesha_conf
 
 	rm -f $NFS_INITIALIZED
 	echo "NFS cleanup is complete"
@@ -282,7 +292,8 @@ while [ ! -z $1 ]; do
 done
 
 if [ ! -e $EFS_FS_CLI ]; then
-  die "efscli is not installed in the location $EFS_FS_CLI. Please install the corresponding RPM."
+	die "efscli is not installed in the location $EFS_FS_CLI. Please install \
+		the corresponding RPM."
 fi
 
 # Get path and Pseudo path

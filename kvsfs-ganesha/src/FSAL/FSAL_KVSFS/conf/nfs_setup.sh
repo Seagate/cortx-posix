@@ -76,21 +76,22 @@ function get_ep {
 	PROC_FID=$(echo $m0client_info | jq '.fid' | sed 's/[,"]//g')
 }
 
-function clovis_init {
-	log "Initializing Clovis..."
+function motr_lib_init {
+	log "Initializing motr_lib..."
 
-	# Create Clovis global idx
+	# Create motr_lib global idx
 	run m0clovis -l $LOC_EP -h $HA_EP -p $PROFILE -f $PROC_FID index create\
 		"$KVS_GLOBAL_FID"
-	# Create Clovis fs_meta idx
+	[ $? -ne 0 ] && die "Failed to Initialise motr_lib Global index"
+
+	# Create motr_lib fs_meta idx
 	run m0clovis -l $LOC_EP -h $HA_EP -p $PROFILE -f $PROC_FID index create\
 		"$KVS_NS_META_FID"
-
-	[ $? -ne 0 ] && die "Failed to Initialise Clovis Global index"
+	[ $? -ne 0 ] && die "Failed to Initialise motr_lib fs_meta index"
 }
 
-function prepare_fs_conf {
-	log "Initializing EFS..."
+function prepare_cortx_fs_conf {
+	log "Initializing Cortx-FS..."
 
 	# Backup cortxfs.conf file
 	[ ! -e $CORTXFS_CONF_BAK ] && run cp $CORTXFS_CONF $CORTXFS_CONF_BAK
@@ -223,8 +224,8 @@ function check_prerequisites {
 	# Check SElinux status
 	tmp_var="$(getenforce)"
 	if [ "$tmp_var" == "Enforcing" ]; then
-		die "EOS NFS cannot work with SELinux enabled. Please disable \
-			it using \"setenforce Permissive\""
+		die "Cortx NFS cannot work with SELinux enabled. Please disable it \
+			using \"setenforce Permissive\""
 	fi
 
 	# Check nfs-ganesha rpms
@@ -238,8 +239,8 @@ function cortx_nfs_init {
 	# Cleanup before initialization
 	cortx_nfs_cleanup
 
-	# Initialize clovis
-	clovis_init
+	# Initialize motr_lib
+	motr_lib_init
 
 	echo -e "\nNFS Initialization is complete"
 }
@@ -255,7 +256,7 @@ function cortx_nfs_config {
 	check_prerequisites
 
 	# Prepare cortxfs.conf
-	prepare_fs_conf
+	prepare_cortx_fs_conf
 
 	# Prepare ganesha.conf
 	prepare_ganesha_conf
@@ -269,7 +270,7 @@ function cortx_nfs_config {
 		systemctl restart nfs-ganesha || die "Failed to start NFS-Ganesha"
 	fi
 
-	echo success > cat $NFS_INITIALIZED
+	echo success > $NFS_INITIALIZED
 	echo -e "\nNFS setup is complete"
 }
 
@@ -288,6 +289,9 @@ function cortx_nfs_cleanup {
 	run m0clovis -l $LOC_EP -h $HA_EP -p $PROFILE -f $PROC_FID index drop\
 		"$KVS_NS_META_FID"
 
+	# Restore ganesha.conf, remove export entries.
+	prepare_ganesha_conf
+
 	rm -f $NFS_INITIALIZED
 	echo "NFS cleanup is complete"
 }
@@ -296,7 +300,7 @@ function usage {
 	cat <<EOF
 usage: $0 {init|config|setup|cleanup} [-h] [-f] [-p] [-q] [-d <FS name>]
 Command:
-  init      Create clovis indexes
+  init      Create motr_lib indexes
   config    Prepare conf files and start NFS-Ganesha
   setup     Complete setup: init and config command
   cleanup   Stop NFS-Ganesha and drop indexes
@@ -340,7 +344,7 @@ while [ ! -z $1 ]; do
 done
 
 if [ ! -e $EFS_FS_CLI ]; then
-	die "efscli is not installed in the location $EFS_FS_CLI. Please install\
+	die "efscli is not installed in the location $EFS_FS_CLI. Please install \
 		the corresponding RPM."
 fi
 
@@ -350,7 +354,7 @@ fi
 # Getip address
 get_ip
 #check for lent
-[ -z $ip_add ] && die "Could not determine IP address. Please ensure lnet is\
+[ -z $ip_add ] && die "Could not determine IP address. Please ensure lnet is \
 	configured !!!"
 
 case $cmd in
