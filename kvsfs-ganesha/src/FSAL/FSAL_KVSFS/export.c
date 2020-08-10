@@ -126,7 +126,6 @@ fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
 	fsal_status_t status = { ERR_FSAL_NO_ERROR, 0 };
 	int retval = 0;
 	fsal_errors_t fsal_error = ERR_FSAL_INVAL;
-	struct efs_fs *efs_fs = NULL;
 
 	uint16_t fsid =	op_ctx->ctx_export->export_id;
 	LogEvent(COMPONENT_FSAL, "export id %d", (int)fsid);
@@ -223,14 +222,9 @@ fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
 
 	return fsalstat(ERR_FSAL_NO_ERROR, 0);
 
-err_attach:
+err_locked:
 	if (myself->export.fsal != NULL)
 		fsal_detach_export(fsal_hdl, &myself->export.exports);
-	efs_fs_close(efs_fs);
-
-err_fs_open:
-	if (retval != -ENOENT)
-		efs_fini();
 
 errout:
 	/* elvis has left the building */
