@@ -162,7 +162,7 @@ static fsal_status_t kvsfs_init_config(struct fsal_module *fsal_hdl,
 	}
 
 out:
-	LogInfo(COMPONENT_FSAL, "Initialized KVSFS config (%d).");
+	LogInfo(COMPONENT_FSAL, "Initialized KVSFS config (%d).", rc);
 	return fsalstat(posix2fsal_error(-rc), -rc);
 }
 
@@ -181,7 +181,7 @@ static void kvsfs_load(void);
  *  The default way of loading an FSAL is when NFS Ganesha
  *  calls dlopen() and the corresponding "constructor"
  *  (a function defined with __attribute__((constructor))) is getting
- *  called within the scope of this dlclose() call.
+ *  called within the scope of this dlopen() call.
  *  The default way of unloading is when NFS Ganesha calls dlclose()
  *  and the corresponding function (defined with "destructor" attribute)
  *  is getting called within this call.
@@ -196,14 +196,38 @@ static void kvsfs_load(void);
  *			and takes the global lock g_mtx.
  *			We got a deadlock.
  *
- * dlopen/close also create problems with enabled/disabled jemalloc
- * because it either involves different allocators (glibc and jemalloc)
- * or the same troubles with this global lock for TLS.
- * Either way, dlopen/dlclose should not be used for initialization/
- * de-initialization of our library.
+ *  dlopen/close also create problems with enabled/disabled jemalloc
+ *  because it either involves different allocators (glibc and jemalloc)
+ *  or the same troubles with this global lock for TLS.
+ *  Either way, dlopen/dlclose should not be used for initialization/
+ *  de-initialization of our library.
+ *
+ *
+ * Solution for init/fini problem
+ * ------------------------------
+ *
+ *  FSAL Initialization. When an FSAL was not able to initialize
+ *  during dlopen() call, NFS Ganesha uses "fsal_init" symbol as
+ *  a backup mechanism to initialize the FSAL: it looks it up and then
+ *  calls it.
+ *
+ *  FSAL Finalization. NFS Ganesha provides the default implementation
+ *  of the FSAL.unload callback. The function calls dlclose() which
+ *  causes the "dtor" to be called. Since we don't want to use a dtor,
+ *  we simply overwrite the default callback with our own function.
+ *  Our function is called outside of dlclose(), so that we have no
+ *  problems.
+ *
+ *  TODO: This overwriting of FSAL.unload leads to the situation where
+ *  dlclose() is not called (as well as the ref count and the list of FSALs
+ *  are not getting updated). Once we achieve the point where we are able to
+ *  successfully terminate NFS Ganesha (without getting SIGABRT or SIGSEGV),
+ *  we need to investigate if these things needs to be updated. For example,
+ *  we can preserve the original callback pointer, and we can call it when
+ *  our own "fini" call is done its work.
  */
 
-/* This symbol has to be open. NFS Ganesha uses it to load an FSAL
+/* This symbol has to be public (visible). NFS Ganesha uses it to load an FSAL
  * when the load-on-dlopen way does not work.
  * We do not use this dlopen+ctor trick because it plays very bad with
  * 3dparty libraries that use C TLS (for example, jemalloc or libuuid).
@@ -217,7 +241,7 @@ static void kvsfs_load(void);
  * in NFS Ganesha ::load_fsal function and the function ::fsal_init
  * (see fsal_manager.c) that is declared in the global scope,
  * we cannot define our FSAL init function with the right
- * signature (void (*)(void), and instead we have to use
+ * signature (void (*)(void)), and instead we have to use
  * the existing signature. It is safe as long as we don't
  * use the unused arguments.
  */
