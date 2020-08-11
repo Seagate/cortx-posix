@@ -45,6 +45,76 @@ struct env {
 
 #define ENV_FROM_STATE(__state) (*((struct env **) __state))
 
+/* Do finalization of io_op, io_vec and io_buf
+ * If any of the param is NULL then for that this
+ * operation is noop.
+ */
+static void test_io_cleanup(struct dstore_io_op *iop,
+                            struct dstore_io_vec *data,
+                            struct dstore_io_buf *buf)
+{
+	if (iop) {
+		dstore_io_op_fini(iop);
+	}
+
+	if (data) {
+		dstore_io_vec_fini(data);
+	}
+
+	if (buf) {
+		dstore_io_buf_fini(buf);
+	}
+}
+
+/* Try to create a new file and compare the expected results */
+static void test_create_file(struct dstore *dstore, dstore_oid_t *oid,
+                             int expected_rc)
+{
+	int rc;
+	rc = dstore_obj_create(dstore, NULL, oid);
+	ut_assert_int_equal(rc, expected_rc);
+}
+
+/* Try to delete a file and compare the expected results */
+static void test_delete_file(struct dstore *dstore, dstore_oid_t *oid,
+                             int expected_rc)
+{
+	int rc;
+	rc = dstore_obj_delete(dstore, NULL, oid);
+	ut_assert_int_equal(rc, expected_rc);
+}
+
+/* Try to open a file and compare the expected results
+ * If it is expected to successfully open a file then object should be
+ * a valid object
+ */
+static void test_open_file(struct dstore *dstore, dstore_oid_t *oid,
+                           struct dstore_obj **obj, int expected_rc,
+                           bool obj_valid)
+{
+	int rc;
+	rc = dstore_obj_open(dstore, oid, obj);
+	ut_assert_int_equal(rc, expected_rc);
+
+	if (obj_valid) {
+		ut_assert_not_null(*obj);
+	}else {
+		/* We would not have expected a file to be opened
+		 * successfully
+		 */
+		ut_assert_int_not_equal(expected_rc, 0);
+		ut_assert_null(*obj);
+	}
+}
+
+/* Try to close a file and compare the expected results */
+static void test_close_file(struct dstore_obj *obj, int expected_rc)
+{
+	int rc;
+	rc = dstore_obj_close(obj);
+	ut_assert_int_equal(rc, expected_rc);
+}
+
 /*****************************************************************************/
 /* Description: Test create and delete operation.
  * Strategy:
@@ -57,14 +127,10 @@ struct env {
  */
 static void test_creat_del_basic(void **state)
 {
-	int rc;
 	struct env *env = ENV_FROM_STATE(state);
 
-	rc = dstore_obj_create(env->dstore, NULL, &env->oid);
-	ut_assert_int_equal(rc, 0);
-
-	rc = dstore_obj_delete(env->dstore, NULL, &env->oid);
-	ut_assert_int_equal(rc, 0);
+	test_create_file(env->dstore, &env->oid, 0);
+	test_delete_file(env->dstore, &env->oid, 0);
 }
 
 /*****************************************************************************/
@@ -82,17 +148,11 @@ static void test_creat_del_basic(void **state)
  */
 static void test_creat_existing(void **state)
 {
-	int rc;
 	struct env *env = ENV_FROM_STATE(state);
 
-	rc = dstore_obj_create(env->dstore, NULL, &env->oid);
-	ut_assert_int_equal(rc, 0);
-
-	rc = dstore_obj_create(env->dstore, NULL, &env->oid);
-	ut_assert_int_equal(rc, -EEXIST);
-
-	rc = dstore_obj_delete(env->dstore, NULL, &env->oid);
-	ut_assert_int_equal(rc, 0);
+	test_create_file(env->dstore, &env->oid, 0);
+	test_create_file(env->dstore, &env->oid, -EEXIST);
+	test_delete_file(env->dstore, &env->oid, 0);
 }
 
 /*****************************************************************************/
@@ -106,11 +166,9 @@ static void test_creat_existing(void **state)
  */
 static void test_del_non_existing(void **state)
 {
-	int rc;
 	struct env *env = ENV_FROM_STATE(state);
 
-	rc = dstore_obj_delete(env->dstore, NULL, &env->oid);
-	ut_assert_int_equal(rc, -ENOENT);
+	test_delete_file(env->dstore, &env->oid, -ENOENT);
 }
 
 /*****************************************************************************/
@@ -127,22 +185,13 @@ static void test_del_non_existing(void **state)
  */
 static void test_open_close_basic(void **state)
 {
-	int rc;
 	struct dstore_obj *obj = NULL;
 	struct env *env = ENV_FROM_STATE(state);
 
-	rc = dstore_obj_create(env->dstore, NULL, &env->oid);
-	ut_assert_int_equal(rc, 0);
-
-	rc = dstore_obj_open(env->dstore, &env->oid, &obj);
-	ut_assert_int_equal(rc, 0);
-	ut_assert_not_null(obj);
-
-	rc = dstore_obj_close(obj);
-	ut_assert_int_equal(rc, 0);
-
-	rc = dstore_obj_delete(env->dstore, NULL, &env->oid);
-	ut_assert_int_equal(rc, 0);
+	test_create_file(env->dstore, &env->oid, 0);
+	test_open_file(env->dstore, &env->oid, &obj, 0, true);
+	test_close_file(obj, 0);
+	test_delete_file(env->dstore, &env->oid, 0);
 }
 
 /*****************************************************************************/
@@ -160,27 +209,16 @@ static void test_open_close_basic(void **state)
  */
 static void test_open_non_existing(void **state)
 {
-	int rc;
 	struct dstore_obj *obj = NULL;
 	struct env *env = ENV_FROM_STATE(state);
 
-	rc = dstore_obj_create(env->dstore, NULL, &env->oid);
-	ut_assert_int_equal(rc, 0);
+	test_create_file(env->dstore, &env->oid, 0);
+	test_open_file(env->dstore, &env->oid, &obj, 0, true);
+	test_close_file(obj, 0);
+	test_delete_file(env->dstore, &env->oid, 0);
 
-	rc = dstore_obj_open(env->dstore, &env->oid, &obj);
-	ut_assert_int_equal(rc, 0);
-	ut_assert_not_null(obj);
-
-	rc = dstore_obj_close(obj);
-	ut_assert_int_equal(rc, 0);
 	obj = NULL;
-
-	rc = dstore_obj_delete(env->dstore, NULL, &env->oid);
-	ut_assert_int_equal(rc, 0);
-
-	rc = dstore_obj_open(env->dstore, &env->oid, &obj);
-	ut_assert_int_equal(rc, -ENOENT);
-	ut_assert_null(obj);
+	test_open_file(env->dstore, &env->oid, &obj, -ENOENT, false);
 }
 
 /*****************************************************************************/
@@ -202,23 +240,99 @@ static void test_open_non_existing(void **state)
  */
 static void test_delete_open(void **state)
 {
-	int rc;
 	struct dstore_obj *obj = NULL;
 	struct env *env = ENV_FROM_STATE(state);
 
-	rc = dstore_obj_create(env->dstore, NULL, &env->oid);
+	test_create_file(env->dstore, &env->oid, 0);
+	test_open_file(env->dstore, &env->oid, &obj, 0, true);
+	test_delete_file(env->dstore, &env->oid, 0);
+	test_close_file(obj, 0);
+}
+
+/*****************************************************************************/
+/* Description: Test WRITE/READ operation.
+ * This function write a block of data and read it back, does the data integrity
+ * check of read data and expecting it to match with written data
+ * Strategy:
+ *	Create a new file.
+ *	Open the new file.
+ *	Write a block of data into the new file.
+ *	Read a block of data from the file
+ *	Compare the read block and written block of data
+ *	Close the new file.
+ *	Delete the new file.
+ * Expected behavior:
+ *	No errors from the DSAL calls and data integrity
+ *	check for read/write buffer should pass.
+ * Enviroment:
+ *	Empty dstore.
+ */
+static void test_write_read(void **state)
+{
+	int rc;
+	struct dstore_obj *obj = NULL;
+	struct dstore_io_op *wop = NULL;
+	struct dstore_io_op *rop = NULL;
+	struct dstore_io_vec *data = NULL;
+	struct dstore_io_buf *buf = NULL;
+	struct env *env = ENV_FROM_STATE(state);
+	void *write_buf = NULL;
+	void *read_buf = NULL;
+	const size_t buf_size = 4 << 10;
+	const off_t offset = 0;
+
+	write_buf = calloc(1, buf_size);
+	ut_assert_not_null(write_buf);
+
+	read_buf = calloc(1, buf_size);
+	ut_assert_not_null(read_buf);
+
+	dtlib_fill_data_block(write_buf, buf_size);
+
+	test_create_file(env->dstore, &env->oid, 0);
+	test_open_file(env->dstore, &env->oid, &obj, 0, true);
+
+	/* Write operation */
+	rc = dstore_io_buf_init(write_buf, buf_size, offset, &buf);
 	ut_assert_int_equal(rc, 0);
 
-	rc = dstore_obj_open(env->dstore, &env->oid, &obj);
-	ut_assert_int_equal(rc, 0);
-	ut_assert_not_null(obj);
-
-	rc = dstore_obj_delete(env->dstore, NULL, &env->oid);
+	rc = dstore_io_buf2vec(&buf, &data);
 	ut_assert_int_equal(rc, 0);
 
-	rc = dstore_obj_close(obj);
+	rc = dstore_io_op_write(obj, data, NULL, NULL, &wop);
 	ut_assert_int_equal(rc, 0);
-	obj = NULL;
+	ut_assert_not_null(wop);
+
+	rc = dstore_io_op_wait(wop);
+	ut_assert_int_equal(rc, 0);
+
+	test_io_cleanup(wop, data, buf);
+
+	/* Read operation */
+	rc = dstore_io_buf_init(read_buf, buf_size, offset, &buf);
+	ut_assert_int_equal(rc, 0);
+
+	rc = dstore_io_buf2vec(&buf, &data);
+	ut_assert_int_equal(rc, 0);
+
+	rc = dstore_io_op_read(obj, data, NULL, NULL, &rop);
+	ut_assert_int_equal(rc, 0);
+	ut_assert_not_null(rop);
+
+	rc = dstore_io_op_wait(rop);
+	ut_assert_int_equal(rc, 0);
+
+	/* Data integrity check */
+	rc = memcmp(write_buf, read_buf, buf_size);
+	ut_assert_int_equal(rc, 0);
+
+	test_io_cleanup(rop, data, buf);
+
+	free(write_buf);
+	free(read_buf);
+
+	test_close_file(obj, 0);
+	test_delete_file(env->dstore, &env->oid, 0);
 }
 
 /*****************************************************************************/
@@ -254,18 +368,14 @@ static void test_write_basic(void **state)
 
 	dtlib_fill_data_block(raw_buf, buf_size);
 
+	test_create_file(env->dstore, &env->oid, 0);
+	test_open_file(env->dstore, &env->oid, &obj, 0, true);
+
 	rc = dstore_io_buf_init(raw_buf, buf_size, offset, &buf);
 	ut_assert_int_equal(rc, 0);
 
 	rc = dstore_io_buf2vec(&buf, &data);
 	ut_assert_int_equal(rc, 0);
-
-	rc = dstore_obj_create(env->dstore, NULL, &env->oid);
-	ut_assert_int_equal(rc, 0);
-
-	rc = dstore_obj_open(env->dstore, &env->oid, &obj);
-	ut_assert_int_equal(rc, 0);
-	ut_assert_not_null(obj);
 
 	rc = dstore_io_op_write(obj, data, NULL, NULL, &wop);
 	ut_assert_int_equal(rc, 0);
@@ -274,16 +384,66 @@ static void test_write_basic(void **state)
 	rc = dstore_io_op_wait(wop);
 	ut_assert_int_equal(rc, 0);
 
-	dstore_io_op_fini(wop);
-	dstore_io_vec_fini(data);
-	dstore_io_buf_fini(buf);
+	test_io_cleanup(wop, data, buf);
 	free(raw_buf);
 
-	rc = dstore_obj_close(obj);
+	test_close_file(obj, 0);
+	test_delete_file(env->dstore, &env->oid, 0);
+}
+
+/*****************************************************************************/
+/* Description: Test READ operation.
+ * This function simply tests READ-related API functions and sanity
+ * of the returned retcodes. It does not do any functional testing
+ * against the contents of the dstore or the IO buffers.
+ * Strategy:
+ *	Create a new file.
+ *	Open the new file.
+ *	READ a block of data into the new file.
+ *	Close the new file.
+ *	Delete the new file.
+ * Expected behavior:
+ *	ENOENT for the block we are reading
+ *	as it is not written yet.
+ * Enviroment:
+ *	Empty dstore.
+ */
+static void test_read_basic(void **state)
+{
+	int rc;
+	struct dstore_obj *obj = NULL;
+	struct dstore_io_op *rop = NULL;
+	struct dstore_io_vec *data = NULL;
+	struct dstore_io_buf *buf = NULL;
+	struct env *env = ENV_FROM_STATE(state);
+	void *raw_buf = NULL;
+	const size_t buf_size = 4 << 10;
+	const off_t offset = 0;
+
+	raw_buf = calloc(1, buf_size);
+	ut_assert_not_null(raw_buf);
+
+	test_create_file(env->dstore, &env->oid, 0);
+	test_open_file(env->dstore, &env->oid, &obj, 0, true);
+
+	rc = dstore_io_buf_init(raw_buf, buf_size, offset, &buf);
 	ut_assert_int_equal(rc, 0);
 
-	rc = dstore_obj_delete(env->dstore, NULL, &env->oid);
+	rc = dstore_io_buf2vec(&buf, &data);
 	ut_assert_int_equal(rc, 0);
+
+	rc = dstore_io_op_read(obj, data, NULL, NULL, &rop);
+	ut_assert_int_equal(rc, 0);
+	ut_assert_not_null(rop);
+
+	rc = dstore_io_op_wait(rop);
+	ut_assert_int_equal(rc, -ENOENT);
+
+	test_io_cleanup(rop, data, buf);
+	free(raw_buf);
+
+	test_close_file(obj, 0);
+	test_delete_file(env->dstore, &env->oid, 0);
 }
 
 /*****************************************************************************/
@@ -324,8 +484,10 @@ int main(int argc, char *argv[])
 		ut_test_case(test_del_non_existing, NULL, NULL),
 		ut_test_case(test_open_close_basic, NULL, NULL),
 		ut_test_case(test_write_basic, NULL, NULL),
+		ut_test_case(test_read_basic, NULL, NULL),
 		ut_test_case(test_open_non_existing, NULL, NULL),
 		ut_test_case(test_delete_open, NULL, NULL),
+		ut_test_case(test_write_read, NULL, NULL),
 	};
 
 	rc = dtlib_setup(argc, argv);

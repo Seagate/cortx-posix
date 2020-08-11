@@ -305,9 +305,10 @@ bool dstore_io_op_invariant(const struct dstore_io_op *op)
 {
 	/* Condition:
 	 *	Op type should be a supported operation.
-	 * NOTE: only WRITE is supported so far.
+	 * NOTE: only WRITE/READ is supported so far.
 	 */
-	bool op_is_supported = (op->type == DSTORE_IO_OP_WRITE);
+	bool op_is_supported = (op->type == DSTORE_IO_OP_WRITE ||
+				op->type == DSTORE_IO_OP_READ);
 	/* Condition:
 	 *	Data vector should be a valid object whether it has
 	 *	data or not.
