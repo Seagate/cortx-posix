@@ -1,7 +1,7 @@
 #ifndef _FSAL_INTERNAL_H
 #define _FSAL_INTERNAL_H
 
-#include <fsal.h> /* attributes */
+#include "fsal.h" /* attributes */
 #include "kvsfs_methods.h"
 
 /* KVSFS FSAL module private storage
@@ -47,13 +47,8 @@ struct kvsfs_fsal_obj_handle {
 	struct fsal_share share;
 };
 
-
-#include  "fsal.h"
-
 /* linkage to the exports and handle ops initializers
  */
-
-//void kvsfs_export_ops_init(struct export_ops *ops);
 
 struct kvsfs_ds {
 	struct fsal_ds_handle ds; /*< Public DS handle */
@@ -61,6 +56,7 @@ struct kvsfs_ds {
 	struct kvsfs_filesystem *kvsfs_fs; /*< Related kvsfs filesystem */
 	bool connected; /*< True if the handle has been connected */
 };
+
 #if 0
 static inline size_t kvsfs_sizeof_handle(struct kvsfs_file_handle *hdl)
 {
@@ -75,11 +71,11 @@ static inline size_t kvsfs_sizeof_handle(struct kvsfs_file_handle *hdl)
  */
 extern struct fsal_staticfsinfo_t global_fs_info;
 
+#endif
+#endif
+
 /* KVSFS methods for pnfs
  */
-#endif
-#endif
-#endif
 nfsstat4 kvsfs_getdeviceinfo(struct fsal_module *fsal_hdl,
 			      XDR *da_addr_body,
 			      const layouttype4 type,
@@ -90,3 +86,4 @@ void export_ops_pnfs(struct export_ops *ops);
 void handle_ops_pnfs(struct fsal_obj_ops *ops);
 void kvsfs_pnfs_ds_ops_init(struct fsal_pnfs_ds_ops *ops);
 
+#endif /* _FSAL_INTERNAL_H */

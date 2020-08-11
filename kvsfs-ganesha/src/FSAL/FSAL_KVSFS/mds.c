@@ -218,13 +218,18 @@ nfsstat4 kvsfs_getdeviceinfo(struct fsal_module *fsal_hdl,
 
 		ds = &pnfs_exp_param->ds_array[i];
 		
-		// Ganesha parsing code in config_parsing does not store the AF family value.
-		// Check if this is a IPV4 mapped IPV6 address, if not, this is a V4 address.
+		/* Ganesha parsing code in config_parsing does not store the AF family value.
+		 * Check if this is a IPV4 mapped IPV6 address, if not, this is a V4 address.
+		 */
 		unsigned long dsaddr = INADDR_NONE;
 		struct sockaddr_in6 *addr = (struct sockaddr_in6 *)(&ds->ipaddr);
 		
 		if(IN6_IS_ADDR_V4MAPPED(&addr->sin6_addr))
 		{
+			/* A IPv4 mapped IPv6 address, consists of 
+ 			 * 80 "0" bits, followed by 16 "1" bits
+ 			 * followed by 32 bit IPv4 address
+ 			 */
 			dsaddr = ((struct in_addr *)(addr->sin6_addr.s6_addr+12))->s_addr;
 			LogDebug(COMPONENT_PNFS,
 			"advertises DS addr=%u.%u.%u.%u port=%u",

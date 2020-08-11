@@ -30,14 +30,14 @@
  */
 
 #include <stdint.h>
-#include <common/log.h>
+#include "common/log.h"
 #include <config_parsing.h>
 #include <fsal_types.h>
 #include <FSAL/fsal_config.h>
 #include <FSAL/fsal_commonlib.h>
 #include "fsal_internal.h"
 #include "kvsfs_methods.h"
-#include <efs.h>
+#include "efs.h"
 
 static struct config_item ds_array_params[] = {
 	CONF_MAND_IP_ADDR("DS_Addr", "127.0.0.1",
@@ -178,7 +178,7 @@ fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
 			 op_ctx->ctx_export->fullpath);
 		goto errout;
 	}
-	
+
 	myself->efs_fs = efs_fs;
 	myself->fs_id = fsid;
 
@@ -194,7 +194,7 @@ fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
 		/* special case: server_id matches export_id */
 		pds->id_servers = op_ctx->ctx_export->export_id;
 		pds->mds_export = op_ctx->ctx_export;
-      		pds->mds_fsal_export = op_ctx->fsal_export;
+		pds->mds_fsal_export = op_ctx->fsal_export;
 
 		if (!pnfs_ds_insert(pds)) {
 			LogCrit(COMPONENT_CONFIG,
@@ -216,7 +216,7 @@ fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
 			"kvsfs_fsal_create: pnfs MDS was enabled for [%s]",
 			op_ctx->ctx_export->fullpath);
 		export_ops_pnfs(&myself->export.exp_ops);
-      fsal_ops_pnfs(&myself->export.fsal->m_ops);
+      		fsal_ops_pnfs(&myself->export.fsal->m_ops);
 	}
 
 

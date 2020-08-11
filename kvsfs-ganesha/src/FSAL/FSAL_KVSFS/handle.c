@@ -2674,7 +2674,7 @@ static fsal_status_t kvsfs_close2(struct fsal_obj_handle *obj_hdl,
 		break;
 	case STATE_TYPE_LAYOUT:
 		/* Unsupported (yet) state types. */
-		//assert(0); // Non-implemented
+		T_TRACE("%s", "Closing layout state");
 		break;
 
 	case STATE_TYPE_NLM_LOCK:

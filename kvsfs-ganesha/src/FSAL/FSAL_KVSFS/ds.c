@@ -113,17 +113,15 @@ kvsfs_ds_read(struct fsal_ds_handle *const ds_pub,
 	/* The amount actually read */
 	ssize_t amount_read = 0;
 	efs_cred_t cred;
-
 	struct kvsfs_fsal_obj_handle;
 	struct kvsfs_file_state fd = {0};
-
+	struct kvsfs_fsal_export *kvsfs_fsal_export = 
+		container_of(ds_pub->pds->mds_fsal_export,
+			     struct kvsfs_fsal_export, export);
+	
 	LogDebug(COMPONENT_PNFS," >> ENTER kvsfs_ds_read \n");
 
 	fd.efs_fd.ino = kvsfs_fh->kvsfs_handle;
-	struct kvsfs_fsal_export *kvsfs_fsal_export = 
-		container_of(ds_pub->pds->mds_fsal_export,
-				struct kvsfs_fsal_export, export);
-
 
 	cred.uid = req_ctx->creds->caller_uid;
 	cred.gid = req_ctx->creds->caller_gid;
@@ -190,12 +188,11 @@ kvsfs_ds_write(struct fsal_ds_handle *const ds_pub,
 	efs_cred_t cred;
 	struct kvsfs_fsal_obj_handle;
 	struct kvsfs_file_state fd = {0};
-
-	fd.efs_fd.ino = kvsfs_fh->kvsfs_handle;
-
 	struct kvsfs_fsal_export *kvsfs_fsal_export = 
 		container_of(ds_pub->pds->mds_fsal_export,
 			     struct kvsfs_fsal_export, export);
+	
+	fd.efs_fd.ino = kvsfs_fh->kvsfs_handle;
 
 	LogDebug(COMPONENT_PNFS," >> ENTER kvsfs_ds_write\n");
 
@@ -208,6 +205,7 @@ kvsfs_ds_write(struct fsal_ds_handle *const ds_pub,
 
 	/* @todo: we could take care of parameter stability_wanted here */
 
+	/* @todo: We currently do not have any support for writeverf */
 
 	/* write the data */
 	amount_written = efs_write(kvsfs_fsal_export->efs_fs, &cred, &fd.efs_fd,
