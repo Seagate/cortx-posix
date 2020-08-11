@@ -125,6 +125,7 @@ fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
 	fsal_status_t status = { ERR_FSAL_NO_ERROR, 0 };
 	int retval = 0;
 	fsal_errors_t fsal_error = ERR_FSAL_INVAL;
+	struct efs_fs *efs_fs = NULL;
 
 	uint16_t fsid =	op_ctx->ctx_export->export_id;
 	LogEvent(COMPONENT_FSAL, "export id %d", (int)fsid);
@@ -151,9 +152,16 @@ fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
 		LogEvent(COMPONENT_FSAL, "EFS API is running");
 	}
 
+	retval = efs_fs_open(op_ctx->ctx_export->fullpath, &efs_fs);
+	if (retval != 0) {
+		LogMajor(COMPONENT_FSAL, "FS open failed :%s",
+			 op_ctx->ctx_export->fullpath);
+		goto err_fs_open;
+	}
+
 	retval = fsal_attach_export(fsal_hdl, &myself->export.exports);
 	if (retval != 0)
-		goto err_locked;	/* seriously bad */
+		goto err_attach;	/* seriously bad */
 	myself->export.fsal = fsal_hdl;
 
 	op_ctx->fsal_export = &myself->export;
@@ -166,15 +174,6 @@ fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
 	    myself->export.exp_ops.fs_supports(&myself->export,
 					    fso_pnfs_mds_supported) &&
 					    myself->pnfs_param.pnfs_enabled;
-
-	struct efs_fs *efs_fs = NULL;
-
-	retval = efs_fs_open(op_ctx->ctx_export->fullpath, &efs_fs);
-	if (retval != 0) {
-		LogMajor(COMPONENT_FSAL, "FS open failed :%s",
-			 op_ctx->ctx_export->fullpath);
-		goto errout;
-	}
 
 	myself->efs_fs = efs_fs;
 	myself->fs_id = fsid;
@@ -218,9 +217,16 @@ fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
 
 	return fsalstat(ERR_FSAL_NO_ERROR, 0);
 
-err_locked:
+err_attach:
 	if (myself->export.fsal != NULL)
 		fsal_detach_export(fsal_hdl, &myself->export.exports);
+
+	efs_fs_close(efs_fs);
+
+err_fs_open:
+	if (retval != -ENOENT)
+		efs_fini();
+
 errout:
 	/* elvis has left the building */
 	gsh_free(myself);
