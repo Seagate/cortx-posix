@@ -203,7 +203,8 @@ out:
  *
  * @return 0 if successful, a negative "-errno" value in case of failure
  */
-int kvsfs_add_export(const char *ep_name, uint16_t ep_id, const char *ep_info)
+static int kvsfs_add_export(const char *ep_name, uint16_t ep_id,
+			    const char *ep_info)
 {
 	int rc = 0;
 	struct json_object *obj = NULL;
@@ -348,7 +349,7 @@ static void ganesha_config_fini(void)
  *
  * @return 0 if successful, a negative "-errno" value in case of failure
  */
-int kvsfs_config_init(void)
+static int kvsfs_config_init(void)
 {
 	int rc = 0;
 
@@ -382,7 +383,7 @@ out:
  *
  * @return 0 if successful, a negative "-errno" value in case of failure.
  */
-int kvsfs_remove_export(uint16_t ep_id)
+static int kvsfs_remove_export(uint16_t ep_id)
 {
 	int rc = -ENOENT;
 
@@ -420,16 +421,24 @@ out:
 }
 
 /* Removes in-memeory list.
- *
- * @param: void.
- *
- * @return 0 .
  */
-int kvsfs_config_fini(void)
+static int kvsfs_config_fini(void)
 {
 	if (ganesha_config) {
 		ganesha_config_fini();
 		ganesha_config = NULL;
 	}
 	return 0;
+}
+
+static const struct efs_endpoint_ops g_nfs_ep_ops = {
+	.init = kvsfs_config_init,
+	.fini = kvsfs_config_fini,
+	.create = kvsfs_add_export,
+	.delete = kvsfs_remove_export,
+};
+
+const struct efs_endpoint_ops *kvsfs_config_ops(void)
+{
+	return &g_nfs_ep_ops;
 }
