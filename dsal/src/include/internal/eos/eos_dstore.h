@@ -1,6 +1,6 @@
 /*
- * Filename:         eos_dstore.h
- * Description:      Provides EOS specific implementation of
+ * Filename:         cortx_dstore.h
+ * Description:      Provides CORTX specific implementation of
  * 		     dstore module of DSAL.
  *
  * Copyright (c) 2020 Seagate Technology LLC and/or its Affiliates
@@ -18,8 +18,8 @@
  * please email opensource@seagate.com or cortx-questions@seagate.com.*
  */
 
-#ifndef _EOS_DSTORE_H
-#define _EOS_DSTORE_H
+#ifndef _CORTX_DSTORE_H
+#define _CORTX_DSTORE_H
 
 #include "dstore.h"
 

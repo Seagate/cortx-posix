@@ -18,12 +18,12 @@
  * please email opensource@seagate.com or cortx-questions@seagate.com.*
  */
 /******************************************************************************/
-#include <stdio.h>		   /* *printf */
-#include <memory.h>		   /* mem* functions */
-#include <assert.h>		   /* asserts */
-#include <errno.h>		   /* errno codes */
-#include <stdlib.h>		   /* alloc, free */
-#include "dstore.h"		   /* dstore operations to be tested */
+#include <stdio.h> /* *printf */
+#include <memory.h> /* mem* functions */
+#include <assert.h> /* asserts */
+#include <errno.h> /* errno codes */
+#include <stdlib.h> /* alloc, free */
+#include "dstore.h" /* dstore operations to be tested */
 #include "dstore_bufvec.h" /* data buffers and vectors */
 #include "dsal_test_lib.h" /* DSAL-specific helpers for tests */
 
@@ -32,8 +32,7 @@
  * The environment is prepared by setup() and cleaned up by teardown()
  * calls.
  */
-struct env
-{
+struct env {
 	/* Object ID to be used in the test cases.
 	 * Rationale of keeping it global:
 	 * 1. Each test case is responsibe for releasing this ID.
@@ -50,7 +49,7 @@ struct env
 	struct dstore *dstore;
 };
 
-#define ENV_FROM_STATE(__state) (*((struct env **)__state))
+#define ENV_FROM_STATE(__state) (*((struct env **) __state))
 
 /*****************************************************************************/
 /* Description: Test create and delete operation.
@@ -336,8 +335,7 @@ int main(int argc, char *argv[])
 	};
 
 	rc = dtlib_setup(argc, argv);
-	if (rc)
-	{
+	if (rc) {
 		printf("Failed to set up the test group environment");
 		goto out;
 	}

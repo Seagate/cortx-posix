@@ -16,15 +16,14 @@
  * For any questions about this software or licensing,
  * please email opensource@seagate.com or cortx-questions@seagate.com.*
  */
-
 #include "dstore_bufvec.h"
 #include <stdlib.h> /* malloc */
-#include <errno.h>	/* errno values */
+#include <errno.h> /* errno values */
 #include "../dstore/dstore_internal.h"
 #include "debug.h" /* dassert */
 
 int dstore_io_buf_init(void *data, size_t size, size_t offset,
-					   struct dstore_io_buf **buf)
+		      struct dstore_io_buf **buf)
 {
 	struct dstore_io_buf *result;
 	int rc = 0;
@@ -32,8 +31,7 @@ int dstore_io_buf_init(void *data, size_t size, size_t offset,
 	dassert(data != NULL);
 
 	result = malloc(sizeof(struct dstore_io_buf));
-	if (result == NULL)
-	{
+	if (result == NULL) {
 		rc = -ENOMEM;
 		goto out;
 	}
@@ -51,8 +49,7 @@ out:
 
 void dstore_io_buf_fini(struct dstore_io_buf *buf)
 {
-	if (buf)
-	{
+	if (buf) {
 		dassert(dstore_io_buf_invariant(buf));
 		free(buf);
 	}
@@ -77,8 +74,7 @@ int dstore_io_buf2vec(struct dstore_io_buf **buf, struct dstore_io_vec **vec)
 	dassert(dstore_io_buf_invariant(*buf));
 
 	result = calloc(1, sizeof(struct dstore_io_vec));
-	if (result == NULL)
-	{
+	if (result == NULL) {
 		rc = -ENOMEM;
 		goto out;
 	}
@@ -97,8 +93,7 @@ out:
 
 void dstore_io_vec_fini(struct dstore_io_vec *vec)
 {
-	if (vec)
-	{
+	if (vec) {
 		dassert(dstore_io_vec_invariant(vec));
 		free(vec);
 	}

@@ -32,6 +32,7 @@ int dsal_init(struct collection_item *cfg, int flags)
 int dsal_fini(void)
 {
 	struct dstore *dstor = dstore_get();
-	dassert(dstor != NULL);
+        dassert(dstor != NULL);
 	return dstore_fini(dstor);
 }
+

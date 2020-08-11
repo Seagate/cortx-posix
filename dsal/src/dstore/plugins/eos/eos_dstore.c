@@ -1,5 +1,5 @@
 /*
- * Filename:         eos_dstore.c
+ * Filename:         cortx_dstore.c
  * Description:      Implementation of CORTX dstore.
  *
  * Copyright (c) 2020 Seagate Technology LLC and/or its Affiliates
@@ -18,24 +18,23 @@
  */
 
 #include <sys/param.h>			   /* DEV_BSIZE */
-#include "eos/helpers.h"		   /* M0 wrappers from eos-utils */
+#include "eos/helpers.h"		   /* M0 wrappers from cortx-utils */
 #include "common/log.h"			   /* log_* */
 #include "common/helpers.h"		   /* RC_WRAP* */
 #include "dstore.h"				   /* import public DSTORE API definitions */
 #include "../../dstore_internal.h" /* import private DSTORE API definitions */
 /* TODO: assert() calls should be replaced gradually with dassert() calls. */
-#include <assert.h>	 /* assert() */
-#include "debug.h"	 /* dassert */
+#include <assert.h> /* assert() */
+#include "debug.h" /* dassert */
 #include "lib/vec.h" /* m0bufvec and m0indexvec */
 
 /** Private definition of DSTORE object for M0-based backend. */
-struct cortx_dstore_obj
-{
+struct cortx_dstore_obj {
 	struct dstore_obj base;
 	struct m0_clovis_obj cobj;
 };
-_Static_assert((&((struct cortx_dstore_obj *)NULL)->base) == 0,
-			   "The offset of of the base field should be zero.\
+_Static_assert((&((struct cortx_dstore_obj *) NULL)->base) == 0,
+	       "The offset of of the base field should be zero.\
 	       Otherwise, the direct casts (E2D, D2E) will not work.");
 
 /* Casts DSTORE Object to CORTX Object.
@@ -48,18 +47,21 @@ _Static_assert((&((struct cortx_dstore_obj *)NULL)->base) == 0,
  * @endcode
  * @see ::E2D_obj
  */
-static inline struct cortx_dstore_obj *D2E_obj(struct dstore_obj *obj)
+static inline
+struct cortx_dstore_obj *D2E_obj(struct dstore_obj *obj)
 {
-	return (struct cortx_dstore_obj *)obj;
+	return (struct cortx_dstore_obj *) obj;
 }
 
 /* Casts CORTX Object to DSTORE Object.
  * @see ::D2E_obj
  */
-static inline struct dstore_obj *E2D_obj(struct cortx_dstore_obj *obj)
+static inline
+struct dstore_obj *E2D_obj(struct cortx_dstore_obj *obj)
 {
-	return (struct dstore_obj *)obj;
+	return (struct dstore_obj *) obj;
 }
+
 
 /** IO Buffers and extents for M0-based backend.
  * This object holds the information associated with an IO operation:
@@ -70,8 +72,7 @@ static inline struct dstore_obj *E2D_obj(struct cortx_dstore_obj *obj)
  * Memory mgmt: the object keeps only references borrowed from
  * the base IO operation object (dstore_io_op.)
  */
-struct cortx_io_bufext
-{
+struct cortx_io_bufext {
 	/** Vector of data buffers. */
 	struct m0_bufvec data;
 	/* Vector of extents in the target object */
@@ -126,60 +127,56 @@ struct cortx_io_bufext
  *	This improvement will be when the users start maintain
  *	operation lists.
  */
-struct cortx_io_op
-{
+struct cortx_io_op {
 	struct dstore_io_op base;
 	struct m0_clovis_op *cop;
 	struct cortx_io_bufext vec;
 	struct m0_bufvec attrs;
 };
 
-_Static_assert((&((struct cortx_io_op *)NULL)->base) == 0,
-			   "The offset of of the base field should be zero.\
+_Static_assert((&((struct cortx_io_op *) NULL)->base) == 0,
+	       "The offset of of the base field should be zero.\
 	       Otherwise, the direct casts (E2D, D2E) will not work.");
 
-static inline struct cortx_io_op *D2E_op(struct dstore_io_op *op)
+static inline
+struct cortx_io_op *D2E_op(struct dstore_io_op *op)
 {
-	return (struct cortx_io_op *)op;
+	return (struct cortx_io_op *) op;
 }
 
 /* Casts CORTX IO operation to DSTORE IO Operation
  */
-static inline struct dstore_io_op *E2D_op(struct cortx_io_op *op)
+static inline
+struct dstore_io_op *E2D_op(struct cortx_io_op *op)
 {
-	return (struct dstore_io_op *)op;
+	return (struct dstore_io_op *) op;
 }
 
-enum update_stat_type
-{
+enum update_stat_type {
 	UP_ST_WRITE = 1,
 	UP_ST_READ = 2,
 	UP_ST_TRUNCATE = 3
 };
 
 static int update_stat(struct stat *stat, enum update_stat_type utype,
-					   off_t size)
+		       off_t size)
 {
 	struct timeval t;
 
-	if (!stat)
-	{
+	if (!stat) {
 		return -EINVAL;
 	}
 
-	if (gettimeofday(&t, NULL) != 0)
-	{
+	if (gettimeofday(&t, NULL) != 0) {
 		return -errno;
 	}
 
-	switch (utype)
-	{
+	switch (utype) {
 	case UP_ST_WRITE:
 		stat->st_mtim.tv_sec = t.tv_sec;
 		stat->st_mtim.tv_nsec = 1000 * t.tv_usec;
 		stat->st_ctim = stat->st_mtim;
-		if (size > stat->st_size)
-		{
+		if (size > stat->st_size) {
 			stat->st_size = size;
 			stat->st_blocks = (size + DEV_BSIZE - 1) / DEV_BSIZE;
 		}
@@ -212,7 +209,7 @@ int cortx_ds_obj_get_id(struct dstore *dstore, dstore_oid_t *oid)
 }
 
 int cortx_ds_obj_create(struct dstore *dstore, void *ctx,
-						dstore_oid_t *oid)
+		      dstore_oid_t *oid)
 {
 	int rc;
 	struct m0_uint128 fid;
@@ -223,7 +220,7 @@ int cortx_ds_obj_create(struct dstore *dstore, void *ctx,
 	RC_WRAP_LABEL(rc, out, m0store_create_object, fid);
 
 out:
-	log_debug("ctx=%p fid = " U128X_F " rc=%d", ctx, U128_P(&fid), rc);
+	log_debug("ctx=%p fid = "U128X_F" rc=%d", ctx, U128_P(&fid), rc);
 	return rc;
 }
 
@@ -249,27 +246,25 @@ int cortx_ds_obj_del(struct dstore *dstore, void *ctx, dstore_oid_t *oid)
 
 	/* Delete the object from backend store */
 	rc = m0store_delete_object(fid);
-	if (rc)
-	{
-		if (rc == -ENOENT)
-		{
-			log_warn("Non-existing obj, ctx=%p fid= " U128X_F " rc=%d",
-					 ctx, U128_P(&fid), rc);
+	if (rc) {
+		if (rc == -ENOENT) {
+			log_warn("Non-existing obj, ctx=%p fid= "U128X_F" rc=%d",
+				  ctx, U128_P(&fid), rc);
 			goto out;
 		}
-		log_err("Unable to delete object, ctx=%p fid= " U128X_F " rc=%d",
-				ctx, U128_P(&fid), rc);
+		log_err("Unable to delete object, ctx=%p fid= "U128X_F" rc=%d",
+			 ctx, U128_P(&fid), rc);
 		goto out;
 	}
 
 out:
-	log_debug("EXIT: ctx=%p fid= " U128X_F " rc=%d", ctx, U128_P(&fid), rc);
+	log_debug("EXIT: ctx=%p fid= "U128X_F" rc=%d", ctx, U128_P(&fid), rc);
 	return rc;
 }
 
 int cortx_ds_obj_read(struct dstore *dstore, void *ctx, dstore_oid_t *oid,
-					  off_t offset, size_t buffer_size, void *buffer,
-					  bool *end_of_file, struct stat *stat)
+	 	    off_t offset, size_t buffer_size, void *buffer,
+		    bool *end_of_file, struct stat *stat)
 {
 	bool local_eof = false;
 	int rc = 0;
@@ -291,13 +286,10 @@ int cortx_ds_obj_read(struct dstore *dstore, void *ctx, dstore_oid_t *oid,
 	 * EOF =  true if stat->st_size == (offset + buffer_size) i.e boundary
 	 * condition otherwise false
 	 */
-	if (stat->st_size == 0 || stat->st_size < offset)
-	{
+	if (stat->st_size == 0 || stat->st_size < offset) {
 		local_eof = true;
 		goto out;
-	}
-	else if (stat->st_size <= (offset + buffer_size))
-	{
+	} else if (stat->st_size <= (offset + buffer_size)) {
 		/* Let's read only written bytes */
 		local_eof = true;
 		buffer_size = stat->st_size - offset;
@@ -306,16 +298,14 @@ int cortx_ds_obj_read(struct dstore *dstore, void *ctx, dstore_oid_t *oid,
 	m0_fid_copy((struct m0_uint128 *)oid, &fid);
 
 	bsize = m0store_get_bsize(fid);
-	if (bsize < 0)
-	{
+	if (bsize < 0) {
 		rc = bsize;
 		goto out;
 	}
 
 	read_bytes = m0store_pread(fid, offset, buffer_size,
-							   bsize, buffer);
-	if (read_bytes < 0)
-	{
+				   bsize, buffer);
+	if (read_bytes < 0) {
 		rc = read_bytes;
 		goto out;
 	}
@@ -328,13 +318,13 @@ int cortx_ds_obj_read(struct dstore *dstore, void *ctx, dstore_oid_t *oid,
 	*end_of_file = local_eof;
 out:
 	log_debug("oid=%" PRIx64 ":%" PRIx64 " read_bytes=%lu",
-			  oid->f_hi, oid->f_lo, read_bytes);
+		  oid->f_hi, oid->f_lo, read_bytes);
 	return rc;
 }
 
 int cortx_ds_obj_write(struct dstore *dstore, void *ctx, dstore_oid_t *oid,
-					   off_t offset, size_t buffer_size,
-					   void *buffer, bool *fsal_stable, struct stat *stat)
+		     off_t offset, size_t buffer_size,
+		     void *buffer, bool *fsal_stable, struct stat *stat)
 {
 	int rc;
 	ssize_t written_bytes;
@@ -344,34 +334,32 @@ int cortx_ds_obj_write(struct dstore *dstore, void *ctx, dstore_oid_t *oid,
 	m0_fid_copy((struct m0_uint128 *)oid, &fid);
 
 	bsize = m0store_get_bsize(fid);
-	if (bsize < 0)
-	{
+	if (bsize < 0) {
 		rc = bsize;
 		goto out;
 	}
 
 	written_bytes = m0store_pwrite(fid, offset, buffer_size,
-								   bsize, buffer);
-	if (written_bytes < 0)
-	{
+				       bsize, buffer);
+	if (written_bytes < 0) {
 		rc = written_bytes;
 		goto out;
 	}
 
 	RC_WRAP_LABEL(rc, out, update_stat, stat, UP_ST_WRITE,
-				  offset + written_bytes);
+		offset + written_bytes);
 	rc = written_bytes;
 	*fsal_stable = true;
 out:
 	log_debug("oid=%" PRIx64 ":%" PRIx64 " written_bytes=%lu",
-			  oid->f_hi, oid->f_lo, written_bytes);
+		  oid->f_hi, oid->f_lo, written_bytes);
 	return rc;
 }
 
 int cortx_ds_obj_resize(struct dstore *dstore, void *ctx,
-						dstore_oid_t *oid,
-						size_t old_size,
-						size_t new_size)
+		       dstore_oid_t *oid,
+		       size_t old_size,
+		       size_t new_size)
 {
 	int rc = 0;
 	off_t offset;
@@ -380,19 +368,17 @@ int cortx_ds_obj_resize(struct dstore *dstore, void *ctx,
 
 	assert(ctx && oid);
 
-	if (old_size == new_size)
-	{
+	if (old_size == new_size) {
 		log_debug("new size == old size == %llu",
-				  (unsigned long long)old_size);
+			  (unsigned long long) old_size);
 		rc = 0;
 		goto out;
 	}
 
-	if (old_size < new_size)
-	{
+	if (old_size < new_size) {
 		log_debug("punching a hole in the file: %llu -> %llu",
-				  (unsigned long long)old_size,
-				  (unsigned long long)new_size);
+			  (unsigned long long) old_size,
+			  (unsigned long long) new_size);
 		rc = 0;
 		goto out;
 	}
@@ -400,20 +386,19 @@ int cortx_ds_obj_resize(struct dstore *dstore, void *ctx,
 	assert(old_size > new_size);
 
 	log_debug("TRUNC: oid=%" PRIx64 ":%" PRIx64 ", size %llu -> %llu",
-			  oid->f_hi, oid->f_lo,
-			  (unsigned long long)old_size,
-			  (unsigned long long)new_size);
+		  oid->f_hi, oid->f_lo,
+		  (unsigned long long) old_size,
+		  (unsigned long long) new_size);
 
 	count = old_size - new_size;
 	offset = new_size;
 	m0_fid_copy((struct m0_uint128 *)oid, &fid);
 
 	rc = m0_file_unmap(fid, count, offset);
-	if (rc != 0)
-	{
+	if (rc != 0) {
 		log_err("Failed to unmap count=%llu, offset=%llu",
-				(unsigned long long)count,
-				(unsigned long long)offset);
+			(unsigned long long) count,
+			(unsigned long long) offset);
 	}
 out:
 	return rc;
@@ -425,8 +410,7 @@ static int cortx_dstore_obj_alloc(struct cortx_dstore_obj **out)
 	struct cortx_dstore_obj *obj;
 
 	M0_ALLOC_PTR(obj);
-	if (!obj)
-	{
+	if (!obj) {
 		rc = RC_WRAP_SET(-ENOMEM);
 		goto out;
 	}
@@ -443,7 +427,7 @@ static void cortx_dstore_obj_free(struct cortx_dstore_obj *obj)
 }
 
 static int cortx_ds_obj_open(struct dstore *dstore, const obj_id_t *oid,
-							 struct dstore_obj **out)
+			   struct dstore_obj **out)
 {
 	int rc;
 	struct cortx_dstore_obj *obj = NULL;
@@ -489,12 +473,13 @@ static int cortx_ds_obj_close(struct dstore_obj *dobj)
  * do not modify the vectors except the contents of data buffers), it is
  * safe to do this assignment here.
  */
-static inline void dstore_io_vec2bufext(struct dstore_io_vec *io_vec,
-										struct cortx_io_bufext *bufext)
+static inline
+void dstore_io_vec2bufext(struct dstore_io_vec *io_vec,
+			  struct cortx_io_bufext *bufext)
 {
 	M0_SET0(bufext);
 
-	bufext->data.ov_buf = (void **)io_vec->dbufs;
+	bufext->data.ov_buf = (void **) io_vec->dbufs;
 	bufext->data.ov_vec.v_nr = io_vec->nr;
 	bufext->data.ov_vec.v_count = io_vec->svec;
 
@@ -515,8 +500,7 @@ static void on_oop_finished(struct m0_clovis_op *cop)
 	struct cortx_io_op *op = cop->op_datum;
 	dassert(op->cop == cop);
 	RC_WRAP_SET(rc);
-	if (op->base.cb)
-	{
+	if (op->base.cb) {
 		op->base.cb(op->base.cb_ctx, &op->base, rc);
 	}
 	log_trace("IO op %p finished.", op);
@@ -535,11 +519,11 @@ static const struct m0_clovis_op_ops cortx_io_op_cbs = {
 };
 
 static int cortx_ds_io_op_init(struct dstore_obj *dobj,
-							   enum dstore_io_op_type type,
-							   struct dstore_io_vec *bvec,
-							   dstore_io_op_cb_t cb,
-							   void *cb_ctx,
-							   struct dstore_io_op **out)
+			     enum dstore_io_op_type type,
+			     struct dstore_io_vec *bvec,
+			     dstore_io_op_cb_t cb,
+			     void *cb_ctx,
+			     struct dstore_io_op **out)
 {
 	int rc = 0;
 	struct cortx_dstore_obj *obj = D2E_obj(dobj);
@@ -548,9 +532,8 @@ static int cortx_ds_io_op_init(struct dstore_obj *dobj,
 	const m0_time_t schedule_now = 0;
 	const uint64_t empty_mask = 0;
 
-	if (!M0_IN(type, (DSTORE_IO_OP_WRITE)))
-	{
-		log_err("%s", (char *)"Unsupported IO operation");
+	if (!M0_IN(type, (DSTORE_IO_OP_WRITE))) {
+		log_err("%s", (char *) "Unsupported IO operation");
 		rc = RC_WRAP_SET(-EINVAL);
 		goto out;
 	}
@@ -560,8 +543,7 @@ static int cortx_ds_io_op_init(struct dstore_obj *dobj,
 	dassert(dstore_io_vec_invariant(bvec));
 
 	M0_ALLOC_PTR(result);
-	if (result == NULL)
-	{
+	if (result == NULL) {
 		rc = RC_WRAP_SET(-ENOMEM);
 		goto out;
 	}
@@ -574,8 +556,8 @@ static int cortx_ds_io_op_init(struct dstore_obj *dobj,
 	dstore_io_vec2bufext(&result->base.data, &result->vec);
 
 	RC_WRAP_LABEL(rc, out, m0_clovis_obj_op, &obj->cobj, M0_CLOVIS_OC_WRITE,
-				  &result->vec.extents, &result->vec.data,
-				  &result->attrs, empty_mask, &result->cop);
+		      &result->vec.extents, &result->vec.data,
+		      &result->attrs, empty_mask, &result->cop);
 
 	result->cop->op_datum = result;
 	m0_clovis_op_setup(result->cop, &cortx_io_op_cbs, schedule_now);
@@ -584,13 +566,12 @@ static int cortx_ds_io_op_init(struct dstore_obj *dobj,
 	result = NULL;
 
 out:
-	if (result)
-	{
+	if (result) {
 		m0_free(result);
 	}
 
-	log_debug("io_op_init obj=%p, nr=%d, op=%p rc=%d", obj, (int)bvec->nr,
-			  rc == 0 ? *out : NULL, rc);
+	log_debug("io_op_init obj=%p, nr=%d, op=%p rc=%d", obj, (int) bvec->nr,
+		  rc == 0 ? *out : NULL, rc);
 
 	dassert((!(*out)) || dstore_io_op_invariant(*out));
 	return rc;
@@ -609,11 +590,11 @@ static int cortx_ds_io_op_wait(struct dstore_io_op *dop)
 	int rc;
 	struct cortx_io_op *op = D2E_op(dop);
 	const uint64_t wait_bits = M0_BITS(M0_CLOVIS_OS_FAILED,
-									   M0_CLOVIS_OS_STABLE);
+					   M0_CLOVIS_OS_STABLE);
 	const m0_time_t time_limit = M0_TIME_NEVER;
 
 	RC_WRAP_LABEL(rc, out, m0_clovis_op_wait, op->cop, wait_bits,
-				  time_limit);
+		      time_limit);
 	RC_WRAP_LABEL(rc, out, m0_clovis_rc, op->cop);
 
 out:

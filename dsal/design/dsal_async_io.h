@@ -98,8 +98,7 @@
  * the resources that the operation hold, it should
  * use dsal_aio_op_fini call.
  */
-struct dsal_aio_op
-{
+struct dsal_aio_op {
 	char priv[DSAL_AIO_PRIV_SIZE];
 };
 
@@ -135,15 +134,15 @@ int dsal_aio_init(struct dsal *dsal, size_t dsal_aio_op_size);
  * the DSAL implementation would need to use a complicated logic to handle this.
  */
 int dsal_obj_create_aio_op(struct dsal_obj *obj,
-						   struct dsal_aio_op *op,
-						   dsal_io_op_cb_t cb,
-						   void *cb_ctx);
+			   struct dsal_aio_op *op,
+			   dsal_io_op_cb_t cb,
+			   void *cb_ctx);
 
 int dsal_obj_create_aio_vecop(struct dsal_obj *obj,
-							  struct dsal_io_op *op,
-							  dsal_io_op_cb_t cb,
-							  void *cb_ctx,
-							  uint64_t nr_buffers);
+			      struct dsal_io_op *op,
+			      dsal_io_op_cb_t cb,
+			      void *cb_ctx,
+			      uint64_t nr_buffers);
 
 /** Free resources allocated for an operation.
  * This function should be called by the API user in case if the user
@@ -164,9 +163,9 @@ int dsal_aio_op_fini(struct dsal_aio_op *op);
  * ::dsal_obj_is_buffer_allowed_for_async for the details.
  */
 int dsal_aio_op_write(struct dsal_io_op *op,
-					  const void *data,
-					  uint64_t count,
-					  uint64_t offset);
+		      const void *data,
+		      uint64_t count,
+		      uint64_t offset);
 
 /** Get a buffer to be filled with data read from the object
  * Buffer ownership:
@@ -178,12 +177,13 @@ int dsal_aio_op_write(struct dsal_io_op *op,
  * ::dsal_obj_is_buffer_allowed_for_async for the details.
  */
 int dsal_aio_op_read(struct dsal_io_op *op,
-					 void *buf,
-					 uint64_t buf_size,
-					 uint64_t offset);
+		     void *buf,
+		     uint64_t buf_size,
+		     uint64_t offset);
 
 /** Submit the IO operation to the underlying storage. */
 int dsal_aio_op_submit(struct dsal_aio_op *op);
+
 
 /** Checks if the buffer can be written into the object asynchronously.
  * The underlying store may have restrictions for data pointer alignment,
@@ -195,9 +195,9 @@ int dsal_aio_op_submit(struct dsal_aio_op *op);
  * implementaion is able to handle them, then this function is noop.
  */
 bool dsal_obj_is_buffer_allowed_for_async(const struct dsal_obj *obj,
-										  const void *buffer,
-										  uint64_t size,
-										  uint64_t offset);
+					  const void *buffer,
+					  uint64_t size,
+					  uint64_t offset);
 
 /******************************************************************************/
 #endif /* DSAL_ASYNC_IO_H_ */

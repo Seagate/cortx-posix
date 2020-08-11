@@ -48,8 +48,7 @@ struct dsal_obj;
  */
 typedef bool (*dsal_is_open_ucb_t)(struct dsal_os *, struct dsal_fid_t *);
 
-struct dsal_user_cbs
-{
+struct dsal_user_cbs {
 	dsal_is_open_ucb_t is_open;
 };
 
@@ -68,23 +67,23 @@ int dsal_os_fini(struct dsal_os *os);
 
 /** Open an object in an object store. */
 int dsal_object_open(struct dsal_os *os, const dsal_fid_t *fid,
-					 struct dsal_obj *obj);
+		     struct dsal_obj *obj);
 
 /** Close an open object */
 int dsal_object_close(struct dsal_obj *obj);
 
 /** Create a new object in the store. */
 int dsal_object_create(struct dsal_os *os, const dsal_fid_t *fid,
-					   struct dsal_obj *obj);
+		       struct dsal_obj *obj);
 
 /** Delete object from the store */
 int dsal_object_delete(struct dsal_os *os, const dsal_fid_t *fid);
 
 /** De-allocate space allocated for the object. */
 int dsal_object_trim(struct dsal_os *os,
-					 const dsal_fid_t *fid,
-					 uint64_t count,
-					 uint64_t offset);
+		     const dsal_fid_t *fid,
+		     uint64_t count,
+		     uint64_t offset);
 
 /** Returns FID of an object. */
 const dsal_fid_t *dsal_obj_get_fid(struct dsal_obj *obj);
@@ -98,11 +97,11 @@ const dsal_fid_t *dsal_obj_get_fid(struct dsal_obj *obj);
 
 /** Synchronous write operation for an object. */
 int dsal_object_write(struct dsal_os *os, const dsal_fid_t *fid,
-					  const void *data, size_t count, off_t offset);
+		      const void *data, size_t count, off_t offset);
 
 /** Synchronous read operation for an object. */
 int dsal_object_read(struct dsal_os *os, const dsal_fid_t *fid,
-					 void *buf, size_t count, off_t offset);
+		     void *buf, size_t count, off_t offset);
 
 int dsal_get_new_fid(struct dsal_os *os, dsal_fid_t *fid);
 

@@ -57,15 +57,14 @@ static inline void dtlib_fill_data_block(uint8_t *data, size_t size)
 	uint8_t value = 0;
 	size_t i;
 
-	for (i = 0; i < size; i++)
-	{
+	for (i = 0; i < size; i++) {
 		data[i] = value;
 		value++;
 	}
 }
 
-#define DSAL_UT_RUN(_test_group, _setup, _teardown) ut_run(_test_group, \
-														   sizeof(_test_group) / sizeof(_test_group[0]), _setup, _teardown)
+#define DSAL_UT_RUN(_test_group, _setup, _teardown) ut_run(_test_group,\
+	sizeof(_test_group)/sizeof(_test_group[0]), _setup, _teardown)
 
 /******************************************************************************/
 #endif /* DSAL_TEST_LIB_H_ */
