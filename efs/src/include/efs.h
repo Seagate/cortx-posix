@@ -34,6 +34,7 @@ struct efs_fs {
 	struct namespace *ns; /* namespace object */
 	struct tenant *tenant; /* tenant object */
 	struct kvtree *kvtree; /* kvtree object */
+	struct kvnode *root_node; /* kvnode object for root node */
 };
 
 /** This structure is exposed to upper layer and have information regarding
