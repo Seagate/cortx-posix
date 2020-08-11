@@ -94,18 +94,6 @@ fsal_status_t kvsfs_extract_handle(struct fsal_export *exp_hdl,
 					 struct gsh_buffdesc *fh_desc,
 					 int flags);
 
-/* add new export block in config file */
-int kvsfs_add_export(const char *ep_name, uint16_t ep_id, const char * ep_info);
-
-/*Remove export block given by export id */
-int kvsfs_remove_export(uint16_t export_id);
-
-/* sync/initialize all block store in backend and create config file */
-int kvsfs_config_init(void);
-
-/* Finalize config  */
-int kvsfs_config_fini(void);
-
 /******************************************************************************/
 
 #if 0
