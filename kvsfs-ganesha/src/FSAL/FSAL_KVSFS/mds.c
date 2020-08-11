@@ -450,7 +450,7 @@ kvsfs_layoutreturn(struct fsal_obj_handle *obj_hdl,
 	myself = container_of(obj_hdl,
 			      struct kvsfs_fsal_obj_handle,
 			      obj_handle);
-	kvsfs_handle = (struct kvsfs_file_handle *)myself->handle;
+	kvsfs_handle = myself->handle;
 
 	return NFS4_OK;
 }
@@ -494,7 +494,7 @@ kvsfs_layoutcommit(struct fsal_obj_handle *obj_hdl,
 		container_of(obj_hdl,
 			     struct kvsfs_fsal_obj_handle,
 			     obj_handle);
-	kvsfs_handle = (struct kvsfs_file_handle *)myself->handle;
+	kvsfs_handle = myself->handle;
 
 	/** @todo: here, add code to actually commit the layout */
 	res->size_supplied = false;
