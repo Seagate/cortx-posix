@@ -39,10 +39,12 @@ mkdir -p %{buildroot}%{_libdir}/ganesha/
 cd %{_lib_path}
 install -m 755 lib%{_fsal_ganesha_lib}.so* %{buildroot}%{_fsal_ganesha_lib_dir}
 install -m 755 %{_nfs_setup_dir}/nfs_setup.sh %{buildroot}%{_fsal_ganesha_bin_dir}
+install -m 755 %{_nfs_setup_dir}/nfs_setup_legacy.sh %{buildroot}%{_fsal_ganesha_bin_dir}
 ln -s %{_fsal_ganesha_lib_dir}/lib%{_fsal_ganesha_lib}.so.4.2.0 %{buildroot}%{_libdir}/ganesha/libfsal%{_fs_lib}.so.4.2.0
 ln -s %{_fsal_ganesha_lib_dir}/lib%{_fsal_ganesha_lib}.so.4 %{buildroot}%{_libdir}/ganesha/libfsal%{_fs_lib}.so.4
 ln -s %{_fsal_ganesha_lib_dir}/lib%{_fsal_ganesha_lib}.so %{buildroot}%{_libdir}/ganesha/libfsal%{_fs_lib}.so
 ln -s %{_fsal_ganesha_bin_dir}/nfs_setup.sh %{buildroot}%{_sbindir}/nfs_setup
+ln -s %{_fsal_ganesha_bin_dir}/nfs_setup_legacy.sh %{buildroot}%{_sbindir}/nfs_setup_legacy
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -57,6 +59,8 @@ rm -rf $RPM_BUILD_ROOT
 %{_fsal_ganesha_lib_dir}/lib%{_fsal_ganesha_lib}.so*
 %{_fsal_ganesha_bin_dir}/nfs_setup.sh
 %{_sbindir}/nfs_setup
+%{_fsal_ganesha_bin_dir}/nfs_setup_legacy.sh
+%{_sbindir}/nfs_setup_legacy
 
 %changelog
 * Mon Jan 25 2019 Ashay Shirwadkar <ashay.shirwadkar@seagate.com> - 1.0.0
