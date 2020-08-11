@@ -60,8 +60,8 @@ else (USE_KVS_EOS)
 endif (USE_KVS_EOS)
 
 if (USE_KVS_EOS OR USE_MERO_STORE)
-  set(RPM_REQUIRES "mero ${RPM_REQUIRES}")
-  set(RPM_DEVEL_REQUIRES "mero-devel ${RPM_DEVEL_REQUIRES}")
+  set(RPM_REQUIRES "motr ${RPM_REQUIRES}")
+  set(RPM_DEVEL_REQUIRES "motr-devel ${RPM_DEVEL_REQUIRES}")
 endif (USE_KVS_EOS OR USE_MERO_STORE)
 
 if (USE_KVS_REDIS)
@@ -149,7 +149,7 @@ if(USE_KVS_EOS OR USE_MERO_STORE)
 	""
 	HAVE_MERO
 	)
-  check_include_files("mero/config.h" HAVE_MERO_H)
+  check_include_files("motr/config.h" HAVE_MERO_H)
 
   find_library(HAVE_MERO_HELPERS motr-helpers)
   check_library_exists(
