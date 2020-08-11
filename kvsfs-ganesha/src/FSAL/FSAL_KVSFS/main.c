@@ -37,9 +37,11 @@
 /* TODO:ATTR4_SEC_LABEL are not supported yet. */
 #define KVSFS_SUPPORTED_ATTRIBUTES ((const attrmask_t) (ATTRS_POSIX | ATTR_ACL ))
 
-#define KVSFS_LINK_MAX EFS_MAX_LINK
+#define KVSFS_LINK_MAX         EFS_MAX_LINK
+#define FSAL_NAME              "CORTX-FS"
+#define DBUS_INTERFACE_NAME    "org.ganesha.nfsd.config.fsal.cortxfs"
 
-const char module_name[] = "KVSFS";
+const char module_name[] = FSAL_NAME;
 
 /* default parameters for EFS filesystem */
 static const struct fsal_staticfsinfo_t default_kvsfs_info = {
@@ -110,8 +112,8 @@ static struct config_item kvsfs_params[] = {
 };
 
 struct config_block kvsfs_param = {
-	.dbus_interface_name = "org.ganesha.nfsd.config.fsal.kvsfs",
-	.blk_desc.name = "KVSFS",
+	.dbus_interface_name = DBUS_INTERFACE_NAME,
+	.blk_desc.name = FSAL_NAME,
 	.blk_desc.type = CONFIG_BLOCK,
 	.blk_desc.u.blk.init = noop_conf_init,
 	.blk_desc.u.blk.params = kvsfs_params,

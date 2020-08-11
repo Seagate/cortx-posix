@@ -8,3 +8,5 @@ TAGS
 *libfsalkvsfs.spec
 build-kvsns
 build-kvsfs
+*.spec
+*.pc
