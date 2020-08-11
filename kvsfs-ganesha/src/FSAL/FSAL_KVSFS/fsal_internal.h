@@ -47,6 +47,11 @@ struct kvsfs_fsal_obj_handle {
 	struct fsal_share share;
 };
 
+/* Returns a vtable that implements the ::efs_endpoint_ops
+ * interface for the NFS Ganesha (/etc/ganesha/ganesha.conf) config file.
+ */
+const struct efs_endpoint_ops *kvsfs_config_ops(void);
+
 /* linkage to the exports and handle ops initializers
  */
 

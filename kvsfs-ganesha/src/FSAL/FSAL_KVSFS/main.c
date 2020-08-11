@@ -37,9 +37,11 @@
 /* TODO:ATTR4_SEC_LABEL are not supported yet. */
 #define KVSFS_SUPPORTED_ATTRIBUTES ((const attrmask_t) (ATTRS_POSIX | ATTR_ACL ))
 
-#define KVSFS_LINK_MAX EFS_MAX_LINK
+#define KVSFS_LINK_MAX         EFS_MAX_LINK
+#define FSAL_NAME              "CORTX-FS"
+#define DBUS_INTERFACE_NAME    "org.ganesha.nfsd.config.fsal.cortxfs"
 
-const char module_name[] = "KVSFS";
+const char module_name[] = FSAL_NAME;
 
 /* default parameters for EFS filesystem */
 static const struct fsal_staticfsinfo_t default_kvsfs_info = {
@@ -114,8 +116,8 @@ static struct config_item kvsfs_params[] = {
 };
 
 struct config_block kvsfs_param = {
-	.dbus_interface_name = "org.ganesha.nfsd.config.fsal.kvsfs",
-	.blk_desc.name = "KVSFS",
+	.dbus_interface_name = DBUS_INTERFACE_NAME,
+	.blk_desc.name = FSAL_NAME,
 	.blk_desc.type = CONFIG_BLOCK,
 	.blk_desc.u.blk.init = noop_conf_init,
 	.blk_desc.u.blk.params = kvsfs_params,
@@ -127,58 +129,150 @@ static fsal_status_t kvsfs_init_config(struct fsal_module *fsal_hdl,
 				     config_file_t config_struct,
 				     struct config_error_type *err_type)
 {
-	struct kvsfs_fsal_module *kvsfs_me =
+	int rc = 0;
+	struct kvsfs_fsal_module *kvsfs =
 	    container_of(fsal_hdl, struct kvsfs_fsal_module, fsal);
 
+	assert(kvsfs_config_ops());
+
 	/* set default values */
-	kvsfs_me->fs_info = default_kvsfs_info;
+	kvsfs->fs_info = default_kvsfs_info;
 
-	/* load user values */
-	(void) load_config_from_parse(config_struct,
-				      &kvsfs_param,
-				      kvsfs_me,
-				      true,
-				      err_type);
-
-	if (!config_error_is_harmless(err_type)) {
-		return fsalstat(ERR_FSAL_INVAL, 0);
+	/* load user values and exit upon encountering critical problems */
+	rc = load_config_from_parse(config_struct, &kvsfs_param, kvsfs,
+				    true, err_type);
+	if (rc == -1) {
+		if (!config_error_is_harmless(err_type)) {
+			LogCrit(COMPONENT_FSAL, "Detected a major error"
+				 "in the config file.");
+			rc = -EINVAL;
+			goto out;
+		} else {
+			LogMajor(COMPONENT_FSAL, "Detected an error"
+				 "in the config file. Please check KVSFS "
+				 "section for correctness of the settings.");
+			rc = 0;
+		}
 	}
 
-	fsal_hdl->fs_info = kvsfs_me->fs_info;
+	/* assign the final values to the base structure */
+	fsal_hdl->fs_info = kvsfs->fs_info;
+
 	/* print final values in the log */
 	display_fsinfo(fsal_hdl);
 
-	return fsalstat(ERR_FSAL_NO_ERROR, 0);
+	rc = efs_init(EFS_DEFAULT_CONFIG, kvsfs_config_ops());
+	if (rc) {
+		LogCrit(COMPONENT_FSAL, "Cannot initialize EFS (%d).", rc);
+		goto out;
+	}
+
+out:
+	LogInfo(COMPONENT_FSAL, "Initialized KVSFS config (%d).", rc);
+	return fsalstat(posix2fsal_error(-rc), -rc);
 }
 
 /* KVSFS singleton */
 struct kvsfs_fsal_module KVSFS;
 
-MODULE_INIT void kvsfs_load(void)
-{
-	int retval;
-	struct fsal_module *myself = &KVSFS.fsal;
-/**
- * @todo: uncommenting this code block, causes nfsmount to fail.
- * Failure is in m0_clovis_init(), stuck on sem, called from
- * dstore_init()
+static int kvsfs_unload(struct fsal_module *fsal_hdl);
+static void kvsfs_load(void);
+
+/*
+ * What is the problem with dlopen/dlclose?
+ * ------------------------------------------------
+ *
+ *  This section describes why we cannot use the default mechanism
+ *  for load/unload of our FSAL.
+ *  The default way of loading an FSAL is when NFS Ganesha
+ *  calls dlopen() and the corresponding "constructor"
+ *  (a function defined with __attribute__((constructor))) is getting
+ *  called within the scope of this dlopen() call.
+ *  The default way of unloading is when NFS Ganesha calls dlclose()
+ *  and the corresponding function (defined with "destructor" attribute)
+ *  is getting called within this call.
+ *  These calls are not friendly to C TLS and libc:
+ *
+ * dlopen ->
+ *	glibc takes a global lock (let's say g_mtx) and calls the ctor
+ *		ctor kvsfs_load ->
+ *			some 3d-party code is trying to
+ *			use a C TLS variable (declared with __thread).
+ *			glibc is trying initialize the variable
+ *			and takes the global lock g_mtx.
+ *			We got a deadlock.
+ *
+ *  dlopen/close also create problems with enabled/disabled jemalloc
+ *  because it either involves different allocators (glibc and jemalloc)
+ *  or the same troubles with this global lock for TLS.
+ *  Either way, dlopen/dlclose should not be used for initialization/
+ *  de-initialization of our library.
+ *
+ *
+ * Solution for init/fini problem
+ * ------------------------------
+ *
+ *  FSAL Initialization. When an FSAL was not able to initialize
+ *  during dlopen() call, NFS Ganesha uses "fsal_init" symbol as
+ *  a backup mechanism to initialize the FSAL: it looks it up and then
+ *  calls it.
+ *
+ *  FSAL Finalization. NFS Ganesha provides the default implementation
+ *  of the FSAL.unload callback. The function calls dlclose() which
+ *  causes the "dtor" to be called. Since we don't want to use a dtor,
+ *  we simply overwrite the default callback with our own function.
+ *  Our function is called outside of dlclose(), so that we have no
+ *  problems.
+ *
+ *  TODO: This overwriting of FSAL.unload leads to the situation where
+ *  dlclose() is not called (as well as the ref count and the list of FSALs
+ *  are not getting updated). Once we achieve the point where we are able to
+ *  successfully terminate NFS Ganesha (without getting SIGABRT or SIGSEGV),
+ *  we need to investigate if these things needs to be updated. For example,
+ *  we can preserve the original callback pointer, and we can call it when
+ *  our own "fini" call is done its work.
  */
-#if 0
-	retval = efs_init(EFS_DEFAULT_CONFIG);
-	if (retval != 0) {
-		LogCrit(COMPONENT_FSAL,
-			"efs init failed");
-		return;
-	}
-#endif
-	retval = register_fsal(myself, module_name,
-			       FSAL_MAJOR_VERSION,
-			       FSAL_MINOR_VERSION,
-			       FSAL_ID_EXPERIMENTAL);
-	if (retval != 0) {
-		LogCrit(COMPONENT_FSAL,
-			"KVSFS FSAL module failed to register iself.");
-		return;
+
+/* This symbol has to be public (visible). NFS Ganesha uses it to load an FSAL
+ * when the load-on-dlopen way does not work.
+ * We do not use this dlopen+ctor trick because it plays very bad with
+ * 3dparty libraries that use C TLS (for example, jemalloc or libuuid).
+ * The same principle is applied to finalization. Previously we had
+ * a combination of dclose+dtor which would finalize the FSAL when
+ * dlclose is called. It also creates problems with C TLS. The solution
+ * here is to use the FSAL.unload interface function let NFS Ganesha
+ * call this function before dlclose is called.
+ *
+ * NOTE: Due to the collision between "fsal_init" symbol used
+ * in NFS Ganesha ::load_fsal function and the function ::fsal_init
+ * (see fsal_manager.c) that is declared in the global scope,
+ * we cannot define our FSAL init function with the right
+ * signature (void (*)(void)), and instead we have to use
+ * the existing signature. It is safe as long as we don't
+ * use the unused arguments.
+ */
+void *fsal_init(void *unused1, void *unused2)
+{
+	(void) unused1;
+	(void) unused2;
+
+	kvsfs_load();
+	return NULL;
+}
+
+static void kvsfs_load(void)
+{
+	int rc;
+	struct fsal_module *myself = &KVSFS.fsal;
+
+	rc = register_fsal(myself, module_name,
+			   FSAL_MAJOR_VERSION,
+			   FSAL_MINOR_VERSION,
+			   FSAL_ID_EXPERIMENTAL);
+	if (rc) {
+		LogCrit(COMPONENT_FSAL, "KVSFS FSAL module failed to "
+			"register iself (%d).", rc);
+		goto out;
 	}
 
 	/* Set up module operations */
@@ -186,35 +280,41 @@ MODULE_INIT void kvsfs_load(void)
 
 	/* Set up module parameters */
 	myself->m_ops.init_config = kvsfs_init_config;
+	myself->m_ops.unload = kvsfs_unload;
 
-	/* Set up pNFS opterations */
+	/* Set up pNFS operations */
 	 myself->m_ops.fsal_pnfs_ds_ops = kvsfs_pnfs_ds_ops_init;
 	 myself->m_ops.getdeviceinfo = kvsfs_getdeviceinfo;
 
 	/* Initialize fsal_obj_handle for FSAL */
 	kvsfs_handle_ops_init(&KVSFS.handle_ops);
 
-	LogDebug(COMPONENT_FSAL, "FSAL KVSFS initialized");
+out:
+	LogDebug(COMPONENT_FSAL, "FSAL KVSFS initialized (%d)", rc);
+	return;
 }
 
-MODULE_FINI void kvsfs_unload(void)
+static int kvsfs_unload(struct fsal_module *fsal_hdl)
 {
-	int retval;
+	int rc = 0;
 
-	retval = unregister_fsal(&KVSFS.fsal);
-	if (retval != 0) {
-		LogCrit(COMPONENT_FSAL,
-			"KVSFS FSAL module failed to unregister iself.");
-		return;
-	}
-	
-	retval = efs_fini();
-	if (retval != 0) {
-		LogCrit(COMPONENT_FSAL,
-			"efs_fini failed retval=%d", retval);
-		return;
+	assert(fsal_hdl == &KVSFS.fsal);
+
+	rc = unregister_fsal(&KVSFS.fsal);
+	if (rc) {
+		LogCrit(COMPONENT_FSAL, "KVSFS FSAL module failed to"
+			" unregister itself (%d).", rc);
+		goto out;
 	}
 
-	LogDebug(COMPONENT_FSAL, "FSAL KVSFS deinitialized");
+	rc = efs_fini();
+	if (rc) {
+		LogCrit(COMPONENT_FSAL, "efs_fini failed (%d)", rc);
+		goto out;
+	}
+
+out:
+	LogDebug(COMPONENT_FSAL, "FSAL KVSFS deinitialized (%d)", rc);
+	return rc;
 }
 
