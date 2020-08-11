@@ -58,6 +58,8 @@
 #include "pnfs_utils.h"
 #include <stdbool.h>
 
+extern struct fsal_pnfs_ds_ops def_pnfs_ds_ops;
+extern struct fsal_dsh_ops def_dsh_ops;
 
 /**
  * @brief Release a DS handle
