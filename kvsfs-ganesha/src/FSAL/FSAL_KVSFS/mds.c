@@ -39,7 +39,6 @@
 #include "fsal.h"
 #include "fsal_internal.h"
 #include "fsal_convert.h"
-//#include "fsal_private.h"
 #include "FSAL/fsal_config.h"
 #include "FSAL/fsal_commonlib.h"
 #include "kvsfs_methods.h"
