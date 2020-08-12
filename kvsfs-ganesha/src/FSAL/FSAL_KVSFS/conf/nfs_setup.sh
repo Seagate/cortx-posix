@@ -19,7 +19,11 @@ EFS_FS_CLI="/usr/bin/efscli"
 NFS_INITIALIZED=/var/lib/nfs/nfs_initialized
 NFS_SETUP_LOG=/var/log/nfs_setup.log
 DEFAULT_EXPORT_OPTION="proto=nfs,secType=sys,Filesystem_id=192.1,client=1,"
-DEFAULT_EXPORT_OPTION+="clients=*,Squash=no_root_squash,access_type=RW,protocols=4"
+DEFAULT_EXPORT_OPTION+="clients=*,Squash=no_root_squash,access_type=RW,protocols=4,"
+
+# Enable/Disable pNFS
+pNFS_ENABLED=false
+pNFS_DATA_SERVER="None"
 
 function die {
 	log "error: $*"
@@ -42,6 +46,11 @@ function create_fs {
 	echo -e "\nCreating default file system $DEFAULT_FS ..."
 	run $EFS_FS_CLI fs create $DEFAULT_FS
 	[ $? -ne 0 ] && die "Failed to create $DEFAULT_FS"
+	
+	# Add pNFS options.
+	DEFAULT_EXPORT_OPTION+="pnfs_enabled=$pNFS_ENABLED,"
+	DEFAULT_EXPORT_OPTION+="data_server=$pNFS_DATA_SERVER"
+
 	echo -e "\nExporting default file system $DEFAULT_FS $DEFAULT_EXPORT_OPTION ..."
 	run $EFS_FS_CLI endpoint create $DEFAULT_FS $DEFAULT_EXPORT_OPTION
 	[ $? -ne 0 ] && die "Failed to create export $DEFAULT_FS "
@@ -152,6 +161,16 @@ EXPORT {
 	FSAL {
 		Name  = CORTX-FS;
 		cortxfs_config = $CORTXFS_CONF;
+
+		PNFS {
+			Stripe_Unit = 8192;
+			pnfs_enabled = $pNFS_ENABLED;
+			Nb_Dataserver = 1;
+			DS1 {
+				DS_Addr = $pNFS_DATA_SERVER;
+				DS_Port = 2049;
+			}
+		}
 	}
 
 	# Allowed security types for this export
@@ -298,7 +317,7 @@ function cortx_nfs_cleanup {
 
 function usage {
 	cat <<EOF
-usage: $0 {init|config|setup|cleanup} [-h] [-f] [-p] [-q] [-d <FS name>]
+usage: $0 {init|config|setup|cleanup} [-h] [-f] [-p] [-q] [-d <FS name>] [-r] [-D <Data-Server IP>]
 Command:
   init      Create motr_lib indexes
   config    Prepare conf files and start NFS-Ganesha
@@ -310,6 +329,8 @@ Options:
   -p Prompt
   -q To perform Setup on Provisioner VM
   -d To create FS
+  -r pNFS Enabled
+  -D pNFS Data-Server IP Addr 
 
 Default values used for Index creation on Dev env are-
    Profile:               <0x7000000000000001:0>
@@ -335,6 +356,8 @@ while [ ! -z $1 ]; do
 	case "$1" in
 		-h ) usage;;
 		-f ) force=1;;
+		-r ) pNFS_ENABLED=true;;
+		-D ) pNFS_DATA_SERVER=$2; shift 1;;
 		-p ) prompt=1;;
 		-q ) PROVI_SETUP=1;;
 		-d ) DEFAULT_FS=$2; shift 1;;

@@ -27,15 +27,32 @@
 #define EFS_CONFIG                              "/etc/cortx/cortxfs.conf"
 #define DOMAIN_NAME				"localdomain"
 #define SERIALIZE_BUFFER_DEFAULT_SIZE           2048
+#define STRIPE_UNIT				"8192"
+#define DS_PORT					"2049"
+
+struct ds_block {
+	str256_t ds_addr;
+	str256_t ds_port;
+};
+
+struct pnfs_block {
+	str256_t stripe_unit;
+	str256_t pnfs_enabled;
+	str256_t ds_count;
+	struct ds_block ds_block;
+};
 
 struct export_fsal_block {
 	str256_t name;
 	str256_t efs_config;
+	struct pnfs_block pnfs_block;
 };
 
 /* Default config block */
 struct kvsfs_block {
 	str256_t fsal_shared_library;
+	str256_t pnfs_mds;
+	str256_t pnfs_ds;
 };
 
 struct fsal_block {
