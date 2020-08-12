@@ -50,7 +50,7 @@ static struct config_item ds_array_params[] = {
 static struct config_item pnfs_params[] = {
 	CONF_MAND_UI32("Stripe_Unit", 8192, 1024*1024, 1024,
 		       kvsfs_exp_pnfs_parameter, stripe_unit),
-	CONF_ITEM_BOOL("pnfs_enabled", true,
+	CONF_ITEM_BOOL("pnfs_enabled", false,
 		       kvsfs_exp_pnfs_parameter, pnfs_enabled),
 
 	CONF_MAND_UI32("Nb_Dataserver", 1, 4, 1,
