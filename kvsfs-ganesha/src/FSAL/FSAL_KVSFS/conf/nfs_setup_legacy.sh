@@ -1,7 +1,6 @@
 #!/bin/bash
-
 # Variables
-PROFILE="0x7000000000000001:0"
+PROFILE='<0x7000000000000001:0>'
 PROC_FID='<0x7200000000000000:0>'
 INDEX_DIR=/tmp
 # Global idx (meta index)
@@ -50,47 +49,25 @@ function create_fs {
 function get_ip {
 	# Get ip address
 	v1=$(lctl list_nids 2> /dev/null)
-	ip_add=${v1::-4}
-
-	[ -n "$PROVI_SETUP" ] && return
-
-	# Set LOC_EP and HA_EP for Dev env
-	LOC_EP="$ip_add$LOC_EXPORT_ID"
-	HA_EP="$ip_add$HA_EXPORT_ID"
-}
-
-function get_ep {
-	[ -n "$EP" ] && return || EP=1
-
-	host_name=$(hostname -f )
-	hctl_status=$(hctl status --json | jq '.')
-
-	cluster_info=$(echo $hctl_status | jq '.nodes[]')
-	node_info=$(echo $cluster_info | jq --arg h_name $host_name '. | select(.name == $h_name)')
-
-	PROFILE=$(echo $hctl_status | jq '.profile' | sed 's/[,"]//g')
-	HA_EP=$(echo $node_info | jq '.svcs[] | select(.name == "hax") | .ep' | sed 's/[,"]//g')
-
-	m0client_info=$(echo $node_info | jq '[.svcs[] | select(.name == "m0_client")][0]')
-	LOC_EP=$(echo $m0client_info | jq '.ep' | sed 's/[,"]//g')
-	PROC_FID=$(echo $m0client_info | jq '.fid' | sed 's/[,"]//g')
+	v2=${v1::-4}
+        echo "$v2"
 }
 
 function motr_lib_init {
 	log "Initializing motr_lib..."
 
 	# Create motr_lib global idx
-	run m0clovis -l $LOC_EP -h $HA_EP -p $PROFILE -f $PROC_FID index create\
-		"$KVS_GLOBAL_FID"
+	run m0clovis -l $ip_add$LOC_EXPORT_ID -h $ip_add$HA_EXPORT_ID -p $PROFILE\
+		-f $PROC_FID index create "$KVS_GLOBAL_FID"
 	[ $? -ne 0 ] && die "Failed to Initialise motr_lib Global index"
 
 	# Create motr_lib fs_meta idx
-	run m0clovis -l $LOC_EP -h $HA_EP -p $PROFILE -f $PROC_FID index create\
-		"$KVS_NS_META_FID"
+	run m0clovis -l $ip_add$LOC_EXPORT_ID -h $ip_add$HA_EXPORT_ID -p $PROFILE\
+		-f $PROC_FID index create "$KVS_NS_META_FID"
 	[ $? -ne 0 ] && die "Failed to Initialise motr_lib fs_meta index"
 }
 
-function prepare_cortx_fs_conf {
+function cortx_fs_init {
 	log "Initializing Cortx-FS..."
 
 	# Backup cortxfs.conf file
@@ -116,8 +93,8 @@ ns_meta_fid = $KVS_NS_META_FID
 type = eos
 
 [mero]
-local_addr = $LOC_EP
-ha_addr = $HA_EP
+local_addr = $ip_add$LOC_EXPORT_ID
+ha_addr = $ip_add$HA_EXPORT_ID
 profile = $PROFILE
 proc_fid = $PROC_FID
 index_dir = $INDEX_DIR
@@ -200,26 +177,19 @@ EOM
 }
 
 function check_prerequisites {
-	# Check prerequisites only once
-	[ -n "$PRE_REQ" ] && return || PRE_REQ=1
+	lctl list_nids > /dev/null 2>&1 || die "lnet not active"
 
-	# Prerequisites specifc to Dev environment
-	if [ -z "$PROVI_SETUP" ]; then
-		# Check lnet status
-		lctl list_nids > /dev/null 2>&1 || die "lnet not active"
+	# Check cortx-motr rpms
+	rpm -q cortx-motr > /dev/null 2>&1
+	[[ $? -ne 0 ]] && die "cortx-motr RPMs not installed"
 
-		# Check cortx-motr rpms
-		rpm -q cortx-motr > /dev/null 2>&1
-		[ $? -ne 0 ] && die "cortx-motr RPMs not installed"
+	# Check motr-kernel status
+	tmp_var=$(systemctl is-active motr-kernel)
+	[[ "$tmp_var" -ne "active" ]] && die "motr-kernel is inactive"
 
-		# Check cortx-motr kernel status
-		tmp_var=$(systemctl is-active motr-kernel)
-		[[ "$tmp_var" != "active" ]] && die "cortx-motr kernel is inactive"
-
-		# Check cortx-motr services
-		tmp_var=$(pgrep m0)
-		[ -z "$tmp_var" ] && die "cortx-motr services not activate"
-	fi	
+	# Check motr services
+	tmp_var=$(pgrep m0)
+	[ -z "$tmp_var" ] && die "cortx-motr services not activate"
 
 	# Check SElinux status
 	tmp_var="$(getenforce)"
@@ -234,7 +204,9 @@ function check_prerequisites {
 }
 
 function cortx_nfs_init {
-	[ -n "$PROVI_SETUP" ] && get_ep
+	# Check if NFS is already initialized
+	[[ -e $NFS_INITIALIZED && -z "$force" ]] &&
+		[ "$(cat $NFS_INITIALIZED)" = "success" ] && die "NFS already initialzed"
 
 	# Cleanup before initialization
 	cortx_nfs_cleanup
@@ -242,21 +214,8 @@ function cortx_nfs_init {
 	# Initialize motr_lib
 	motr_lib_init
 
-	echo -e "\nNFS Initialization is complete"
-}
-
-function cortx_nfs_config {
-	[ -n "$PROVI_SETUP" ] && get_ep
-
-	# Check if NFS is already initialized
-	[[ -e $NFS_INITIALIZED && -z "$force" ]] &&
-		[ "$(cat $NFS_INITIALIZED)" = "success" ] && die "NFS already initialzed"
-
-	# Check prerequisites
-	check_prerequisites
-
-	# Prepare cortxfs.conf
-	prepare_cortx_fs_conf
+	# Prepare cortx-fs.conf
+	cortx_fs_init
 
 	# Prepare ganesha.conf
 	prepare_ganesha_conf
@@ -275,21 +234,16 @@ function cortx_nfs_config {
 }
 
 function cortx_nfs_cleanup {
-	[ -n "$PROVI_SETUP" ] && get_ep
-
-	# Check prerequisites
-	check_prerequisites
-
 	# Stop nfs-ganesha service if running
 	systemctl status nfs-ganesha > /dev/null && systemctl stop nfs-ganesha
 
 	# Drop index if previosly created
-	run m0clovis -l $LOC_EP -h $HA_EP -p $PROFILE -f $PROC_FID index drop\
-		"$KVS_GLOBAL_FID"
-	run m0clovis -l $LOC_EP -h $HA_EP -p $PROFILE -f $PROC_FID index drop\
-		"$KVS_NS_META_FID"
+	run m0clovis -l $ip_add$LOC_EXPORT_ID -h $ip_add$HA_EXPORT_ID -p $PROFILE\
+		-f $PROC_FID index drop "$KVS_GLOBAL_FID"
+	run m0clovis -l $ip_add$LOC_EXPORT_ID -h $ip_add$HA_EXPORT_ID -p $PROFILE\
+		-f $PROC_FID index drop "$KVS_NS_META_FID"
 
-	# Restore ganesha.conf, remove export entries.
+	# Delete export entries
 	prepare_ganesha_conf
 
 	rm -f $NFS_INITIALIZED
@@ -298,26 +252,16 @@ function cortx_nfs_cleanup {
 
 function usage {
 	cat <<EOF
-usage: $0 {init|config|setup|cleanup} [-h] [-f] [-p] [-q] [-d <FS name>]
-Command:
-  init      Create motr_lib indexes
-  config    Prepare conf files and start NFS-Ganesha
-  setup     Complete setup: init and config command
-  cleanup   Stop NFS-Ganesha and drop indexes
-Options:
-  -h Help
-  -f Force initialization
-  -p Prompt
-  -q To perform Setup on Provisioner VM
-  -d To create FS
-
-Default values used for Index creation on Dev env are-
-   Profile:               <0x7000000000000001:0>
-   Process FID:           <0x7200000000000000:0>
-   Local Export Suffix:   @tcp:12345:44:301
-   HA Export Suffix:      @tcp:12345:45:1
-   KVS Golbal FID:        <0x780000000000000b:1>
-   KVS NS Meta FID:       <0x780000000000000b:2>
+usage: $0 {init|cleanup} [-h] [-f] [-p] [-P <Profile>] [-F <Process FID>] [-k <KVS FID>] [-e <Local export>] [-E <HA export>]
+options:
+  -h help
+  -f force initialization
+  -p prompt
+  -P Profile. Default is <0x7000000000000001:0>
+  -F Process FID. Default is <0x7200000000000000:0>
+  -k KVS FID. Default is <0x780000000000000b:1>
+  -e Local Export Suffix. Default is @tcp:12345:44:301
+  -E HA Export Suffix. Default is @tcp:12345:45:1
 EOF
 	exit 1
 }
@@ -328,7 +272,7 @@ EOF
 
 cmd=$1; shift 1
 
-getopt --options "hfpqd:" --name nfs_setup
+getopt --options "hfpP:F:k:e:E:d:" --name nfs_setup
 [[ $? -ne 0 ]] && usage
 
 while [ ! -z $1 ]; do
@@ -336,7 +280,11 @@ while [ ! -z $1 ]; do
 		-h ) usage;;
 		-f ) force=1;;
 		-p ) prompt=1;;
-		-q ) PROVI_SETUP=1;;
+		-P ) PROFILE=$2; shift 1;;
+		-F ) PROC_FID=$2; shift 1;;
+		-k ) KVS_GLOBAL_FID=$2; shift 1;;
+		-e ) LOC_EXPORT_ID=$2; shift 1;;
+		-E ) HA_EXPORT_ID=$2; shift 1;;
 		-d ) DEFAULT_FS=$2; shift 1;;
 		 * ) usage ;;
 	esac
@@ -352,15 +300,12 @@ fi
 [ -n "$DEFAULT_FS" ] && FS_PATH="$DEFAULT_FS"
 
 # Getip address
-get_ip
+ip_add=$(get_ip)
 #check for lent
-[ -z $ip_add ] && die "Could not determine IP address. Please ensure lnet is \
-	configured !!!"
+[ -z $ip_add ] && die "Could not determine IP address. Please ensure lnet is configured !!!"
 
 case $cmd in
-	init    ) cortx_nfs_init;;
-	config	) cortx_nfs_config;;
-	setup	) cortx_nfs_init; cortx_nfs_config;;
-	cleanup ) cortx_nfs_cleanup;;
+	init    ) check_prerequisites; cortx_nfs_init;;
+	cleanup ) check_prerequisites; cortx_nfs_cleanup;;
 	*       ) usage;;
 esac

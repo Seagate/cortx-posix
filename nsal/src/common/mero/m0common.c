@@ -40,7 +40,7 @@
 #include "clovis/clovis_idx.h"
 #include "lib/thread.h"
 #include "m0common.h"
-#include <mero/helpers/helpers.h>
+#include <motr/helpers/helpers.h>
 
 /* Key Iterator */
 

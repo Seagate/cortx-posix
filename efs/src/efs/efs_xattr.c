@@ -89,9 +89,6 @@ size_t efs_getxattr(struct efs_fs *efs_fs, efs_cred_t *cred,
 	dassert(size != NULL);
 	dassert(*size != 0);
 
-	RC_WRAP_LABEL(rc, out, efs_access, efs_fs, cred, ino,
-		      EFS_ACCESS_READ);
-
 	RC_WRAP_LABEL(rc, out, efs_ino_to_oid, efs_fs, ino, &oid);
 
 	RC_WRAP_LABEL(rc, out, md_xattr_get, &(efs_fs->kvtree->index), (obj_id_t *)&oid, name,

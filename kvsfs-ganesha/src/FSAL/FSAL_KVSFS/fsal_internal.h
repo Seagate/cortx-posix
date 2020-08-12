@@ -19,6 +19,12 @@ fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
 
 void kvsfs_handle_ops_init(struct fsal_obj_ops *ops);
 
+/* Returns a vtable that implements the ::efs_endpoint_ops
+ * interface for the NFS Ganesha (/etc/ganesha/ganesha.conf) config file.
+ */
+const struct efs_endpoint_ops *kvsfs_config_ops(void);
+
+
 #if 0
 #include  "fsal.h"
 

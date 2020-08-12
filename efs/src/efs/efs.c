@@ -140,17 +140,17 @@ int efs_fini(void)
 	if (rc) {
                 log_err("efs_fs_fini failed, rc=%d", rc);
         }
-	rc = dsal_fini();
-	if (rc) {
-                log_err("dsal_fini failed, rc=%d", rc);
-        }
 	rc = nsal_module_fini();
 	if (rc) {
                 log_err("nsal_fini failed, rc=%d", rc);
         }
+	rc = dsal_fini();
+	if (rc) {
+                log_err("dsal_fini failed, rc=%d", rc);
+        }
 	rc = utils_fini();
 	if (rc) {
-        	log_err("utils_fini failed, rc=%d", rc);
+		log_err("utils_fini failed, rc=%d", rc);
         }
 	rc = log_fini();
 	if (rc) {

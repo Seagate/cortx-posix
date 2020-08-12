@@ -156,20 +156,16 @@ static int efs_set_ino_no_gen(struct efs_fs *efs_fs, efs_ino_t ino)
 {
 	int rc;
 	buff_t value;
-	struct kvnode node = KVNODE_INIT_EMTPY;
 
 	dassert(efs_fs != NULL);
 
 	buff_init(&value, &ino, sizeof (ino));
 
-	RC_WRAP_LABEL(rc, out, kvnode_load, efs_fs->kvtree,
-		      &efs_fs->kvtree->root_node_id, &node);
-	RC_WRAP_LABEL(rc, out, efs_set_sysattr, &node, value,
+	RC_WRAP_LABEL(rc, out, efs_set_sysattr, efs_fs->root_node, value,
 		      EFS_SYS_ATTR_INO_NUM_GEN);
 
 out:
 	log_trace("efs_set_ino_no_gen() ends, ino:%llu, rc:%d", ino, rc);
-	kvnode_fini(&node);
 	return rc;
 }
 
@@ -177,16 +173,13 @@ static int efs_get_ino_no_gen(struct efs_fs *efs_fs, efs_ino_t *ino)
 {
 	int rc;
 	buff_t value;
-	struct kvnode node = KVNODE_INIT_EMTPY;
 
 	dassert(efs_fs != NULL);
 	dassert(ino != NULL);
 
 	buff_init(&value, NULL, 0);
 
-	RC_WRAP_LABEL(rc, out, kvnode_load, efs_fs->kvtree,
-		      &efs_fs->kvtree->root_node_id, &node);
-	RC_WRAP_LABEL(rc, out, efs_get_sysattr, &node, &value,
+	RC_WRAP_LABEL(rc, out, efs_get_sysattr, efs_fs->root_node, &value,
 		      EFS_SYS_ATTR_INO_NUM_GEN);
 
 	if (sizeof (*ino) != value.len) {
@@ -198,7 +191,6 @@ static int efs_get_ino_no_gen(struct efs_fs *efs_fs, efs_ino_t *ino)
 
 out:
 	log_trace("efs_get_ino_no_gen() ends, ino:%llu, rc:%d", *ino, rc);
-	kvnode_fini(&node);
 	if (value.buf) {
 		free(value.buf);
 	}
@@ -208,18 +200,14 @@ out:
 static int efs_del_ino_no_gen(struct efs_fs *efs_fs)
 {
 	int rc;
-	struct kvnode node = KVNODE_INIT_EMTPY;
 
 	dassert(efs_fs != NULL);
 
-	RC_WRAP_LABEL(rc, out, kvnode_load, efs_fs->kvtree,
-		      &efs_fs->kvtree->root_node_id, &node);
-	RC_WRAP_LABEL(rc, out, efs_del_sysattr, &node,
+	RC_WRAP_LABEL(rc, out, efs_del_sysattr, efs_fs->root_node,
 		      EFS_SYS_ATTR_INO_NUM_GEN);
 
 out:
 	log_trace("efs_del_ino_no_gen() ends, rc:%d", rc);
-	kvnode_fini(&node);
 	return rc;
 }
 

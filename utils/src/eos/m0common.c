@@ -86,7 +86,7 @@ int m0init(struct collection_item *cfg_items)
 
 		memset(&m0thread, 0, sizeof(struct m0_thread));
 
-		m0_thread_adopt(&m0thread, clovis_instance->m0c_mero);
+		m0_thread_adopt(&m0thread, clovis_instance->m0c_motr);
 	} else
 		log_info("----------> tid=%d I am the init thread\n",
 		       (int)syscall(SYS_gettid));
@@ -103,6 +103,15 @@ static void m0fini_internal(void)
 	dassert(my_init_done);
 	if (clovis_instance) {
 		/* Finalize Clovis instance */
+		/* TODO:
+		 * This call may lead to a panic in M0 code
+		 * if some of the adopted threads have not been
+		 * shun()-ed properly.
+		 * EOS-11407 is supposed to resolve this
+		 * by enabling the autoshun feature
+		 * which allows us to shun() threads even if
+		 * we do not control their lifecycle.
+		 */
 		m0_clovis_fini(clovis_instance, true);
 		clovis_instance = NULL;
 	}
