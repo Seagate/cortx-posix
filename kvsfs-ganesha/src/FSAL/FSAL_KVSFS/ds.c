@@ -24,7 +24,6 @@
  */
 
 /* TODO:PORTING: pNFS support is disabled */
-#if 0
 /**
  * @file   ds.c
  *
@@ -50,7 +49,7 @@
 #include "fsal.h"
 #include "fsal_internal.h"
 #include "fsal_convert.h"
-#include "fsal_private.h"
+#include "fsal_api.h"		/* Later, Include fsal_private.h instead */
 #include "FSAL/fsal_config.h"
 #include "FSAL/fsal_commonlib.h"
 #include "kvsfs_methods.h"
@@ -58,6 +57,9 @@
 #include "nfs_creds.h"
 #include "pnfs_utils.h"
 #include <stdbool.h>
+
+extern struct fsal_pnfs_ds_ops def_pnfs_ds_ops;
+extern struct fsal_dsh_ops def_dsh_ops;
 
 /**
  * @brief Release a DS handle
@@ -69,8 +71,8 @@ kvsfs_release(struct fsal_ds_handle *const ds_pub)
 {
 	/* The private 'full' DS handle */
 	struct kvsfs_ds *ds = container_of(ds_pub,
-					    struct kvsfs_ds,
-					    ds);
+					   struct kvsfs_ds,
+					   ds);
 
 	fsal_ds_handle_fini(&ds->ds);
 	gsh_free(ds);
@@ -110,36 +112,37 @@ kvsfs_ds_read(struct fsal_ds_handle *const ds_pub,
 	struct kvsfs_ds *ds = container_of(ds_pub, struct kvsfs_ds, ds);
 	struct kvsfs_file_handle *kvsfs_fh = &ds->wire;
 	/* The amount actually read */
-	int amount_read = 0;
+	ssize_t amount_read = 0;
 	efs_cred_t cred;
-	kvsns_file_open_t fd;
-	int rc;
+	struct kvsfs_fsal_obj_handle;
+	struct kvsfs_file_state fd = {0};
+	struct kvsfs_fsal_export *kvsfs_fsal_export = 
+		container_of(ds_pub->pds->mds_fsal_export,
+			     struct kvsfs_fsal_export, export);
+	
+	LogDebug(COMPONENT_PNFS," >> ENTER kvsfs_ds_read \n");
+
+	fd.efs_fd.ino = kvsfs_fh->kvsfs_handle;
 
 	cred.uid = req_ctx->creds->caller_uid;
 	cred.gid = req_ctx->creds->caller_gid;
 
-	rc = kvsns_open(&cred, &kvsfs_fh->kvsfs_handle, O_RDONLY,
-			0777, &fd);
-	if (rc < 0)
-		return posix2nfs4_error(-rc);
-
-	/* write the data */
-	amount_read = kvsns_read(&cred, &fd, (char *)buffer,
-				 requested_length, offset);
+	/* read the data */
+	amount_read = efs_read(kvsfs_fsal_export->efs_fs, &cred, &fd.efs_fd,
+				buffer,requested_length, offset);
 	if (amount_read < 0) {
+		LogCrit(COMPONENT_FSAL,
+			"Error in efs_read\n");
 		/* ignore any potential error on close if read failed? */
-		kvsns_close(&fd);
+
 		return posix2nfs4_error(-amount_read);
 	}
-
-	rc = kvsns_close(&fd);
-	if (rc < 0)
-		return posix2nfs4_error(-rc);
 
 
 	*supplied_length = amount_read;
 	*end_of_file = amount_read == 0 ? true : false;
 
+	LogDebug(COMPONENT_PNFS," >> EXIT kvsfs_ds_read\n");
 	return NFS4_OK;
 }
 
@@ -182,10 +185,17 @@ kvsfs_ds_write(struct fsal_ds_handle *const ds_pub,
 	struct kvsfs_ds *ds = container_of(ds_pub, struct kvsfs_ds, ds);
 	struct kvsfs_file_handle *kvsfs_fh = &ds->wire;
 	/* The amount actually read */
-	int32_t amount_written = 0;
+	ssize_t amount_written = 0;
 	efs_cred_t cred;
-	kvsns_file_open_t fd;
-	int rc;
+	struct kvsfs_fsal_obj_handle;
+	struct kvsfs_file_state fd = {0};
+	struct kvsfs_fsal_export *kvsfs_fsal_export = 
+		container_of(ds_pub->pds->mds_fsal_export,
+			     struct kvsfs_fsal_export, export);
+	
+	fd.efs_fd.ino = kvsfs_fh->kvsfs_handle;
+
+	LogDebug(COMPONENT_PNFS," >> ENTER kvsfs_ds_write\n");
 
 	memset(writeverf, 0, NFS4_VERIFIER_SIZE);
 
@@ -195,26 +205,21 @@ kvsfs_ds_write(struct fsal_ds_handle *const ds_pub,
 	/** @todo Add some debug code here about the fh to be used */
 
 	/* @todo: we could take care of parameter stability_wanted here */
-	rc = kvsns_open(&cred, &kvsfs_fh->kvsfs_handle, O_WRONLY,
-			0777, &fd);
-	if (rc < 0)
-		return posix2nfs4_error(-rc);
+
+	/* @todo: We currently do not have any support for writeverf */
 
 	/* write the data */
-	amount_written = kvsns_write(&cred, &fd, (char *)buffer,
-				     write_length, offset);
+	amount_written = efs_write(kvsfs_fsal_export->efs_fs, &cred, &fd.efs_fd,
+				   buffer,(const)write_length, offset);
 	if (amount_written < 0) {
-		kvsns_close(&fd);
 		return posix2nfs4_error(-amount_written);
 	}
 
-	rc = kvsns_close(&fd);
-	if (rc < 0)
-		return posix2nfs4_error(-rc);
 
 	*written_length = amount_written;
 	*stability_got = stability_wanted;
 
+	LogDebug(COMPONENT_PNFS," >> EXIT kvsfs_ds_write\n");
 	return NFS4_OK;
 }
 
@@ -238,10 +243,10 @@ kvsfs_ds_write(struct fsal_ds_handle *const ds_pub,
 
 static nfsstat4
 kvsfs_ds_commit(struct fsal_ds_handle *const ds_pub,
-		 struct req_op_context *const req_ctx,
-		 const offset4 offset,
-		 const count4 count,
-		 verifier4 *const writeverf)
+		struct req_op_context *const req_ctx,
+		const offset4 offset,
+		const count4 count,
+		verifier4 *const writeverf)
 {
 	memset(writeverf, 0, NFS4_VERIFIER_SIZE);
 	return NFS4_OK;
@@ -269,9 +274,9 @@ dsh_ops_init(struct fsal_dsh_ops *ops)
  */
 
 static nfsstat4 make_ds_handle(struct fsal_pnfs_ds *const pds,
-			       const struct gsh_buffdesc *const desc,
-			       struct fsal_ds_handle **const handle,
-			       int flags)
+				const struct gsh_buffdesc *const desc,
+				struct fsal_ds_handle **const handle,
+				int flags)
 {
 	struct kvsfs_ds *ds;		/* Handle to be created */
 
@@ -309,4 +314,3 @@ void kvsfs_pnfs_ds_ops_init(struct fsal_pnfs_ds_ops *ops)
 	ops->fsal_dsh_ops = dsh_ops_init;
 }
 
-#endif

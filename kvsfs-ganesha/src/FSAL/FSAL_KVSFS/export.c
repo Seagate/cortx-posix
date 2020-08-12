@@ -30,6 +30,7 @@
  */
 
 #include <stdint.h>
+#include "common/log.h"
 #include <config_parsing.h>
 #include <fsal_types.h>
 #include <FSAL/fsal_config.h>
@@ -154,6 +155,7 @@ fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
 
 	struct efs_fs *efs_fs = NULL;
 
+
 	retval = efs_fs_open(op_ctx->ctx_export->fullpath, &efs_fs);
 	if (retval != 0) {
 		LogMajor(COMPONENT_FSAL, "FS open failed :%s",
@@ -165,7 +167,6 @@ fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
 	myself->fs_id = fsid;
 
 	/* TODO:PORTING: pNFS support */
-#if 0
 	if (myself->pnfs_ds_enabled) {
 		struct fsal_pnfs_ds *pds = NULL;
 
@@ -175,8 +176,9 @@ fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
 			goto err_locked;
 
 		/* special case: server_id matches export_id */
-		pds->id_servers = op_ctx->export->export_id;
-		pds->mds_export = op_ctx->export;
+		pds->id_servers = op_ctx->ctx_export->export_id;
+		pds->mds_export = op_ctx->ctx_export;
+		pds->mds_fsal_export = op_ctx->fsal_export;
 
 		if (!pnfs_ds_insert(pds)) {
 			LogCrit(COMPONENT_CONFIG,
@@ -190,22 +192,24 @@ fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
 
 		LogInfo(COMPONENT_FSAL,
 			"kvsfs_fsal_create: pnfs DS was enabled for [%s]",
-			op_ctx->export->fullpath);
+			op_ctx->ctx_export->fullpath);
 	}
 
 	if (myself->pnfs_mds_enabled) {
 		LogInfo(COMPONENT_FSAL,
 			"kvsfs_fsal_create: pnfs MDS was enabled for [%s]",
-			op_ctx->export->fullpath);
+			op_ctx->ctx_export->fullpath);
 		export_ops_pnfs(&myself->export.exp_ops);
+      		fsal_ops_pnfs(&myself->export.fsal->m_ops);
 	}
-#endif
+
 
 	return fsalstat(ERR_FSAL_NO_ERROR, 0);
 
 err_locked:
 	if (myself->export.fsal != NULL)
 		fsal_detach_export(fsal_hdl, &myself->export.exports);
+
 errout:
 	/* elvis has left the building */
 	gsh_free(myself);

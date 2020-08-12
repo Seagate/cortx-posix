@@ -29,7 +29,7 @@ static inline void kvsns_cred_from_op_ctx(efs_cred_t *out)
 /* this needs to be refactored to put ipport inside sockaddr_in */
 struct kvsfs_pnfs_ds_parameter {
 	struct glist_head ds_list;
-	struct sockaddr_in ipaddr;
+	sockaddr_t ipaddr;
 	unsigned short ipport;
 	unsigned int id;
 };
@@ -50,6 +50,11 @@ struct kvsfs_file_handle {
 	efs_ino_t kvsfs_handle;
 };
 
+/* ds_wire handle. */
+struct kvsfs_ds_wire {
+	uint64_t fsid;
+	efs_ino_t ino;
+};
 struct kvsfs_fsal_export {
 	/* base */
 	struct fsal_export export;
