@@ -88,12 +88,62 @@ static void append_data(struct serialized_buffer *buffer, char *data, int len)
 	return;
 }
 
+void json_to_dataserver_block(struct json_object *obj, struct ds_block *block)
+{
+	struct json_object *json_obj = NULL;
+	const char *str = NULL;
+
+	json_object_object_get_ex(obj, "data_server", &json_obj);
+	if (json_obj == NULL) {
+		str = "None";
+	} else {
+		str = json_object_get_string(json_obj);
+	}
+	str256_from_cstr(block->ds_addr, str, strlen(str));
+
+	// Assign port number.
+	str256_from_cstr(block->ds_port, DS_PORT, strlen(DS_PORT));
+	return;
+}
+
+/* Creates pnfs_block structures from json */
+void json_to_pnfs_block(struct json_object *obj, struct pnfs_block *block)
+{
+	struct json_object *json_obj = NULL;
+	const char *str = NULL;
+
+	str256_from_cstr(block->stripe_unit, STRIPE_UNIT, strlen(STRIPE_UNIT));
+
+	json_object_object_get_ex(obj, "pnfs_enabled", &json_obj);
+	if (json_obj == NULL) {
+		str = "false";
+	} else {
+		str = json_object_get_string(json_obj);
+	}
+	str256_from_cstr(block->pnfs_enabled, str, strlen(str));
+
+	json_object_object_get_ex(obj, "data_server", &json_obj);
+	if (json_obj == NULL) {
+		str = "0";
+		str256_from_cstr(block->ds_count, str, strlen(str));
+	} else {
+		str = "1";
+		str256_from_cstr(block->ds_count, str, strlen(str));
+	}
+
+	json_to_dataserver_block(obj, &block->ds_block);
+	return;
+}
+
 /*creates export_fsal_block structure from json */
 void json_to_export_fsal_block(struct json_object *obj,
 			       struct export_fsal_block *block)
 {
 	str256_from_cstr(block->name, FSAL_NAME, strlen(FSAL_NAME));
 	str256_from_cstr(block->efs_config, EFS_CONFIG, strlen(EFS_CONFIG));
+
+	// Fill the pNFS block.
+	json_to_pnfs_block(obj, &block->pnfs_block);
 	return;
 }
 
@@ -316,6 +366,49 @@ static void client_to_buffer(struct client_block *block,
 	memset(str, '\0', sizeof(str));
 }
 
+static void pnfs_to_buffer(struct pnfs_block *block,
+			   struct serialized_buffer *buffer)
+{
+	char str[256];
+	memset(str, '\0', sizeof(str));
+
+	sprintf(str, "\t\tPNFS {\n");
+	append_data(buffer, str, strlen(str));
+	memset(str, '\0', sizeof(str));
+
+	sprintf(str, "\t\t\tStripe_Unit = %s;\n", block->stripe_unit.s_str);
+	append_data(buffer, str, strlen(str));
+	memset(str, '\0', sizeof(str));
+
+	sprintf(str, "\t\t\tpnfs_enabled = %s;\n", block->pnfs_enabled.s_str);
+	append_data(buffer, str, strlen(str));
+	memset(str, '\0', sizeof(str));
+
+	sprintf(str, "\t\t\tNb_Dataserver = %s;\n", block->ds_count.s_str);
+	append_data(buffer, str, strlen(str));
+	memset(str, '\0', sizeof(str));
+
+	sprintf(str, "\t\t\tDS1 {\n");
+	append_data(buffer, str, strlen(str));
+	memset(str, '\0', sizeof(str));
+
+	sprintf(str, "\t\t\t\tDS_Addr = %s;\n", block->ds_block.ds_addr.s_str);
+	append_data(buffer, str, strlen(str));
+	memset(str, '\0', sizeof(str));
+
+	sprintf(str, "\t\t\t\tDS_Port = %s;\n", block->ds_block.ds_port.s_str);
+	append_data(buffer, str, strlen(str));
+	memset(str, '\0', sizeof(str));
+
+	sprintf(str, "\t\t\t}\n");
+	append_data(buffer, str, strlen(str));
+	memset(str, '\0', sizeof(str));
+
+	sprintf(str, "\t\t}\n");
+	append_data(buffer, str, strlen(str));
+	memset(str, '\0', sizeof(str));
+}
+
 /* serializes export_block structure to buffer */
 static void export_to_buffer(struct export_block *block,
 			     struct serialized_buffer *buffer)
@@ -351,6 +444,8 @@ static void export_to_buffer(struct export_block *block,
 		block->fsal_block.efs_config.s_str);
 	append_data(buffer, str, strlen(str));
 	memset(str, '\0', sizeof(str));
+
+	pnfs_to_buffer(&block->fsal_block.pnfs_block, buffer);
 
 	sprintf(str, "\t}\n");
 	append_data(buffer, str, strlen(str));
