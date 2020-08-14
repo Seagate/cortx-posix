@@ -23,7 +23,7 @@ DEFAULT_EXPORT_OPTION+="clients=*,Squash=no_root_squash,access_type=RW,protocols
 
 # Enable/Disable pNFS
 pNFS_ENABLED=false
-pNFS_DATA_SERVER="None"
+pNFS_DATA_SERVER=$(hostname -i)
 
 function die {
 	log "error: $*"

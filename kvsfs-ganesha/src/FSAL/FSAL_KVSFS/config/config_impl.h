@@ -27,8 +27,8 @@
 #define EFS_CONFIG                              "/etc/cortx/cortxfs.conf"
 #define DOMAIN_NAME				"localdomain"
 #define SERIALIZE_BUFFER_DEFAULT_SIZE           2048
-#define STRIPE_UNIT				"8192"
-#define DS_PORT					"2049"
+#define STRIPE_UNIT                             "8192"
+#define DS_PORT                                 "2049"
 
 struct ds_block {
 	str256_t ds_addr;
