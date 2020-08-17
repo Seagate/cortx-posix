@@ -90,7 +90,7 @@ int iter_init(void)
 
 	dassert(kvstor != NULL);
 
-	rc = get_config_item("mero", "kvs_fid", cfg_items, &item);
+	rc = get_config_item("motr", "kvs_fid", cfg_items, &item);
 	if (rc) {
 		log_err("get_config_item failed, rc = %d", rc);
 		goto out;

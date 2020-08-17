@@ -1,5 +1,5 @@
 CENTOS_RELEASE  := 7
-NAMESPACE       := registry.gitlab.mero.colo.seagate.com
+NAMESPACE       := registry.gitlab.motr.colo.seagate.com
 DOCKER          := docker
 
 INAME = $(@:%-image=%)

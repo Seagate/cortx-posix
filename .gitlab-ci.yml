@@ -29,7 +29,7 @@ build:
   stage: build
   tags: [ docker-build ]
   except: [ tags ]
-  image: registry.gitlab.mero.colo.seagate.com/eos/fs/eos-fs:$CENTOS_RELEASE
+  image: registry.gitlab.motr.colo.seagate.com/eos/fs/eos-fs:$CENTOS_RELEASE
   script: |
     # TODO: replace BCURRENT with BLATEST when it's ready
     export LATEST_RELEASE_DIR="$(readlink -f /releases/eos/BCURRENT)"

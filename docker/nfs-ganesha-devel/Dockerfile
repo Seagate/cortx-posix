@@ -1,9 +1,9 @@
 ARG  CENTOS_RELEASE=7
-FROM registry.gitlab.mero.colo.seagate.com/mero/mero:${CENTOS_RELEASE}
+FROM registry.gitlab.motr.colo.seagate.com/motr/motr:${CENTOS_RELEASE}
 
-RUN git clone --recursive http://gitlab.mero.colo.seagate.com/eos/fs/nfs-ganesha.git \
+RUN git clone --recursive http://gitlab.motr.colo.seagate.com/eos/fs/nfs-ganesha.git \
     --branch V2.8-stable nfs-ganesha-eos
-RUN git clone http://gitlab.mero.colo.seagate.com/eos/fs/eos-fs.git
+RUN git clone http://gitlab.motr.colo.seagate.com/eos/fs/eos-fs.git
 
 RUN yum install -y \
         bison \
