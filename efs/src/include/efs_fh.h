@@ -19,7 +19,7 @@
 
 /* Low-level Design
  *
- * EFS (EOSFS) File Handle Overview.
+ * EFS File Handle Overview.
  * -----------------------------------
  *
  * EFS File Handle (efs)fh) is an in-memory object that represents
@@ -188,7 +188,7 @@ size_t efs_fh_serialized_size(void);
  * the on-wire FH handle has to be unique across the filesystems.
  * The Object:Filystem pair of FIDs is unique enough and can be easily
  * reconstructed without any additiona information and even might be used
- * outside of EOS-FS.
+ * outside of EFS.
  *
  * 2. kvsns_ino_t arguments are replaced by kvsns_fh_t. Because of that,
  * the callers should ensure to destroy the handles.

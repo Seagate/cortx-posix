@@ -100,7 +100,7 @@ static int ut_kvtree_setup()
 	int rc = 0;
 	/* Creating namespace */
 	str256_t ns_name;
-	char *name = "eosfs";
+	char *name = "efs";
 	size_t ns_size = 0;
 
 	rc = nsal_module_init(cfg_items);

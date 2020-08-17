@@ -22,8 +22,8 @@
  *This CORTX specific implementation is based on m0_clovis's object entity.
  */
 
-#ifndef _EOS_DSTORE_H
-#define _EOS_DSTORE_H
+#ifndef _CORTX_DSTORE_H
+#define _CORTX_DSTORE_H
 
 #include "dstore.h"
 

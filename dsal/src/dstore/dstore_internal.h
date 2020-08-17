@@ -503,11 +503,11 @@ bool dstore_ops_invariant(const struct dstore_ops *ops)
 }
 
 /* FIXME: This structure does not belong here.
- * It should be moved into eos-related directory.
+ * It should be moved into cortx-related directory.
  * The consumer (dstore.c) should include this file separately.
  * It will help to remove dependencies between DSAL backends.
  */
-extern const struct dstore_ops eos_dstore_ops;
+extern const struct dstore_ops cortx_dstore_ops;
 
 
 /** A helper for DSTORE backends: initializes already-allocated
