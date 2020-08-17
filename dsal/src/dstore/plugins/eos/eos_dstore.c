@@ -1,6 +1,6 @@
 /*
  * Filename:         eos_dstore.c
- * Description:      Implementation of EOS dstore.
+ * Description:      Implementation of CORTX dstore.
  *
  * Copyright (c) 2020 Seagate Technology LLC and/or its Affiliates
  * This program is free software: you can redistribute it and/or modify
@@ -19,7 +19,7 @@
 
 /*
  * This file contains APIs which implement DSAL's dstore framework,
- * on top of eos clovis object APIs.
+ * on top of cortx clovis object APIs.
  */
 
 #include <sys/param.h> /* DEV_BSIZE */
@@ -42,7 +42,7 @@ _Static_assert((&((struct eos_dstore_obj *) NULL)->base) == 0,
 	       "The offset of of the base field should be zero.\
 	       Otherwise, the direct casts (E2D, D2E) will not work.");
 
-/* Casts DSTORE Object to EOS Object.
+/* Casts DSTORE Object to CORTX Object.
  *
  * Note: Due to the lack of de-referencing, this call may be safely
  * used before pre-conditions, e.g.:
@@ -58,7 +58,7 @@ struct eos_dstore_obj *D2E_obj(struct dstore_obj *obj)
 	return (struct eos_dstore_obj *) obj;
 }
 
-/* Casts EOS Object to DSTORE Object.
+/* Casts CORTX Object to DSTORE Object.
  * @see ::D2E_obj
  */
 static inline
@@ -149,7 +149,7 @@ struct eos_io_op *D2E_op(struct dstore_io_op *op)
 	return (struct eos_io_op *) op;
 }
 
-/* Casts EOS IO operation to DSTORE IO Operation
+/* Casts CORTX IO operation to DSTORE IO Operation
  */
 static inline
 struct dstore_io_op *E2D_op(struct eos_io_op *op)

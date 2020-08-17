@@ -152,7 +152,7 @@ void test_ns_scan(void)
 int main(void)
 {
         int rc = 0;
-        char *test_logs = "/var/log/eos/test/ut/ut_nsal.logs";
+        char *test_logs = "/var/log/cortx/test/ut/ut_nsal.logs";
 
 	printf("NS Tests\n");
 

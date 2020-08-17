@@ -1,6 +1,6 @@
 /*
  * Filename: eos_kvstore.c
- * Description: Implementation of EOS KVStore.
+ * Description: Implementation of CORTX KVStore.
  *
  * Copyright (c) 2020 Seagate Technology LLC and/or its Affiliates
  * This program is free software: you can redistribute it and/or modify
@@ -19,7 +19,7 @@
 
 /*
  * This file contains APIs which implement NSAL's KVStore framework,
- * on top of eos clovis index APIs.
+ * on top of cortx clovis index APIs.
  */
  
 #include "internal/eos/eos_kvstore.h"

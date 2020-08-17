@@ -985,7 +985,7 @@ static void test_kvnode_del_sys_attr_nonexist()
 int main(void)
 {
 	int rc = 0;
-	char *test_logs = "/var/log/eos/test/ut/ut_nsal.logs";
+	char *test_logs = "/var/log/cortx/test/ut/ut_nsal.logs";
 
 	printf("KVTree test\n");
 

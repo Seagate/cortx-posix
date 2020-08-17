@@ -47,7 +47,7 @@ struct kvs_idx;
 struct kvs_itr;
 
 struct kvstore {
-	/* Type of kvstore, current could be 2, {eos or redis} */
+	/* Type of kvstore, current could be 2, {cortx or redis} */
 	char *type;
 	struct kvstore_ops *kvstore_ops;
 };

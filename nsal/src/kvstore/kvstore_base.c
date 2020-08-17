@@ -39,7 +39,7 @@ struct kvstore_module {
 };
 
 static struct kvstore_module kvstore_modules[] = {
-    { "eos", &eos_kvs_ops },
+    { "cortx", &eos_kvs_ops },
 #ifdef	WITH_REDIS
     { "redis", &redis_kvs_ops },
 #endif
