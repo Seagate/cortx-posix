@@ -4,6 +4,9 @@
 #include "fsal.h" /* attributes */
 #include "kvsfs_methods.h"
 
+// forward declaration
+struct kvsfs_pnfs_mds_ctx;
+
 /* KVSFS FSAL module private storage
  */
 
@@ -11,6 +14,8 @@ struct kvsfs_fsal_module {
 	struct fsal_module fsal;
 	struct fsal_staticfsinfo_t fs_info;
 	struct fsal_obj_ops handle_ops;
+	/* pNFS related KVSFS FSAL's global config */
+	struct kvsfs_pnfs_mds_ctx *mds_ctx;
 };
 /** KVSFS-related data for a file state object. */
 struct kvsfs_file_state {
@@ -81,6 +86,12 @@ extern struct fsal_staticfsinfo_t global_fs_info;
 
 /* KVSFS methods for pnfs
  */
+
+int kvsfs_pmds_ini(struct kvsfs_fsal_module *kvsfs,
+		   const struct config_item *kvsfs_params);
+int kvsfs_pmds_fini(struct kvsfs_fsal_module *kvsfs);
+int kvsfs_pmds_update_exp(struct kvsfs_fsal_module *kvsfs,
+			  const struct kvsfs_fsal_export *exp_config);
 nfsstat4 kvsfs_getdeviceinfo(struct fsal_module *fsal_hdl,
 			      XDR *da_addr_body,
 			      const layouttype4 type,

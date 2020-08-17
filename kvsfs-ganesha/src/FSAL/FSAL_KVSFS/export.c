@@ -39,6 +39,8 @@
 #include "kvsfs_methods.h"
 #include "efs.h"
 
+extern struct kvsfs_fsal_module KVSFS;
+
 static struct config_item ds_array_params[] = {
 	CONF_MAND_IP_ADDR("DS_Addr", "127.0.0.1",
 			  kvsfs_pnfs_ds_parameter, ipaddr),
@@ -203,6 +205,11 @@ fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
       		fsal_ops_pnfs(&myself->export.fsal->m_ops);
 	}
 
+	retval = kvsfs_pmds_update_exp(&KVSFS , myself);
+	if (retval != 0) {
+		LogMajor(COMPONENT_FSAL, "kvsfs_pmds_update_exp failed");
+		goto errout;
+	}
 
 	return fsalstat(ERR_FSAL_NO_ERROR, 0);
 

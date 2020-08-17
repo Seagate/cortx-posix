@@ -155,6 +155,19 @@ static fsal_status_t kvsfs_init_config(struct fsal_module *fsal_hdl,
 		}
 	}
 
+	/**
+	 * TODO: In future when we move away from using ganesha.conf file
+	 * for the pNFS params and start using the /etc/cortx/cortxfs.conf
+	 * file, that change needs to be done from here
+	 * Initialize KVSFS FSAL obj's pNFS module
+	 */
+	rc = kvsfs_pmds_ini(kvsfs, kvsfs_params);
+	if (rc == -1) {
+		LogCrit(COMPONENT_FSAL, "Failed to load pNFS config");
+		rc = -EINVAL;
+		goto out;
+	}
+
 	/* assign the final values to the base structure */
 	fsal_hdl->fs_info = kvsfs->fs_info;
 
@@ -310,6 +323,12 @@ static int kvsfs_unload(struct fsal_module *fsal_hdl)
 	rc = efs_fini();
 	if (rc) {
 		LogCrit(COMPONENT_FSAL, "efs_fini failed (%d)", rc);
+		goto out;
+	}
+
+	rc = kvsfs_pmds_fini(&KVSFS);
+	if (rc) {
+		LogCrit(COMPONENT_FSAL, "kvsfs_pmds_fini() failed (%d)", rc);
 		goto out;
 	}
 
