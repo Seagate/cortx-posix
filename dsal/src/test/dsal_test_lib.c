@@ -44,7 +44,7 @@ struct collection_item *errors = NULL;
 struct collection_item *item = NULL;
 
 /* Read efs config parameter needed for m0_filesystem_stats */
-int dtlib_get_mero_config_params(void)
+int dtlib_get_motr_config_params(void)
 {
 	int rc = 0, len;
 
@@ -55,7 +55,7 @@ int dtlib_get_mero_config_params(void)
 		goto die;
 	}
 
-	(void) get_config_item("mero", "local_addr", cfg_items, &item);
+	(void) get_config_item("motr", "local_addr", cfg_items, &item);
 	if (item != NULL) {
 		server = get_string_config_value(item, NULL);
 		item = NULL;
@@ -63,7 +63,7 @@ int dtlib_get_mero_config_params(void)
 	else
 		goto die;
 
-	(void) get_config_item("mero", "ha_addr", cfg_items, &item);
+	(void) get_config_item("motr", "ha_addr", cfg_items, &item);
 	if (item != NULL) {
 		client = get_string_config_value(item, NULL);
 		item = NULL;
@@ -206,7 +206,7 @@ int dtlib_setup_for_multi(int argc, char *argv[])
 {
 	int rc = 0, i;
 
-	dtlib_get_mero_config_params();
+	dtlib_get_motr_config_params();
 	dtlib_common_setup(argc, argv);
 
 	for (i = 0; i < NUM_OF_OBJECTS; i++) {

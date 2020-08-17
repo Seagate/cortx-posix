@@ -62,7 +62,7 @@ static void print_fs_stats(struct env *env)
 	printf("\n filesystem stats: \n");
 	system(env->cmd);
 	printf("\n Sparse file size \n");
-	system("ls -lsh /var/mero/disk*");
+	system("ls -lsh /var/motr/disk*");
 }
 
 /* Function to prepare command line for filesystem stats */
@@ -70,7 +70,7 @@ static void prepare_fs_cmd(struct env *env)
 {
 	char *fs_stat_path = "/bin/m0_filesystem_stats ";
 	char *profile = " 0x7000000000000001,0x1e ";
-	char *lib_path = " /usr/lib64/libmero.so";
+	char *lib_path = " /usr/lib64/libmotr.so";
 
 	sprintf(env->cmd, "%s -s %s -c %s -p %s -l %s", fs_stat_path,
 		env->server, env->client, profile, lib_path);
@@ -81,7 +81,7 @@ static void prepare_fs_cmd(struct env *env)
  * Strategy:
  *	Create a number of big objects
  * Expected behavior:
- *	No errors. Storage space will be occupied by Mero
+ *	No errors. Storage space will be occupied by Motr
  * Enviroment:
  *	Empty dstore.
  */
@@ -143,7 +143,7 @@ static void test_creat_big_objects(void **state)
  * Strategy:
  *	Delete the previously created files.
  * Expected behavior:
- *	No errors. Space should be released by Mero
+ *	No errors. Space should be released by Motr
  * Enviroment:
  *	Dstore has objects.
  */

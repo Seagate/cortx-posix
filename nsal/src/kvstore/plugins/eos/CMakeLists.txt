@@ -5,7 +5,7 @@ set(EOS_CFLAGS "${EOS_CFLAGS} -fno-strict-aliasing -fno-omit-frame-pointer  -fno
 set(EOS_CFLAGS "${EOS_CFLAGS} -I/usr/include/motr -I/usr/include/libcfs ")
 set(EOS_CFLAGS "${EOS_CFLAGS} -I/usr/include/lustre")
 
-include_directories("/usr/include/mero")
+include_directories("/usr/include/motr")
 include_directories(${EOSUTILSINC})
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${EOS_CFLAGS}")

@@ -124,7 +124,7 @@ ns_meta_fid = $KVS_NS_META_FID
 [dstore]
 type = eos
 
-[mero]
+[motr]
 local_addr = $LOC_EP
 ha_addr = $HA_EP
 profile = $PROFILE

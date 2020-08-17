@@ -9,11 +9,11 @@ NFS Ganesha FSAL API based on KVSNS as an underlying filesystem.
 
 See also:
 
-* EOS-FS repo: http://gitlab.mero.colo.seagate.com/eos/fs/eos-fs
+* EOS-FS repo: https://github.com/Seagate/cortx-fs.git
 
-* NFS Ganesha repo: http://gitlab.mero.colo.seagate.com/eos/fs/nfs-ganesha
+* NFS Ganesha repo: https://github.com/Seagate/nfs-ganesha.git
 
-* KVSNS repo: http://gitlab.mero.colo.seagate.com/eos/fs/kvsns
+* KVSFS repo: http://github.com/Seagate/cortx-fs-ganesha.git
 
 
 # Quick start
