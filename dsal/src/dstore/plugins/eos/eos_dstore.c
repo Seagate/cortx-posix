@@ -523,6 +523,26 @@ static const struct m0_clovis_op_ops eos_io_op_cbs = {
 	.oop_failed = on_oop_failed,
 	.oop_stable = on_oop_finished,
 };
+/* Return an appropriate object operation value with respect to io operation
+ * value
+ */
+static enum m0_clovis_obj_opcode
+	dstore_io_op_type2m0_op_type(enum dstore_io_op_type type)
+{
+	enum m0_clovis_obj_opcode obj_opcode;
+	switch (type) {
+		case DSTORE_IO_OP_WRITE:
+			obj_opcode = M0_CLOVIS_OC_WRITE;
+			break;
+		case DSTORE_IO_OP_READ:
+			obj_opcode = M0_CLOVIS_OC_READ;
+			break;
+		default:
+			/* Unsupported operation type */
+			dassert(0);
+	}
+	return obj_opcode;
+}
 
 static int eos_ds_io_op_init(struct dstore_obj *dobj,
 			     enum dstore_io_op_type type,
@@ -538,7 +558,7 @@ static int eos_ds_io_op_init(struct dstore_obj *dobj,
 	const m0_time_t schedule_now = 0;
 	const uint64_t empty_mask = 0;
 
-	if (!M0_IN(type, (DSTORE_IO_OP_WRITE))) {
+	if (!M0_IN(type, (DSTORE_IO_OP_WRITE, DSTORE_IO_OP_READ))) {
 		log_err("%s", (char *) "Unsupported IO operation");
 		rc = RC_WRAP_SET(-EINVAL);
 		goto out;
@@ -561,8 +581,9 @@ static int eos_ds_io_op_init(struct dstore_obj *dobj,
 
 	dstore_io_vec2bufext(&result->base.data, &result->vec);
 
-	RC_WRAP_LABEL(rc, out, m0_clovis_obj_op, &obj->cobj, M0_CLOVIS_OC_WRITE,
-		      &result->vec.extents, &result->vec.data,
+	RC_WRAP_LABEL(rc, out, m0_clovis_obj_op, &obj->cobj,
+		      dstore_io_op_type2m0_op_type(type), &result->vec.extents,
+		      &result->vec.data,
 		      &result->attrs, empty_mask, &result->cop);
 
 	result->cop->op_datum = result;

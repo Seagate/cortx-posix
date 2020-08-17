@@ -209,11 +209,12 @@ out:
 	return rc;
 }
 
-int dstore_io_op_write(struct dstore_obj *obj,
-		       struct dstore_io_vec *bvec,
-		       dstore_io_op_cb_t cb,
-		       void *cb_ctx,
-		       struct dstore_io_op **out)
+static int dstore_io_op_init_and_submit(struct dstore_obj *obj,
+                                        struct dstore_io_vec *bvec,
+                                        dstore_io_op_cb_t cb,
+                                        void *cb_ctx,
+                                        struct dstore_io_op **out,
+                                        enum dstore_io_op_type op_type)
 {
 	int rc;
 	struct dstore *dstore;
@@ -225,11 +226,14 @@ int dstore_io_op_write(struct dstore_obj *obj,
 	dassert(out);
 	dassert(dstore_obj_invariant(obj));
 	dassert(dstore_io_vec_invariant(bvec));
+	/* Only WRITE/READ is supported so far */
+	dassert(op_type == DSTORE_IO_OP_WRITE ||
+		op_type == DSTORE_IO_OP_READ);
 
 	dstore = obj->ds;
 
 	RC_WRAP_LABEL(rc, out, dstore->dstore_ops->io_op_init, obj,
-		      DSTORE_IO_OP_WRITE, bvec, cb, cb_ctx, &result);
+		      op_type, bvec, cb, cb_ctx, &result);
 	RC_WRAP_LABEL(rc, out, dstore->dstore_ops->io_op_submit, result);
 
 	*out = result;
@@ -240,12 +244,43 @@ out:
 		dstore->dstore_ops->io_op_fini(result);
 	}
 
+	dassert((!(*out)) || dstore_io_op_invariant(*out));
+	return rc;
+}
+
+int dstore_io_op_write(struct dstore_obj *obj,
+                       struct dstore_io_vec *bvec,
+                       dstore_io_op_cb_t cb,
+                       void *cb_ctx,
+                       struct dstore_io_op **out)
+{
+	int rc;
+
+	rc = dstore_io_op_init_and_submit(obj, bvec, cb, cb_ctx, out,
+					  DSTORE_IO_OP_WRITE);
+
 	log_debug("write (" OBJ_ID_F " <=> %p, "
 		  "vec=%p, cb=%p, ctx=%p, *out=%p) rc=%d",
 		  OBJ_ID_P(dstore_obj_id(obj)), obj,
 		  bvec, cb, cb_ctx, rc == 0 ? *out : NULL, rc);
 
-	dassert((!(*out)) || dstore_io_op_invariant(*out));
+	return rc;
+}
+
+int dstore_io_op_read(struct dstore_obj *obj, struct dstore_io_vec *bvec,
+                      dstore_io_op_cb_t cb, void *cb_ctx,
+                      struct dstore_io_op **out)
+{
+	int rc;
+
+	rc = dstore_io_op_init_and_submit(obj, bvec, cb, cb_ctx, out,
+					  DSTORE_IO_OP_READ);
+
+	log_debug("read (" OBJ_ID_F " <=> %p, "
+		  "vec=%p, cb=%p, ctx=%p, *out=%p) rc=%d",
+		  OBJ_ID_P(dstore_obj_id(obj)), obj,
+		  bvec, cb, cb_ctx, rc == 0 ? *out : NULL, rc);
+
 	return rc;
 }
 
