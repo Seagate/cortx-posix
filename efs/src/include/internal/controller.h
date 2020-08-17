@@ -30,7 +30,8 @@
  */
 #define CONTROLLER_MAP(XX)		\
 	XX(FS,		fs)		\
-	XX(ENDPOINT,	endpoint)
+	XX(ENDPOINT,	endpoint)	\
+	XX(AUTH,	auth)
 /**
  * Not supporeted yet.
  * Add to the CONTROLER_MAP as and when supported.
@@ -93,5 +94,17 @@ enum endpoint_api_id {
 };
 
 #define ENDPOINT_API_COUNT   (0+ENDPOINT_API_MAP(COUNT))
+
+#define AUTH_API_MAP(XX)				\
+	XX(SETUP,	setup,		PUT)		\
+	XX(REMOVE,	remove,		DELETE)
+
+enum auth_api_id {
+#define XX(uc, lc, _)	AUTH_ ## uc ## _ID,
+	AUTH_API_MAP(XX)
+#undef XX
+};
+
+#define AUTH_API_COUNT   (0+AUTH_API_MAP(COUNT))
 
 #endif

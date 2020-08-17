@@ -27,9 +27,8 @@ import logging
 import http
 from http import HTTPStatus
 import http.client
-import json
 import textwrap
-import sys, traceback
+import traceback
 import re
 
 '''
@@ -251,13 +250,52 @@ class EndpointCommand(Command):
 
 			validate_inp_config_params(efscli_config_rules, args.args[1])
 
+
+class AuthCommand(Command):
+	"""
+	Contains functionality to handle Auth Setup commands.
+	"""
+
+	def __init__(self, args):
+		super().__init__(args)
+
+	def name(self):
+		return "auth"
+
+	@staticmethod
+	def add_args(parser):
+		sbparser = parser.add_parser("auth", help='setup, show, check or remove Auth Setup.')
+		sbparser.add_argument('action', help='action', choices=['setup', 'show', 'check', 'remove'])
+		sbparser.add_argument('args', nargs='*', default=[], help='Auth Setup command options')
+		sbparser.set_defaults(command=AuthCommand)
+
+	def validate_args_payload(self, args):
+		if args.action.lower() == 'setup':
+			# Below check is based on current minimum arguments
+			# needed for ldap. Later after adding other options,
+			# this minimum value will change.
+			if len(args.args) < 5:
+				throw_exception_with_msg("Less args for " + \
+				args.action.lower())
+			if args.args[0] == "ldap":
+				# Need to add checks for arguments provided.
+				if len(args.args)!= 5:
+					throw_exception_with_msg("Incorrect args for " + \
+					args.action.lower() + " of type " + \
+					args.args[0])
+				# TODO: Add validation checks
+			else:
+				throw_exception_with_msg("Incorrect type for " + \
+				args.action.lower())
+
+
 class CommandFactory(object):
 	"""
 	Factory for representing and creating command objects
 	using a generic skeleton.
 	"""
 
-	commands = {FsCommand, EndpointCommand}
+	commands = {FsCommand, EndpointCommand, AuthCommand}
 
 	def get_command(argv):
 		"""
@@ -393,7 +431,8 @@ class HttpRequest(Request):
 		{	'create' : 'PUT',
 			'delete' : 'DELETE',
 			'list'   : 'GET',
-			# Add more commads.
+			# Auth commads.
+			'setup'   : 'PUT',
 		}
 
 	def __init__(self, command):
@@ -508,23 +547,34 @@ class RestClient(Client):
 			content = {}
 			options = None
 			argc = len(args)
-			content["name"] = args[0]
-			cmds_with_options = { 'fs', 'endpoint' }
+			cmds_with_options = { 'fs', 'endpoint', 'auth' }
 
-			if request.command in cmds_with_options:
-				if argc > 1:
-					options = args[1]
+			if request.command == 'auth':
+				content["type"] = args[0]
+				if args[0] == "ldap":
+					content["server"] = args[1]
+					content["baseDN"] = args[2]
+					content["admin_account"] = args[3]
+					content["admin_account_pw"] = args[4]
+				else:
+					print("Unsupported auth type")
+					return
 			else:
-				options = None
+				content["name"] = args[0]
+				if request.command in cmds_with_options:
+					if argc > 1:
+						options = args[1]
+				else:
+					options = None
 
-			if options != None:
-				content["options"] = {}
-				option_list = options.split(',')
-				for option_token in option_list:
-					option = option_token.split('=')
-					key = option[0]
-					val = option[1]
-					content["options"].update({key : val});
+				if options != None:
+					content["options"] = {}
+					option_list = options.split(',')
+					for option_token in option_list:
+						option = option_token.split('=')
+						key = option[0]
+						val = option[1]
+						content["options"].update({key : val});
 
 			# Add more option parameter's here.
 			content = json.dumps(content).encode('utf-8')
