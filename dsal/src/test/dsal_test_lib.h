@@ -59,8 +59,12 @@ void dtlib_teardown(void);
 /* Fill buffer with some non-zero data. */
 static inline void dtlib_fill_data_block(uint8_t *data, size_t size)
 {
-	uint8_t value = 0;
+	uint8_t value;
 	size_t i;
+
+	/* Let's initialize the given buffer with random pattern */
+	srand(time(NULL));
+	value = rand() % UINT8_MAX;
 
 	for (i = 0; i < size; i++) {
 		data[i] = value;
