@@ -1,8 +1,8 @@
 %define sourcename @CPACK_SOURCE_PACKAGE_FILE_NAME@
-%global dev_version %{lua: extraver = string.gsub('@EOS_DSAL_EXTRA_VERSION@', '%-', '.'); print(extraver) }
+%global dev_version %{lua: extraver = string.gsub('@CORTX_DSAL_EXTRA_VERSION@', '%-', '.'); print(extraver) }
 
 Name: @PROJECT_NAME@
-Version: @EOS_DSAL_BASE_VERSION@
+Version: @CORTX_DSAL_BASE_VERSION@
 Release: %{dev_version}%{?dist}
 Summary: Data abstraction layer library
 License: Seagate
@@ -14,7 +14,7 @@ BuildRequires: @RPM_DEVEL_REQUIRES@
 Requires: libini_config @RPM_REQUIRES@
 Provides: %{name} = %{version}-%{release}
 
-# EOS DSAL library paths
+# CORTX DSAL library paths
 %define _dsal_lib		@PROJECT_NAME@
 %define _dsal_dir		@INSTALL_DIR_ROOT@/@PROJECT_NAME_BASE@/dsal
 %define _dsal_lib_dir		%{_dsal_dir}/lib
@@ -23,7 +23,7 @@ Provides: %{name} = %{version}-%{release}
 # Conditionally enable object stores
 #
 # 1. rpmbuild accepts these options (gpfs as example):
-#    --with eos
+#    --with cortx
 #    --without redis
 
 %define on_off_switch() %%{?with_%1:ON}%%{!?with_%1:OFF}
@@ -39,8 +39,8 @@ Provides: %{name} = %{version}-%{release}
 @BCOND_POSIX_OBJ@ posix_obj
 %global use_posix_obj %{on_off_switch posix_obj}
 
-@BCOND_EOS_STORE@ eos_store
-%global use_eos_store %{on_off_switch eos_store}
+@BCOND_CORTX_STORE@ cortx_store
+%global use_cortx_store %{on_off_switch cortx_store}
 
 @BCOND_ENABLE_DASSERT@ enable_dassert
 %global enable_dassert %{on_off_switch enable_dassert}
@@ -64,9 +64,9 @@ The @PROJECT_NAME@ is Data Store Abstraction Layer library.
 %build
 cmake . -DUSE_POSIX_STORE=%{use_posix_store}     \
 	-DUSE_POSIX_OBJ=%{use_posix_obj}         \
-	-DUSE_EOS_STORE=%{use_eos_store}       \
-	-DEOSUTILSINC:PATH=@EOSUTILSINC@         \
-	-DLIBEOSUTILS:PATH=@LIBEOSUTILS@	\
+	-DUSE_CORTX_STORE=%{use_cortx_store}       \
+	-DCORTXUTILSINC:PATH=@CORTXUTILSINC@         \
+	-DLIBCORTXUTILS:PATH=@LIBCORTXUTILS@	\
 	-DENABLE_DASSERT=%{enable_dassert}	\
 	-DPROJECT_NAME_BASE=@PROJECT_NAME_BASE@
 

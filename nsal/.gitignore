@@ -5,6 +5,6 @@
 tags
 *.gdb_history
 TAGS
-*eos-nsal.spec
-*eos-nsal.pc
+*cortx-nsal.spec
+*cortx-nsal.pc
 build-nsal

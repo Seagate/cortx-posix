@@ -17,9 +17,9 @@ INSTALL_DIR_ROOT=${INSTALL_DIR_ROOT:-"/opt/seagate"}
 KVSFS_SOURCE_ROOT=${KVSFS_SOURCE_ROOT:-$PWD}
 
 # Root folder for out-of-tree builds, i.e. location for the build folder.
-# For superproject builds: it is derived from EOS_FS_BUILD_ROOT (eos-fs/build-kvsfs).
+# For superproject builds: it is derived from EFS_BUILD_ROOT (efs/build-kvsfs).
 # For local builds: it is based on $PWD (./build-kvsfs).
-KVSFS_CMAKE_BUILD_ROOT=${EOS_FS_BUILD_ROOT:-$KVSFS_SOURCE_ROOT}
+KVSFS_CMAKE_BUILD_ROOT=${EFS_BUILD_ROOT:-$KVSFS_SOURCE_ROOT}
 
 # NFS Ganesha repo location.
 # For superproject builds: pre-defined.
@@ -32,44 +32,44 @@ KVSFS_NFS_GANESHA_DIR=${KVSFS_NFS_GANESHA_DIR:-"$KVSFS_SOURCE_ROOT/../../nfs-gan
 KVSFS_NFS_GANESHA_BUILD_DIR=${KVSFS_NFS_GANESHA_BUILD_DIR:-"$KVSFS_NFS_GANESHA_DIR/build"}
 
 # Select KVSNS Source Version.
-# Superproject: derived from eos-fs version.
+# Superproject: derived from efs version.
 # Local: taken fron VERSION file.
-KVSFS_VERSION=${EOS_FS_VERSION:-"$(cat $KVSFS_SOURCE_ROOT/VERSION)"}
+KVSFS_VERSION=${EFS_VERSION:-"$(cat $KVSFS_SOURCE_ROOT/VERSION)"}
 
 # Select KVSNS Build Version.
-# Superproject: derived from eos-fs version.
+# Superproject: derived from efs version.
 # Local: taken from git rev.
-KVSFS_BUILD_VERSION=${EOS_FS_BUILD_VERSION:-"$(git rev-parse --short HEAD)"}
+KVSFS_BUILD_VERSION=${EFS_BUILD_VERSION:-"$(git rev-parse --short HEAD)"}
 
 
-# Optional, EOS-UTILS source location.
+# Optional, CORTX-UTILS source location.
 # Superproject: uses pre-defined location.
 # Local: searches in the top-level dir.
-EOS_UTILS_SOURCE_ROOT=${EOS_UTILS_SOURCE_ROOT:-"$KVSFS_SOURCE_ROOT/../utils"}
+CORTX_UTILS_SOURCE_ROOT=${CORTX_UTILS_SOURCE_ROOT:-"$KVSFS_SOURCE_ROOT/../utils"}
 
-# Optional, EOS-UTILS build root location
-# Superproject: derived from EOS-FS build root.
-# Local: located inside eos-utils sources.
-EOS_UTILS_CMAKE_BUILD_ROOT=${EOS_FS_BUILD_ROOT:-"$KVSFS_SOURCE_ROOT/../utils"}
+# Optional, CORTX-UTILS build root location
+# Superproject: derived from EFS build root.
+# Local: located inside cortx-utils sources.
+CORTX_UTILS_CMAKE_BUILD_ROOT=${EFS_BUILD_ROOT:-"$KVSFS_SOURCE_ROOT/../utils"}
 
 
 NSAL_SOURCE_ROOT=${NSAL_SOURCE_ROOT:-"$KVSFS_SOURCE_ROOT/../nsal"}
 
-NSAL_CMAKE_BUILD_ROOT=${EOS_FS_BUILD_ROOT:-"$KVSFS_SOURCE_ROOT/../nsal"}
+NSAL_CMAKE_BUILD_ROOT=${EFS_BUILD_ROOT:-"$KVSFS_SOURCE_ROOT/../nsal"}
 
 EFS_SOURCE_ROOT=${EFS_SOURCE_ROOT:-"$KVSFS_SOURCE_ROOT/../efs"}
 
-EFS_CMAKE_BUILD_ROOT=${EOS_FS_BUILD_ROOT:-"$KVSFS_SOURCE_ROOT/../efs"}
+EFS_CMAKE_BUILD_ROOT=${EFS_BUILD_ROOT:-"$KVSFS_SOURCE_ROOT/../efs"}
 
-# Optional, EOS-UTILS source location.
+# Optional, CORTX-UTILS source location.
 # Superproject: uses pre-defined location.
 # Local: searches in the top-level dir.
-EOS_UTILS_SOURCE_ROOT=${EOS_UTILS_SOURCE_ROOT:-"$KVSFS_SOURCE_ROOT/../utils"}
+CORTX_UTILS_SOURCE_ROOT=${CORTX_UTILS_SOURCE_ROOT:-"$KVSFS_SOURCE_ROOT/../utils"}
 
-# Optional, EOS-UTILS build root location
-# Superproject: derived from EOS-FS build root.
-# Local: located inside eos-utils sources.
-EOS_UTILS_CMAKE_BUILD_ROOT=${EOS_FS_BUILD_ROOT:-"$KVSFS_SOURCE_ROOT/../utils"}
+# Optional, CORTX-UTILS build root location
+# Superproject: derived from EFS build root.
+# Local: located inside cortx-utils sources.
+CORTX_UTILS_CMAKE_BUILD_ROOT=${EFS_BUILD_ROOT:-"$KVSFS_SOURCE_ROOT/../utils"}
 
 ###############################################################################
 # Locals
@@ -81,16 +81,16 @@ KVSFS_SRC=$KVSFS_SOURCE_ROOT/src/FSAL/FSAL_KVSFS
 
 # Use either local header/lib or the files from libkvsns-devel package.
 
-if [ "x$EOS_UTILS_SOURCE_ROOT" == "x" ]; then
-EOS_UTILS_INC="/opt/seagate/eos/utils"
+if [ "x$CORTX_UTILS_SOURCE_ROOT" == "x" ]; then
+CORTX_UTILS_INC="/opt/seagate/cortx/utils"
 else
-EOS_UTILS_INC="$EOS_UTILS_SOURCE_ROOT/src/include"
+CORTX_UTILS_INC="$CORTX_UTILS_SOURCE_ROOT/src/include"
 fi
 
-if [ "x$EOS_UTILS_CMAKE_BUILD_ROOT" == "x" ]; then
-EOS_UTILS_LIB="/usr/lib64/"
+if [ "x$CORTX_UTILS_CMAKE_BUILD_ROOT" == "x" ]; then
+CORTX_UTILS_LIB="/usr/lib64/"
 else
-EOS_UTILS_LIB="$EOS_UTILS_CMAKE_BUILD_ROOT/build-eos-utils"
+CORTX_UTILS_LIB="$CORTX_UTILS_CMAKE_BUILD_ROOT/build-cortx-utils"
 fi
 
 if [ "x$KVSNS_SOURCE_ROOT" == "x" ]; then
@@ -105,20 +105,20 @@ else
     KVSNS_LIB="$KVSNS_CMAKE_BUILD_ROOT/build-kvsns/kvsns"
 fi
 
-if [ "x$EOS_UTILS_SOURCE_ROOT" == "x" ]; then
-EOS_UTILS_INC="/usr/include/eos/utils"
+if [ "x$CORTX_UTILS_SOURCE_ROOT" == "x" ]; then
+CORTX_UTILS_INC="/usr/include/cortx/utils"
 else
-EOS_UTILS_INC="$EOS_UTILS_SOURCE_ROOT/src/include"
+CORTX_UTILS_INC="$CORTX_UTILS_SOURCE_ROOT/src/include"
 fi
 
-if [ "x$EOS_UTILS_CMAKE_BUILD_ROOT" == "x" ]; then
-EOS_UTILS_LIB="/usr/lib64/"
+if [ "x$CORTX_UTILS_CMAKE_BUILD_ROOT" == "x" ]; then
+CORTX_UTILS_LIB="/usr/lib64/"
 else
-EOS_UTILS_LIB="$EOS_UTILS_CMAKE_BUILD_ROOT/build-eos-utils"
+CORTX_UTILS_LIB="$CORTX_UTILS_CMAKE_BUILD_ROOT/build-cortx-utils"
 fi
 
 if [ "x$NSAL_SOURCE_ROOT" == "x" ]; then
-NSAL_INC="/usr/include/eos/nsal"
+NSAL_INC="/usr/include/cortx/nsal"
 else
 NSAL_INC="$NSAL_SOURCE_ROOT/src/include"
 fi
@@ -130,7 +130,7 @@ NSAL_LIB="$NSAL_CMAKE_BUILD_ROOT/build-nsal"
 fi
 
 if [ "x$EFS_SOURCE_ROOT" == "x" ]; then
-EFS_INC="/usr/include/eos/nsal"
+EFS_INC="/usr/include/cortx/nsal"
 else
 EFS_INC="$EFS_SOURCE_ROOT/src/include"
 fi
@@ -152,12 +152,12 @@ kvsfs_print_env() {
         KVSFS_BUILD_VERSION
         KVSFS_NFS_GANESHA_DIR
         KVSFS_NFS_GANESHA_BUILD_DIR
-	EOS_UTILS_LIB
-	EOS_UTILS_INC
+	CORTX_UTILS_LIB
+	CORTX_UTILS_INC
         KVSNS_LIB
         KVSNS_INC
-	EOS_UTILS_LIB
-	EOS_UTILS_INC
+	CORTX_UTILS_LIB
+	CORTX_UTILS_INC
 	NSAL_LIB
 	NSAL_INC
 	EFS_LIB
@@ -223,8 +223,8 @@ kvsfs_configure() {
 -DGANESHABUILD:PATH=${GANESHA_BUILD} \
 -DBASE_VERSION:STRING=${KVSFS_VERSION} \
 -DRELEASE_VER:STRING=${KVSFS_BUILD_VERSION} \
--DLIBEOSUTILS:PATH=${EOS_UTILS_LIB} \
--DEOSUTILSINC:PATH=${EOS_UTILS_INC} \
+-DLIBCORTXUTILS:PATH=${CORTX_UTILS_LIB} \
+-DCORTXUTILSINC:PATH=${CORTX_UTILS_INC} \
 -DNSALINC:PATH=${NSAL_INC} \
 -DLIBNSAL:PATH=${NSAL_LIB} \
 -DEFSINC:PATH=${EFS_INC} \

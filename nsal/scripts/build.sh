@@ -17,33 +17,33 @@ INSTALL_DIR_ROOT=${INSTALL_DIR_ROOT:-"/opt/seagate"}
 NSAL_SOURCE_ROOT=${NSAL_SOURCE_ROOT:-$PWD}
 
 # Root folder for out-of-tree builds, i.e. location for the build folder.
-# For superproject builds: it is derived from EOS_FS_BUILD_ROOT (eos-fs/build-nsal).
+# For superproject builds: it is derived from EFS_BUILD_ROOT (efs/build-nsal).
 # For local builds: it is based on $PWD (./build-nsal).
-NSAL_CMAKE_BUILD_ROOT=${EOS_FS_BUILD_ROOT:-$NSAL_SOURCE_ROOT}
+NSAL_CMAKE_BUILD_ROOT=${EFS_BUILD_ROOT:-$NSAL_SOURCE_ROOT}
 
 # Select NSAL KVSTORE implementation.
-NSAL_KVSTORE_BACKEND=${NSAL_KVSTORE_BACKEND:-"eos"}
+NSAL_KVSTORE_BACKEND=${NSAL_KVSTORE_BACKEND:-"cortx"}
 
 # Select NSAL Source Version.
-# Superproject: derived from eos-fs version.
+# Superproject: derived from efs version.
 # Local: taken fron VERSION file.
-NSAL_VERSION=${EOS_FS_VERSION:-"$(cat $NSAL_SOURCE_ROOT/VERSION)"}
+NSAL_VERSION=${EFS_VERSION:-"$(cat $NSAL_SOURCE_ROOT/VERSION)"}
 
 
 # Select NSAL Build Version.
-# Superproject: derived from eos-fs version.
+# Superproject: derived from efs version.
 # Local: taken from git rev.
-NSAL_BUILD_VERSION=${EOS_FS_BUILD_VERSION:-"$(git rev-parse --short HEAD)"}
+NSAL_BUILD_VERSION=${EFS_BUILD_VERSION:-"$(git rev-parse --short HEAD)"}
 
-# Optional, EOS-UTILS source location.
+# Optional, CORTX-UTILS source location.
 # Superproject: uses pre-defined location.
 # Local: searches in the top-level dir.
-EOS_UTILS_SOURCE_ROOT=${EOS_UTILS_SOURCE_ROOT:-"$NSAL_SOURCE_ROOT/../utils"}
+CORTX_UTILS_SOURCE_ROOT=${CORTX_UTILS_SOURCE_ROOT:-"$NSAL_SOURCE_ROOT/../utils"}
 
-# Optional, EOS-UTILS build root location
-# Superproject: derived from EOS-FS build root.
-# Local: located inside eos-utils sources.
-EOS_UTILS_CMAKE_BUILD_ROOT=${EOS_FS_BUILD_ROOT:-"$NSAL_SOURCE_ROOT/../utils"}
+# Optional, CORTX-UTILS build root location
+# Superproject: derived from EFS build root.
+# Local: located inside cortx-utils sources.
+CORTX_UTILS_CMAKE_BUILD_ROOT=${EFS_BUILD_ROOT:-"$NSAL_SOURCE_ROOT/../utils"}
 
 ###############################################################################
 # Local variables
@@ -51,21 +51,21 @@ EOS_UTILS_CMAKE_BUILD_ROOT=${EOS_FS_BUILD_ROOT:-"$NSAL_SOURCE_ROOT/../utils"}
 NSAL_BUILD=$NSAL_CMAKE_BUILD_ROOT/build-nsal
 NSAL_SRC=$NSAL_SOURCE_ROOT/src
 
-USE_KVS_EOS="OFF"
+USE_KVS_CORTX="OFF"
 USE_KVS_REDIS="OFF"
 USE_MERO_STORE="OFF"
 USE_POSIX_STORE="OFF"
 
-if [ "x$EOS_UTILS_SOURCE_ROOT" == "x" ]; then
-EOS_UTILS_INC="/opt/seagate/eos/utils"
+if [ "x$CORTX_UTILS_SOURCE_ROOT" == "x" ]; then
+CORTX_UTILS_INC="/opt/seagate/cortx/utils"
 else
-EOS_UTILS_INC="$EOS_UTILS_SOURCE_ROOT/src/include"
+CORTX_UTILS_INC="$CORTX_UTILS_SOURCE_ROOT/src/include"
 fi
 
-if [ "x$EOS_UTILS_CMAKE_BUILD_ROOT" == "x" ]; then
-EOS_UTILS_LIB="/usr/lib64/"
+if [ "x$CORTX_UTILS_CMAKE_BUILD_ROOT" == "x" ]; then
+CORTX_UTILS_LIB="/usr/lib64/"
 else
-EOS_UTILS_LIB="$EOS_UTILS_CMAKE_BUILD_ROOT/build-eos-utils"
+CORTX_UTILS_LIB="$CORTX_UTILS_CMAKE_BUILD_ROOT/build-cortx-utils"
 fi
 
 KVS_LIST=$NSAL_KVSTORE_BACKEND
@@ -80,12 +80,12 @@ nsal_print_env() {
         NSAL_BUILD_VERSION
         NSAL_BUILD
         NSAL_SRC
-        USE_KVS_EOS
+        USE_KVS_CORTX
         USE_KVS_REDIS
         KVS_LIST
-        EOS_UTILS_LIB
-        EOS_UTILS_INC
-        EOS_UTILS_CMAKE_BUILD_ROOT
+        CORTX_UTILS_LIB
+        CORTX_UTILS_INC
+        CORTX_UTILS_CMAKE_BUILD_ROOT
     )
 
     for i in ${myenv[@]}; do
@@ -105,12 +105,12 @@ nsal_configure() {
 
     local cmd="cmake \
 -DKVS_LIST=${KVS_LIST} \
--DLIBEOSUTILS:PATH=${EOS_UTILS_LIB} \
--DEOSUTILSINC:PATH=${EOS_UTILS_INC} \
+-DLIBCORTXUTILS:PATH=${CORTX_UTILS_LIB} \
+-DCORTXUTILSINC:PATH=${CORTX_UTILS_INC} \
 -DBASE_VERSION:STRING=${NSAL_VERSION} \
 -DRELEASE_VER:STRING=${NSAL_BUILD_VERSION} \
--DLIBEOSUTILS:PATH=${EOS_UTILS_LIB} \
--DEOSUTILSINC:PATH=${EOS_UTILS_INC} \
+-DLIBCORTXUTILS:PATH=${CORTX_UTILS_LIB} \
+-DCORTXUTILSINC:PATH=${CORTX_UTILS_INC} \
 -DENABLE_DASSERT=${ENABLE_DASSERT} \
 -DPROJECT_NAME_BASE:STRING=${PROJECT_NAME_BASE} \
 -DINSTALL_DIR_ROOT:STRING=${INSTALL_DIR_ROOT}

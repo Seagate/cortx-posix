@@ -24,7 +24,7 @@ int ut_efs_fs_setup(void **state)
 {
 	int rc = 0;
 	struct ut_efs_params *ut_efs_obj = ENV_FROM_STATE(state);
-	char *ut_conf_file = "/tmp/eos-fs/build-efs/test/ut/ut_efs.conf",
+	char *ut_conf_file = "/tmp/efs/build-efs/test/ut/ut_efs.conf",
 		*def_fs = "testfs";
 	ut_efs_obj->efs_fs = EFS_NULL_FS_CTX;
 

@@ -6,12 +6,12 @@ Version: @KVSFS_GANESHA_BASE_VERSION@
 Release: %{dev_version}%{?dist}
 Summary: NFS-Ganesha FSAL for @PROJECT_NAME_BASE@-fs
 License: Seagate
-URL: https://seagit.okla.seagate.com/seagate-eos/eos-fs
+URL: https://seagit.okla.seagate.com/seagate-cortx/efs
 Requires: @PROJECT_NAME_BASE@-fs
 Source: %{sourcename}.tar.gz
 Provides: %{name} = %{version}-%{release}
 
-# EOS EFS-GANESHA library paths
+# CORTX EFS-GANESHA library paths
 %define	_fs_lib			@PROJECT_NAME_BASE@-fs
 %define	_fsal_ganesha_lib	@PROJECT_NAME@
 %define _fsal_ganesha_dir	@INSTALL_DIR_ROOT@/@PROJECT_NAME_BASE@/%{_fsal_ganesha_lib}

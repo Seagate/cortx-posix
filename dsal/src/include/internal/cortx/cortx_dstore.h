@@ -1,5 +1,5 @@
 /*
- * Filename:         eos_dstore.h
+ * Filename:         cortx_dstore.h
  * Description:      Provides EOS specific implementation of
  * 		     dstore module of DSAL.
  *

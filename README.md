@@ -1,7 +1,7 @@
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/7e6ffd004e794ecf945f076988a9185a)](https://www.codacy.com?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=Seagate/cortx-posix&amp;utm_campaign=Badge_Grade)
 
-# EOS-FS
-Support for different file access protocols (like SAMBA, NFS etc.) to Seagate EOS. Currently we only support NFS Ganesha (Userspace NFS).
+# EFS
+Support for different file access protocols (like SAMBA, NFS etc.) to Seagate CORTX. Currently we only support NFS Ganesha (Userspace NFS).
 
 ### Prerequisite
 
@@ -22,12 +22,12 @@ Install NFS Ganesha:
 * Make sure `jemalloc` is used as the allocator (check `make edit_cache` in the build dir). Find the directions to compile [here](https://github.com/nfs-ganesha/nfs-ganesha/wiki/Compiling).
 
 ### Build
-For the following procedure *eos-fs* repository is assumed to be cloned at the path ` ~/eos-fs`
+For the following procedure *efs* repository is assumed to be cloned at the path ` ~/efs`
 
-- Go to `~/eos-fs`
+- Go to `~/efs`
 
 ```sh
- $ cd ~/eos-fs
+ $ cd ~/efs
 ```
 Note: An error of ini_config.h may occur
 - Install libini_config-devel  (`yum install libini_config-devel`) 
@@ -38,7 +38,7 @@ Note: An error of ini_config.h may occur
 
 ```sh
 $ sudo ./jenkins/build.sh -h
-usage: build.sh [-p <ganesha src path>] [-g <git version>] [-v <eos-fs version>] [-k <KV Store (mero|redis)>] [-e <ExtStore (mero|posix)>]
+usage: build.sh [-p <ganesha src path>] [-g <git version>] [-v <efs version>] [-k <KV Store (mero|redis)>] [-e <ExtStore (mero|posix)>]
 ```
 **NOTE**: `-p` is a manadatory option which points to nfs ganesha source path. `-k` and `-e` i.e key value store and extstore if not specified will assume **mero** as KV store and extstore.
 

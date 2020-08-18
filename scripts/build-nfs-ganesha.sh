@@ -3,7 +3,7 @@
 ###############################################################################
 # Arguments
 
-KVSFS_NFS_GANESHA_DIR=${KVSFS_NFS_GANESHA_DIR:-$PWD/../nfs-ganesha-eos}
+KVSFS_NFS_GANESHA_DIR=${KVSFS_NFS_GANESHA_DIR:-$PWD/../nfs-ganesha-cortx}
 KVSFS_NFS_GANESHA_BUILD_DIR=${KVSFS_NFS_GANESHA_BUILD_DIR:-$KVSFS_NFS_GANESHA_DIR/build}
 
 # NFS Ganesha config options
@@ -75,7 +75,7 @@ _nfs_ganesha_check_installed_pkgs() {
 ###############################################################################
 nfs_ganesha_bootstrap() {
     local rc=0
-    local stable_branch="2.8-stable-eos"
+    local stable_branch="2.8-stable-cortx"
     local gan_deps=(
         bison
         cmake
@@ -85,7 +85,7 @@ nfs_ganesha_bootstrap() {
         userspace-rcu-devel
         python-devel
     )
-    local repo="ssh://git@gitlab.mero.colo.seagate.com:6022/eos/third_party/nfs-ganesha.git"
+    local repo="ssh://git@gitlab.mero.colo.seagate.com:6022/cortx/third_party/nfs-ganesha.git"
     rm -fR "$KVSFS_NFS_GANESHA_DIR"
     echo "Downloading NFS Ganesha sources into $KVSFS_NFS_GANESHA_DIR"
     git clone --depth 1 --branch $stable_branch $repo $KVSFS_NFS_GANESHA_DIR

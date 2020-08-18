@@ -4,7 +4,7 @@ SET(base_kvstore_LIB_SRCS
 
 add_library(base_kvstore OBJECT ${base_kvstore_LIB_SRCS})
 
-add_subdirectory(plugins/eos)
+add_subdirectory(plugins/cortx)
 
 if(USE_KVS_REDIS)
     add_subdirectory(plugins/redis)

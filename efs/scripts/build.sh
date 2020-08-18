@@ -17,38 +17,38 @@ INSTALL_DIR_ROOT=${INSTALL_DIR_ROOT:-"/opt/seagate"}
 EFS_SOURCE_ROOT=${EFS_SOURCE_ROOT:-$PWD}
 
 # Root folder for out-of-tree builds, i.e. location for the build folder.
-# For superproject builds: it is derived from EOS_FS_BUILD_ROOT (eos-fs/build-efs).
+# For superproject builds: it is derived from EFS_BUILD_ROOT (efs/build-efs).
 # For local builds: it is based on $PWD (./build-efs).
-EFS_CMAKE_BUILD_ROOT=${EOS_FS_BUILD_ROOT:-$EFS_SOURCE_ROOT}
+EFS_CMAKE_BUILD_ROOT=${EFS_BUILD_ROOT:-$EFS_SOURCE_ROOT}
 
 # Select EFS Source Version.
-# Superproject: derived from eos-fs version.
+# Superproject: derived from efs version.
 # Local: taken fron VERSION file.
-EFS_VERSION=${EOS_FS_VERSION:-"$(cat $EFS_SOURCE_ROOT/VERSION)"}
+EFS_VERSION=${CORTX_FS_VERSION:-"$(cat $EFS_SOURCE_ROOT/VERSION)"}
 
 
 # Select EFS Build Version.
-# Superproject: derived from eos-fs version.
+# Superproject: derived from efs version.
 # Local: taken from git rev.
-EFS_BUILD_VERSION=${EOS_FS_BUILD_VERSION:-"$(git rev-parse --short HEAD)"}
+EFS_BUILD_VERSION=${EFS_BUILD_VERSION:-"$(git rev-parse --short HEAD)"}
 
-# Optional, EOS-UTILS source location.
+# Optional, CORTX-UTILS source location.
 # Superproject: uses pre-defined location.
 # Local: searches in the top-level dir.
-EOS_UTILS_SOURCE_ROOT=${EOS_UTILS_SOURCE_ROOT:-"$EFS_SOURCE_ROOT/../utils"}
+CORTX_UTILS_SOURCE_ROOT=${CORTX_UTILS_SOURCE_ROOT:-"$EFS_SOURCE_ROOT/../utils"}
 
-# Optional, EOS-UTILS build root location
-# Superproject: derived from EOS-FS build root.
-# Local: located inside eos-utils sources.
-EOS_UTILS_CMAKE_BUILD_ROOT=${EOS_FS_BUILD_ROOT:-"$EFS_SOURCE_ROOT/../utils"}
+# Optional, CORTX-UTILS build root location
+# Superproject: derived from EFS build root.
+# Local: located inside cortx-utils sources.
+CORTX_UTILS_CMAKE_BUILD_ROOT=${EFS_BUILD_ROOT:-"$EFS_SOURCE_ROOT/../utils"}
 
 NSAL_SOURCE_ROOT=${NSAL_SOURCE_ROOT:-"$EFS_SOURCE_ROOT/../nsal"}
 
-NSAL_CMAKE_BUILD_ROOT=${EOS_FS_BUILD_ROOT:-"$EFS_SOURCE_ROOT/../nsal"}
+NSAL_CMAKE_BUILD_ROOT=${CORTX_FS_BUILD_ROOT:-"$EFS_SOURCE_ROOT/../nsal"}
 
 DSAL_SOURCE_ROOT=${DSAL_SOURCE_ROOT:-"$EFS_SOURCE_ROOT/../dsal"}
 
-DSAL_CMAKE_BUILD_ROOT=${EOS_FS_BUILD_ROOT:-"$EFS_SOURCE_ROOT/../dsal"}
+DSAL_CMAKE_BUILD_ROOT=${CORTX_FS_BUILD_ROOT:-"$EFS_SOURCE_ROOT/../dsal"}
 
 ###############################################################################
 # Local variables
@@ -56,20 +56,20 @@ DSAL_CMAKE_BUILD_ROOT=${EOS_FS_BUILD_ROOT:-"$EFS_SOURCE_ROOT/../dsal"}
 EFS_BUILD=$EFS_CMAKE_BUILD_ROOT/build-efs
 EFS_SRC=$EFS_SOURCE_ROOT/src
 
-if [ "x$EOS_UTILS_SOURCE_ROOT" == "x" ]; then
-EOS_UTILS_INC="/opt/seagate/eos/utils"
+if [ "x$CORTX_UTILS_SOURCE_ROOT" == "x" ]; then
+CORTX_UTILS_INC="/opt/seagate/cortx/utils"
 else
-EOS_UTILS_INC="$EOS_UTILS_SOURCE_ROOT/src/include"
+CORTX_UTILS_INC="$CORTX_UTILS_SOURCE_ROOT/src/include"
 fi
 
-if [ "x$EOS_UTILS_CMAKE_BUILD_ROOT" == "x" ]; then
-EOS_UTILS_LIB="/usr/lib64/"
+if [ "x$CORTX_UTILS_CMAKE_BUILD_ROOT" == "x" ]; then
+CORTX_UTILS_LIB="/usr/lib64/"
 else
-EOS_UTILS_LIB="$EOS_UTILS_CMAKE_BUILD_ROOT/build-eos-utils"
+CORTX_UTILS_LIB="$CORTX_UTILS_CMAKE_BUILD_ROOT/build-cortx-utils"
 fi
 
 if [ "x$NSAL_SOURCE_ROOT" == "x" ]; then
-NSAL_INC="/usr/include/eos/nsal"
+NSAL_INC="/usr/include/cortx/nsal"
 else
 NSAL_INC="$NSAL_SOURCE_ROOT/src/include"
 fi
@@ -81,7 +81,7 @@ NSAL_LIB="$NSAL_CMAKE_BUILD_ROOT/build-nsal"
 fi
 
 if [ "x$DSAL_SOURCE_ROOT" == "x" ]; then
-DSAL_INC="/usr/include/eos/dsal"
+DSAL_INC="/usr/include/cortx/dsal"
 else
 DSAL_INC="$DSAL_SOURCE_ROOT/src/include"
 fi
@@ -101,8 +101,8 @@ efs_print_env() {
         EFS_BUILD_VERSION
         EFS_BUILD
         EFS_SRC
-	EOS_UTILS_LIB
-	EOS_UTILS_INC
+	CORTX_UTILS_LIB
+	CORTX_UTILS_INC
 	NSAL_LIB
 	NSAL_INC
 	DSAL_LIB
@@ -127,8 +127,8 @@ efs_configure() {
     local cmd="cmake \
 -DBASE_VERSION:STRING=${EFS_VERSION} \
 -DRELEASE_VER:STRING=${EFS_BUILD_VERSION} \
--DLIBEOSUTILS:PATH=${EOS_UTILS_LIB} \
--DEOSUTILSINC:PATH=${EOS_UTILS_INC} \
+-DLIBCORTXUTILS:PATH=${CORTX_UTILS_LIB} \
+-DCORTXUTILSINC:PATH=${CORTX_UTILS_INC} \
 -DLIBNSAL:PATH=${NSAL_LIB} \
 -DNSALINC:PATH=${NSAL_INC} \
 -DLIBDSAL:PATH=${DSAL_LIB} \

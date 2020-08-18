@@ -36,7 +36,7 @@
 };
 
 /* Dummy structure which acts as a basic attribute for a node*/
-#define CONF_FILE "/tmp/eos-fs/build-nsal/test/ut/ut_nsal.conf"
+#define CONF_FILE "/tmp/efs/build-nsal/test/ut/ut_nsal.conf"
 struct info {
 	char arr[255];
 	int uid;
@@ -985,7 +985,7 @@ static void test_kvnode_del_sys_attr_nonexist()
 int main(void)
 {
 	int rc = 0;
-	char *test_logs = "/var/log/eos/test/ut/ut_nsal.logs";
+	char *test_logs = "/var/log/cortx/test/ut/ut_nsal.logs";
 
 	printf("KVTree test\n");
 

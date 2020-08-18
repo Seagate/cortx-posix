@@ -78,7 +78,7 @@ int dstore_init(struct collection_item *cfg, int flags);
 int dstore_fini(struct dstore *dstore);
 
 /*
- * @todo: http://gitlab.mero.colo.seagate.com/eos/fs/dsal/issues/2
+ * @todo: http://gitlab.mero.colo.seagate.com/cortx/fs/dsal/issues/2
  */
 int dstore_obj_create(struct dstore *dstore, void *ctx,
 		      dstore_oid_t *oid);

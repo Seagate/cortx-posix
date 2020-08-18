@@ -1,5 +1,5 @@
 /*
- * Filename: eos_kvstore.c
+ * Filename: cortx_kvstore.c
  * Description: Implementation of EOS KVStore.
  *
  * Copyright (c) 2020 Seagate Technology LLC and/or its Affiliates
@@ -22,8 +22,8 @@
  * on top of eos clovis index APIs.
  */
  
-#include "internal/eos/eos_kvstore.h"
-#include <eos/helpers.h>
+#include "internal/cortx/cortx_kvstore.h"
+#include <cortx/helpers.h>
 
 int eos_kvs_init(struct collection_item *cfg_items)
 {

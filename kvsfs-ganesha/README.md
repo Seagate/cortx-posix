@@ -1,4 +1,4 @@
-[![Codacy Badge](https://app.codacy.com/project/badge/Grade/62e8043f34f642c397ab84bfbe5cba4d)](https://www.codacy.com?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=Seagate/cortx-fs-ganesha&amp;utm_campaign=Badge_Grade)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/62e8043f34f642c397ab84bfbe5cba4d)](https://www.codacy.com?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=Seagate/efs-ganesha&amp;utm_campaign=Badge_Grade)
 
 # KVSFS-FSAL
 
@@ -9,11 +9,11 @@ NFS Ganesha FSAL API based on KVSNS as an underlying filesystem.
 
 See also:
 
-* EOS-FS repo: http://gitlab.mero.colo.seagate.com/eos/fs/eos-fs
+* EFS repo: http://gitlab.mero.colo.seagate.com/cortx/fs/efs
 
-* NFS Ganesha repo: http://gitlab.mero.colo.seagate.com/eos/fs/nfs-ganesha
+* NFS Ganesha repo: http://gitlab.mero.colo.seagate.com/cortx/fs/nfs-ganesha
 
-* KVSNS repo: http://gitlab.mero.colo.seagate.com/eos/fs/kvsns
+* KVSNS repo: http://gitlab.mero.colo.seagate.com/cortx/fs/kvsns
 
 
 # Quick start

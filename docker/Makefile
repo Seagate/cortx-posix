@@ -8,26 +8,26 @@ CNAME = $(@:%-container=%)
 .PHONY: images
 images: docker-image-latest \
         docker-image-7.6 \
-        docker-image-eos
+        docker-image-cortx
 
 .PHONY: docker-image-latest docker-image-7
-docker-image-latest docker-image-7: eos-fs-devel-image
+docker-image-latest docker-image-7: efs-devel-image
 
 .PHONY: docker-image-7.6
 docker-image-7.6: CENTOS_RELEASE := 7.6
-docker-image-7.6: eos-fs-devel-image
+docker-image-7.6: efs-devel-image
 
-.PHONY: docker-image-eos
-docker-image-eos: CENTOS_RELEASE := eos
-docker-image-eos: eos-fs-devel-image
+.PHONY: docker-image-cortx
+docker-image-cortx: CENTOS_RELEASE := cortx
+docker-image-cortx: efs-devel-image
 
-.PHONY: eos-fs-devel-image
-eos-fs-devel-image: nfs-ganesha-devel-image
+.PHONY: efs-devel-image
+efs-devel-image: nfs-ganesha-devel-image
 	cd $(INAME) \
 	&& $(DOCKER) build \
 			--build-arg CENTOS_RELEASE=$(CENTOS_RELEASE) \
 			-t $(NAMESPACE)/$(INAME):$(CENTOS_RELEASE) \
-			-t $(NAMESPACE)/eos/fs/eos-fs:$(CENTOS_RELEASE) \
+			-t $(NAMESPACE)/cortx/fs/efs:$(CENTOS_RELEASE) \
 			$(DOCKER_OPTS) .
 
 .PHONY: nfs-ganesha-devel-image
@@ -36,19 +36,19 @@ nfs-ganesha-devel-image:
 	&& $(DOCKER) build \
 			--build-arg CENTOS_RELEASE=$(CENTOS_RELEASE) \
 			-t $(NAMESPACE)/$(INAME):$(CENTOS_RELEASE) \
-			-t $(NAMESPACE)/eos/fs/nfs-ganesha:$(CENTOS_RELEASE) \
+			-t $(NAMESPACE)/cortx/fs/nfs-ganesha:$(CENTOS_RELEASE) \
 			$(DOCKER_OPTS) .
 
 .PHONY: push
-name1 := eos-fs*
+name1 := efs*
 name2 := nfs-ganesha*
 tag   := *
 push:
 	@for img in $$(docker images --filter=reference='$(NAMESPACE)/$(name1):$(tag)' \
 				     --filter=reference='$(NAMESPACE)/$(name2):$(tag)' \
 				     --format '{{.Repository}}:{{.Tag}}' | grep -v none) \
-		    $$(docker images --filter=reference='$(NAMESPACE)/eos/fs/$(name1):$(tag)' \
-				     --filter=reference='$(NAMESPACE)/eos/fs/$(name2):$(tag)' \
+		    $$(docker images --filter=reference='$(NAMESPACE)/cortx/fs/$(name1):$(tag)' \
+				     --filter=reference='$(NAMESPACE)/cortx/fs/$(name2):$(tag)' \
 				     --format '{{.Repository}}:{{.Tag}}' | grep -v none) ; \
 	do \
 		echo "---> $$img" ; \
@@ -60,8 +60,8 @@ clean:
 	@for img in $$(docker images --filter=reference='$(NAMESPACE)/$(name1):$(tag)' \
 				     --filter=reference='$(NAMESPACE)/$(name2):$(tag)' \
 				     --format '{{.Repository}}:{{.Tag}}') \
-		    $$(docker images --filter=reference='$(NAMESPACE)/eos/fs/$(name1):$(tag)' \
-				     --filter=reference='$(NAMESPACE)/eos/fs/$(name2):$(tag)' \
+		    $$(docker images --filter=reference='$(NAMESPACE)/cortx/fs/$(name1):$(tag)' \
+				     --filter=reference='$(NAMESPACE)/cortx/fs/$(name2):$(tag)' \
 				     --format '{{.Repository}}:{{.Tag}}') ; \
 	do \
 		echo "---> $$img" ; \

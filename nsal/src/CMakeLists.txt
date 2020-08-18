@@ -4,32 +4,32 @@ cmake_policy(SET CMP0017 NEW)
 set(LIB_NSAL ${PROJECT_NAME_BASE}-nsal)
 
 PROJECT(${LIB_NSAL} C)
-set(EOS_NSAL_MAJOR_VERSION 1)
-set(EOS_NSAL_MINOR_VERSION 0)
-set(EOS_NSAL_PATCH_LEVEL 1)
-set(EOS_NSAL_EXTRA_VERSION ${RELEASE_VER})
+set(CORTX_NSAL_MAJOR_VERSION 1)
+set(CORTX_NSAL_MINOR_VERSION 0)
+set(CORTX_NSAL_PATCH_LEVEL 1)
+set(CORTX_NSAL_EXTRA_VERSION ${RELEASE_VER})
 
-set(DEFAULT_EOSUTILSINC "")
-set(DEFAULT_LIBEOSUTILS "")
+set(DEFAULT_CORTXUTILSINC "")
+set(DEFAULT_LIBCORTXUTILS "")
 
-set(EOSUTILSINC ${DEFAULT_EOSUTILSINC} CACHE PATH "Path to folder with fault.h")
-set(LIBEOSUTILS ${DEFAULT_LIBEOSUTILS} CACHE PATH "Path to folder with libeos-utils.so")
+set(CORTXUTILSINC ${DEFAULT_CORTXUTILSINC} CACHE PATH "Path to folder with fault.h")
+set(LIBCORTXUTILS ${DEFAULT_LIBCORTXUTILS} CACHE PATH "Path to folder with libcortx-utils.so")
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -I${CMAKE_SOURCE_DIR}/include")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Werror -fPIC -g")
 
-set(EOS_NSAL_BASE_VERSION ${BASE_VERSION})
+set(CORTX_NSAL_BASE_VERSION ${BASE_VERSION})
 set(INSTALL_DIR_ROOT ${INSTALL_DIR_ROOT})
 
 message( STATUS "cmake version ${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION}" )
-message( STATUS "eos-nsal version ${EOS_NSAL_BASE_VERSION}")
+message( STATUS "cortx-nsal version ${CORTX_NSAL_BASE_VERSION}")
 
 string(REPLACE "," ";" KVS_LIST "${KVS_LIST}")
 
 foreach(KVS_ELE ${KVS_LIST})
-       if(KVS_ELE STREQUAL "eos")
-               set(USE_KVS_EOS ON)
-       endif(KVS_ELE STREQUAL "eos")
+       if(KVS_ELE STREQUAL "cortx")
+               set(USE_KVS_CORTX ON)
+       endif(KVS_ELE STREQUAL "cortx")
 
        if(KVS_ELE STREQUAL "redis")
                set(USE_KVS_REDIS ON)
@@ -53,27 +53,27 @@ else (USE_KVS_REDIS)
 	set(BCOND_KVS_REDIS "%bcond_with")
 endif (USE_KVS_REDIS)
 
-if (USE_KVS_EOS)
-	set(BCOND_KVS_EOS "%bcond_without")
-else (USE_KVS_EOS)
-	set(BCOND_KVS_EOS "%bcond_with")
-endif (USE_KVS_EOS)
+if (USE_KVS_CORTX)
+	set(BCOND_KVS_CORTX "%bcond_without")
+else (USE_KVS_CORTX)
+	set(BCOND_KVS_CORTX "%bcond_with")
+endif (USE_KVS_CORTX)
 
-if (USE_KVS_EOS OR USE_MERO_STORE)
+if (USE_KVS_CORTX OR USE_MERO_STORE)
   set(RPM_REQUIRES "motr ${RPM_REQUIRES}")
   set(RPM_DEVEL_REQUIRES "motr-devel ${RPM_DEVEL_REQUIRES}")
-endif (USE_KVS_EOS OR USE_MERO_STORE)
+endif (USE_KVS_CORTX OR USE_MERO_STORE)
 
 if (USE_KVS_REDIS)
   set(RPM_REQUIRES "redis hiredis ${RPM_REQUIRES}")
   set(RPM_DEVEL_REQUIRES "hiredis-devel ${RPM_DEVEL_REQUIRES}")
 endif (USE_KVS_REDIS)
 
-if (USE_KVS_EOS)
+if (USE_KVS_CORTX)
   set(KVS_OPT "Mero")
 elseif (USE_KVS_REDIS)
   set(KVS_OPT "Redis")
-endif (USE_KVS_EOS)
+endif (USE_KVS_CORTX)
 
 # Option (To enable/disable ENABLE_DASSERT mode.)
 option(ENABLE_DASSERT "Enable ENABLE_DASSERT mode." ON)
@@ -101,28 +101,28 @@ check_library_exists(
 	HAVE_INI_CONFIG
 	)
 
-#Check EOS utils
+#Check CORTX utils
 if((NOT HAVE_INI_CONFIG) OR (NOT HAVE_INI_CONFIG_H))
       message(FATAL_ERROR "Cannot find ini_config")
 endif((NOT HAVE_INI_CONFIG) OR (NOT HAVE_INI_CONFIG_H))
 
-set(CMAKE_REQUIRED_INCLUDES ${EOSUTILSINC})
+set(CMAKE_REQUIRED_INCLUDES ${CORTXUTILSINC})
 
-CHECK_INCLUDE_FILES("fault.h" HAVE_EOS_UTILS_H)
+CHECK_INCLUDE_FILES("fault.h" HAVE_CORTX_UTILS_H)
 
-message(STATUS "HAVE_EOS_UTILS_H=${HAVE_EOS_UTILS_H}")
+message(STATUS "HAVE_CORTX_UTILS_H=${HAVE_CORTX_UTILS_H}")
 
-if(NOT HAVE_EOS_UTILS_H)
+if(NOT HAVE_CORTX_UTILS_H)
  if(STRICT_PACKAGE)
-    message(FATAL_ERROR "STRICT_PACKAGE: Cannot find EOS-UTILS runtime. Disabling KVSNS build")
+    message(FATAL_ERROR "STRICT_PACKAGE: Cannot find CORTX-UTILS runtime. Disabling KVSNS build")
  else(STRICT_PACKAGE)
-    message(WARNING "Cannot find EOS-UTILS runtime. Disabling KVSNS build")
+    message(WARNING "Cannot find CORTX-UTILS runtime. Disabling KVSNS build")
     set(USE_KVSNS OFF)
   endif(STRICT_PACKAGE)
-endif(NOT HAVE_EOS_UTILS_H)
+endif(NOT HAVE_CORTX_UTILS_H)
 
-include_directories(${EOSUTILSINC})
-link_directories(${LIBEOSUTILS})
+include_directories(${CORTXUTILSINC})
+link_directories(${LIBCORTXUTILS})
 
 ## Start building stuff ##
 if(USE_KVS_REDIS)
@@ -140,8 +140,8 @@ if(USE_KVS_REDIS)
   endif((NOT HAVE_HIREDIS) OR (NOT HAVE_HIREDIS_H))
 endif(USE_KVS_REDIS)
 
-# Check for EOS
-if(USE_KVS_EOS OR USE_MERO_STORE)
+# Check for CORTX
+if(USE_KVS_CORTX OR USE_MERO_STORE)
   find_library(HAVE_MERO motr)
   check_library_exists(
 	motr
@@ -161,11 +161,11 @@ if(USE_KVS_EOS OR USE_MERO_STORE)
   if((NOT HAVE_MERO) OR (NOT HAVE_MERO_H) OR (NOT HAVE_MERO_HELPERS))
       message(FATAL_ERROR "Cannot find MOTR")
   endif((NOT HAVE_MERO) OR (NOT HAVE_MERO_H) OR (NOT HAVE_MERO_HELPERS))
-endif(USE_KVS_EOS OR USE_MERO_STORE)
+endif(USE_KVS_CORTX OR USE_MERO_STORE)
 
 # Print summary
 message(STATUS "USE_KVS_REDIS=${USE_KVS_REDIS}")
-message(STATUS "USE_KVS_EOS=${USE_KVS_EOS}")
+message(STATUS "USE_KVS_CORTX=${USE_KVS_CORTX}")
 
 
 # Build ancillary libs
@@ -173,7 +173,7 @@ add_subdirectory(kvstore)
 
 set(BASE_KVSTORE base_kvstore)
 
-set(EOS_KVSTORE eos_kvstore)
+set(CORTX_KVSTORE cortx_kvstore)
 
 if(USE_KVS_REDIS)
        set(REDIS_KVSTORE redis_kvstore)
@@ -181,8 +181,8 @@ if(USE_KVS_REDIS)
        set(HIREDIS "hiredis")
 endif(USE_KVS_REDIS)
 
-include_directories(${EOSUTILSINC})
-link_directories(${LIBEOSUTILS})
+include_directories(${CORTXUTILSINC})
+link_directories(${LIBCORTXUTILS})
 
 add_subdirectory(metadata)
 set(METADATA metadata)
@@ -201,7 +201,7 @@ set(TENANT tenant)
 
 add_library(${LIB_NSAL} SHARED
 		$<TARGET_OBJECTS:${BASE_KVSTORE}>
-		$<TARGET_OBJECTS:${EOS_KVSTORE}>
+		$<TARGET_OBJECTS:${CORTX_KVSTORE}>
 		${REDIS_TARGET_OBJECT}
 		$<TARGET_OBJECTS:${METADATA}>
 		$<TARGET_OBJECTS:${NAMESPACE}>
@@ -225,9 +225,9 @@ add_subdirectory(test)
 set(CPACK_PACKAGE_FILE_NAME "(${LIB_NSAL}-Source" )
 set(CPACK_PACKAGE_VENDOR "${PROJECT_NAME_BASE}-NSAL")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "NSAL - a namespace abstraction layer")
-SET(CPACK_PACKAGE_VERSION_MAJOR ${EOS_NSAL_MAJOR_VERSION})
-SET(CPACK_PACKAGE_VERSION_MINOR ${EOS_NSAL_MINOR_VERSION})
-SET(CPACK_PACKAGE_VERSION_PATCH ${EOS_NSAL_PATCH_LEVEL})
+SET(CPACK_PACKAGE_VERSION_MAJOR ${CORTX_NSAL_MAJOR_VERSION})
+SET(CPACK_PACKAGE_VERSION_MINOR ${CORTX_NSAL_MINOR_VERSION})
+SET(CPACK_PACKAGE_VERSION_PATCH ${CORTX_NSAL_PATCH_LEVEL})
 
 # Tell CPack the kind of packages to be generated
 set(CPACK_GENERATOR "TGZ")

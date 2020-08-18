@@ -1,5 +1,5 @@
 /*
- * Filename:         eos_dstore.c
+ * Filename:         cortx_dstore.c
  * Description:      Implementation of EOS dstore.
  *
  * Copyright (c) 2020 Seagate Technology LLC and/or its Affiliates
@@ -23,7 +23,7 @@
  */
 
 #include <sys/param.h> /* DEV_BSIZE */
-#include "eos/helpers.h" /* M0 wrappers from eos-utils */
+#include "cortx/helpers.h" /* M0 wrappers from cortx-utils */
 #include "common/log.h" /* log_* */
 #include "common/helpers.h" /* RC_WRAP* */
 #include "dstore.h" /* import public DSTORE API definitions */

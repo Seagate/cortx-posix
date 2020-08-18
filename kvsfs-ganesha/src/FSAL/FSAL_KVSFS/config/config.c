@@ -24,7 +24,7 @@ struct ganesha_config *ganesha_config;
 
 /*
  * The NFS Ganesha specific keywords are taken from
- * nfs-ganesha-eos/src/config_samples/config.txt
+ * nfs-ganesha-cortx/src/config_samples/config.txt
  * These rules might need update in future.
  * Note:
  * struct export_block  might also need update in future.
