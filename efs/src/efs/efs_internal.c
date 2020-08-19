@@ -599,7 +599,7 @@ int efs_create_entry(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *parent,
 	RC_WRAP(efs_next_inode, efs_fs, new_entry);
 	RC_WRAP(kvs_begin_transaction, kvstor, &index);
 
-	/* @todo: Alloc mero bufvecs and use it for key to avoid extra mem copy
+	/* @todo: Alloc motr bufvecs and use it for key to avoid extra mem copy
 	RC_WRAP_LABEL(rc, errfree, efs_alloc_dirent_key, namelen, &d_key); */
 
 	str256_from_cstr(k_name, name, strlen(name));

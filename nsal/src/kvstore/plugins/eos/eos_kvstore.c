@@ -85,7 +85,7 @@ int eos_kvs_index_create(const kvs_idx_fid_t *fid, struct kvs_idx *index)
 		goto out;
 	}
 
-	/** Use KVStore index's priv to track Mero clovis index */
+	/** Use KVStore index's priv to track Motr clovis index */
 	index->index_priv = idx;
 out:
         return rc;

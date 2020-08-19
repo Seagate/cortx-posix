@@ -85,7 +85,7 @@ nfs_ganesha_bootstrap() {
         userspace-rcu-devel
         python-devel
     )
-    local repo="ssh://git@gitlab.mero.colo.seagate.com:6022/eos/third_party/nfs-ganesha.git"
+    local repo="https://github.com/Seagate/nfs-ganesha.git"
     rm -fR "$KVSFS_NFS_GANESHA_DIR"
     echo "Downloading NFS Ganesha sources into $KVSFS_NFS_GANESHA_DIR"
     git clone --depth 1 --branch $stable_branch $repo $KVSFS_NFS_GANESHA_DIR
