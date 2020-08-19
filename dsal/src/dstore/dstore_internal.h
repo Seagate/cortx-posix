@@ -33,7 +33,7 @@ static inline
 bool dstore_ops_invariant(const struct dstore_ops *ops);
 
 struct dstore {
-	/* Type of dstore, currently eos supported */
+	/* Type of dstore, currently cortx supported */
 	char *type;
 	/* Config for the dstore specified type */
 	struct collection_item *cfg;

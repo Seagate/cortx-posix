@@ -118,11 +118,11 @@ path = /var/log/cortx/fs/cortxfs.log
 level = LEVEL_INFO
 
 [kvstore]
-type = eos
+type = cortx
 ns_meta_fid = $KVS_NS_META_FID
 
 [dstore]
-type = eos
+type = cortx
 
 [motr]
 local_addr = $LOC_EP

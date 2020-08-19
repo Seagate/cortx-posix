@@ -1,6 +1,6 @@
 /*
  * Filename:         eos_kvstore.h
- * Description:      Provides EOS specific implementation of
+ * Description:      Provides CORTX specific implementation of
  * 		     KVStore module of NSAL.
  *
  * Copyright (c) 2020 Seagate Technology LLC and/or its Affiliates
@@ -19,7 +19,7 @@
  */
 
 /*
- * This EOS specific implementation is based on m0_clovis's index entity.
+ * This CORTX specific implementation is based on m0_clovis's index entity.
  */
 
 #ifndef _EOS_KVSTORE_H

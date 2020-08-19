@@ -182,7 +182,7 @@ int main(int argc, char *argv[])
 	int rc = 0;
 	int test_count = 0;
 	int test_failed = 0;
-	char *test_logs = "/var/log/eos/test/ut/nsal/tenant.logs";
+	char *test_logs = "/var/log/cortx/test/ut/nsal/tenant.logs";
 
 	if (argc > 1) {
 		test_logs = argv[1];

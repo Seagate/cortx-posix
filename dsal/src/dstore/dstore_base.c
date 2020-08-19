@@ -41,7 +41,7 @@ struct dstore_module {
 };
 
 static struct dstore_module dstore_modules[] = {
-	{ "eos", &eos_dstore_ops },
+	{ "cortx", &eos_dstore_ops },
 	{ NULL, NULL },
 };
 
