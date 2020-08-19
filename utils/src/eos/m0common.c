@@ -25,6 +25,7 @@
 #include "m0common.h"
 #include <common/log.h>
 #include <debug.h> /* dassert */
+#include "perf/tsdb.h" /* is_engine_on */
 
 /* To be passed as argument */
 struct m0_clovis_realm     clovis_uber_realm;
@@ -233,6 +234,7 @@ int init_clovis(void)
 	clovis_conf.cc_idx_service_id	= M0_CLOVIS_IDX_DIX;
 	dix_conf.kc_create_meta		= false;
 	clovis_conf.cc_idx_service_conf	= &dix_conf;
+	clovis_conf.cc_is_addb_init	= tsdb_is_engine_on();
 
 	/* Create Clovis instance */
 	rc = m0_clovis_init(&clovis_instance, &clovis_conf, true);

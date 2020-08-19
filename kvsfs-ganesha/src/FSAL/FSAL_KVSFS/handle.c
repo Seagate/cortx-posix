@@ -66,6 +66,7 @@
 #include <efs_fh.h>
 #include <nfs_exports.h> /* EXPORT_OPTION_DISABLE_ACL */
 #include <debug.h>	/* dassert */
+#include "operation.h"
 
 #include <../FSAL/Stackable_FSALs/FSAL_MDCACHE/mdcache_int.h>
 #include <../FSAL/Stackable_FSALs/FSAL_MDCACHE/mdcache_hash.h>
@@ -128,6 +129,18 @@ static inline bool kvsfs_is_acl_enabled()
 /******************************************************************************/
 /* Global variable imported from main.c */
 extern struct kvsfs_fsal_module KVSFS;
+
+/** The scope for "fuser_ops" enumeration. */
+static struct modctx g_kvsfs_mod __attribute__((unused)) =
+	MODCTX_INIT(TSDB_MOD_FSUSER);
+
+/** Defines a set of calls to be traced by the Operation API.
+ * TODO: We need to move it outside to be re-used by the decoder for
+ * this module.
+ */
+enum fsuser_ops {
+	FSUSER_OP_WRITE,
+};
 
 /******************************************************************************/
 /* TODO:
@@ -2882,6 +2895,7 @@ static void kvsfs_write2(struct fsal_obj_handle *obj_hdl,
 	void *buffer;
 	size_t buffer_size;
 	int rc;
+	struct opstack op = OPSTACK_INIT_EMPTY();
 
 	/* TODO: A temporary solution for keeping metadata (stat) consistent.
 	 * The lock allows us to serialize all WRITE requests ensuring
@@ -2906,6 +2920,12 @@ static void kvsfs_write2(struct fsal_obj_handle *obj_hdl,
 		(unsigned long long) write_arg->offset,
 		(unsigned long long) write_arg->iov_count,
 		(unsigned long long) write_arg->iov[0].iov_len);
+
+	opstack_begin(&op, &g_kvsfs_mod, FSUSER_OP_WRITE,
+		      write_arg->fsal_stable,
+		      write_arg->offset,
+		      write_arg->iov_count,
+		      write_arg->iov[0].iov_len);
 
 	/* So far, NFS Ganesha always sends only a single buffer in a FSAL.
 	 * We can use this information for keeping write2 implementation
@@ -2947,6 +2967,7 @@ static void kvsfs_write2(struct fsal_obj_handle *obj_hdl,
 
 	result = fsalstat(ERR_FSAL_NO_ERROR, 0);
 out:
+	opstack_end(&op, result.major, result.minor);
 	T_EXIT0(result.major);
 	PTHREAD_RWLOCK_unlock(&obj_hdl->obj_lock);
 	done_cb(obj_hdl, result, write_arg, caller_arg);
