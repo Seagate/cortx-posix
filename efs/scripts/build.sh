@@ -24,7 +24,7 @@ EFS_CMAKE_BUILD_ROOT=${EFS_BUILD_ROOT:-$EFS_SOURCE_ROOT}
 # Select EFS Source Version.
 # Superproject: derived from efs version.
 # Local: taken fron VERSION file.
-EFS_VERSION=${CORTX_FS_VERSION:-"$(cat $EFS_SOURCE_ROOT/VERSION)"}
+EFS_VERSION=${EFS_VERSION:-"$(cat $EFS_SOURCE_ROOT/VERSION)"}
 
 
 # Select EFS Build Version.
@@ -44,11 +44,11 @@ CORTX_UTILS_CMAKE_BUILD_ROOT=${EFS_BUILD_ROOT:-"$EFS_SOURCE_ROOT/../utils"}
 
 NSAL_SOURCE_ROOT=${NSAL_SOURCE_ROOT:-"$EFS_SOURCE_ROOT/../nsal"}
 
-NSAL_CMAKE_BUILD_ROOT=${CORTX_FS_BUILD_ROOT:-"$EFS_SOURCE_ROOT/../nsal"}
+NSAL_CMAKE_BUILD_ROOT=${EFS_BUILD_ROOT:-"$EFS_SOURCE_ROOT/../nsal"}
 
 DSAL_SOURCE_ROOT=${DSAL_SOURCE_ROOT:-"$EFS_SOURCE_ROOT/../dsal"}
 
-DSAL_CMAKE_BUILD_ROOT=${CORTX_FS_BUILD_ROOT:-"$EFS_SOURCE_ROOT/../dsal"}
+DSAL_CMAKE_BUILD_ROOT=${EFS_BUILD_ROOT:-"$EFS_SOURCE_ROOT/../dsal"}
 
 ###############################################################################
 # Local variables
