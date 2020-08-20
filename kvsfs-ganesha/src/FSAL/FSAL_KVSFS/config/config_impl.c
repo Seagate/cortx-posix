@@ -95,7 +95,13 @@ void json_to_dataserver_block(struct json_object *obj, struct ds_block *block)
 
 	json_object_object_get_ex(obj, "data_server", &json_obj);
 	if (json_obj == NULL) {
-		str = "None";
+		// @HOTFIX:
+		// This is mandatory field, So it should be valid.
+		// IF pnfs_enabled = false
+		// 	DS_Addr = <Any Valid IP>
+		// ELSE
+		// 	DS_Addr = <DS_IP_ADDR>
+		str = "127.0.0.1";
 	} else {
 		str = json_object_get_string(json_obj);
 	}
@@ -122,14 +128,9 @@ void json_to_pnfs_block(struct json_object *obj, struct pnfs_block *block)
 	}
 	str256_from_cstr(block->pnfs_enabled, str, strlen(str));
 
-	json_object_object_get_ex(obj, "data_server", &json_obj);
-	if (json_obj == NULL) {
-		str = "0";
-		str256_from_cstr(block->ds_count, str, strlen(str));
-	} else {
-		str = "1";
-		str256_from_cstr(block->ds_count, str, strlen(str));
-	}
+	// We are supporting only one Data-Server right now.
+	str = "1";
+	str256_from_cstr(block->ds_count, str, strlen(str));
 
 	json_to_dataserver_block(obj, &block->ds_block);
 	return;
