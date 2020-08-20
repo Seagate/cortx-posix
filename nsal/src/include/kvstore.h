@@ -19,7 +19,7 @@
  
  /* This file contains KVStore framework infrastructure.
  There are currently 2 users of this infrastructure,
-	1. eos_kvs
+	1. cortx_kvs
 	2. redis
 
  This gives capability of basic key-value storing.
@@ -47,7 +47,7 @@ struct kvs_idx;
 struct kvs_itr;
 
 struct kvstore {
-	/* Type of kvstore, current could be 2, {eos or redis} */
+	/* Type of kvstore, current could be 2, {cortx or redis} */
 	char *type;
 	struct kvstore_ops *kvstore_ops;
 };

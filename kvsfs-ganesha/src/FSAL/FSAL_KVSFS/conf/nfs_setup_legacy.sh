@@ -92,7 +92,7 @@ ns_meta_fid = $KVS_NS_META_FID
 [dstore]
 type = cortx
 
-[mero]
+[motr]
 local_addr = $ip_add$LOC_EXPORT_ID
 ha_addr = $ip_add$HA_EXPORT_ID
 profile = $PROFILE

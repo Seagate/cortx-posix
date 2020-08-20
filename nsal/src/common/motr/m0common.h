@@ -1,6 +1,6 @@
 /*
  * Filename:         m0common.h
- * Description:      Contains implementation mero helpers
+ * Description:      Contains implementation of motr helpers
  *
  * Copyright (c) 2020 Seagate Technology LLC and/or its Affiliates
  * This program is free software: you can redistribute it and/or modify

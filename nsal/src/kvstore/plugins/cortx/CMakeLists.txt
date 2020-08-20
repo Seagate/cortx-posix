@@ -5,7 +5,7 @@ set(CORTX_CFLAGS "${CORTX_CFLAGS} -fno-strict-aliasing -fno-omit-frame-pointer  
 set(CORTX_CFLAGS "${CORTX_CFLAGS} -I/usr/include/motr -I/usr/include/libcfs ")
 set(CORTX_CFLAGS "${CORTX_CFLAGS} -I/usr/include/lustre")
 
-include_directories("/usr/include/mero")
+include_directories("/usr/include/motr")
 include_directories(${CORTXUTILSINC})
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${CORTX_CFLAGS}")

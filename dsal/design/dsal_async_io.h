@@ -128,8 +128,8 @@ int dsal_aio_init(struct dsal *dsal, size_t dsal_aio_op_size);
  * implementation to optimize memory allocations.
  * It also removes the need to keep a complex logic for
  * unaligned or overlapping buffers. If the underlying store is not able
- * to handle unaligned (an explicit restriction for Mero OS) or
- * overlapping buffers (an implicit restriction for Mero OS), then
+ * to handle unaligned (an explicit restriction for Motr OS) or
+ * overlapping buffers (an implicit restriction for Motr OS), then
  * the DSAL implementation would need to use a complicated logic to handle this.
  */
 int dsal_obj_create_aio_op(struct dsal_obj *obj,

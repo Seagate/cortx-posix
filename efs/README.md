@@ -3,4 +3,4 @@
 README
 ~~~~~~
 
-EFS is EOS File System Framework on top of cloud object storage.
+EFS is CORTX File System Framework on top of cloud object storage.

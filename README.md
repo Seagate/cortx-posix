@@ -5,9 +5,9 @@ Support for different file access protocols (like SAMBA, NFS etc.) to Seagate CO
 
 ### Prerequisite
 
-Install mero:
-- Latest Mero rpms (`mero` and `mero-devel`) should be installed. Take the latest rpm from this [page](http://jenkins.mero.colo.seagate.com/share/bigstorage/releases/hermi/last_successful/mero/repo/)
-- `m0singlenode` service should be up and running before running nfs ganesha with mero/clovis
+Install motr:
+- Latest Motr rpms (`motr` and `motr-devel`) should be installed. Take the latest rpm from this [page](http://cortx-storage.colo.seagate.com/releases/eos/github/dev/rhel-7.7.1908/motr_last_successful/)
+- `m0singlenode` service should be up and running before running nfs ganesha with motr/clovis
 
 Install NFS Ganesha:
 * Install jemalloc (`yum install jemalloc`).
@@ -38,9 +38,9 @@ Note: An error of ini_config.h may occur
 
 ```sh
 $ sudo ./jenkins/build.sh -h
-usage: build.sh [-p <ganesha src path>] [-g <git version>] [-v <efs version>] [-k <KV Store (mero|redis)>] [-e <ExtStore (mero|posix)>]
+usage: build.sh [-p <ganesha src path>] [-g <git version>] [-v <efs version>] [-k <KV Store (motr|redis)>] [-e <ExtStore (motr|posix)>]
 ```
-**NOTE**: `-p` is a manadatory option which points to nfs ganesha source path. `-k` and `-e` i.e key value store and extstore if not specified will assume **mero** as KV store and extstore.
+**NOTE**: `-p` is a manadatory option which points to nfs ganesha source path. `-k` and `-e` i.e key value store and extstore if not specified will assume **motr** as KV store and extstore.
 
 Sample output of the command:
 
@@ -79,7 +79,7 @@ A hint: for periodic local updates you can use `jenkins/build_and_install.sh`.
 - Edit `/etc/kvsns.d/kvsns.ini`. Create if it doesn't exist
 
 ```
-[mero]
+[motr]
 local_addr = 172.16.2.132@tcp:12345:44:301
 ha_addr = 172.16.2.132@tcp:12345:45:1
 profile = <0x7000000000000001:1>

@@ -39,7 +39,7 @@ struct kvstore_module {
 };
 
 static struct kvstore_module kvstore_modules[] = {
-    { "cortx", &eos_kvs_ops },
+    { "cortx", &cortx_kvs_ops },
 #ifdef	WITH_REDIS
     { "redis", &redis_kvs_ops },
 #endif
@@ -101,7 +101,7 @@ int kvs_fini(struct kvstore *kvstore)
 
 int kvs_fid_from_str(const char *fid_str, kvs_idx_fid_t *out_fid)
 {
-	return eos_kvs_fid_from_str(fid_str, out_fid);
+	return cortx_kvs_fid_from_str(fid_str, out_fid);
 }
 
 int kvs_alloc(struct kvstore *kvstore, void **ptr, size_t size)

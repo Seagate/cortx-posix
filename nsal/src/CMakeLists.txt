@@ -59,10 +59,10 @@ else (USE_KVS_CORTX)
 	set(BCOND_KVS_CORTX "%bcond_with")
 endif (USE_KVS_CORTX)
 
-if (USE_KVS_CORTX OR USE_MERO_STORE)
+if (USE_KVS_CORTX OR USE_MOTR_STORE)
   set(RPM_REQUIRES "motr ${RPM_REQUIRES}")
   set(RPM_DEVEL_REQUIRES "motr-devel ${RPM_DEVEL_REQUIRES}")
-endif (USE_KVS_CORTX OR USE_MERO_STORE)
+endif (USE_KVS_CORTX OR USE_MOTR_STORE)
 
 if (USE_KVS_REDIS)
   set(RPM_REQUIRES "redis hiredis ${RPM_REQUIRES}")
@@ -70,7 +70,7 @@ if (USE_KVS_REDIS)
 endif (USE_KVS_REDIS)
 
 if (USE_KVS_CORTX)
-  set(KVS_OPT "Mero")
+  set(KVS_OPT "Motr")
 elseif (USE_KVS_REDIS)
   set(KVS_OPT "Redis")
 endif (USE_KVS_CORTX)
@@ -141,27 +141,27 @@ if(USE_KVS_REDIS)
 endif(USE_KVS_REDIS)
 
 # Check for CORTX
-if(USE_KVS_CORTX OR USE_MERO_STORE)
-  find_library(HAVE_MERO motr)
+if(USE_KVS_CORTX OR USE_MOTR_STORE)
+  find_library(HAVE_MOTR motr)
   check_library_exists(
 	motr
 	m0_clovis_init
 	""
-	HAVE_MERO
+	HAVE_MOTR
 	)
-  check_include_files("motr/config.h" HAVE_MERO_H)
+  check_include_files("motr/config.h" HAVE_MOTR_H)
 
-  find_library(HAVE_MERO_HELPERS motr-helpers)
+  find_library(HAVE_MOTR_HELPERS motr-helpers)
   check_library_exists(
 	motr-helpers
 	m0_ufid_init
 	""
-	HAVE_MERO_HELPERS
+	HAVE_MOTR_HELPERS
 	)
-  if((NOT HAVE_MERO) OR (NOT HAVE_MERO_H) OR (NOT HAVE_MERO_HELPERS))
+  if((NOT HAVE_MOTR) OR (NOT HAVE_MOTR_H) OR (NOT HAVE_MOTR_HELPERS))
       message(FATAL_ERROR "Cannot find MOTR")
-  endif((NOT HAVE_MERO) OR (NOT HAVE_MERO_H) OR (NOT HAVE_MERO_HELPERS))
-endif(USE_KVS_CORTX OR USE_MERO_STORE)
+  endif((NOT HAVE_MOTR) OR (NOT HAVE_MOTR_H) OR (NOT HAVE_MOTR_HELPERS))
+endif(USE_KVS_CORTX OR USE_MOTR_STORE)
 
 # Print summary
 message(STATUS "USE_KVS_REDIS=${USE_KVS_REDIS}")

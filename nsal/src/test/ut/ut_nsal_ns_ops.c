@@ -88,7 +88,7 @@ static void test_ns_create_delete(void)
 {
 	int rc = 0;
 	str256_t ns_name;
-	char *name = "eosfs";
+	char *name = "efs";
 	struct namespace *ns;
 	size_t ns_size = 0;
 
