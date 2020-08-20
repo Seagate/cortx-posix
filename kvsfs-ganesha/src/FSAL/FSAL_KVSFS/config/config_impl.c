@@ -66,10 +66,12 @@ static void reserve(struct serialized_buffer *buffer, int capacity)
 {
 	buffer->data = realloc(buffer->data, capacity);
 	assert(buffer->data != NULL);
+	/* Update buffer capacity with new capacity */
+	buffer->capacity = capacity;
 }
 
 /* append data into buffer.
- * 
+ *
  * @param[out]; buffer - data container.
  * @param[in]: data - data source.
  * @paramo[in]: len - number of bytes to copy from data to buffer.
