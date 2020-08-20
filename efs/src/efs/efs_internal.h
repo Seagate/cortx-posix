@@ -61,7 +61,7 @@ static inline int ino_to_node_id(const efs_ino_t *ino, node_id_t *nid)
 	return 0;
 }
 
-/** Set the extstore object identifier (kfid) with kvsns inode as the key */
+/** Set the extstore object identifier (kfid) with cortxfs inode as the key */
 int efs_set_ino_oid(struct efs_fs *efs_fs, efs_ino_t *ino, dstore_oid_t *oid);
 
 /** Get the extstore object identifier for the passed efs inode */

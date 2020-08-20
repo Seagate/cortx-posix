@@ -71,7 +71,7 @@ struct efs_fh {
 	/* TODO: Symlink target and any other attributes might be added
 	 * here to avoid unnecessary calls to KVS.
 	 */
-	/* TBD: kvsns_fid_t fid; */
+	/* TBD: cortxfs_fid_t fid; */
 	/* TODO: FIDs are not used yet */
 };
 

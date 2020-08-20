@@ -3,7 +3,7 @@
 # Variables
 IP_ADDR=$(ip route get 1 | awk '{print $NF;exit}')
 MNT_PATH='/mnt'
-SERVER_PATH='/kvsns'
+SERVER_PATH='/cortxfs'
 MNT_OPTS='vers=4.0'
 RUNTEST='-a'
 TESTARG='-t'
@@ -40,7 +40,7 @@ options:
                       -f	a quick functionality test
                       -t	extended test mode with timings
   --server          Server name or IP address
-  -p                Server path specifies a directory on the server to mount [default: '/kvsns']
+  -p                Server path specifies a directory on the server to mount [default: '/cortxfs']
   -m                Mount Point [default: '/mnt']
   -o                Mount Options [default: 'vers=4.0']
 EOM

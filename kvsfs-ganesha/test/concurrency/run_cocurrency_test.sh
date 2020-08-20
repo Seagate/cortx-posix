@@ -54,7 +54,7 @@ dirtree() {
 	for dir in ${dir_list[@]}
 	do
 		((i++))
-		path=$dir/kvsns/
+		path=$dir/cortxfs/
 		python dirtree.py $path "Client$i" "create_dirtree" $DLEV $DDIR $DFILE &
 	done
 

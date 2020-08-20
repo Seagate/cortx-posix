@@ -2,10 +2,10 @@
 
 # KVSFS-FSAL
 
-NFS Ganesha backend for KVSNS implementation.
+NFS Ganesha backend for CORTXFS implementation.
 
 The FSAL (Filesystem Abstraction Layer) implements
-NFS Ganesha FSAL API based on KVSNS as an underlying filesystem.
+NFS Ganesha FSAL API based on CORTXFS as an underlying filesystem.
 
 See also:
 
@@ -18,7 +18,7 @@ See also:
 
 # Quick start
 
-1. Install KVSNS packages (`libkvsns{-devel}`).
+1. Install CORTXFS packages (`libcortxfs{-devel}`).
 
 2. Download NFS Ganesha into `$PWD/../../nfs-ganesha`.
 

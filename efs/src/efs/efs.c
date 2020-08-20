@@ -52,7 +52,7 @@ int efs_init(const char *config_path, const struct efs_endpoint_ops *e_ops)
 		return 0;
 	}
 
-	rc = config_from_file("libkvsns", config_path, &cfg_items,
+	rc = config_from_file("libcortxfs", config_path, &cfg_items,
 			      INI_STOP_ON_ERROR, &errors);
 	if (rc) {
 		free_ini_config_errors(errors);

@@ -128,7 +128,7 @@ void redis_free(void *ptr)
 	log_debug("free done");
 }
 
-#ifdef KVSNS_ENABLE_REDIS_TRANSACTIONS
+#ifdef CORTXFS_ENABLE_REDIS_TRANSACTIONS
 
 int redis_begin_transaction(struct kvs_idx *index)
 {

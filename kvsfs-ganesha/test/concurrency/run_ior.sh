@@ -20,7 +20,7 @@
 MPIEXEC=/usr/lib64/mpich/bin/mpiexec
 IOR=/usr/local/bin/ior
 MNT=/tmp/ior_test
-MNT_PATH=/tmp/ior_test/kvsns
+MNT_PATH=/tmp/ior_test/cortxfs
 API=MPIIO
 SERVER=$(ip route get 1 | awk '{print $NF;exit}')
 IFS=','

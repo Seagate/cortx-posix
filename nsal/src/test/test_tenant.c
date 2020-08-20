@@ -40,8 +40,8 @@ static void test_tenant_module_init(void)
 		goto out;
 	}
 
-	rc = config_from_file("libkvsns", EFS_DEFAULT_CONFIG, &cfg_items,
-							INI_STOP_ON_ERROR, &errors);
+	rc = config_from_file("libcortxfs", EFS_DEFAULT_CONFIG, &cfg_items,
+			      INI_STOP_ON_ERROR, &errors);
 	if (rc) {
 		printf("Can't load config rc = %d", rc);
 		rc = -rc;

@@ -197,7 +197,7 @@ Where action is one of the following:
         rpm-install - Install RPMs build by rpm-gen.
         rpm-uninstall - Uninstall pkgs.
 
-        kvssh   - Run KVSNS Shell from build folder.
+        kvssh   - Run CORTXFS Shell from build folder.
 
 An example of a typical workflow:
     $0 config -- Generates out-of-tree cmake build folder.

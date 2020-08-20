@@ -114,10 +114,10 @@ message(STATUS "HAVE_CORTX_UTILS_H=${HAVE_CORTX_UTILS_H}")
 
 if(NOT HAVE_CORTX_UTILS_H)
  if(STRICT_PACKAGE)
-    message(FATAL_ERROR "STRICT_PACKAGE: Cannot find CORTX-UTILS runtime. Disabling KVSNS build")
+    message(FATAL_ERROR "STRICT_PACKAGE: Cannot find CORTX-UTILS runtime. Disabling CORTXFS build")
  else(STRICT_PACKAGE)
-    message(WARNING "Cannot find CORTX-UTILS runtime. Disabling KVSNS build")
-    set(USE_KVSNS OFF)
+    message(WARNING "Cannot find CORTX-UTILS runtime. Disabling CORTXFS build")
+    set(USE_CORTXFS OFF)
   endif(STRICT_PACKAGE)
 endif(NOT HAVE_CORTX_UTILS_H)
 

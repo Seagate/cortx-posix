@@ -6,7 +6,7 @@ SCRIPT_RUNNER_DIR=$(dirname "$0")
 IOZONE_PARAMS=$SCRIPT_RUNNER_DIR/iozone/iozone_params
 MNT_PATH=/tmp/iozone_test
 MNT_OPTS=vers=4.0
-EXPORT=kvsns
+EXPORT=cortxfs
 TIME_STAMP=$(date +'%m:%d:%Y_%H:%M')
 IOZONE_LOG=/tmp/iozone_test.log
 TMP_FILE=/tmp/tmp_iozone_file

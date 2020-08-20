@@ -3,7 +3,7 @@
 # Variables
 IP_ADDR=$(ip route get 1 | awk '{print $NF;exit}')
 MNT_PATH='/mnt'
-EXPORT=kvsns
+EXPORT=cortxfs
 MNT_OPTS='hard,rsize=4096,wsize=4096,minorversion=0'
 VERBOSE='none'
 RUNTEST='all'
@@ -30,7 +30,7 @@ options:
   -h			help
   --server      Server name or IP address
   -m            Mount Point [default: '/mnt']
-  -e            Exported file system to mount [default: 'kvsns']
+  -e            Exported file system to mount [default: 'cortxfs']
   -o            Mount Options [default: 'hard,rsize=4096,wsize=4096,minorversion=0']
   --runtest     Comma separated list of tests to run [default: 'all']
   --verbose	    Verbose level for debug messages [default: 'none']

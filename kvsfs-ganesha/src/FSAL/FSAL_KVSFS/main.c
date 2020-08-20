@@ -25,7 +25,7 @@
  * -------------
  */
 
-/* Implementation of FSAL module functions for KVSNS library.  */
+/* Implementation of FSAL module functions for CORTXFS library.  */
 
 #include <limits.h>
 #include <fsal_types.h>
@@ -79,7 +79,7 @@ static const struct fsal_staticfsinfo_t default_kvsfs_info = {
 	.fsal_grace = false,		/*< fsal will handle grace */ /* TBD */
 	.link_supports_permission_checks = true,
 	.rename_changes_key = false,	/*< Handle key is changed across rename */
-	.compute_readdir_cookie = false, /* NOTE: KVSNS is not able to produce a stable
+	.compute_readdir_cookie = false, /* NOTE: CORTXFS is not able to produce a stable
 					    offset for given filename
 					    */
 	.whence_is_name = false,		/* READDIR uses filename instead of offset

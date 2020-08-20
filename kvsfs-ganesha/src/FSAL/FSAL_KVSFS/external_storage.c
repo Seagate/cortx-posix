@@ -188,8 +188,8 @@ int external_unlink(struct fsal_obj_handle *dir_hdl,
 	cred.uid = op_ctx->creds->caller_uid;
 	cred.gid = op_ctx->creds->caller_gid;
 
-	rc = kvsns_lookup(&cred, &myself->handle->kvsfs_handle,
-			  (char *)name, &object);
+	rc = cortxfs_lookup(&cred, &myself->handle->kvsfs_handle,
+			    (char *)name, &object);
 	if (rc)
 		return -rc;
 
@@ -197,7 +197,7 @@ int external_unlink(struct fsal_obj_handle *dir_hdl,
 		return 0;
 
 
-	rc = kvsns_getattr(&cred, &object, &stat);
+	rc = cortxfs_getattr(&cred, &object, &stat);
 	if (rc)
 		return -rc;
 

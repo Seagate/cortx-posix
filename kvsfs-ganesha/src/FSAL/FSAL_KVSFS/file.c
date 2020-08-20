@@ -76,18 +76,18 @@ static fsal_status_t kvsfs_create(struct fsal_obj_handle *dir_hdl,
 	cred.uid = attrib->owner;
 	cred.gid = attrib->group;
 
-	retval = kvsfs_obj_to_kvsns_ctx(dir_hdl, &fs_ctx);
+	retval = kvsfs_obj_to_cortxfs_ctx(dir_hdl, &fs_ctx);
 	if (retval != 0) {
 		LogCrit(COMPONENT_FSAL, "Unable to get fs_handle: %d", retval);
 		goto fileerr;
 	}
 
-	retval = kvsns2_creat(fs_ctx, &cred, &myself->handle->kvsfs_handle,
-			      (char *)name, fsal2unix_mode(attrib->mode), &object);
+	retval = cortxfs2_creat(fs_ctx, &cred, &myself->handle->kvsfs_handle,
+			        (char *)name, fsal2unix_mode(attrib->mode), &object);
 	if (retval)
 		goto fileerr;
 
-	retval = kvsns2_getattr(fs_ctx, &cred, &object, &stat);
+	retval = cortxfs2_getattr(fs_ctx, &cred, &object, &stat);
 	if (retval)
 		goto fileerr;
 
@@ -109,7 +109,7 @@ fsal_status_t kvsfs_open(struct fsal_obj_handle *obj_hdl,
 	fsal_errors_t fsal_error = ERR_FSAL_NO_ERROR;
 	int rc = 0;
 	efs_cred_t cred;
-	kvsns_fs_ctx_t fs_ctx = KVSNS_NULL_FS_CTX;
+	cortxfs_fs_ctx_t fs_ctx = CORTXFS_NULL_FS_CTX;
 
 	cred.uid = op_ctx->creds->caller_uid;
 	cred.gid = op_ctx->creds->caller_gid;
@@ -119,14 +119,14 @@ fsal_status_t kvsfs_open(struct fsal_obj_handle *obj_hdl,
 
 	assert(myself->u.file.openflags == FSAL_O_CLOSED);
 
-	rc = kvsfs_obj_to_kvsns_ctx(obj_hdl, &fs_ctx);
+	rc = kvsfs_obj_to_cortxfs_ctx(obj_hdl, &fs_ctx);
 	if (rc) {
 		LogCrit(COMPONENT_FSAL, "Unable to get fs_handle: %d", rc);
 		goto errout;
 	}
 
-	rc = kvsns2_open(fs_ctx, &cred, &myself->handle->kvsfs_handle, O_RDWR,
-			 0777, &myself->u.file.fd);
+	rc = cortxfs2_open(fs_ctx, &cred, &myself->handle->kvsfs_handle, O_RDWR,
+			   0777, &myself->u.file.fd);
 
 	if (rc)
 		goto errout;
@@ -135,8 +135,8 @@ fsal_status_t kvsfs_open(struct fsal_obj_handle *obj_hdl,
 	myself->u.file.openflags = openflags;
 
 	/* save the stat */
-	rc = kvsns2_getattr(fs_ctx, &cred, &myself->handle->kvsfs_handle,
-			   &myself->u.file.saved_stat);
+	rc = cortxfs2_getattr(fs_ctx, &cred, &myself->handle->kvsfs_handle,
+			      &myself->u.file.saved_stat);
 
 errout:
 	if (rc) {
@@ -171,7 +171,7 @@ fsal_status_t kvsfs_read(struct fsal_obj_handle *obj_hdl,
 			bool *end_of_file)
 {
 	struct kvsfs_fsal_obj_handle *myself;
-	kvsns_fs_ctx_t fs_ctx = KVSNS_NULL_FS_CTX;
+	cortxfs_fs_ctx_t fs_ctx = CORTXFS_NULL_FS_CTX;
 	int retval = 0;
 	efs_cred_t cred;
 	fsal_errors_t fsal_error = ERR_FSAL_NO_ERROR;
@@ -179,7 +179,7 @@ fsal_status_t kvsfs_read(struct fsal_obj_handle *obj_hdl,
 	cred.uid = op_ctx->creds->caller_uid;
 	cred.gid = op_ctx->creds->caller_gid;
 
-	retval = kvsfs_obj_to_kvsns_ctx(obj_hdl, &fs_ctx);
+	retval = kvsfs_obj_to_cortxfs_ctx(obj_hdl, &fs_ctx);
 	if (retval) {
 		LogCrit(COMPONENT_FSAL, "Unable to get fs_handle: %d", retval);
 		goto errout;
@@ -189,8 +189,8 @@ fsal_status_t kvsfs_read(struct fsal_obj_handle *obj_hdl,
 
 	assert(myself->u.file.openflags != FSAL_O_CLOSED);
 
-	retval = kvsns2_read(fs_ctx, &cred, &myself->u.file.fd,
-			     buffer, buffer_size, offset);
+	retval = cortxfs2_read(fs_ctx, &cred, &myself->u.file.fd,
+		   	       buffer, buffer_size, offset);
 
 
 	/* With FSAL_ZFS, "end of file" is always returned via a last call,
@@ -225,14 +225,14 @@ fsal_status_t kvsfs_write(struct fsal_obj_handle *obj_hdl,
 			 size_t *write_amount, bool *fsal_stable)
 {
 	struct kvsfs_fsal_obj_handle *myself;
-	kvsns_fs_ctx_t fs_ctx = KVSNS_NULL_FS_CTX;
+	cortxfs_fs_ctx_t fs_ctx = CORTXFS_NULL_FS_CTX;
 	efs_cred_t cred;
 	int retval = 0;
 
 	cred.uid = op_ctx->creds->caller_uid;
 	cred.gid = op_ctx->creds->caller_gid;
 
-	retval = kvsfs_obj_to_kvsns_ctx(obj_hdl, &fs_ctx);
+	retval = kvsfs_obj_to_cortxfs_ctx(obj_hdl, &fs_ctx);
 	if (retval) {
 		LogCrit(COMPONENT_FSAL, "Unable to get fs_handle: %d", retval);
 		goto errout;
@@ -243,8 +243,8 @@ fsal_status_t kvsfs_write(struct fsal_obj_handle *obj_hdl,
 
 	assert(myself->u.file.openflags != FSAL_O_CLOSED);
 
-	retval = kvsns2_write(fs_ctx, &cred, &myself->u.file.fd,
-			      buffer, buffer_size, offset);
+	retval = cortxfs2_write(fs_ctx, &cred, &myself->u.file.fd,
+			        buffer, buffer_size, offset);
 	if (retval < 0)
 		goto errout;
 	*write_amount = retval;
@@ -268,7 +268,7 @@ errout:
 fsal_status_t kvsfs_close(struct fsal_obj_handle *obj_hdl)
 {
 	struct kvsfs_fsal_obj_handle *myself;
-	kvsns_fs_ctx_t fs_ctx = KVSNS_NULL_FS_CTX;
+	cortxfs_fs_ctx_t fs_ctx = CORTXFS_NULL_FS_CTX;
 	int retval = 0;
 	fsal_errors_t fsal_error = ERR_FSAL_NO_ERROR;
 
@@ -276,7 +276,7 @@ fsal_status_t kvsfs_close(struct fsal_obj_handle *obj_hdl)
 	myself = container_of(obj_hdl,
 			      struct kvsfs_fsal_obj_handle, obj_handle);
 
-	retval = kvsfs_obj_to_kvsns_ctx(obj_hdl, &fs_ctx);
+	retval = kvsfs_obj_to_cortxfs_ctx(obj_hdl, &fs_ctx);
 	if (retval) {
 		fsal_error = posix2fsal_error(-retval);
 		LogCrit(COMPONENT_FSAL, "Unable to get fs_handle: %d", retval);
@@ -284,7 +284,7 @@ fsal_status_t kvsfs_close(struct fsal_obj_handle *obj_hdl)
 	}
 
 	if (myself->u.file.openflags != FSAL_O_CLOSED) {
-		retval = kvsns2_close(fs_ctx, &myself->u.file.fd);
+		retval = cortxfs2_close(fs_ctx, &myself->u.file.fd);
 		if (retval < 0)
 			fsal_error = posix2fsal_error(-retval);
 

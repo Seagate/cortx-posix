@@ -241,7 +241,7 @@ int efs_lookup(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *parent,
 	 * the right thing but not some old/deprecated thing.
 	 * So that, this function is modified to use efs_fh
 	 * internally but it preserves the old interface.
-	 * Eventually the other code will slowly migrate to kvsns_fh_lookup
+	 * Eventually the other code will slowly migrate to cortxfs_fh_lookup
 	 * and this code will be dissolved.
 	 */
 	int rc;
@@ -679,7 +679,7 @@ int efs_rmdir(struct efs_fs *efs_fs, efs_cred_t *cred, efs_ino_t *parent, char *
 
 	RC_WRAP_LABEL(rc, aborted, efs_del_oid, efs_fs, &ino);
 
-	/* TODO: Remove all xattrs when kvsns_remove_all_xattr is implemented */
+	/* TODO: Remove all xattrs when cortxfs_remove_all_xattr is implemented */
 	RC_WRAP_LABEL(rc, out, kvs_end_transaction, kvstor, &index);
 
 aborted:
