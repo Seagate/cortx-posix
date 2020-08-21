@@ -14,7 +14,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * For any questions about this software or licensing,
- * please email opensource@seagate.com or cortx-questions@seagate.com. 
+ * please email opensource@seagate.com or cortx-questions@seagate.com.
  */
 
 #include <stdio.h> /* *printf */
@@ -254,50 +254,18 @@ static void test_delete_open(void **state)
 	test_close_file(obj, 0);
 }
 
-/*****************************************************************************/
-/* Description: Test WRITE/READ operation.
- * This function write a block of data and read it back, does the data integrity
- * check of read data and expecting it to match with written data
- * Strategy:
- *	Create a new file.
- *	Open the new file.
- *	Write a block of data into the new file.
- *	Read a block of data from the file
- *	Compare the read block and written block of data
- *	Close the new file.
- *	Delete the new file.
- * Expected behavior:
- *	No errors from the DSAL calls and data integrity
- *	check for read/write buffer should pass.
- * Enviroment:
- *	Empty dstore.
+/* Do write for given input param do cleanup before leaving this API
  */
-static void test_write_read(void **state)
+static int test_issue_write(struct dstore_obj *obj,
+                            void *write_buf,
+                            const size_t buf_size,
+                            const off_t offset)
 {
 	int rc;
-	struct dstore_obj *obj = NULL;
 	struct dstore_io_op *wop = NULL;
-	struct dstore_io_op *rop = NULL;
 	struct dstore_io_vec *data = NULL;
 	struct dstore_io_buf *buf = NULL;
-	struct env *env = ENV_FROM_STATE(state);
-	void *write_buf = NULL;
-	void *read_buf = NULL;
-	const size_t buf_size = 4 << 10;
-	const off_t offset = 0;
 
-	write_buf = calloc(1, buf_size);
-	ut_assert_not_null(write_buf);
-
-	read_buf = calloc(1, buf_size);
-	ut_assert_not_null(read_buf);
-
-	dtlib_fill_data_block(write_buf, buf_size);
-
-	test_create_file(env->dstore, &env->oid, 0);
-	test_open_file(env->dstore, &env->oid, &obj, 0, true);
-
-	/* Write operation */
 	rc = dstore_io_buf_init(write_buf, buf_size, offset, &buf);
 	ut_assert_int_equal(rc, 0);
 
@@ -309,11 +277,23 @@ static void test_write_read(void **state)
 	ut_assert_not_null(wop);
 
 	rc = dstore_io_op_wait(wop);
-	ut_assert_int_equal(rc, 0);
 
 	test_io_cleanup(wop, data, buf);
+	return rc;
+}
 
-	/* Read operation */
+/* Do read for given input param do cleanup before leaving this API
+ */
+static int test_issue_read(struct dstore_obj *obj,
+                           void *read_buf,
+                           const size_t buf_size,
+                           const off_t offset)
+{
+	int rc;
+	struct dstore_io_op *rop = NULL;
+	struct dstore_io_vec *data = NULL;
+	struct dstore_io_buf *buf = NULL;
+
 	rc = dstore_io_buf_init(read_buf, buf_size, offset, &buf);
 	ut_assert_int_equal(rc, 0);
 
@@ -325,19 +305,216 @@ static void test_write_read(void **state)
 	ut_assert_not_null(rop);
 
 	rc = dstore_io_op_wait(rop);
-	ut_assert_int_equal(rc, 0);
-
-	/* Data integrity check */
-	rc = memcmp(write_buf, read_buf, buf_size);
-	ut_assert_int_equal(rc, 0);
 
 	test_io_cleanup(rop, data, buf);
+	return rc;
+}
+
+/* This API will write random data pattern of given size/offset for a file
+ * read the given size/offset data from a file, validate the data integrity
+ * and free up the allocated buffers
+ * NOTE: bsize and holebitmask will be used in case of reading holes from a
+ * file bsize represents the size at which further read needs to be issued when
+ * we encounters a read a hole bug
+ * holebitmask represent actual holes present in a file first block will be
+ * from LSB(First block as in from a given offset not from the start of a file)
+ */
+static int test_write_read_validate(struct dstore_obj *obj,
+                                    const size_t w_size,
+                                    const off_t w_offset,
+                                    const size_t r_size,
+                                    const off_t r_offset,
+                                    const size_t bsize,
+                                    const uint32_t holebitmask)
+{
+	int rc;
+	void *write_buf = NULL;
+	void *read_buf = NULL;
+
+	printf("test_write_read_validate w_size = %uk, w_offset = %uk "
+	       "r_size = %uk, r_offset = %uk\n",
+	       (unsigned int)w_size >> 10,
+	       (unsigned int)w_offset >> 10,
+	       (unsigned int)r_size >> 10,
+	       (unsigned int)r_offset >> 10);
+
+	write_buf = calloc(1, w_size);
+	ut_assert_not_null(write_buf);
+
+	read_buf = calloc(1, r_size);
+	ut_assert_not_null(read_buf);
+
+	dtlib_fill_data_block(write_buf, w_size);
+
+	rc = test_issue_write(obj, write_buf, w_size, w_offset);
+	ut_assert_int_equal(rc, 0);
+
+	rc = test_issue_read(obj, read_buf, r_size, r_offset);
+
+	if ( rc == -ENOENT ) {
+		/* Mero is not able to handle the case where some part of object
+		 * have not been written or created. For that it returns -ENOENT
+		 * and zeroed out the data for all the read block even though
+		 * some of them are available and we should get valid data for
+		 * them atleast. For such case, this is the workaround where
+		 * if we are reading more than one block size we will read
+		 * all the block one by one so that for originally available
+		 * block we will get proper data.
+		 */
+		printf("rc = -ENOENT for w_size = %uk, w_offset = %uk "
+		       "r_size = %uk, r_offset = %uk\n",
+		       (unsigned int)w_size >> 10,
+		       (unsigned int)w_offset >> 10,
+		       (unsigned int)r_size >> 10,
+		       (unsigned int)r_offset >> 10);
+
+		uint32_t blkidx;
+		uint32_t num_blk = r_size / bsize;
+
+		ut_assert_int_not_equal(holebitmask, 0);
+
+		for (blkidx = 0; blkidx < num_blk; blkidx++) {
+			uint8_t *rbuf_add = (uint8_t *)read_buf +
+					    (blkidx * bsize);
+			off_t offset = r_offset + (blkidx * bsize );
+			int expectedrc = (holebitmask & ( 1 << blkidx )) ?
+					 -ENOENT : 0;
+
+			rc = test_issue_read(obj, (void *)rbuf_add, bsize,
+					     offset);
+			ut_assert_int_equal(rc, expectedrc);
+		}
+	} else {
+		ut_assert_int_equal(rc, 0);
+	}
+
+	/* Data integrity check */
+	rc = memcmp(write_buf, read_buf, w_size);
+	ut_assert_int_equal(rc, 0);
 
 	free(write_buf);
 	free(read_buf);
 
+	return rc;
+}
+
+/*****************************************************************************/
+/* Description: Test WRITE/READ operation on different aligned buffer size.
+ * This function write a [4k, 8k, 16k, 1M] block of data and read it back, does
+ * the data integrity check of read data and expecting it to match with written
+ * data
+ * NOTE: Here test always start writing for new size from offset 0 and hence
+ * earlier written data is over written with bigger buffer size, test is mostly
+ * trying to make sure next time it does not write same set of data plus it is
+ * making sure data integrity, So ultimately this test also prove that over
+ * writing already written object and reading back is also working fine.
+ * Strategy:
+ *	Create a new file.
+ *	Open the new file.
+ *	Write a specific size block of data into the new file.
+ *	Read a specific size block of data from the file
+ *	Compare the read block and written block of data
+ *	Repeat write/read/validate step for rest of the block size
+ *	Close the new file.
+ *	Delete the new file.
+ * Expected behavior:
+ *	No errors from the DSAL calls and data integrity
+ *	check for read/write buffer should pass.
+ * Enviroment:
+ *	Empty dstore.
+ */
+static void test_write_read_aligned(void **state)
+{
+	struct dstore_obj *obj = NULL;
+	struct env *env = ENV_FROM_STATE(state);
+	const off_t offset = 0;
+	const size_t size_array_k[] = {4, 8, 16, 1024};
+	uint32_t num_element = sizeof(size_array_k)/sizeof(size_array_k[0]);
+	uint32_t index;
+
+	test_create_file(env->dstore, &env->oid, 0);
+	test_open_file(env->dstore, &env->oid, &obj, 0, true);
+
+	for (index = 0; index < num_element; index++) {
+		uint32_t buf_size = size_array_k[index] << 10;
+		test_write_read_validate(obj, buf_size, offset,
+					 buf_size, offset, 0, 0);
+	}
+
 	test_close_file(obj, 0);
 	test_delete_file(env->dstore, &env->oid, 0);
+}
+
+/*****************************************************************************/
+/* Description: This test case will read a holes from a file and try to verify
+ * the behaviour is as expected
+ * Strategy:
+ *	Create a new file.
+ *	Open the new file.
+ *	Write a file with block size[4k,8k,16k,32k,64k], iterate over each size
+ *	one by one in a loop
+ *	Read a file with two block read at a time, basically read ahead a block
+ *	than what is written to the file
+ *	Check return code for read
+ *	1. If it return rc = 0, verify the data integrity against written data.
+ *	2.rc = -ENOENT
+ *	Mero is not able to handle the case where some part of object have
+ *	not been written or created. For that it returns -ENOENT and zeroed out
+ *	the data for all the read block even though some of them are available
+ *	and we should get valid data for them atleast. For such case, this is
+ *	the workaround where if we are reading more than one block size we will
+ *	read all the block one by one so that for originally available block
+ *	we will get proper data. So we will read block by block in this case
+ *	Repeat Write/Read/Validate steps till written file size is 64k, this
+ *	will ensure for each block size[4k,8k,..] we have some regressive loop.
+ *	Repeat the same steps for other block size as mentioned earlier
+ *	Close the new file.
+ *	Delete the new file.
+ * Expected behavior:
+ *	No errors from the DSAL calls and data integrity
+ * Enviroment:
+ *	Empty dstore.
+ */
+static void test_holes_in_file(void **state)
+{
+	struct dstore_obj *obj = NULL;
+	struct env *env = ENV_FROM_STATE(state);
+	const size_t size_array_k[] = {4, 8, 16, 32, 64};
+	uint32_t sizeidx, blkidx, num_sz_element;
+	/* Let's limit the write to the file upto 64k for this test case */
+	uint32_t file_size = 64 << 10;
+
+	num_sz_element = sizeof(size_array_k)/sizeof(size_array_k[0]);
+
+	for (sizeidx = 0; sizeidx < num_sz_element; sizeidx++) {
+		size_t buf_sz = size_array_k[sizeidx] << 10;
+
+		/* Calculate  the number of blocks to be written for
+		 * for a given block size to write up to file size
+		 */
+		uint32_t num_blk = file_size / buf_sz;
+
+		/* Create/Delete, Open/Close for every different block size
+		 * to ensure we do not overwrite the existing written data
+		 * and not reading back already written data which will make
+		 * sure we are reading a holes from a file everytime
+		 */
+		test_create_file(env->dstore, &env->oid, 0);
+		test_open_file(env->dstore, &env->oid, &obj, 0, true);
+
+		for (blkidx = 0; blkidx < num_blk; blkidx++) {
+			test_write_read_validate(obj,
+						 buf_sz /*w_size*/,
+						 (blkidx * buf_sz) /*w_offset*/,
+						 (buf_sz * 2) /*r_size*/,
+						 (blkidx * buf_sz)/*r_offset*/,
+						 buf_sz /*bsize*/,
+						 1 << 1 /*holebitmask*/);
+		}
+
+		test_close_file(obj, 0);
+		test_delete_file(env->dstore, &env->oid, 0);
+	}
 }
 
 /*****************************************************************************/
@@ -360,9 +537,6 @@ static void test_write_basic(void **state)
 {
 	int rc;
 	struct dstore_obj *obj = NULL;
-	struct dstore_io_op *wop = NULL;
-	struct dstore_io_vec *data = NULL;
-	struct dstore_io_buf *buf = NULL;
 	struct env *env = ENV_FROM_STATE(state);
 	void *raw_buf = NULL;
 	const size_t buf_size = 4 << 10;
@@ -376,20 +550,9 @@ static void test_write_basic(void **state)
 	test_create_file(env->dstore, &env->oid, 0);
 	test_open_file(env->dstore, &env->oid, &obj, 0, true);
 
-	rc = dstore_io_buf_init(raw_buf, buf_size, offset, &buf);
+	rc = test_issue_write(obj, raw_buf, buf_size, offset);
 	ut_assert_int_equal(rc, 0);
 
-	rc = dstore_io_buf2vec(&buf, &data);
-	ut_assert_int_equal(rc, 0);
-
-	rc = dstore_io_op_write(obj, data, NULL, NULL, &wop);
-	ut_assert_int_equal(rc, 0);
-	ut_assert_not_null(wop);
-
-	rc = dstore_io_op_wait(wop);
-	ut_assert_int_equal(rc, 0);
-
-	test_io_cleanup(wop, data, buf);
 	free(raw_buf);
 
 	test_close_file(obj, 0);
@@ -417,9 +580,6 @@ static void test_read_basic(void **state)
 {
 	int rc;
 	struct dstore_obj *obj = NULL;
-	struct dstore_io_op *rop = NULL;
-	struct dstore_io_vec *data = NULL;
-	struct dstore_io_buf *buf = NULL;
 	struct env *env = ENV_FROM_STATE(state);
 	void *raw_buf = NULL;
 	const size_t buf_size = 4 << 10;
@@ -431,24 +591,53 @@ static void test_read_basic(void **state)
 	test_create_file(env->dstore, &env->oid, 0);
 	test_open_file(env->dstore, &env->oid, &obj, 0, true);
 
-	rc = dstore_io_buf_init(raw_buf, buf_size, offset, &buf);
-	ut_assert_int_equal(rc, 0);
-
-	rc = dstore_io_buf2vec(&buf, &data);
-	ut_assert_int_equal(rc, 0);
-
-	rc = dstore_io_op_read(obj, data, NULL, NULL, &rop);
-	ut_assert_int_equal(rc, 0);
-	ut_assert_not_null(rop);
-
-	rc = dstore_io_op_wait(rop);
+	rc = test_issue_read(obj, raw_buf, buf_size, offset);
 	ut_assert_int_equal(rc, -ENOENT);
 
-	test_io_cleanup(rop, data, buf);
 	free(raw_buf);
 
 	test_close_file(obj, 0);
 	test_delete_file(env->dstore, &env->oid, 0);
+}
+
+/*****************************************************************************/
+/* Description: Test READ operation on a deleted file.
+ * This function verify the scenario where user read a deleted file
+ * The expectation is user should be getting -ENOENT as return value.
+ * DSAL should not fail on close for a deleted file
+ * Strategy:
+ *	Create a new file.
+ *	Open the new file.
+ *	Delete the new file.
+ *	READ a block of data into the new file.
+ *	Close the new file.
+ * Expected behavior:
+ *	ENOENT for the block we are reading
+ *	as file is deleted and not present.
+ * Enviroment:
+ *	Empty dstore.
+ */
+static void test_read_deleted_file(void **state)
+{
+	int rc;
+	struct dstore_obj *obj = NULL;
+	struct env *env = ENV_FROM_STATE(state);
+	void *raw_buf = NULL;
+	const size_t buf_size = 4 << 10;
+	const off_t offset = 0;
+
+	raw_buf = calloc(1, buf_size);
+	ut_assert_not_null(raw_buf);
+
+	test_create_file(env->dstore, &env->oid, 0);
+	test_open_file(env->dstore, &env->oid, &obj, 0, true);
+	test_delete_file(env->dstore, &env->oid, 0);
+
+	rc = test_issue_read(obj, raw_buf, buf_size, offset);
+	ut_assert_int_equal(rc, -ENOENT);
+
+	test_close_file(obj, 0);
+	free(raw_buf);
 }
 
 /*****************************************************************************/
@@ -492,7 +681,9 @@ int main(int argc, char *argv[])
 		ut_test_case(test_read_basic, NULL, NULL),
 		ut_test_case(test_open_non_existing, NULL, NULL),
 		ut_test_case(test_delete_open, NULL, NULL),
-		ut_test_case(test_write_read, NULL, NULL),
+		ut_test_case(test_read_deleted_file, NULL, NULL),
+		ut_test_case(test_write_read_aligned, NULL, NULL),
+		ut_test_case(test_holes_in_file, NULL, NULL),
 	};
 
 	rc = dtlib_setup(argc, argv);
