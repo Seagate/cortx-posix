@@ -2,21 +2,15 @@
  * Filename: ut_efs_dir_ops.c
  * Description: Implementation tests for directory operartions
  *
- * Copyright (c) 2020 Seagate Technology LLC and/or its Affiliates
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published
- * by the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU Affero General Public License for more details.
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- * For any questions about this software or licensing,
- * please email opensource@seagate.com or cortx-questions@seagate.com. 
- */
-
+ * Do NOT modify or remove this copyright and confidentiality notice!
+ * Copyright (c) 2020, Seagate Technology, LLC.
+ * The code contained herein is CONFIDENTIAL to Seagate Technology, LLC.
+ * Portions are also trade secret. Any use, duplication, derivation, distribution
+ * or disclosure of this code, for any reason, not expressly authorized is
+ * prohibited. All other rights are expressly reserved by Seagate Technology, LLC.
+ *
+ * Author: Shraddha Shinde <shraddha.shinde@seagate.com>
+*/
 #include "ut_efs_helper.h"
 #define DIR_NAME_LEN_MAX 255
 #define DIR_ENV_FROM_STATE(__state) (*((struct ut_dir_env **)__state))
@@ -829,6 +823,224 @@ static void create_root_dir(void **state)
 }
 
 /**
+ * Setup for create_remove_subdir setup
+ */
+static int create_remove_subdir_setup(void **state)
+{
+	int rc = 0;
+	struct ut_dir_env *ut_dir_obj = DIR_ENV_FROM_STATE(state);
+
+	ut_dir_obj->name_list[0] = "create_remove_subdir_setup";
+	ut_dir_obj->ut_efs_obj.file_name = ut_dir_obj->name_list[0];
+	ut_dir_obj->entry_cnt = 1;
+
+	rc = ut_dir_create(state);
+	ut_assert_int_equal(rc, 0);
+
+	return rc;
+}
+
+/**
+ * Test if ctime and mtime changes for parent dir
+ * after creation and removal of child dir.
+ * Strategy:
+ * 1. Getattr of parent dir
+ * 2. create a subdir
+ * 3. getattr of parent dir
+ * 4. check if ctime and mtime changed 
+ *    for parent dir or not.
+ * 5. delete child dir.
+ * 6. getattr of parent dir.
+ * 7. check if ctime and mtime changed
+ *    for parent dir or not.
+ * Expected behavior:
+ * 1. No errors from EFS API
+ * 2. parent dir ctime and mtime should change
+ *    after creation and removal of sub dir.
+ */
+
+static void create_remove_subdir(void **state)
+{
+	int rc = 0;
+	struct ut_efs_params *ut_efs_obj = ENV_FROM_STATE(state);
+	efs_ino_t *pinode =  &ut_efs_obj->file_inode;
+	efs_ino_t cinode;
+	struct stat stat_before_create;
+	struct stat stat_after_create;
+	struct stat stat_after_rmdir;
+
+	memset(&stat_before_create, 0, sizeof(stat_before_create));
+	rc = efs_getattr(ut_efs_obj->efs_fs, &ut_efs_obj->cred,
+			 pinode, &stat_before_create);
+	ut_assert_int_equal(rc, 0);
+
+	rc = efs_mkdir(ut_efs_obj->efs_fs, &ut_efs_obj->cred,
+		       pinode, "childdir", 0755, &cinode);
+	ut_assert_int_equal(rc, 0);
+
+	memset(&stat_after_create, 0, sizeof(stat_after_create));
+	rc = efs_getattr(ut_efs_obj->efs_fs, &ut_efs_obj->cred,
+			 pinode, &stat_after_create);
+	ut_assert_int_equal(rc, 0);
+
+	if (stat_after_create.st_ctim.tv_sec == stat_before_create.st_ctim.tv_sec &&
+	    stat_after_create.st_ctim.tv_nsec == stat_before_create.st_ctim.tv_nsec)
+	{
+		ut_assert_true(0);
+	}
+
+	if (stat_after_create.st_mtim.tv_sec == stat_before_create.st_mtim.tv_sec &&
+	    stat_after_create.st_mtim.tv_nsec == stat_before_create.st_mtim.tv_nsec)
+	{
+		ut_assert_true(0);
+	}
+
+	rc = efs_rmdir(ut_efs_obj->efs_fs, &ut_efs_obj->cred,
+		       pinode, "childdir");
+	ut_assert_int_equal(rc, 0);
+
+	memset(&stat_after_rmdir, 0, sizeof(stat_after_rmdir));
+	rc = efs_getattr(ut_efs_obj->efs_fs, &ut_efs_obj->cred,
+			 pinode, &stat_after_rmdir);
+	ut_assert_int_equal(rc, 0);
+
+	if (stat_after_rmdir.st_ctim.tv_sec == stat_after_create.st_ctim.tv_sec &&
+	    stat_after_rmdir.st_ctim.tv_nsec == stat_after_create.st_ctim.tv_nsec)
+	{
+		ut_assert_true(0);
+	}
+	if (stat_after_rmdir.st_mtim.tv_sec == stat_after_create.st_mtim.tv_sec &&
+	    stat_after_rmdir.st_mtim.tv_nsec == stat_after_create.st_mtim.tv_nsec)
+	{
+		ut_assert_true(0);
+	}
+}
+
+/**
+ * teardown for create_remove_subdir
+ */
+static int create_remove_subdir_teardown(void **state)
+{
+	int rc = 0;
+
+	struct ut_dir_env *ut_dir_obj = DIR_ENV_FROM_STATE(state);
+
+	ut_dir_obj->ut_efs_obj.file_name = ut_dir_obj->name_list[0];
+	rc = ut_dir_delete(state);
+	assert_int_equal(rc, 0);
+
+	return rc;
+}
+
+/**
+ * setup for link_unlink_file test.
+ */
+static int link_unlink_file_setup(void **state)
+{
+	int rc = 0;
+	struct ut_dir_env *ut_dir_obj = DIR_ENV_FROM_STATE(state);
+
+	ut_dir_obj->name_list[0] = "link_unlink_file_setup";
+	ut_dir_obj->ut_efs_obj.file_name = ut_dir_obj->name_list[0];
+	ut_dir_obj->entry_cnt = 1;
+
+	rc = ut_dir_create(state);
+	ut_assert_int_equal(rc, 0);
+
+	return rc;
+}
+
+/**
+ * Test if ctime and mtime changes for parent dir
+ * after creation and removal of a file inside dir.
+ * Strategy:
+ * 1. Getattr of parent dir
+ * 2. create a file inside parent dir
+ * 3. getattr of parent dir
+ * 4. check if ctime and mtime changed
+ *    foror parent dir or not.
+ * 5. delete file.
+ * 6. getattr of parent dir.
+ * 7. check if ctime and mtime changed
+ *    for parent dir or not.
+ * Expected behavior:
+ * 1. No errors from EFS API
+ * 2. parent dir ctime and mtime should change
+ *    after creation and removal of a file inside it.
+ */
+
+static void link_unlink_file(void **state)
+{
+	int rc = 0;
+	struct ut_efs_params *ut_efs_obj = ENV_FROM_STATE(state);
+	efs_ino_t *pinode = &ut_efs_obj->file_inode;;
+	efs_ino_t cinode;
+	struct stat stat_before_link;
+	struct stat stat_after_link;
+	struct stat stat_after_unlink;
+
+	memset(&stat_before_link, 0, sizeof(stat_before_link));
+	rc = efs_getattr(ut_efs_obj->efs_fs, &ut_efs_obj->cred,
+			 pinode, &stat_before_link);
+	ut_assert_int_equal(rc, 0);
+
+	rc = efs_creat(ut_efs_obj->efs_fs, &ut_efs_obj->cred,
+		       pinode, "file1", 0755, &cinode);
+	ut_assert_int_equal(rc, 0);
+
+	memset(&stat_after_link, 0, sizeof(stat_after_link));
+	rc = efs_getattr(ut_efs_obj->efs_fs, &ut_efs_obj->cred,
+			 pinode, &stat_after_link);
+	ut_assert_int_equal(rc, 0);
+
+	if (stat_after_link.st_ctim.tv_sec == stat_before_link.st_ctim.tv_sec &&
+	    stat_after_link.st_ctim.tv_nsec == stat_before_link.st_ctim.tv_nsec)
+	{
+		ut_assert_true(0);
+	}
+
+	if (stat_after_link.st_mtim.tv_sec == stat_before_link.st_mtim.tv_sec &&
+	    stat_after_link.st_mtim.tv_nsec == stat_before_link.st_mtim.tv_nsec)
+	{
+		ut_assert_true(0);
+	}
+
+	rc = efs_unlink(ut_efs_obj->efs_fs, &ut_efs_obj->cred,
+			pinode, NULL, "file1");
+
+	ut_assert_int_equal(rc, 0);
+
+	memset(&stat_after_unlink, 0, sizeof(stat_after_unlink));
+	rc = efs_getattr(ut_efs_obj->efs_fs, &ut_efs_obj->cred,
+			 pinode, &stat_after_unlink);
+	ut_assert_int_equal(rc, 0);
+
+	if (stat_after_link.st_ctim.tv_sec == stat_after_unlink.st_ctim.tv_sec &&
+	    stat_after_link.st_ctim.tv_nsec == stat_after_unlink.st_ctim.tv_nsec)
+	{
+		ut_assert_true(0);
+	}
+	if (stat_after_link.st_mtim.tv_sec == stat_after_unlink.st_mtim.tv_sec &&
+	    stat_after_link.st_mtim.tv_nsec == stat_after_unlink.st_mtim.tv_nsec)
+	{
+		ut_assert_true(0);
+	}
+}
+
+static int link_unlink_file_teardown(void **state)
+{
+	int rc = 0;
+
+	struct ut_dir_env *ut_dir_obj = DIR_ENV_FROM_STATE(state);
+
+	ut_dir_obj->ut_efs_obj.file_name = ut_dir_obj->name_list[0];
+	rc = ut_dir_delete(state);
+	assert_int_equal(rc, 0);
+
+	return rc;
+}
+
+/**
  * Setup for dir_ops test group
  */
 static int dir_ops_setup(void **state)
@@ -911,6 +1123,10 @@ int main(void)
 		ut_test_case(create_current_dir, NULL, NULL),
 		ut_test_case(create_parent_dir, NULL, NULL),
 		ut_test_case(create_root_dir, NULL, NULL),
+		ut_test_case(create_remove_subdir, create_remove_subdir_setup,
+			     create_remove_subdir_teardown),
+		ut_test_case(link_unlink_file, link_unlink_file_setup,
+			     link_unlink_file_teardown),
 	};
 
 	int test_count = sizeof(test_list)/sizeof(test_list[0]);
