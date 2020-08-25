@@ -29,7 +29,7 @@
 #include <ut.h>
 
 #define DEFAULT_CONFIG "/etc/cortx/cortxfs.conf"
-#define CONF_FILE "/tmp/eos-fs/build-nsal/test/ut/ut_nsal.conf"
+#define CONF_FILE "/tmp/efs/build-nsal/test/ut/ut_nsal.conf"
 /* key_list and val_list needs to be in sync with below config */
 #define MAX_NUM_KEY_VALUE_PAIR 10
 

@@ -17,7 +17,7 @@
  * please email opensource@seagate.com or cortx-questions@seagate.com. 
  */
 
-/* @todo Move this code to utils/src/eos/helpers.c file, after
+/* @todo Move this code to utils/src/cortx/helpers.c file, after
  iterators are generalized. (EOS-4351)
 */
 

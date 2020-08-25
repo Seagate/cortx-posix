@@ -1,5 +1,5 @@
 /*
- * Filename:         eos_kvstore.h
+ * Filename:         cortx_kvstore.h
  * Description:      Provides CORTX specific implementation of
  * 		     KVStore module of NSAL.
  *

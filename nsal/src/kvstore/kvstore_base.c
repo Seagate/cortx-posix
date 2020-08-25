@@ -22,7 +22,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <debug.h>
-#include "internal/eos/eos_kvstore.h"
+#include "internal/cortx/cortx_kvstore.h"
 #include "internal/redis/redis_kvstore.h"
 #include <string.h>
 #include <common/helpers.h>

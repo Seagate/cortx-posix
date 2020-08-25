@@ -1,5 +1,5 @@
 
-include_directories(${EOSUTILSINC})
+include_directories(${CORTXUTILSINC})
 
 SET(KVTREE_LIB_SRCS
    kvtree.c

@@ -52,7 +52,7 @@ Priority:
 The dev version of the rules stored in efscli_validation_rule_dev is usually in
 the same dir as the efscli.conf in source tree. Run efscli from the script's
 source dir to use local dev rule config automatically.
-Validation rules are based on nfs-ganesha-eos/src/config_samples/config.txt
+Validation rules are based on nfs-ganesha-cortx/src/config_samples/config.txt
 and the rules will need update in future.
 '''
 

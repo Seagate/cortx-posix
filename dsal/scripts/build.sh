@@ -17,33 +17,33 @@ INSTALL_DIR_ROOT=${INSTALL_DIR_ROOT:-"/opt/seagate"}
 DSAL_SOURCE_ROOT=${DSAL_SOURCE_ROOT:-$PWD}
 
 # Root folder for out-of-tree builds, i.e. location for the build folder.
-# For superproject builds: it is derived from EOS_FS_BUILD_ROOT (eos-fs/build-dsal).
+# For superproject builds: it is derived from CORTX_FS_BUILD_ROOT (efs/build-dsal).
 # For local builds: it is based on $PWD (./build-dsal).
-DSAL_CMAKE_BUILD_ROOT=${EOS_FS_BUILD_ROOT:-$DSAL_SOURCE_ROOT}
+DSAL_CMAKE_BUILD_ROOT=${EFS_BUILD_ROOT:-$DSAL_SOURCE_ROOT}
 
 # Select DSAL DSTORE implementation.
-DSAL_DSTORE_BACKEND=${DSAL_DSTORE_BACKEND:-"eos"}
+DSAL_DSTORE_BACKEND=${DSAL_DSTORE_BACKEND:-"cortx"}
 
 # Select DSAL Source Version.
-# Superproject: derived from eos-fs version.
+# Superproject: derived from efs version.
 # Local: taken fron VERSION file.
-DSAL_VERSION=${EOS_FS_VERSION:-"$(cat $DSAL_SOURCE_ROOT/VERSION)"}
+DSAL_VERSION=${EFS_VERSION:-"$(cat $DSAL_SOURCE_ROOT/VERSION)"}
 
 
 # Select DSAL Build Version.
-# Superproject: derived from eos-fs version.
+# Superproject: derived from efs version.
 # Local: taken from git rev.
-DSAL_BUILD_VERSION=${EOS_FS_BUILD_VERSION:-"$(git rev-parse --short HEAD)"}
+DSAL_BUILD_VERSION=${EFS_BUILD_VERSION:-"$(git rev-parse --short HEAD)"}
 
-# Optional, EOS-UTILS source location.
+# Optional, CORTX-UTILS source location.
 # Superproject: uses pre-defined location.
 # Local: searches in the top-level dir.
-EOS_UTILS_SOURCE_ROOT=${EOS_UTILS_SOURCE_ROOT:-"$DSAL_SOURCE_ROOT/../utils"}
+CORTX_UTILS_SOURCE_ROOT=${CORTX_UTILS_SOURCE_ROOT:-"$DSAL_SOURCE_ROOT/../utils"}
 
-# Optional, EOS-UTILS build root location
-# Superproject: derived from EOS-FS build root.
-# Local: located inside eos-utils sources.
-EOS_UTILS_CMAKE_BUILD_ROOT=${EOS_FS_BUILD_ROOT:-"$DSAL_SOURCE_ROOT/../utils"}
+# Optional, CORTX-UTILS build root location
+# Superproject: derived from EFS build root.
+# Local: located inside cortx-utils sources.
+CORTX_UTILS_CMAKE_BUILD_ROOT=${EFS_BUILD_ROOT:-"$DSAL_SOURCE_ROOT/../utils"}
 
 ###############################################################################
 # Local variables
@@ -51,24 +51,24 @@ EOS_UTILS_CMAKE_BUILD_ROOT=${EOS_FS_BUILD_ROOT:-"$DSAL_SOURCE_ROOT/../utils"}
 DSAL_BUILD=$DSAL_CMAKE_BUILD_ROOT/build-dsal
 DSAL_SRC=$DSAL_SOURCE_ROOT/src
 
-if [ "x$EOS_UTILS_SOURCE_ROOT" == "x" ]; then
-EOS_UTILS_INC="/opt/seagate/eos/utils"
+if [ "x$CORTX_UTILS_SOURCE_ROOT" == "x" ]; then
+CORTX_UTILS_INC="/opt/seagate/cortx/utils"
 else
-EOS_UTILS_INC="$EOS_UTILS_SOURCE_ROOT/src/include"
+CORTX_UTILS_INC="$CORTX_UTILS_SOURCE_ROOT/src/include"
 fi
 
-if [ "x$EOS_UTILS_CMAKE_BUILD_ROOT" == "x" ]; then
-EOS_UTILS_LIB="/usr/lib64/"
+if [ "x$CORTX_UTILS_CMAKE_BUILD_ROOT" == "x" ]; then
+CORTX_UTILS_LIB="/usr/lib64/"
 else
-EOS_UTILS_LIB="$EOS_UTILS_CMAKE_BUILD_ROOT/build-eos-utils"
+CORTX_UTILS_LIB="$CORTX_UTILS_CMAKE_BUILD_ROOT/build-cortx-utils"
 fi
 
-USE_EOS_STORE="OFF"
+USE_CORTX_STORE="OFF"
 USE_POSIX_STORE="OFF"
 
 case $DSAL_DSTORE_BACKEND in
-    "eos")
-        USE_EOS_STORE="ON" ;;
+    "cortx")
+        USE_CORTX_STORE="ON" ;;
     "posix")
         USE_POSIX_STORE="ON" ;;
     *)
@@ -86,9 +86,9 @@ dsal_print_env() {
         DSAL_BUILD_VERSION
         DSAL_BUILD
         DSAL_SRC
-	EOS_UTILS_LIB
-	EOS_UTILS_INC
-	USE_EOS_STORE
+	CORTX_UTILS_LIB
+	CORTX_UTILS_INC
+	USE_CORTX_STORE
 	USE_POSIX_STORE
     )
 
@@ -110,10 +110,10 @@ dsal_configure() {
     local cmd="cmake \
 -DBASE_VERSION:STRING=${DSAL_VERSION} \
 -DRELEASE_VER:STRING=${DSAL_BUILD_VERSION} \
--DUSE_EOS_STORE=${USE_EOS_STORE} \
+-DUSE_CORTX_STORE=${USE_CORTX_STORE} \
 -DUSE_POSIX_STORE=${USE_POSIX_STORE} \
--DLIBEOSUTILS:PATH=${EOS_UTILS_LIB} \
--DEOSUTILSINC:PATH=${EOS_UTILS_INC} \
+-DLIBCORTXUTILS:PATH=${CORTX_UTILS_LIB} \
+-DCORTXUTILSINC:PATH=${CORTX_UTILS_INC} \
 -DENABLE_DASSERT=${ENABLE_DASSERT} \
 -DPROJECT_NAME_BASE:STRING=${PROJECT_NAME_BASE} \
 -DINSTALL_DIR_ROOT:STRING=${INSTALL_DIR_ROOT}

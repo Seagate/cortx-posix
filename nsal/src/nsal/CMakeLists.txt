@@ -1,5 +1,5 @@
 
-include_directories(${EOSUTILSINC})
+include_directories(${CORTXUTILSINC})
 
 SET(NSAL_LIB_SRCS
    nsal.c

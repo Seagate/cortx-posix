@@ -1,5 +1,5 @@
 
-include_directories(${EOSUTILSINC})
+include_directories(${CORTXUTILSINC})
 
 SET(NAMESPACE_LIB_SRCS
    ns.c

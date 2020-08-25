@@ -1,6 +1,6 @@
 #!/bin/bash
 ###############################################################################
-# Builds script for all EOS-FS components.
+# Builds script for all EFS components.
 #
 # Dev workflow:
 #   ./scripts/build.sh bootstrap -- Updates sub-modules and external repos.
@@ -16,34 +16,34 @@ set -e
 ###############################################################################
 # CMD Inteface
 
-eosfs_cmd_usage() {
+efs_cmd_usage() {
     echo -e "
-Usage $0  [-p <ganesha src path>] [-v <version>] [-b <build>] [-k {eos|redis}] [-e {eos|posix}]
+Usage $0  [-p <ganesha src path>] [-v <version>] [-b <build>] [-k {cortx|redis}] [-e {cortx|posix}]
 
 Arguments:
     -p (optional) Path to an existing NFS Ganesha repository.
-    -v (optional) EOS FS Source version.
-    -b (optional) EOS FS Build version.
-    -k (optional) NSAL KVSTORE backend (eos/redis).
-    -e (optional) DSAL DSTORE backend (eos/posix).
+    -v (optional) CORTX FS Source version.
+    -b (optional) CORTX FS Build version.
+    -k (optional) NSAL KVSTORE backend (cortx/redis).
+    -e (optional) DSAL DSTORE backend (cortx/posix).
     -d (optional) Enable/disable dassert(ON/OFF, default:ON).
 
 Examples:
-    $0 -p ~/nfs-ganesha -- Builds EOS-FS with a custom NFS Ganesha
+    $0 -p ~/nfs-ganesha -- Builds EFS with a custom NFS Ganesha
     $0 -v 1.0.1 -b 99 -- Builds packages with version 1.0.1-99_<commit>.
-    $0 -k redis -- Builds EOS-FS with Redis as a KVS.
+    $0 -k redis -- Builds EFS with Redis as a KVS.
 "
 	exit 1;
 }
 
-eosfs_parse_cmd() {
+efs_parse_cmd() {
     while getopts ":b:v:p:k:e:d:" o; do
         case "${o}" in
         b)
-            export EOS_FS_BUILD_VERSION="${OPTARG}_$(git rev-parse --short HEAD)"
+            export EFS_BUILD_VERSION="${OPTARG}_$(git rev-parse --short HEAD)"
             ;;
         v)
-            export EOS_FS_VERSION=${OPTARG}
+            export EFS_VERSION=${OPTARG}
             ;;
         p)
             local ganpath="${OPTARG}"
@@ -84,7 +84,7 @@ eosfs_parse_cmd() {
             export ENABLE_DASSERT=${OPTARG}
             ;;
         *)
-            eosfs_cmd_usage
+            efs_cmd_usage
             ;;
         esac
     done
@@ -93,38 +93,38 @@ eosfs_parse_cmd() {
 ###############################################################################
 # Env
 
-eosfs_set_env() {
+efs_set_env() {
     export PROJECT_NAME_BASE="cortx"
     export KVSFS_SOURCE_ROOT=$PWD/kvsfs-ganesha
     export NSAL_SOURCE_ROOT=$PWD/nsal
     export DSAL_SOURCE_ROOT=$PWD/dsal
-    export EOS_UTILS_SOURCE_ROOT=$PWD/utils
+    export CORTX_UTILS_SOURCE_ROOT=$PWD/utils
 
     export EFS_SOURCE_ROOT=$PWD/efs
 
-    export EOS_FS_BUILD_ROOT=${EOS_FS_BUILD_ROOT:-/tmp/eos-fs}
-    export EOS_FS_VERSION=${EOS_FS_VERSION:-"$(cat $PWD/VERSION)"}
-    export EOS_FS_BUILD_VERSION=${EOS_FS_BUILD_VERSION:-"$(git rev-parse --short HEAD)"}
+    export EFS_BUILD_ROOT=${EFS_BUILD_ROOT:-/tmp/efs}
+    export EFS_VERSION=${EFS_VERSION:-"$(cat $PWD/VERSION)"}
+    export EFS_BUILD_VERSION=${EFS_BUILD_VERSION:-"$(git rev-parse --short HEAD)"}
 
-    export NSAL_KVSTORE_BACKEND=${NSAL_KVSTORE_BACKEND:-"eos"}
-    export DSAL_DSTORE_BACKEND=${DSAL_DSTORE_BACKEND:-"eos"}
+    export NSAL_KVSTORE_BACKEND=${NSAL_KVSTORE_BACKEND:-"cortx"}
+    export DSAL_DSTORE_BACKEND=${DSAL_DSTORE_BACKEND:-"cortx"}
 
-    export KVSFS_NFS_GANESHA_DIR=${KVSFS_NFS_GANESHA_DIR:-$PWD/../nfs-ganesha-eos}
-    export KVSFS_NFS_GANESHA_BUILD_DIR=${KVSFS_NFS_GANESHA_BUILD_DIR:-$EOS_FS_BUILD_ROOT/build-nfs-ganesha}
+    export KVSFS_NFS_GANESHA_DIR=${KVSFS_NFS_GANESHA_DIR:-$PWD/../nfs-ganesha-cortx}
+    export KVSFS_NFS_GANESHA_BUILD_DIR=${KVSFS_NFS_GANESHA_BUILD_DIR:-$EFS_BUILD_ROOT/build-nfs-ganesha}
     export ENABLE_DASSERT=${ENABLE_DASSERT:-"ON"}
     export INSTALL_DIR_ROOT="/opt/seagate"
 }
 
-eosfs_print_env() {
-    eosfs_set_env
+efs_print_env() {
+    efs_set_env
     local myenv=(
 	PROJECT_NAME_BASE
         KVSFS_SOURCE_ROOT
         NSAL_SOURCE_ROOT
         DSAL_SOURCE_ROOT
-        EOS_UTILS_SOURCE_ROOT
-        EOS_FS_BUILD_ROOT
-        EOS_FS_BUILD_VERSION
+        CORTX_UTILS_SOURCE_ROOT
+        EFS_BUILD_ROOT
+        EFS_BUILD_VERSION
         NSAL_KVSTORE_BACKEND
         DSAL_DSTORE_BACKEND
         KVSFS_NFS_GANESHA_DIR
@@ -148,7 +148,7 @@ _kvsfs_build() {
 
 _utils_build() {
     echo "UTILS_BUILD: $@"
-    $EOS_UTILS_SOURCE_ROOT/scripts/build.sh "$@"
+    $CORTX_UTILS_SOURCE_ROOT/scripts/build.sh "$@"
 }
 
 _nsal_build() {
@@ -172,8 +172,8 @@ _nfs_ganesha_build() {
 }
 
 ###############################################################################
-eosfs_bootstrap() {
-    eosfs_set_env
+efs_bootstrap() {
+    efs_set_env
 
     if [ ! -f $UTILS_SOURCE_ROOT/src/CMakeLists.txt ]; then
         git submodule update --init --recursive $UTILS_SOURCE_ROOT
@@ -214,26 +214,26 @@ eosfs_bootstrap() {
 }
 
 ###############################################################################
-eosfs_jenkins_build() {
+efs_jenkins_build() {
     local rpms_dir="$HOME/rpmbuild/RPMS/x64_86"
 
-    if ! { eosfs_parse_cmd "$@" && eosfs_set_env && eosfs_print_env; } ; then
+    if ! { efs_parse_cmd "$@" && efs_set_env && efs_print_env; } ; then
         echo "Failed set env variables"
         exit 1
     fi
 
-    if [ ! eosfs_bootstrap ]; then
+    if [ ! efs_bootstrap ]; then
         echo "Failed to get extra git repositories"
         exit 1
     fi
 
     # Remove old build root dir
-    rm -fR $EOS_FS_BUILD_ROOT
+    rm -fR $EFS_BUILD_ROOT
 
     # Remove old packages
     rm -fR "$rpms_dir/"*.rpm
 
-    mkdir -p $EOS_FS_BUILD_ROOT &&
+    mkdir -p $EFS_BUILD_ROOT &&
         _nfs_ganesha_build config &&
 	_utils_build reconf &&
 	_utils_build make -j all &&
@@ -258,10 +258,10 @@ eosfs_jenkins_build() {
 }
 
 ###############################################################################
-eosfs_configure() {
-    eosfs_set_env &&
-    rm -fR "EOS_FS_BUILD_ROOT"
-    mkdir -p "$EOS_FS_BUILD_ROOT" &&
+efs_configure() {
+    efs_set_env &&
+    rm -fR "EFS_BUILD_ROOT"
+    mkdir -p "$EFS_BUILD_ROOT" &&
     _nfs_ganesha_build config &&
     _utils_build reconf &&
     _nsal_build reconf &&
@@ -272,8 +272,8 @@ eosfs_configure() {
 }
 
 ###############################################################################
-eosfs_make() {
-    eosfs_set_env &&
+efs_make() {
+    efs_set_env &&
         _utils_build make "$@" &&
         _nsal_build make "$@" &&
         _dsal_build make "$@" &&
@@ -283,18 +283,18 @@ eosfs_make() {
 }
 
 ###############################################################################
-eosfs_rpm_gen() {
+efs_rpm_gen() {
     local rpms_dir="$HOME/rpmbuild/RPMS/x64_86"
 
     rm -fR "$rpms_dir/nfs-ganesha*"
     rm -fR "$rpms_dir/libntirpc*"
-    rm -fR "$rpms_dir/eos-utils*"
-    rm -fR "$rpms_dir/eos-nsal*"
-    rm -fR "$rpms_dir/eos-dsal*"
-    rm -fR "$rpms_dir/eos-efs*"
+    rm -fR "$rpms_dir/cortx-utils*"
+    rm -fR "$rpms_dir/cortx-nsal*"
+    rm -fR "$rpms_dir/cortx-dsal*"
+    rm -fR "$rpms_dir/cortx-efs*"
     rm -fR "$rpmn_dir/kvsfs-ganesha*"
 
-    eosfs_set_env &&
+    efs_set_env &&
         _nfs_ganesha_build rpm-gen &&
 	_utils_build rpm-gen &&
         _nsal_build rpm-gen &&
@@ -304,8 +304,8 @@ eosfs_rpm_gen() {
     echo "OK"
 }
 
-eosfs_rpm_install() {
-    eosfs_set_env
+efs_rpm_install() {
+    efs_set_env
     sudo echo "Checking sudo access"
     _utils_build rpm-install
     _nsal_build rpm-install
@@ -314,8 +314,8 @@ eosfs_rpm_install() {
     _kvsfs_build rpm-install
 }
 
-eosfs_rpm_uninstall() {
-    eosfs_set_env
+efs_rpm_uninstall() {
+    efs_set_env
     sudo echo "Checking sudo access"
     _utils_build rpm-uninstall
     _nsal_build rpm-uninstall
@@ -324,8 +324,8 @@ eosfs_rpm_uninstall() {
     _kvsfs_build rpm-uninstall
 }
 
-eosfs_reinstall() {
-    eosfs_set_env
+efs_reinstall() {
+    efs_set_env
     sudo echo "Checking sudo access"
 
     _utils_build rpm-gen &&
@@ -346,9 +346,9 @@ eosfs_reinstall() {
 }
 
 ###############################################################################
-eosfs_usage() {
+efs_usage() {
     echo -e "
-EOSFS Build script.
+EFS Build script.
 Usage:
     env <build environment> $0 <action>
 
@@ -374,7 +374,7 @@ Where action is one of the following:
      Available components: kvsfs nfs-ganesha.
 
 Dev workflow:
-    $0 bootstrap -- Download sources for EOS-FS components.
+    $0 bootstrap -- Download sources for EFS components.
     $0 update -- (optional) Update sources.
     $0 config -- Initialize the build folders
     $0 make -j -- and build binaries from the sources.
@@ -386,7 +386,7 @@ Sub-component examples:
 
 External sources:
     NFS Ganesha.
-    EOS-FS needs NFS Ganesha repo to build KVSFS-FSAL module.
+    EFS needs NFS Ganesha repo to build KVSFS-FSAL module.
     It also uses a generated config.h file, so that the repo
     needs to to be configured at least.
     Default location: $(dirname $PWD)/nfs-ganesha.
@@ -396,59 +396,59 @@ External sources:
 ###############################################################################
 case $1 in
     env)
-        eosfs_print_env;;
+        efs_print_env;;
     jenkins)
         shift
-        eosfs_jenkins_build "$@";;
+        efs_jenkins_build "$@";;
     bootstrap)
-        eosfs_bootstrap;;
+        efs_bootstrap;;
 
 # Build steps
     config)
-        eosfs_configure;;
+        efs_configure;;
     purge)
-        eosfs_purge;;
+        efs_purge;;
     make)
         shift
-        eosfs_make "$@" ;;
+        efs_make "$@" ;;
 
 # Pkg mmgmt:
     rpm-gen)
-        eosfs_rpm_gen;;
+        efs_rpm_gen;;
     rpm-install)
-        eosfs_rpm_install;;
+        efs_rpm_install;;
     rpm-uninstall)
-        eosfs_rpm_uninstall;;
+        efs_rpm_uninstall;;
     reinstall)
-        eosfs_reinstall;;
+        efs_reinstall;;
 
 # Sub-components:
     utils)
         shift
-        eosfs_set_env
+        efs_set_env
         _utils_build "$@";;
     nsal)
         shift
-        eosfs_set_env
+        efs_set_env
         _nsal_build "$@";;
     dsal)
         shift
-        eosfs_set_env
+        efs_set_env
         _dsal_build "$@";;
     efs)
 	shift
-	eosfs_set_env
+	efs_set_env
 	_efs_build "$@";;
     kvsfs)
         shift
-        eosfs_set_env
+        efs_set_env
         _kvsfs_build "$@";;
     nfs-ganesha)
         shift
-        eosfs_set_env
+        efs_set_env
         _nfs_ganesha_build "$@";;
     *)
-        eosfs_usage;;
+        efs_usage;;
 esac
 
 ###############################################################################

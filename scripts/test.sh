@@ -3,7 +3,7 @@
 set -e
 
 MODULES=(utils dsal nsal efs kvsfs)
-BUILD_DIR=/tmp/eos-fs
+BUILD_DIR=/tmp/efs
 TEST_GRP=all
 LOG_ROOT="/var/log/cortx"
 UT_LOG_ROOT="$LOG_ROOT/test/ut"

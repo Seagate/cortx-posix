@@ -10,14 +10,10 @@ include_directories(${CORTXUTILSINC})
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${CORTX_CFLAGS}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CORTX_CFLAGS}")
 
-SET(efs_LIB_SRCS
-   efs.c
-   efs_fh.c
-   efs_internal.c
-   efs_ops.c
-   efs_fops.c
-   efs_xattr.c
+SET(dstore_LIB_SRCS
+   ../../dstore_base.c
+   cortx_dstore.c
 )
 
-add_library(efs OBJECT ${efs_LIB_SRCS})
+add_library(dstore OBJECT ${dstore_LIB_SRCS})
 

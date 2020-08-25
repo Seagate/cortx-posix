@@ -6,12 +6,12 @@ Version: @KVSFS_GANESHA_BASE_VERSION@
 Release: %{dev_version}%{?dist}
 Summary: Test-Tools for KVSFS
 License: Seagate
-URL: https://seagit.okla.seagate.com/seagate-eos/eos-fs
+URL: https://github.com/Seagate/cortx-fs-ganesha
 Requires: @PROJECT_NAME_BASE@-fs
 Source: %{sourcename}.tar.gz
 Provides: %{name} = %{version}-%{release}
 
-# EOS EFS-TEST library paths
+# CORTX EFS-TEST library paths
 %define _fs_test_dir		@INSTALL_DIR_ROOT@/@PROJECT_NAME_BASE@/fs-ganesha/test
 
 %description

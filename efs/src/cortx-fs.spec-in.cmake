@@ -1,8 +1,8 @@
 %define sourcename @CPACK_SOURCE_PACKAGE_FILE_NAME@
-%global dev_version %{lua: extraver = string.gsub('@EOS_EFS_EXTRA_VERSION@', '%-', '.'); print(extraver) }
+%global dev_version %{lua: extraver = string.gsub('@CORTX_EFS_EXTRA_VERSION@', '%-', '.'); print(extraver) }
 
 Name: @PROJECT_NAME@
-Version: @EOS_EFS_BASE_VERSION@
+Version: @CORTX_EFS_BASE_VERSION@
 Release: %{dev_version}%{?dist}
 Summary: @PROJECT_NAME_BASE@ file system
 License: Seagate
@@ -18,7 +18,7 @@ Provides: %{name} = %{version}-%{release}
 @BCOND_ENABLE_DASSERT@ enable_dassert
 %global enable_dassert %{on_off_switch enable_dassert}
 
-# EOS NSAL library paths
+# CORTX NSAL library paths
 %define	_efs_lib		@PROJECT_NAME@
 %define _efs_dir		@INSTALL_DIR_ROOT@/@PROJECT_NAME_BASE@/fs
 %define _efs_lib_dir		%{_efs_dir}/lib
@@ -31,7 +31,7 @@ Provides: %{name} = %{version}-%{release}
 The @PROJECT_NAME@ is @PROJECT_NAME_BASE@ file system.
 
 %package devel
-Summary: Development file for the library eos-efs
+Summary: Development file for the library cortx-efs
 Group: Development/Libraries
 Requires: %{name} = %{version}-%{release} pkgconfig
 Provides: %{name}-devel = %{version}-%{release}
@@ -44,8 +44,8 @@ This package contains tools for @PROJECT_NAME@.
 %setup -q -n %{sourcename}
 
 %build
-cmake . -DEOSUTILSINC:PATH=@EOSUTILSINC@         \
-	-DLIBEOSUTILS:PATH=@LIBEOSUTILS@	 \
+cmake . -DCORTXUTILSINC:PATH=@CORTXUTILSINC@         \
+	-DLIBCORTXUTILS:PATH=@LIBCORTXUTILS@	 \
 	-DNSALINC:PATH=@NSALINC@            	 \
 	-DLIBNSAL:PATH=@LIBNSAL@		 \
 	-DDSALINC:PATH=@DSALINC@		 \

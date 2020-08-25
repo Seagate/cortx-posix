@@ -1,4 +1,4 @@
-include_directories(${EOSUTILSINC})
+include_directories(${CORTXUTILSINC})
 
 SET(FS_LIB_SRCS
    fs.c

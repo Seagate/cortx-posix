@@ -1,8 +1,8 @@
 %define sourcename @CPACK_SOURCE_PACKAGE_FILE_NAME@
-%global dev_version %{lua: extraver = string.gsub('@EOS_NSAL_EXTRA_VERSION@', '%-', '.'); print(extraver) }
+%global dev_version %{lua: extraver = string.gsub('@CORTX_NSAL_EXTRA_VERSION@', '%-', '.'); print(extraver) }
 
 Name: @PROJECT_NAME@
-Version: @EOS_NSAL_BASE_VERSION@
+Version: @CORTX_NSAL_BASE_VERSION@
 Release: %{dev_version}%{?dist}
 Summary: Namespace abstraction layer library
 License: Seagate
@@ -14,7 +14,7 @@ BuildRequires: @RPM_DEVEL_REQUIRES@
 Requires: libini_config @RPM_REQUIRES@
 Provides: %{name} = %{version}-%{release}
 
-# EOS NSAL library paths
+# CORTX NSAL library paths
 %define _nsal_lib		@PROJECT_NAME@
 %define _nsal_dir		@INSTALL_DIR_ROOT@/@PROJECT_NAME_BASE@/nsal
 %define _nsal_lib_dir		%{_nsal_dir}/lib
@@ -23,7 +23,7 @@ Provides: %{name} = %{version}-%{release}
 # Conditionally enable KVS and object stores
 #
 # 1. rpmbuild accepts these options:
-#    --with eos
+#    --with cortx
 #    --without redis
 
 %define on_off_switch() %%{?with_%1:ON}%%{!?with_%1:OFF}
@@ -36,8 +36,8 @@ Provides: %{name} = %{version}-%{release}
 @BCOND_KVS_REDIS@ kvs_redis
 %global use_kvs_redis %{on_off_switch kvs_redis}
 
-@BCOND_KVS_EOS@ kvs_eos
-%global use_kvs_eos %{on_off_switch kvs_eos}
+@BCOND_KVS_CORTX@ kvs_cortx
+%global use_kvs_cortx %{on_off_switch kvs_cortx}
 
 @BCOND_ENABLE_DASSERT@ enable_dassert
 %global enable_dassert %{on_off_switch enable_dassert}
@@ -60,9 +60,9 @@ The @PROJECT_NAME@ is Namespace Abstraction Layer library.
 
 %build
 cmake . -DUSE_KVS_REDIS=%{use_kvs_redis}     	\
-	-DUSE_KVS_EOS=%{use_kvs_eos}       	\
-	-DEOSUTILSINC:PATH=@EOSUTILSINC@     	\
-	-DLIBEOSUTILS:PATH=@LIBEOSUTILS@	\
+	-DUSE_KVS_CORTX=%{use_kvs_cortx}       	\
+	-DCORTXUTILSINC:PATH=@CORTXUTILSINC@     	\
+	-DLIBCORTXUTILS:PATH=@LIBCORTXUTILS@	\
 	-DENABLE_DASSERT=%{enable_dassert}	\
 	-DPROJECT_NAME_BASE=@PROJECT_NAME_BASE@ \
 
