@@ -42,7 +42,7 @@
 #define CNT 100		//batch size
 #define BATCH ((int) ceil(CALLS/CNT))
 
-struct kvsns_xattr{
+struct cortxfs_xattr{
 	unsigned long long int ino;
 	char type;
 	char name[256];
@@ -58,7 +58,7 @@ struct kvsns_xattr{
 }
 
 static struct m0_fid ifid;
-static struct m0_ufid_generator kvsns_ufid_generator;
+static struct m0_ufid_generator cortxfs_ufid_generator;
 static struct m0_clovis_idx idx;
 
 /* for one by one key and value calls */
@@ -129,7 +129,7 @@ static int setAttr()
 	char *k1 = "1name_of_key";
 	char *v1 = malloc(sizeof(char)* VALINPUT);
 
-	struct kvsns_xattr *xkey[CALLS];
+	struct cortxfs_xattr *xkey[CALLS];
 	size_t klen, vlen;
 	int rc, i, j, index;
 
@@ -141,14 +141,14 @@ static int setAttr()
 	char tmpkey[256];
 	struct timeval start1, end1;
 
-	klen = sizeof(struct kvsns_xattr);
+	klen = sizeof(struct cortxfs_xattr);
 	vlen = strlen(v1) + 1;
 	for (i = 0; i < BATCH; i ++)
 	{
 		index = i * CNT;
 		for (j = 0; j < CNT; j++)
 		{
-			xkey[index + j] = calloc(1, sizeof( struct kvsns_xattr));
+			xkey[index + j] = calloc(1, sizeof( struct cortxfs_xattr));
 			snprintf(tmpkey, 256, "%s_%d", k1, index + j);
 			XATTR_KEY_INIT(xkey[index + j], ino2, tmpkey);
 		}
@@ -199,7 +199,7 @@ static int setAttr()
 static int delAttr()
 {
 	char *k1 = "1name_of_key";
-	struct kvsns_xattr *xkey[CALLS];
+	struct cortxfs_xattr *xkey[CALLS];
 	size_t klen;
 	int rc, i, j, index;
 
@@ -210,13 +210,13 @@ static int delAttr()
 	char tmpkey[256];
 	struct timeval start1, end1;
 
-	klen = sizeof(struct kvsns_xattr);
+	klen = sizeof(struct cortxfs_xattr);
 	for (i = 0; i < BATCH; i ++)
 	{
 		index = i * CNT;
 		for (j = 0; j < CNT; j++)
 		{
-			xkey[index + j] = calloc(1, sizeof( struct kvsns_xattr));
+			xkey[index + j] = calloc(1, sizeof( struct cortxfs_xattr));
 			snprintf(tmpkey, 256, "%s_%d", k1, index + j);
 			XATTR_KEY_INIT(xkey[index + j], ino2, tmpkey);
 		}
@@ -281,7 +281,7 @@ int set_fid()
 
 	m0_clovis_idx_init(&idx, &clovis_container.co_realm, (struct m0_uint128 *)&ifid);
 
-	rc = m0_ufid_init(clovis_instance, &kvsns_ufid_generator);
+	rc = m0_ufid_init(clovis_instance, &cortxfs_ufid_generator);
 	if (rc != 0) {
 		fprintf(stderr, "Failed to initialise fid generator: %d\n", rc);
 		goto err_exit;

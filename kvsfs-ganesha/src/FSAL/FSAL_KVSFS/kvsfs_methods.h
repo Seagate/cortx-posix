@@ -10,7 +10,7 @@
 /******************************************************************************/
 /* Common helpers */
 
-static inline void kvsns_cred_from_op_ctx(efs_cred_t *out)
+static inline void cortxfs_cred_from_op_ctx(efs_cred_t *out)
 {
 	assert(out);
 	assert(op_ctx);
@@ -80,8 +80,8 @@ fsal_status_t kvsfs_lookup_path(struct fsal_export *exp_hdl,
 			       struct attrlist *attrs_out);
 
 /**Open a filesystem and get its descriptor. */
-int kvsfs_export_to_kvsns_ctx(struct fsal_export *exp_hdl,
-			      struct efs_fs **efs_fs);
+int kvsfs_export_to_cortxfs_ctx(struct fsal_export *exp_hdl,
+		 	        struct efs_fs **efs_fs);
 
 /** Create a file handle within the expecified NFS export. */
 fsal_status_t kvsfs_create_handle(struct fsal_export *exp_hdl,

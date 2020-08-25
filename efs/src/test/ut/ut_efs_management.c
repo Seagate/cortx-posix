@@ -50,7 +50,7 @@ int test_management_init(const char *config_path)
         char *log_path = NULL;
         char *log_level = NULL;
 
-	rc = config_from_file("libkvsns", config_path, &cfg_items,
+	rc = config_from_file("libcortxfs", config_path, &cfg_items,
 			      INI_STOP_ON_ERROR, &errors);
 	if (rc) {
 		free_ini_config_errors(errors);

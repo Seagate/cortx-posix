@@ -25,7 +25,7 @@
  * EFS File Handle (efs)fh) is an in-memory object that represents
  * a file object such as a regular file, a directory, a symlink etc.
  *
- * File Handles are obtained from the KVSNS API using LOOKUP, READDIR or
+ * File Handles are obtained from the CORTXFS API using LOOKUP, READDIR or
  * deserialize calls.
  * These calls construct a new file handle per found object. READDIR produces
  * a file handle per each iteration over a directory.
@@ -50,7 +50,7 @@
  * FH Serialization.
  * --------------
  *
- * KVSNS Users can serialize a FH into a buffer of a pre-defined size, store
+ * CORTXFS Users can serialize a FH into a buffer of a pre-defined size, store
  * it somewhere, and deseiralize later. Also, FH supports obtaining of a unique
  * in-memory key to be used in containers (maps, sets).
  * Methods:
@@ -64,7 +64,7 @@
  *
  * Since FHs are opaque to the callers, they are contructed with malloc() calls.
  * However, it is not so efficient when a caller has its own File Handle
- * structure which agregates KVSNS FH. To prevent multiple allocations of the
+ * structure which agregates CORTXFS FH. To prevent multiple allocations of the
  * same entity, FH provides methods for placement initialization in pre-allocated
  * buffers.
  * Methods:
@@ -105,25 +105,25 @@
  * @{endcode}
  *
  * Inplace memorty menagement is not implemented yet and will a part of
- * futher optimizations when KVSNS FH will be fully integrated in KVSNS
+ * futher optimizations when CORTXFS FH will be fully integrated in CORTXFS
  * namespace code.
  *
  *
  * FH Compatibility layer.
  * -----------------------
  *
- * Migration to the new KVSNS FH API requires a lot of changes in KVSNS and
+ * Migration to the new CORTXFS FH API requires a lot of changes in CORTXFS and
  * KVSFS. In order to keep backward compatibility during migration,
- * KVSNS FH provides a set of function to use together new and the old APIs.
+ * CORTXFS FH provides a set of function to use together new and the old APIs.
  * Those places are marked as "TODO:EOS-3288".
  */
 
 #ifndef EFS_FH_H_
 #define EFS_FH_H_
 /******************************************************************************/
-/* NOTE: This code needs to be merged into kvsns.h. Otherwise, we will
- * get an unresolvable dependency cycle between kvsns_fh_t definition and the
- * rest of KVSNS code.
+/* NOTE: This code needs to be merged into cortxfs.h. Otherwise, we will
+ * get an unresolvable dependency cycle between cortxfs_fh_t definition and the
+ * rest of CORTXFS code.
  */
 /******************************************************************************/
 
@@ -173,13 +173,13 @@ void efs_fh_key(const struct efs_fh *fh, void **pbuffer, size_t *psize);
 
 /** Max size of buffer to be used for FH serialization.
  * Note: the size is fixed however it is defined by the implementation
- * to prevent cases where KVSNS FH on-wire has been extended or reduced
+ * to prevent cases where CORTXFS FH on-wire has been extended or reduced
  * without recompiling the callers code.
  */
 size_t efs_fh_serialized_size(void);
 
 /******************************************************************************/
-/* NOTE: This will be a part of the main KVSNS API but not a part of the FH API. */
+/* NOTE: This will be a part of the main CORTXFS API but not a part of the FH API. */
 
 /* Notes for reviewers (it will be turned into doxygen comments later) :
  *
@@ -190,10 +190,10 @@ size_t efs_fh_serialized_size(void);
  * reconstructed without any additiona information and even might be used
  * outside of EFS.
  *
- * 2. kvsns_ino_t arguments are replaced by kvsns_fh_t. Because of that,
+ * 2. cortxfs_ino_t arguments are replaced by cortxfs_fh_t. Because of that,
  * the callers should ensure to destroy the handles.
  *
- * 3. The example of KVSNS API described below allocates new file handles in
+ * 3. The example of CORTXFS API described below allocates new file handles in
  * heap. Later we can change that to use in-place allocated structures to
  * avoid extra malloc/free calls.
  */
@@ -218,7 +218,7 @@ int efs_fh_lookup(const efs_cred_t *cred, struct efs_fh *fh, const char *name,
  * @param[in[ cred - User credentials.
  * @param[out] pfh - Pointer to the root FH object.
  * TODO:
- *	1. `fs` parameter type should be changed to `kvsns_fs_t` when
+ *	1. `fs` parameter type should be changed to `cortxfs_fs_t` when
  *	the corresponding module is finished.
  */
 int efs_fh_getroot(struct efs_fs *fs, const efs_cred_t *cred, struct efs_fh **pfh);
@@ -240,7 +240,7 @@ int efs_fh_getroot(struct efs_fs *fs, const efs_cred_t *cred, struct efs_fh **pf
 int efs_fh_from_ino(struct efs_fs *fs, const efs_ino_t *ino_num,
 		    const struct stat *stat, struct efs_fh **fh);
 
-/* A temporary function to be used for serialization until kvsns_fh_get_fsid
+/* A temporary function to be used for serialization until cortxfs_fh_get_fsid
  * is implemented (or until EFS start using FIDs as primary keys).
  * @param[in] fh - FH object.
  * @param[in] fsid - Unique FS number; allows to make FHs unique across multiple

@@ -34,7 +34,7 @@ Note: An error of ini_config.h may occur
 
 - rpm -ql krb5-devel | grep gssapi.h
 
-- Run `build.sh` script to generate RPMs for **kvsns** and **fsalkvsfs**
+- Run `build.sh` script to generate RPMs for **cortxfs** and **fsalkvsfs**
 
 ```sh
 $ sudo ./jenkins/build.sh -h
@@ -49,14 +49,14 @@ $ sudo ./jenkins/build.sh -p ~/nfs-ganesha/src
 Using [VERSION=1.0.1] ...
 Using [GIT_VER=f471744] ...
 -- cmake version 2.8
--- libkvsns version 1.0.1
+-- libcortxfs version 1.0.1
 -- Disabling REDIS
 -- Disabling POSIX Store
 ...
-Wrote: /root/rpmbuild/RPMS/x86_64/libkvsns-1.0.1-f471744.el7.x86_64.rpm
-Wrote: /root/rpmbuild/RPMS/x86_64/libkvsns-devel-1.0.1-f471744.el7.x86_64.rpm
-Wrote: /root/rpmbuild/RPMS/x86_64/libkvsns-utils-1.0.1-f471744.el7.x86_64.rpm
-Wrote: /root/rpmbuild/RPMS/x86_64/libkvsns-debuginfo-1.0.1-f471744.el7.x86_64.rpm
+Wrote: /root/rpmbuild/RPMS/x86_64/libcortxfs-1.0.1-f471744.el7.x86_64.rpm
+Wrote: /root/rpmbuild/RPMS/x86_64/libcortxfs-devel-1.0.1-f471744.el7.x86_64.rpm
+Wrote: /root/rpmbuild/RPMS/x86_64/libcortxfs-utils-1.0.1-f471744.el7.x86_64.rpm
+Wrote: /root/rpmbuild/RPMS/x86_64/libcortxfs-debuginfo-1.0.1-f471744.el7.x86_64.rpm
 ...
 Wrote: /root/rpmbuild/RPMS/x86_64/libfsalkvsfs-1.0.1-f471744.el7.x86_64.rpm
 Wrote: /root/rpmbuild/RPMS/x86_64/libfsalkvsfs-debuginfo-1.0.1-f471744.el7.x86_64.rpm
@@ -67,16 +67,16 @@ Built target rpm
 
 ### Install
 
-Install kvsns and kvfsfs RPMS:
+Install cortxfs and kvfsfs RPMS:
 
 ```sh
-sudo yum install $HOME/rpmbuild/RPMS/*/lib{kvsns,fsalkvsfs}*
+sudo yum install $HOME/rpmbuild/RPMS/*/lib{cortxfs,fsalkvsfs}*
 ```
 
 A hint: for periodic local updates you can use `jenkins/build_and_install.sh`.
 
 ### Configure
-- Edit `/etc/kvsns.d/kvsns.ini`. Create if it doesn't exist
+- Edit `/etc/cortxfs.d/cortxfs.ini`. Create if it doesn't exist
 
 ```
 [motr]
@@ -87,10 +87,10 @@ proc_fid = <0x7200000000000000:0>
 index_dir = /tmp
 kvs_fid = <0x780000000000000b:1>
 ```
-- Update `local_addr`, `ha_addr`, `profile` and `proc_fid` in `/etc/kvsns.d/kvsns.ini` using the above sample configuration file Replace the `172.16.2.132` in the kvsns.ini by the  ip address of your local machine.
+- Update `local_addr`, `ha_addr`, `profile` and `proc_fid` in `/etc/cortxfs.d/cortxfs.ini` using the above sample configuration file Replace the `172.16.2.132` in the cortxfs.ini by the  ip address of your local machine.
 - Use values for `index_dir` and `kvs_fid` as given above.
 
-- Create the Index use by KVSNS and listed in kvsns.ini as `kvs_fid`
+- Create the Index use by CORTXFS and listed in cortxfs.ini as `kvs_fid`
 
 ```sh
 $ sudo m0clovis --help
@@ -105,7 +105,7 @@ where valid options are
 	  -f     string: Process FID
 	  -p     string: Profile options for Clovis
 ```
-Use values for the options from `/etc/kvsns.d/kvsns.ini`. For the sample configuration given above, this is how command should look like
+Use values for the options from `/etc/cortxfs.d/cortxfs.ini`. For the sample configuration given above, this is how command should look like
 
 ```sh
 $ m0clovis -l 172.16.2.132@tcp:12345:44:301 \
@@ -114,13 +114,13 @@ $ m0clovis -l 172.16.2.132@tcp:12345:44:301 \
 		-f '0x7200000000000000:0'\
 		index create "<0x780000000000000b:1>"
 ```
-- Initialize KVSNS namespace
+- Initialize CORTXFS namespace
 
 ```sh
-$ cd /tmp/kvsns_build/kvsns_shell
-$ ./kvsns_init
+$ cd /tmp/cortxfs_build/cortxfs_shell
+$ ./cortxfs_init
 ```
-- Test the namespace. Use links from `/tmp/kvsns_build/kvsns_shell` to manipulate the namespace
+- Test the namespace. Use links from `/tmp/cortxfs_build/cortxfs_shell` to manipulate the namespace
 
 #### Configure NFS-Ganesha
 - Assuming you have built NFS-Ganesha from source. Edit `/etc/ganesha/ganesha.conf`
@@ -131,10 +131,10 @@ EXPORT
 {
 	Export_Id = 77;
 	Path = /;
-	Pseudo = /kvsns;
+	Pseudo = /cortxfs;
 	FSAL {
 		Name  = KVSFS;
-		kvsns_config = /etc/kvsns.d/kvsns.ini;
+		cortxfs_config = /etc/cortxfs.d/cortxfs.ini;
 	}
 	SecType = sys;
 	client {

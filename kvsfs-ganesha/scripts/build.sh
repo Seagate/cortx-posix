@@ -31,12 +31,12 @@ KVSFS_NFS_GANESHA_DIR=${KVSFS_NFS_GANESHA_DIR:-"$KVSFS_SOURCE_ROOT/../../nfs-gan
 # Local builds: in the same level where target build folder located.
 KVSFS_NFS_GANESHA_BUILD_DIR=${KVSFS_NFS_GANESHA_BUILD_DIR:-"$KVSFS_NFS_GANESHA_DIR/build"}
 
-# Select KVSNS Source Version.
+# Select CORTXFS Source Version.
 # Superproject: derived from efs version.
 # Local: taken fron VERSION file.
 KVSFS_VERSION=${EFS_VERSION:-"$(cat $KVSFS_SOURCE_ROOT/VERSION)"}
 
-# Select KVSNS Build Version.
+# Select CORTXFS Build Version.
 # Superproject: derived from efs version.
 # Local: taken from git rev.
 KVSFS_BUILD_VERSION=${EFS_BUILD_VERSION:-"$(git rev-parse --short HEAD)"}
@@ -79,7 +79,7 @@ KVSFS_TEST_BUILD=$KVSFS_CMAKE_BUILD_ROOT/build-kvsfs-test
 KVSFS_BUILD=$KVSFS_CMAKE_BUILD_ROOT/build-kvsfs
 KVSFS_SRC=$KVSFS_SOURCE_ROOT/src/FSAL/FSAL_KVSFS
 
-# Use either local header/lib or the files from libkvsns-devel package.
+# Use either local header/lib or the files from libcortxfs-devel package.
 
 if [ "x$CORTX_UTILS_SOURCE_ROOT" == "x" ]; then
 CORTX_UTILS_INC="/opt/seagate/cortx/utils"
@@ -93,16 +93,16 @@ else
 CORTX_UTILS_LIB="$CORTX_UTILS_CMAKE_BUILD_ROOT/build-cortx-utils"
 fi
 
-if [ "x$KVSNS_SOURCE_ROOT" == "x" ]; then
-    KVSNS_INC="/usr/include/"
+if [ "x$CORTXFS_SOURCE_ROOT" == "x" ]; then
+    CORTXFS_INC="/usr/include/"
 else
-    KVSNS_INC="$KVSNS_SOURCE_ROOT/src/include/"
+    CORTXFS_INC="$CORTXFS_SOURCE_ROOT/src/include/"
 fi
 
-if [ "x$KVSNS_CMAKE_BUILD_ROOT" == "x" ]; then
-    KVSNS_LIB="/usr/lib64"
+if [ "x$CORTXFS_CMAKE_BUILD_ROOT" == "x" ]; then
+    CORTXFS_LIB="/usr/lib64"
 else
-    KVSNS_LIB="$KVSNS_CMAKE_BUILD_ROOT/build-kvsns/kvsns"
+    CORTXFS_LIB="$CORTXFS_CMAKE_BUILD_ROOT/build-cortxfs/cortxfs"
 fi
 
 if [ "x$CORTX_UTILS_SOURCE_ROOT" == "x" ]; then
@@ -144,8 +144,8 @@ fi
 ###############################################################################
 kvsfs_print_env() {
     myenv=(
-        KVSNS_SOURCE_ROOT
-        KVSNS_CMAKE_BUILD_ROOT
+        CORTXFS_SOURCE_ROOT
+        CORTXFS_CMAKE_BUILD_ROOT
         KVSFS_SOURCE_ROOT
         KVSFS_CMAKE_BUILD_ROOT
         KVSFS_VERSION
@@ -154,8 +154,8 @@ kvsfs_print_env() {
         KVSFS_NFS_GANESHA_BUILD_DIR
 	CORTX_UTILS_LIB
 	CORTX_UTILS_INC
-        KVSNS_LIB
-        KVSNS_INC
+        CORTXFS_LIB
+        CORTXFS_INC
 	CORTX_UTILS_LIB
 	CORTX_UTILS_INC
 	NSAL_LIB
@@ -359,7 +359,7 @@ Where action is one of the following:
         rpm-install - Install RPMs build by rpm-gen.
         rpm-uninstall - Uninstall pkgs.
 
-        kvssh   - Run KVSNS Shell from build folder.
+        kvssh   - Run CORTXFS Shell from build folder.
 
 An example of a typical workflow:
     $0 config -- Generates out-of-tree cmake build folder.

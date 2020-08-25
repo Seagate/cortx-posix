@@ -8,7 +8,7 @@ WORKLOADS=$(ls $WORKLOAD_DIR)
 FIO_PARAMS=$SCRIPT_RUNNER_DIR/fio/fio_params
 MNT_PATH=/tmp/fio_test
 MNT_OPTS=vers=4.0
-EXPORT=kvsns
+EXPORT=cortxfs
 TIME_STAMP=$(date +'%m:%d:%Y_%H:%M')
 FIO_LOG=/tmp/fio_test.log
 TMP_FILE=/tmp/tmp_fio_file

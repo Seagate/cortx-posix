@@ -36,7 +36,7 @@
 #define MAXVAL 70000 
 #define CNT 100 
 
-struct kvsns_xattr{
+struct cortxfs_xattr{
 	unsigned long long int ino;
 	char type;
 	char name[256];
@@ -52,7 +52,7 @@ struct kvsns_xattr{
 }
 
 static struct m0_fid ifid;
-static struct m0_ufid_generator kvsns_ufid_generator;
+static struct m0_ufid_generator cortxfs_ufid_generator;
 static struct m0_clovis_idx idx;
 
 static int *rcs_alloc(int count)
@@ -124,7 +124,7 @@ out:
 
 int delete_batch(char *k1, char *ino)
 {
-	struct kvsns_xattr *xkey[CNT];
+	struct cortxfs_xattr *xkey[CNT];
 	size_t klen;
 	int rc, i;
 	struct m0_bufvec key;
@@ -135,11 +135,11 @@ int delete_batch(char *k1, char *ino)
 	char tmpkey[256];
         struct timeval start1, end1;
 
-        klen = sizeof(struct kvsns_xattr);
+        klen = sizeof(struct cortxfs_xattr);
 
         for (i = 0; i < CNT; i++)
         {
-                xkey[i] = calloc(1, sizeof( struct kvsns_xattr));
+                xkey[i] = calloc(1, sizeof( struct cortxfs_xattr));
                 snprintf(tmpkey, 256, "%s_%d", k1, i);
                 XATTR_KEY_INIT(xkey[i], ino2, tmpkey);
 	}
@@ -175,7 +175,7 @@ int delete_batch(char *k1, char *ino)
 
 int get_keyval(char *name, char *v, unsigned long long int ino2)
 {
-	struct kvsns_xattr *xkey = NULL;
+	struct cortxfs_xattr *xkey = NULL;
 
 	size_t klen;
 	size_t vlen = 256;
@@ -215,7 +215,7 @@ out:
 
 int set_batch(char *k1, char *v1, char *ino)
 {
-	struct kvsns_xattr *xkey[CNT];
+	struct cortxfs_xattr *xkey[CNT];
 	size_t klen, vlen;
 	int rc, i;
 	struct m0_bufvec key;
@@ -229,11 +229,11 @@ int set_batch(char *k1, char *v1, char *ino)
 
         for (i = 0; i < CNT; i++)
         {
-                xkey[i] = calloc(1, sizeof( struct kvsns_xattr));
+                xkey[i] = calloc(1, sizeof( struct cortxfs_xattr));
                 snprintf(tmpkey, 256, "%s_%d", k1, i);
                 XATTR_KEY_INIT(xkey[i], ino2, tmpkey);
 	}
-	klen = sizeof( struct kvsns_xattr);
+	klen = sizeof( struct cortxfs_xattr);
         vlen = strlen(v1) + 1;
 	gettimeofday(&start1, NULL);
 
@@ -279,7 +279,7 @@ int set_batch(char *k1, char *v1, char *ino)
 
 int store_keyval(char *name, char *v, char *ino)
 {
-	struct kvsns_xattr *xkey = NULL;
+	struct cortxfs_xattr *xkey = NULL;
 	size_t klen, vlen;
 	int rc;
 	struct m0_bufvec key;
@@ -290,7 +290,7 @@ int store_keyval(char *name, char *v, char *ino)
 
         xkey = calloc(1, sizeof(*xkey));
 	XATTR_KEY_INIT(xkey, ino2, name);
-	klen = sizeof(struct kvsns_xattr);
+	klen = sizeof(struct cortxfs_xattr);
 	vlen = strlen(v) + 1;
 
 	rc = m0_bufvec_alloc(&key, 1, klen);
@@ -346,7 +346,7 @@ int set_fid()
          m0_clovis_idx_init(&idx, &clovis_container.co_realm,
                             (struct m0_uint128 *)&ifid);
 
-         rc = m0_ufid_init(clovis_instance, &kvsns_ufid_generator);
+         rc = m0_ufid_init(clovis_instance, &cortxfs_ufid_generator);
          if (rc != 0) {
 	 fprintf(stderr, "Failed to initialise fid generator: %d\n", rc);
                  goto err_exit;
@@ -358,7 +358,7 @@ int set_fid()
          return rc;
 }
 
-int m0_search_pattern(struct kvsns_xattr *xkey)
+int m0_search_pattern(struct cortxfs_xattr *xkey)
 {
 
 	int rc;
@@ -443,7 +443,7 @@ int pattern_search(char *ino)
 {
 	unsigned long long int ino2;
 	ino2 = atoll(ino);
-	struct kvsns_xattr *xkey = NULL;
+	struct cortxfs_xattr *xkey = NULL;
 	xkey = calloc(1, sizeof(*xkey));
 	XATTR_KEY_INIT(xkey, ino2, "");
 

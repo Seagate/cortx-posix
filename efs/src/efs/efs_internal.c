@@ -41,7 +41,7 @@ static int efs_set_ino_no_gen(struct efs_fs *efs_fs, efs_ino_t ino);
 static int efs_get_ino_no_gen(struct efs_fs *efs_fs, efs_ino_t *ino);
 static int efs_del_ino_no_gen(struct efs_fs *efs_fs);
 
-/** Get pointer to a const C-string owned by kvsns_name string. */
+/** Get pointer to a const C-string owned by cortxfs_name string. */
 static inline const char *efs_name_as_cstr(const str256_t *kname)
 {
         return kname->s_str;

@@ -48,7 +48,7 @@ int dtlib_get_motr_config_params(void)
 {
 	int rc = 0, len;
 
-	rc = config_from_file("libkvsns", config_path, &cfg_items,
+	rc = config_from_file("libcortxfs", config_path, &cfg_items,
 			      INI_STOP_ON_ERROR, &errors);
 	if (rc) {
 		fprintf(stderr, "Failed to load ini file.\n");
@@ -126,7 +126,7 @@ int dtlib_common_setup(int argc, char *argv[])
 		}
 	}
 
-	rc = config_from_file("libkvsns", config_path, &cfg_items,
+	rc = config_from_file("libcortxfs", config_path, &cfg_items,
 			      INI_STOP_ON_ERROR, &errors);
 	if (rc) {
 		fprintf(stderr, "Failed to load ini file.\n");

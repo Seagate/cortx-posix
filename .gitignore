@@ -6,7 +6,7 @@ tags
 *.gdb_history
 TAGS
 *libfsalkvsfs.spec
-build-kvsns
+build-cortxfs
 build-kvsfs
 *.spec
 *.pc

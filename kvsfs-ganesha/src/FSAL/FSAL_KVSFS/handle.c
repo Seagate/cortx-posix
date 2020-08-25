@@ -524,7 +524,7 @@ out:
  *  Note that we do not set mode bits on symlinks for Linux/POSIX
  *  They are not really settable in the kernel and are not checked
  *  anyway (default is 0777) because open uses that target's mode.
- *  @see ::KVSNS_SYMLINK_MODE.
+ *  @see ::CORTXFS_SYMLINK_MODE.
  */
 
 static fsal_status_t kvsfs_makesymlink(struct fsal_obj_handle *dir_hdl,
@@ -1372,7 +1372,7 @@ static fsal_status_t kvsfs_unlink_reg(struct fsal_obj_handle *dir_hdl,
 
 	/* FIXME: We might try to use rdlock here instead of wrlock because
 	 * we just need to avoid writing in obj->share. But we don't have have
-	 * atomic operations in KVSNS yet, so that let's just serialize access
+	 * atomic operations in CORTXFS yet, so that let's just serialize access
 	 * to destroy_file by enforcing wrlock. */
 	PTHREAD_RWLOCK_wrlock(&obj->obj_handle.obj_lock);
 	if (kvsfs_fh_is_open(obj)) {
@@ -2954,7 +2954,7 @@ out:
 
 /******************************************************************************/
 /* FSAL.commit2 */
-/* TODO:KVSNS does not support fsync() call, it always uses sync operations */
+/* TODO:CORTXFS does not support fsync() call, it always uses sync operations */
 static fsal_status_t kvsfs_commit2(struct fsal_obj_handle *obj_hdl,
 				   off_t offset, size_t len)
 {

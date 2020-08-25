@@ -42,7 +42,7 @@ static void test_ns_module_init(void)
 		goto out;
 	}
 
-	rc = config_from_file("libkvsns", DEFAULT_CONFIG, &cfg_items,
+	rc = config_from_file("libcortxfs", DEFAULT_CONFIG, &cfg_items,
 			      INI_STOP_ON_ERROR, &errors);
 	if (rc) {
 		printf("Can't load config rc = %d", rc);

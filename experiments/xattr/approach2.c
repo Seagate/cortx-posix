@@ -37,7 +37,7 @@
 #define VALINPUT 512 
 
 static struct m0_fid ifid;
-static struct m0_ufid_generator kvsns_ufid_generator;
+static struct m0_ufid_generator cortxfs_ufid_generator;
 static struct m0_clovis_idx idx;
 
 static int m0_op_kvs(enum m0_clovis_idx_opcode opcode, struct m0_bufvec *key, struct m0_bufvec *val)
@@ -263,7 +263,7 @@ int set_fid()
          m0_clovis_idx_init(&idx, &clovis_container.co_realm,
                             (struct m0_uint128 *)&ifid);
 
-         rc = m0_ufid_init(clovis_instance, &kvsns_ufid_generator);
+         rc = m0_ufid_init(clovis_instance, &cortxfs_ufid_generator);
          if (rc != 0) {
 	 fprintf(stderr, "Failed to initialise fid generator: %d\n", rc);
                  goto err_exit;
