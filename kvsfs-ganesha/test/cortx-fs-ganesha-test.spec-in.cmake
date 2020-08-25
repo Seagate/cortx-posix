@@ -6,7 +6,7 @@ Version: @KVSFS_GANESHA_BASE_VERSION@
 Release: %{dev_version}%{?dist}
 Summary: Test-Tools for KVSFS
 License: Seagate
-URL: https://seagit.okla.seagate.com/seagate-cortx/efs
+URL: https://github.com/Seagate/cortx-fs-ganesha
 Requires: @PROJECT_NAME_BASE@-fs
 Source: %{sourcename}.tar.gz
 Provides: %{name} = %{version}-%{release}
