@@ -17,9 +17,9 @@ INSTALL_DIR_ROOT=${INSTALL_DIR_ROOT:-"/opt/seagate"}
 KVSFS_SOURCE_ROOT=${KVSFS_SOURCE_ROOT:-$PWD}
 
 # Root folder for out-of-tree builds, i.e. location for the build folder.
-# For superproject builds: it is derived from EFS_BUILD_ROOT (efs/build-kvsfs).
+# For superproject builds: it is derived from CORTXFS_BUILD_ROOT (cortxfs/build-kvsfs).
 # For local builds: it is based on $PWD (./build-kvsfs).
-KVSFS_CMAKE_BUILD_ROOT=${EFS_BUILD_ROOT:-$KVSFS_SOURCE_ROOT}
+KVSFS_CMAKE_BUILD_ROOT=${CORTXFS_BUILD_ROOT:-$KVSFS_SOURCE_ROOT}
 
 # NFS Ganesha repo location.
 # For superproject builds: pre-defined.
@@ -32,14 +32,14 @@ KVSFS_NFS_GANESHA_DIR=${KVSFS_NFS_GANESHA_DIR:-"$KVSFS_SOURCE_ROOT/../../nfs-gan
 KVSFS_NFS_GANESHA_BUILD_DIR=${KVSFS_NFS_GANESHA_BUILD_DIR:-"$KVSFS_NFS_GANESHA_DIR/build"}
 
 # Select CORTXFS Source Version.
-# Superproject: derived from efs version.
+# Superproject: derived from cortxfs version.
 # Local: taken fron VERSION file.
-KVSFS_VERSION=${EFS_VERSION:-"$(cat $KVSFS_SOURCE_ROOT/VERSION)"}
+KVSFS_VERSION=${CORTXFS_VERSION:-"$(cat $KVSFS_SOURCE_ROOT/VERSION)"}
 
 # Select CORTXFS Build Version.
-# Superproject: derived from efs version.
+# Superproject: derived from cortxfs version.
 # Local: taken from git rev.
-KVSFS_BUILD_VERSION=${EFS_BUILD_VERSION:-"$(git rev-parse --short HEAD)"}
+KVSFS_BUILD_VERSION=${CORTXFS_BUILD_VERSION:-"$(git rev-parse --short HEAD)"}
 
 
 # Optional, CORTX-UTILS source location.
@@ -48,18 +48,18 @@ KVSFS_BUILD_VERSION=${EFS_BUILD_VERSION:-"$(git rev-parse --short HEAD)"}
 CORTX_UTILS_SOURCE_ROOT=${CORTX_UTILS_SOURCE_ROOT:-"$KVSFS_SOURCE_ROOT/../utils/c-utils"}
 
 # Optional, CORTX-UTILS build root location
-# Superproject: derived from EFS build root.
+# Superproject: derived from CORTXFS build root.
 # Local: located inside cortx-utils sources.
-CORTX_UTILS_CMAKE_BUILD_ROOT=${EFS_BUILD_ROOT:-"$KVSFS_SOURCE_ROOT/../utils/c-utils"}
+CORTX_UTILS_CMAKE_BUILD_ROOT=${CORTXFS_BUILD_ROOT:-"$KVSFS_SOURCE_ROOT/../utils/c-utils"}
 
 
 NSAL_SOURCE_ROOT=${NSAL_SOURCE_ROOT:-"$KVSFS_SOURCE_ROOT/../nsal"}
 
-NSAL_CMAKE_BUILD_ROOT=${EFS_BUILD_ROOT:-"$KVSFS_SOURCE_ROOT/../nsal"}
+NSAL_CMAKE_BUILD_ROOT=${CORTXFS_BUILD_ROOT:-"$KVSFS_SOURCE_ROOT/../nsal"}
 
-EFS_SOURCE_ROOT=${EFS_SOURCE_ROOT:-"$KVSFS_SOURCE_ROOT/../efs"}
+CORTXFS_SOURCE_ROOT=${CORTXFS_SOURCE_ROOT:-"$KVSFS_SOURCE_ROOT/../cortxfs"}
 
-EFS_CMAKE_BUILD_ROOT=${EFS_BUILD_ROOT:-"$KVSFS_SOURCE_ROOT/../efs"}
+CORTXFS_CMAKE_BUILD_ROOT=${CORTXFS_BUILD_ROOT:-"$KVSFS_SOURCE_ROOT/../cortxfs"}
 
 # Optional, CORTX-UTILS source location.
 # Superproject: uses pre-defined location.
@@ -67,9 +67,9 @@ EFS_CMAKE_BUILD_ROOT=${EFS_BUILD_ROOT:-"$KVSFS_SOURCE_ROOT/../efs"}
 CORTX_UTILS_SOURCE_ROOT=${CORTX_UTILS_SOURCE_ROOT:-"$KVSFS_SOURCE_ROOT/../utils/c-utils"}
 
 # Optional, CORTX-UTILS build root location
-# Superproject: derived from EFS build root.
+# Superproject: derived from CORTXFS build root.
 # Local: located inside cortx-utils sources.
-CORTX_UTILS_CMAKE_BUILD_ROOT=${EFS_BUILD_ROOT:-"$KVSFS_SOURCE_ROOT/../utils/c-utils"}
+CORTX_UTILS_CMAKE_BUILD_ROOT=${CORTXFS_BUILD_ROOT:-"$KVSFS_SOURCE_ROOT/../utils/c-utils"}
 
 ###############################################################################
 # Locals
@@ -129,16 +129,16 @@ else
 NSAL_LIB="$NSAL_CMAKE_BUILD_ROOT/build-nsal"
 fi
 
-if [ "x$EFS_SOURCE_ROOT" == "x" ]; then
-EFS_INC="/usr/include/cortx/nsal"
+if [ "x$CORTXFS_SOURCE_ROOT" == "x" ]; then
+CORTXFS_INC="/usr/include/cortx/nsal"
 else
-EFS_INC="$EFS_SOURCE_ROOT/src/include"
+CORTXFS_INC="$CORTXFS_SOURCE_ROOT/src/include"
 fi
 
-if [ "x$EFS_CMAKE_BUILD_ROOT" == "x" ]; then
-EFS_LIB="/usr/lib64/"
+if [ "x$CORTXFS_CMAKE_BUILD_ROOT" == "x" ]; then
+CORTXFS_LIB="/usr/lib64/"
 else
-EFS_LIB="$EFS_CMAKE_BUILD_ROOT/build-efs"
+CORTXFS_LIB="$CORTXFS_CMAKE_BUILD_ROOT/build-cortxfs"
 fi
 
 ###############################################################################
@@ -160,8 +160,8 @@ kvsfs_print_env() {
 	CORTX_UTILS_INC
 	NSAL_LIB
 	NSAL_INC
-	EFS_LIB
-	EFS_INC
+	CORTXFS_LIB
+	CORTXFS_INC
     )
 
     for i in ${myenv[@]}; do
@@ -227,8 +227,8 @@ kvsfs_configure() {
 -DCORTXUTILSINC:PATH=${CORTX_UTILS_INC} \
 -DNSALINC:PATH=${NSAL_INC} \
 -DLIBNSAL:PATH=${NSAL_LIB} \
--DEFSINC:PATH=${EFS_INC} \
--DLIBEFS:PATH=${EFS_LIB} \
+-DCORTXFSINC:PATH=${CORTXFS_INC} \
+-DLIBCORTXFS:PATH=${CORTXFS_LIB} \
 -DPROJECT_NAME_BASE:STRING=${PROJECT_NAME_BASE} \
 -DINSTALL_DIR_ROOT:STRING=${INSTALL_DIR_ROOT}
 $KVSFS_SRC"

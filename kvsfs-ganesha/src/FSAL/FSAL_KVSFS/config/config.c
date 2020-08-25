@@ -18,7 +18,7 @@
 #include "config_parsing.h"
 #include "config_impl.h"
 #include "kvsfs_methods.h"
-#include "efs.h"
+#include "cortxfs.h"
 
 struct ganesha_config *ganesha_config;
 
@@ -99,9 +99,9 @@ static int validate_export_block(const struct export_block *block)
 		goto out;
 	}
 
-	if ((block->fsal_block.efs_config.s_len == 0) ||
-	    (block->fsal_block.efs_config.s_str[0] == '\0')) {
-		LogMajor(COMPONENT_FSAL, "block->fsal_block.efs_config empty");
+	if ((block->fsal_block.cfs_config.s_len == 0) ||
+	    (block->fsal_block.cfs_config.s_str[0] == '\0')) {
+		LogMajor(COMPONENT_FSAL, "block->fsal_block.cfs_config empty");
 		rc = -EINVAL;
 		goto out;
 	}
@@ -261,7 +261,7 @@ out:
  *
  * @return 0 if successful, a negative "-errno" value in case of failure.
  */
-static int endpoint_scan_cb(const struct efs_endpoint_info *ep, void *cb_ctx)
+static int endpoint_scan_cb(const struct cfs_endpoint_info *ep, void *cb_ctx)
 {
 	int rc = 0;
 	struct export_block *export_block = NULL;
@@ -342,7 +342,7 @@ static void ganesha_config_fini(void)
 	gsh_free(ganesha_config);
 }
 
-/* Called during initialization of efs, if endpoint/s present in backend then
+/* Called during initialization of cortxfs, if endpoint/s present in backend then
  * prepare in memory list and dump this list to create new ganesha config.
  *
  * @param void.
@@ -357,9 +357,9 @@ static int kvsfs_config_init(void)
 	rc = ganesha_config_init();
 
 	/* get endpoint stroed in backend storage */
-	rc = efs_endpoint_scan(endpoint_scan_cb, NULL);
+	rc = cfs_endpoint_scan(endpoint_scan_cb, NULL);
 	if (rc < 0 ) {
-		LogMajor(COMPONENT_FSAL, "efs_endpoint_scan failed");
+		LogMajor(COMPONENT_FSAL, "cfs_endpoint_scan failed");
 		goto out;
 	}
 	/* dump structure to config_file */
@@ -431,14 +431,14 @@ static int kvsfs_config_fini(void)
 	return 0;
 }
 
-static const struct efs_endpoint_ops g_nfs_ep_ops = {
+static const struct cfs_endpoint_ops g_nfs_ep_ops = {
 	.init = kvsfs_config_init,
 	.fini = kvsfs_config_fini,
 	.create = kvsfs_add_export,
 	.delete = kvsfs_remove_export,
 };
 
-const struct efs_endpoint_ops *kvsfs_config_ops(void)
+const struct cfs_endpoint_ops *kvsfs_config_ops(void)
 {
 	return &g_nfs_ep_ops;
 }

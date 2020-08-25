@@ -2,8 +2,8 @@
 
 set -e
 
-MODULES=(utils dsal nsal efs kvsfs)
-BUILD_DIR=/tmp/efs
+MODULES=(utils dsal nsal cortxfs kvsfs)
+BUILD_DIR=/tmp/cortxfs
 TEST_GRP=all
 LOG_ROOT="/var/log/cortx"
 UT_LOG_ROOT="$LOG_ROOT/test/ut"
@@ -35,23 +35,23 @@ execute_ut_nsal () {
 	done
 }
 
-execute_ut_efs () {
-	echo "EFS Unit tests"
+execute_ut_cortxfs () {
+	echo "CORTXFS Unit tests"
 
-	mkdir -p $UT_LOG_ROOT/efs
-	cd $UT_LOG_ROOT/efs
+	mkdir -p $UT_LOG_ROOT/cortxfs
+	cd $UT_LOG_ROOT/cortxfs
 
-	EFS_TEST_DIR=$BUILD_DIR/build-efs/test/ut
-	EFS_TEST_LIST=(ut_efs_endpoint_ops ut_efs_fs_ops ut_efs_dir_ops
-			ut_efs_file_ops ut_efs_link_ops ut_efs_rename_ops
-			ut_efs_attr_ops ut_efs_xattr_file_ops
-			ut_efs_xattr_dir_ops ut_efs_io_ops)
+	CORTXFS_TEST_DIR=$BUILD_DIR/build-cortxfs/test/ut
+	CORTXFS_TEST_LIST=(ut_cortxfs_endpoint_ops ut_cortxfs_fs_ops ut_cortxfs_dir_ops
+			ut_cortxfs_file_ops ut_cortxfs_link_ops ut_cortxfs_rename_ops
+			ut_cortxfs_attr_ops ut_cortxfs_xattr_file_ops
+			ut_cortxfs_xattr_dir_ops ut_cortxfs_io_ops)
 
-	[ ! -d $EFS_TEST_DIR ] && die "EFS is not built"
+	[ ! -d $CORTXFS_TEST_DIR ] && die "CORTXFS is not built"
 
-	for tests in "${EFS_TEST_LIST[@]}"
+	for tests in "${CORTXFS_TEST_LIST[@]}"
 	do
-		$EFS_TEST_DIR/$tests
+		$CORTXFS_TEST_DIR/$tests
 		echo
 	done
 }
@@ -78,7 +78,7 @@ execute_all_ut () {
 	if [ "$TEST_GRP" = "all" ]
 	then
 		execute_ut_nsal
-		execute_ut_efs
+		execute_ut_cortxfs
 	else
 		execute_ut_$TEST_GRP
 	fi
@@ -93,7 +93,7 @@ options:
 	-t	Test group to execute. Deafult: all groups are executed
 Test group list:
 nsal          NSAL unit tests
-efs           EFS unit tests
+cortxfs           CORTXFS unit tests
 EOM
 	exit 1
 }

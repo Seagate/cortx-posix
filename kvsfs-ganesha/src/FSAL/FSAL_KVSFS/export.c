@@ -37,7 +37,7 @@
 #include <FSAL/fsal_commonlib.h>
 #include "fsal_internal.h"
 #include "kvsfs_methods.h"
-#include "efs.h"
+#include "cortxfs.h"
 
 extern struct kvsfs_fsal_module KVSFS;
 
@@ -86,7 +86,7 @@ static int kvsfs_conf_pnfs_commit(void *node,
 static struct config_item export_params[] = {
 	CONF_ITEM_NOOP("name"),
 	CONF_ITEM_STR("cortxfs_config", 0, MAXPATHLEN, NULL,
-		      kvsfs_fsal_export, efs_config),
+		      kvsfs_fsal_export, cfs_config),
 	CONF_ITEM_BLOCK("PNFS", pnfs_params,
 			noop_conf_init, kvsfs_conf_pnfs_commit,
 			kvsfs_fsal_export, pnfs_param),
@@ -121,7 +121,7 @@ fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
 	fsal_status_t status = { ERR_FSAL_NO_ERROR, 0 };
 	int retval = 0;
 	fsal_errors_t fsal_error = ERR_FSAL_INVAL;
-	struct efs_fs *efs_fs = NULL;
+	struct cfs_fs *cfs_fs = NULL;
 
 	uint16_t fsid =	op_ctx->ctx_export->export_id;
 	LogEvent(COMPONENT_FSAL, "export id %d", (int)fsid);
@@ -142,13 +142,13 @@ fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
 		goto errout;
 	}
 
-	retval = efs_fs_open(op_ctx->ctx_export->fullpath, &efs_fs);
+	retval = cfs_fs_open(op_ctx->ctx_export->fullpath, &cfs_fs);
 	if (retval != 0) {
 		LogMajor(COMPONENT_FSAL, "FS open failed :%s",
 				op_ctx->ctx_export->fullpath);
 
 		if (retval != -ENOENT) {
-			efs_fini();
+			cfs_fini();
 		}
 		status = fsalstat(fsal_error, retval);
 		goto errout;
@@ -172,7 +172,7 @@ fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
 					    fso_pnfs_mds_supported) &&
 					    myself->pnfs_param.pnfs_enabled;
 
-	myself->efs_fs = efs_fs;
+	myself->cfs_fs = cfs_fs;
 	myself->fs_id = fsid;
 
 	/* TODO:PORTING: pNFS support */
@@ -223,7 +223,7 @@ fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
 err_locked:
 	if (myself->export.fsal != NULL)
 		fsal_detach_export(fsal_hdl, &myself->export.exports);
-	efs_fs_close(efs_fs);
+	cfs_fs_close(cfs_fs);
 
 errout:
 	/* elvis has left the building */

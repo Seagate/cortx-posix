@@ -29,7 +29,7 @@
 #include <ut.h>
 
 #define DEFAULT_CONFIG "/etc/cortx/cortxfs.conf"
-#define CONF_FILE "/tmp/efs/build-nsal/test/ut/ut_nsal.conf"
+#define CONF_FILE "/tmp/cortxfs/build-nsal/test/ut/ut_nsal.conf"
 /* key_list and val_list needs to be in sync with below config */
 #define MAX_NUM_KEY_VALUE_PAIR 10
 
@@ -49,7 +49,7 @@ int nsal_start(const char *config_path)
 
 	dassert(kvstore != NULL);
 
-	rc = log_init("/var/log/cortx/fs/efs.log", LEVEL_DEBUG);
+	rc = log_init("/var/log/cortx/fs/cortxfs.log", LEVEL_DEBUG);
 	if (rc) {
 		rc = -EINVAL;
 		printf("Log init failed, rc: %d\n", rc);

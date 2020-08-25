@@ -35,7 +35,7 @@ static void test_ns_module_init(void)
 	struct collection_item *cfg_items = NULL;
 	int rc = 0;
 
-	rc = log_init("/var/log/cortx/fs/efs.log", LEVEL_DEBUG);
+	rc = log_init("/var/log/cortx/fs/cortxfs.log", LEVEL_DEBUG);
 	if (rc != 0) {
 		rc = -EINVAL;
 		printf("Log init failed, rc: %d\n", rc);
@@ -88,7 +88,7 @@ static void test_ns_create_delete(void)
 {
 	int rc = 0;
 	str256_t ns_name;
-	char *name = "efs";
+	char *name = "cortxfs";
 	struct namespace *ns;
 	size_t ns_size = 0;
 

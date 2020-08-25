@@ -22,8 +22,8 @@ struct kvsfs_file_state {
 	/** The open and share mode etc. */
 	fsal_openflags_t openflags;
 
-	/** The EFS file descriptor. */
-	efs_file_open_t efs_fd;
+	/** The CORTXFS file descriptor. */
+	cfs_file_open_t cfs_fd;
 };
 fsal_status_t kvsfs_create_export(struct fsal_module *fsal_hdl,
 				void *parse_node,
@@ -35,15 +35,15 @@ struct kvsfs_fsal_obj_handle {
 	/* Base Handle */
 	struct fsal_obj_handle obj_handle;
 
-	/* EFS Handle */
-	struct efs_fh *handle;
+	/* CORTXFS Handle */
+	struct cfs_fh *handle;
 
 	/* TODO:EOS-3288
 	 * This field will removed and replaced
-	 * by a call to struct efs_fh
+	 * by a call to struct cfs_fh
 	 */
-	/* EFS Context */
-	struct efs_fs *efs_fs;
+	/* CORTXFS Context */
+	struct cfs_fs *cfs_fs;
 
 	/* Global state is disabled because we don't support NFv3. */
 	/* struct kvsfs_file_state global_fd; */
@@ -52,10 +52,10 @@ struct kvsfs_fsal_obj_handle {
 	struct fsal_share share;
 };
 
-/* Returns a vtable that implements the ::efs_endpoint_ops
+/* Returns a vtable that implements the ::cfs_endpoint_ops
  * interface for the NFS Ganesha (/etc/ganesha/ganesha.conf) config file.
  */
-const struct efs_endpoint_ops *kvsfs_config_ops(void);
+const struct cfs_endpoint_ops *kvsfs_config_ops(void);
 
 /* linkage to the exports and handle ops initializers
  */

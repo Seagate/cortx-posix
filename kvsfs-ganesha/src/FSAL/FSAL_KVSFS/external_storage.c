@@ -22,7 +22,7 @@
 /* a f***ing ugly define, to be removed later as things are OK */
 #define EXTERNAL_STORE "/btrfs/store"
 
-static int build_external_path(efs_ino_t object,
+static int build_external_path(cfs_ino_t object,
 			       char *external_path,
 			       size_t pathlen)
 {
@@ -177,8 +177,8 @@ int external_unlink(struct fsal_obj_handle *dir_hdl,
 {
 	int rc;
 	char storepath[MAXPATHLEN];
-	efs_cred_t cred;
-	efs_ino_t object;
+	cfs_cred_t cred;
+	cfs_ino_t object;
 	struct stat stat;
 	struct kvsfs_fsal_obj_handle *myself;
 

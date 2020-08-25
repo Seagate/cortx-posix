@@ -24,7 +24,7 @@
 #include "nsal.h"
 #include "ut.h"
 
-#define EFS_DEFAULT_CONFIG 				"/etc/cortx/cortxfs.conf"
+#define CFS_DEFAULT_CONFIG 				"/etc/cortx/cortxfs.conf"
 
 struct collection_item *cfg_items;
 
@@ -33,14 +33,14 @@ static void test_tenant_module_init(void)
 	struct collection_item *errors = NULL;
 	int rc = 0;
 
-	rc = log_init("/var/log/cortx/fs/efs.log", LEVEL_DEBUG);
+	rc = log_init("/var/log/cortx/fs/cortxfs.log", LEVEL_DEBUG);
 	if (rc != 0) {
 		rc = -EINVAL;
 		printf("Log init failed, rc: %d\n", rc);
 		goto out;
 	}
 
-	rc = config_from_file("libcortxfs", EFS_DEFAULT_CONFIG, &cfg_items,
+	rc = config_from_file("libcortxfs", CFS_DEFAULT_CONFIG, &cfg_items,
 			      INI_STOP_ON_ERROR, &errors);
 	if (rc) {
 		printf("Can't load config rc = %d", rc);

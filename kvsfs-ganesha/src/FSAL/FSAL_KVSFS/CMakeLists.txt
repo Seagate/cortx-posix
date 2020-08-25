@@ -23,8 +23,8 @@ set(DEFAULT_GANESHABUILD "")
 set(DEFAULT_CAPIINC "")
 set(DEFAULT_NSALINC "")
 set(DEFAULT_LIBNSAL "")
-set(DEFAULT_EFSINC "")
-set(DEFAULT_LIBEFS "")
+set(DEFAULT_CORTXFSINC "")
+set(DEFAULT_LIBCORTXFS "")
 set(DEFAULT_CORTXUTILSINC "")
 set(DEFAULT_LIBCORTXUTILS "")
 
@@ -44,8 +44,8 @@ set(CAPIINC ${DEFAULT_CAPIINC} CACHE PATH "Path to CAPI")
 set(NSALINC ${DEFAULT_NSALINC} CACHE PATH "Path to folder with nsal headers")
 set(LIBNSAL ${DEFAULT_LIBNSAL} CACHE PATH "Path to folder with libcortx-nsal.so")
 
-set(EFSINC ${DEFAULT_EFSINC} CACHE PATH "Path to folder with nsal headers")
-set(LIBEFS ${DEFAULT_LIBEFS} CACHE PATH "Path to folder with libcortx-nsal.so")
+set(CORTXFSINC ${DEFAULT_CORTXFSINC} CACHE PATH "Path to folder with nsal headers")
+set(LIBCORTXFS ${DEFAULT_LIBCORTXFS} CACHE PATH "Path to folder with libcortx-nsal.so")
 
 set(PROJECT_NAME_BASE ${PROJECT_NAME_BASE})
 set(INSTALL_DIR_ROOT ${INSTALL_DIR_ROOT})
@@ -90,8 +90,8 @@ link_directories(${LIBCORTXUTILS})
 include_directories(${NSALINC})
 link_directories(${LIBNSAL})
 
-include_directories(${EFSINC})
-link_directories(${LIBEFS})
+include_directories(${CORTXFSINC})
+link_directories(${LIBCORTXFS})
 
 set(CMAKE_REQUIRED_INCLUDES ${CORTXUTILSINC})
 
@@ -181,6 +181,6 @@ add_custom_command(TARGET rpm
 # A quick check of the dependencies of the library
 add_custom_target(check_ldd DEPENDS ${LIB_FS_GANESHA})
 add_custom_command(TARGET check_ldd
-	COMMAND env LD_LIBRARY_PATH=${LIBEFS} LD_PRELOAD=/usr/lib64/libganesha_nfsd.so /usr/bin/ldd -r ${CMAKE_BINARY_DIR}/${LIB_FS_GANESHA}.so
+	COMMAND env LD_LIBRARY_PATH=${LIBCORTXFS} LD_PRELOAD=/usr/lib64/libganesha_nfsd.so /usr/bin/ldd -r ${CMAKE_BINARY_DIR}/${LIB_FS_GANESHA}.so
 	VERBATIM)
 

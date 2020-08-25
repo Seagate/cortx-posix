@@ -2,15 +2,15 @@
 #define KVSFS_METHODS_H_
 
 #include <fsal_api.h>
-#include <efs.h>
-#include <efs_fh.h>
+#include <cortxfs.h>
+#include <cortxfs_fh.h>
 #include <gsh_list.h>
 #include <fsal_types.h>
 
 /******************************************************************************/
 /* Common helpers */
 
-static inline void cortxfs_cred_from_op_ctx(efs_cred_t *out)
+static inline void cortxfs_cred_from_op_ctx(cfs_cred_t *out)
 {
 	assert(out);
 	assert(op_ctx);
@@ -19,7 +19,7 @@ static inline void cortxfs_cred_from_op_ctx(efs_cred_t *out)
 	out->gid = op_ctx->creds->caller_gid;
 }
 
-#define EFS_CRED_INIT_FROM_OP {			\
+#define CFS_CRED_INIT_FROM_OP {			\
 	.uid = op_ctx->creds->caller_uid,	\
 	.gid = op_ctx->creds->caller_gid,	\
 }
@@ -47,26 +47,26 @@ struct kvsfs_fsal_index_context;
 /* Wrapper for a File Handle object. */
 struct kvsfs_file_handle {
 	uint64_t fs_id;
-	efs_ino_t kvsfs_handle;
+	cfs_ino_t kvsfs_handle;
 };
 
 /* ds_wire handle. */
 struct kvsfs_ds_wire {
 	uint64_t fsid;
-	efs_ino_t ino;
+	cfs_ino_t ino;
 };
 struct kvsfs_fsal_export {
 	/* base */
 	struct fsal_export export;
 
-	/** An EFS filesystem in Open state */
-	struct efs_fs *efs_fs;
+	/** An CORTXFS filesystem in Open state */
+	struct cfs_fs *cfs_fs;
 
 	/* TODO: This field should be a property of a FS object */
 	uint64_t fs_id;
 
 	/** Export config. */
-	char *efs_config;
+	char *cfs_config;
 	// TODO: The following members will be moved to global FSAL
 	bool pnfs_ds_enabled;
 	bool pnfs_mds_enabled;
@@ -81,7 +81,7 @@ fsal_status_t kvsfs_lookup_path(struct fsal_export *exp_hdl,
 
 /**Open a filesystem and get its descriptor. */
 int kvsfs_export_to_cortxfs_ctx(struct fsal_export *exp_hdl,
-		 	        struct efs_fs **efs_fs);
+		 	        struct cfs_fs **cfs_fs);
 
 /** Create a file handle within the expecified NFS export. */
 fsal_status_t kvsfs_create_handle(struct fsal_export *exp_hdl,
@@ -119,8 +119,8 @@ fsal_status_t kvsfs_lookup_path(struct fsal_export *exp_hdl,
  */
 
 /* Helper Methods */
-int kvsfs_get_fsid(const struct fsal_obj_handle *hdl, efs_fsid_t *fs_id);
-int kvsfs_obj_to_efs_ctx(const struct fsal_obj_handle *hdl, efs_ctx_t *fs_ctx);
+int kvsfs_get_fsid(const struct fsal_obj_handle *hdl, cfs_fsid_t *fs_id);
+int kvsfs_obj_to_cfs_ctx(const struct fsal_obj_handle *hdl, cfs_ctx_t *fs_ctx);
 
 	/* I/O management */
 fsal_status_t kvsfs_open(struct fsal_obj_handle *obj_hdl,

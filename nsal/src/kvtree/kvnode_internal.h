@@ -22,7 +22,7 @@
 #define _KVNODE_INTERNAL_H
 
 /* On-disk structure for storing node basic attributes.
- * Uses cases: EFS file stats */
+ * Uses cases: CORTXFS file stats */
 struct kvnode_basic_attr {
 	uint16_t size;          /* size of node basic attributes buffer */
 	char attr[0];           /* node basic attributes buffer */

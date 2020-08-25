@@ -24,13 +24,13 @@
  * - Calculate time taken for above operation
  * - NUM_FILES defines number of files to run the experiment for
 */
-#include "ut_efs_helper.h"
+#include "ut_cortxfs_helper.h"
 #define NUM_FILES 1000
 #define MAX_FILENAME_LENGTH 16
 #define DIR_ENV_FROM_STATE(__state) (*((struct ut_dir_env **)__state))
 
 struct ut_dir_env {
-	struct ut_efs_params ut_efs_obj;
+	struct ut_cfs_params ut_cfs_obj;
 	char **name_list;
 	int entry_cnt;
 };
@@ -43,7 +43,7 @@ struct readdir_ctx {
 /**
  * Call-back function for readdir
  */
-static bool test_readdir_cb(void *ctx, const char *name, const efs_ino_t *ino)
+static bool test_readdir_cb(void *ctx, const char *name, const cfs_ino_t *ino)
 {
 	struct readdir_ctx *readdir_ctx = ctx;
 
@@ -95,7 +95,7 @@ static int dir_ops_setup(void **state)
 	}
 
 	*state = ut_dir_obj;
-	rc = ut_efs_fs_setup(state);
+	rc = ut_cfs_fs_setup(state);
 
 	ut_assert_int_equal(rc, 0);
 
@@ -111,7 +111,7 @@ static int dir_ops_teardown(void **state)
 	struct ut_dir_env *ut_dir_obj = DIR_ENV_FROM_STATE(state);
 
 	free(ut_dir_obj->name_list);
-	rc = ut_efs_fs_teardown(state);
+	rc = ut_cfs_fs_teardown(state);
 	ut_assert_int_equal(rc, 0);
 
 	free(*state);
@@ -133,14 +133,14 @@ static int create_files_teardown(void **state)
 	/*Delete files*/
 	for (i=1;i<NUM_FILES+1;i++)
 	{
-		ut_dir_obj->ut_efs_obj.file_name = ut_dir_obj->name_list[i];
+		ut_dir_obj->ut_cfs_obj.file_name = ut_dir_obj->name_list[i];
 		rc = ut_file_delete(state);
 		ut_assert_int_equal(rc, 0);
 	}
 
 	/*Delete Directory*/
-	ut_dir_obj->ut_efs_obj.parent_inode = EFS_ROOT_INODE;
-	ut_dir_obj->ut_efs_obj.file_name = ut_dir_obj->name_list[0];
+	ut_dir_obj->ut_cfs_obj.parent_inode = CFS_ROOT_INODE;
+	ut_dir_obj->ut_cfs_obj.file_name = ut_dir_obj->name_list[0];
 	rc = ut_dir_delete(state);
 	ut_assert_int_equal(rc,0);
 
@@ -177,20 +177,20 @@ static int create_files_setup(void **state)
 	/* Create a directory under root*/
 	strncpy(ut_dir_obj->name_list[0], "Test_Dir",strlen("Test_Dir")+1);
 	printf("Test dir %s\n",ut_dir_obj->name_list[0]);
-	ut_dir_obj->ut_efs_obj.file_name = ut_dir_obj->name_list[0];
+	ut_dir_obj->ut_cfs_obj.file_name = ut_dir_obj->name_list[0];
 	rc = ut_dir_create(state);
 	ut_assert_int_equal(rc,0);
 
 	time(&start_time);
 	printf("\nStart time:Create %d files is %s\n", NUM_FILES,ctime(&start_time));
 
-	ut_dir_obj->ut_efs_obj.parent_inode = ut_dir_obj->ut_efs_obj.file_inode;
+	ut_dir_obj->ut_cfs_obj.parent_inode = ut_dir_obj->ut_cfs_obj.file_inode;
 
 	/* Create files under Test Directory*/
 	for (i=1;i<NUM_FILES+1;i++)
 	{
 		snprintf(ut_dir_obj->name_list[i],MAX_FILENAME_LENGTH,"%d",i+1);
-		ut_dir_obj->ut_efs_obj.file_name = ut_dir_obj->name_list[i];
+		ut_dir_obj->ut_cfs_obj.file_name = ut_dir_obj->name_list[i];
 		rc = ut_file_create(state);
 		ut_assert_int_equal(rc,0);
 	}
@@ -203,10 +203,10 @@ static void read_files(void **state)
 {
 	int rc = 0;
 	time_t start_time, end_time;
-	efs_ino_t dir_inode = 0LL;
+	cfs_ino_t dir_inode = 0LL;
 
 	struct ut_dir_env *ut_dir_obj = DIR_ENV_FROM_STATE(state);
-	struct ut_efs_params *ut_efs_obj = &ut_dir_obj->ut_efs_obj;
+	struct ut_cfs_params *ut_cfs_obj = &ut_dir_obj->ut_cfs_obj;
 
 	struct readdir_ctx readdir_ctx[1] = {{
 		.index = 0,
@@ -215,8 +215,8 @@ static void read_files(void **state)
 	time(&start_time);
 	printf("\nStart time:Lookup %s\n",ctime(&start_time));
 
-	rc = efs_lookup(ut_efs_obj->efs_fs, &ut_efs_obj->cred,
-			&ut_efs_obj->current_inode, ut_dir_obj->name_list[0],
+	rc = cfs_lookup(ut_cfs_obj->cfs_fs, &ut_cfs_obj->cred,
+			&ut_cfs_obj->current_inode, ut_dir_obj->name_list[0],
 			&dir_inode);
 	ut_assert_int_equal(rc,0);
 	time(&end_time);
@@ -224,7 +224,7 @@ static void read_files(void **state)
 
 	time(&start_time);
 	printf("\nStart time:Read %d files %s\n", NUM_FILES, ctime(&start_time));
-	rc = efs_readdir(ut_efs_obj->efs_fs, &ut_efs_obj->cred, &dir_inode,
+	rc = cfs_readdir(ut_cfs_obj->cfs_fs, &ut_cfs_obj->cred, &dir_inode,
 			test_readdir_cb, readdir_ctx);
 	ut_assert_int_equal(rc, 0);
 	time(&end_time);
@@ -236,7 +236,7 @@ static void read_files(void **state)
 int main(void)
 {
 	int rc = 0;
-	char *test_log = "/var/log/cortx/test/ut/ut_efs.log";
+	char *test_log = "/var/log/cortx/test/ut/ut_cortxfs.log";
 
 	printf("Directory tests\n");
 
@@ -246,7 +246,7 @@ int main(void)
 		goto end;
 	}
 
-	test_log = ut_get_config("efs", "log_path", test_log);
+	test_log = ut_get_config("cortxfs", "log_path", test_log);
 
 	rc = ut_init(test_log);
 	if (rc != 0) {
