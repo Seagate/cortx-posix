@@ -67,7 +67,7 @@ struct kvsfs_fsal_export {
 
 	/** Export config. */
 	char *efs_config;
-
+	// TODO: The following members will be moved to global FSAL
 	bool pnfs_ds_enabled;
 	bool pnfs_mds_enabled;
 	struct kvsfs_exp_pnfs_parameter pnfs_param;
