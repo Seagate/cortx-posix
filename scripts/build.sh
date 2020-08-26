@@ -98,7 +98,7 @@ efs_set_env() {
     export KVSFS_SOURCE_ROOT=$PWD/kvsfs-ganesha
     export NSAL_SOURCE_ROOT=$PWD/nsal
     export DSAL_SOURCE_ROOT=$PWD/dsal
-    export CORTX_UTILS_SOURCE_ROOT=$PWD/utils
+    export CORTX_UTILS_SOURCE_ROOT=$PWD/utils/c-utils
 
     export EFS_SOURCE_ROOT=$PWD/efs
 
