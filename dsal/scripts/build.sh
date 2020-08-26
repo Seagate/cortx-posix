@@ -38,12 +38,12 @@ DSAL_BUILD_VERSION=${EFS_BUILD_VERSION:-"$(git rev-parse --short HEAD)"}
 # Optional, CORTX-UTILS source location.
 # Superproject: uses pre-defined location.
 # Local: searches in the top-level dir.
-CORTX_UTILS_SOURCE_ROOT=${CORTX_UTILS_SOURCE_ROOT:-"$DSAL_SOURCE_ROOT/../utils"}
+CORTX_UTILS_SOURCE_ROOT=${CORTX_UTILS_SOURCE_ROOT:-"$DSAL_SOURCE_ROOT/../utils/c-utils"}
 
 # Optional, CORTX-UTILS build root location
 # Superproject: derived from EFS build root.
 # Local: located inside cortx-utils sources.
-CORTX_UTILS_CMAKE_BUILD_ROOT=${EFS_BUILD_ROOT:-"$DSAL_SOURCE_ROOT/../utils"}
+CORTX_UTILS_CMAKE_BUILD_ROOT=${EFS_BUILD_ROOT:-"$DSAL_SOURCE_ROOT/../utils/c-utils"}
 
 ###############################################################################
 # Local variables
@@ -52,7 +52,7 @@ DSAL_BUILD=$DSAL_CMAKE_BUILD_ROOT/build-dsal
 DSAL_SRC=$DSAL_SOURCE_ROOT/src
 
 if [ "x$CORTX_UTILS_SOURCE_ROOT" == "x" ]; then
-CORTX_UTILS_INC="/opt/seagate/cortx/utils"
+CORTX_UTILS_INC="/opt/seagate/cortx/utils/c-utils"
 else
 CORTX_UTILS_INC="$CORTX_UTILS_SOURCE_ROOT/src/include"
 fi
