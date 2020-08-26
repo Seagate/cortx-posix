@@ -207,6 +207,17 @@ int json_to_export_block(const char *name, uint16_t id, struct json_object *obj,
 	str256_from_cstr(block->path, name, strlen(name));
 	str256_from_cstr(block->pseudo, name, strlen(name));
 
+	/* Set the attr time as 1s if pNFS is enabled, else the default value of 60s*/
+	block->expire_time_attr = EXPIRE_TIME_ATTR_DEFAULT;
+	json_object_object_get_ex(obj, "pnfs_enabled", &json_obj);
+	if (json_obj != NULL) {
+		str = json_object_get_string(json_obj);
+		if ( strcmp(str,"true") == 0) {
+				/* Disable Meta data cache for pNFS */
+				block->expire_time_attr = EXPIRE_TIME_ATTR_PNFS; 
+		}
+	}
+
 	json_to_export_fsal_block(obj, &block->fsal_block);
 	json_object_object_get_ex(obj, "secType", &json_obj);
 	str = json_object_get_string(json_obj);
@@ -422,7 +433,7 @@ static void export_to_buffer(struct export_block *block,
 	append_data(buffer, str, strlen(str));
 	memset(str, '\0', sizeof(str));
 
-	sprintf(str, "\tExport_Id =  %d;\n", block->export_id);
+	sprintf(str, "\tExport_Id =  %u;\n", block->export_id);
 	append_data(buffer, str, strlen(str));
 	memset(str, '\0', sizeof(str));
 
@@ -434,6 +445,10 @@ static void export_to_buffer(struct export_block *block,
 	append_data(buffer, str, strlen(str));
 	memset(str, '\0', sizeof(str));
 
+	sprintf(str, "\texpire_time_attr = %u;\n", block->expire_time_attr);
+	append_data(buffer, str, strlen(str));
+	memset(str, '\0', sizeof(str));
+	
 	sprintf(str, "\tFSAL {\n");
 	append_data(buffer, str, strlen(str));
 	memset(str, '\0', sizeof(str));

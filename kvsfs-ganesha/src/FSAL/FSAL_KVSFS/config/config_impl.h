@@ -28,6 +28,8 @@
 #define DOMAIN_NAME				"localdomain"
 #define SERIALIZE_BUFFER_DEFAULT_SIZE           2048
 #define STRIPE_UNIT                             "8192"
+#define EXPIRE_TIME_ATTR_DEFAULT                60
+#define EXPIRE_TIME_ATTR_PNFS                   1
 #define DS_PORT                                 "2049"
 
 struct ds_block {
@@ -90,6 +92,7 @@ struct export_block {
 	uint16_t export_id;
 	str256_t path;
 	str256_t pseudo;
+	uint16_t expire_time_attr;
 	struct export_fsal_block fsal_block;
 	str256_t sectype;
 	str256_t filesystem_id;
