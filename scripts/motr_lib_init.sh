@@ -71,20 +71,20 @@ prepare_index() {
 	[ -n "$USE_IDX" ] && return
  
 	# Drop indexes
-	m0clovis -l $ip_add$LOC_EXPORT_ID -h $ip_add$HA_EXPORT_ID -p $PROFILE\
+	m0mt -l $ip_add$LOC_EXPORT_ID -h $ip_add$HA_EXPORT_ID -p $PROFILE\
 		-f $PROC_FID index drop "$KVS_GLOBAL_FID" > /dev/null 2>&1
 	[ $? -ne 0 ] && die "Failed to drop Global index"
 
-	m0clovis -l $ip_add$LOC_EXPORT_ID -h $ip_add$HA_EXPORT_ID -p $PROFILE\
+	m0mt -l $ip_add$LOC_EXPORT_ID -h $ip_add$HA_EXPORT_ID -p $PROFILE\
 		-f $PROC_FID index drop "$KVS_NS_META_FID" > /dev/null 2>&1
 	[ $? -ne 0 ] && die "Failed to drop NS_META index"
 
 	# Create indexes
-	m0clovis -l $ip_add$LOC_EXPORT_ID -h $ip_add$HA_EXPORT_ID -p $PROFILE\
+	m0mt -l $ip_add$LOC_EXPORT_ID -h $ip_add$HA_EXPORT_ID -p $PROFILE\
 		-f $PROC_FID index create "$KVS_GLOBAL_FID" > /dev/null 2>&1
 	[ $? -ne 0 ] && die "Failed to create Global index"
 
-	m0clovis -l $ip_add$LOC_EXPORT_ID -h $ip_add$HA_EXPORT_ID -p $PROFILE\
+	m0mt -l $ip_add$LOC_EXPORT_ID -h $ip_add$HA_EXPORT_ID -p $PROFILE\
 		-f $PROC_FID index create "$KVS_NS_META_FID" > /dev/null 2>&1
 	[ $? -ne 0 ] && die "Failed to create NS_META index"
 

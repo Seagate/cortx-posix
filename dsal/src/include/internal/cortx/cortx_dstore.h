@@ -19,7 +19,7 @@
  */
 
 /*
- *This CORTX specific implementation is based on m0_clovis's object entity.
+ *This CORTX specific implementation is based on m0_client's object entity.
  */
 
 #ifndef _CORTX_DSTORE_H

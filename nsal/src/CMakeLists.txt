@@ -145,7 +145,7 @@ if(USE_KVS_CORTX OR USE_MOTR_STORE)
   find_library(HAVE_MOTR motr)
   check_library_exists(
 	motr
-	m0_clovis_init
+	m0_client_init
 	""
 	HAVE_MOTR
 	)

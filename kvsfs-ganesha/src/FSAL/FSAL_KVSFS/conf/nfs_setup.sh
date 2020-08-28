@@ -89,12 +89,12 @@ function motr_lib_init {
 	log "Initializing motr_lib..."
 
 	# Create motr_lib global idx
-	run m0clovis -l $LOC_EP -h $HA_EP -p $PROFILE -f $PROC_FID index create\
+	run m0mt -l $LOC_EP -h $HA_EP -p $PROFILE -f $PROC_FID index create\
 		"$KVS_GLOBAL_FID"
 	[ $? -ne 0 ] && die "Failed to Initialise motr_lib Global index"
 
 	# Create motr_lib fs_meta idx
-	run m0clovis -l $LOC_EP -h $HA_EP -p $PROFILE -f $PROC_FID index create\
+	run m0mt -l $LOC_EP -h $HA_EP -p $PROFILE -f $PROC_FID index create\
 		"$KVS_NS_META_FID"
 	[ $? -ne 0 ] && die "Failed to Initialise motr_lib fs_meta index"
 }
@@ -303,9 +303,9 @@ function cortx_nfs_cleanup {
 	systemctl status nfs-ganesha > /dev/null && systemctl stop nfs-ganesha
 
 	# Drop index if previosly created
-	run m0clovis -l $LOC_EP -h $HA_EP -p $PROFILE -f $PROC_FID index drop\
+	run m0mt -l $LOC_EP -h $HA_EP -p $PROFILE -f $PROC_FID index drop\
 		"$KVS_GLOBAL_FID"
-	run m0clovis -l $LOC_EP -h $HA_EP -p $PROFILE -f $PROC_FID index drop\
+	run m0mt -l $LOC_EP -h $HA_EP -p $PROFILE -f $PROC_FID index drop\
 		"$KVS_NS_META_FID"
 
 	# Restore ganesha.conf, remove export entries.
