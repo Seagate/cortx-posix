@@ -45,12 +45,12 @@ KVSFS_BUILD_VERSION=${EFS_BUILD_VERSION:-"$(git rev-parse --short HEAD)"}
 # Optional, CORTX-UTILS source location.
 # Superproject: uses pre-defined location.
 # Local: searches in the top-level dir.
-CORTX_UTILS_SOURCE_ROOT=${CORTX_UTILS_SOURCE_ROOT:-"$KVSFS_SOURCE_ROOT/../utils"}
+CORTX_UTILS_SOURCE_ROOT=${CORTX_UTILS_SOURCE_ROOT:-"$KVSFS_SOURCE_ROOT/../utils/c-utils"}
 
 # Optional, CORTX-UTILS build root location
 # Superproject: derived from EFS build root.
 # Local: located inside cortx-utils sources.
-CORTX_UTILS_CMAKE_BUILD_ROOT=${EFS_BUILD_ROOT:-"$KVSFS_SOURCE_ROOT/../utils"}
+CORTX_UTILS_CMAKE_BUILD_ROOT=${EFS_BUILD_ROOT:-"$KVSFS_SOURCE_ROOT/../utils/c-utils"}
 
 
 NSAL_SOURCE_ROOT=${NSAL_SOURCE_ROOT:-"$KVSFS_SOURCE_ROOT/../nsal"}
@@ -64,12 +64,12 @@ EFS_CMAKE_BUILD_ROOT=${EFS_BUILD_ROOT:-"$KVSFS_SOURCE_ROOT/../efs"}
 # Optional, CORTX-UTILS source location.
 # Superproject: uses pre-defined location.
 # Local: searches in the top-level dir.
-CORTX_UTILS_SOURCE_ROOT=${CORTX_UTILS_SOURCE_ROOT:-"$KVSFS_SOURCE_ROOT/../utils"}
+CORTX_UTILS_SOURCE_ROOT=${CORTX_UTILS_SOURCE_ROOT:-"$KVSFS_SOURCE_ROOT/../utils/c-utils"}
 
 # Optional, CORTX-UTILS build root location
 # Superproject: derived from EFS build root.
 # Local: located inside cortx-utils sources.
-CORTX_UTILS_CMAKE_BUILD_ROOT=${EFS_BUILD_ROOT:-"$KVSFS_SOURCE_ROOT/../utils"}
+CORTX_UTILS_CMAKE_BUILD_ROOT=${EFS_BUILD_ROOT:-"$KVSFS_SOURCE_ROOT/../utils/c-utils"}
 
 ###############################################################################
 # Locals
@@ -82,7 +82,7 @@ KVSFS_SRC=$KVSFS_SOURCE_ROOT/src/FSAL/FSAL_KVSFS
 # Use either local header/lib or the files from libcortxfs-devel package.
 
 if [ "x$CORTX_UTILS_SOURCE_ROOT" == "x" ]; then
-CORTX_UTILS_INC="/opt/seagate/cortx/utils"
+CORTX_UTILS_INC="/opt/seagate/cortx/utils/c-utils"
 else
 CORTX_UTILS_INC="$CORTX_UTILS_SOURCE_ROOT/src/include"
 fi

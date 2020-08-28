@@ -1,7 +1,10 @@
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/7e6ffd004e794ecf945f076988a9185a)](https://www.codacy.com?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=Seagate/cortx-posix&amp;utm_campaign=Badge_Grade)
 
-# EFS
+# CORTXFS
 Support for different file access protocols (like SAMBA, NFS etc.) to Seagate CORTX. Currently we only support NFS Ganesha (Userspace NFS).
+
+### Disclaimer
+The code for file access protocol (like NFS) for CORTX is distributed across multiple repos. The code is still under active development.  We welcome anyone and everyone who is interested to join our community and track our progress and even participate in development or testing if you are so inclined!  Just please be advised that this code is not ready for production usage and is only provided to allow the external community to watch and participate in the development.
 
 ### Prerequisite
 
