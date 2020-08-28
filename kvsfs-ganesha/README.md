@@ -16,6 +16,9 @@ See also:
 * KVSFS repo: http://github.com/Seagate/cortx-fs-ganesha.git
 
 
+### Disclaimer
+Please refer to the shared disclaimer (https://github.com/Seagate/cortx-posix#disclaimer) about this code repository.
+
 # Quick start
 
 1. Install CORTXFS packages (`libcortxfs{-devel}`).
