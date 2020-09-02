@@ -11,7 +11,7 @@ Requires: @PROJECT_NAME_BASE@-fs
 Source: %{sourcename}.tar.gz
 Provides: %{name} = %{version}-%{release}
 
-# CORTX EFS-TEST library paths
+# CORTX CORTXFS-TEST library paths
 %define _fs_test_dir		@INSTALL_DIR_ROOT@/@PROJECT_NAME_BASE@/fs-ganesha/test
 
 %description

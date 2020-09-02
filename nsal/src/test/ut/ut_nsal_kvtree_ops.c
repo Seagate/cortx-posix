@@ -36,7 +36,7 @@
 };
 
 /* Dummy structure which acts as a basic attribute for a node*/
-#define CONF_FILE "/tmp/efs/build-nsal/test/ut/ut_nsal.conf"
+#define CONF_FILE "/tmp/cortxfs/build-nsal/test/ut/ut_nsal.conf"
 struct info {
 	char arr[255];
 	int uid;
@@ -65,7 +65,7 @@ int nsal_start(const char *config_path)
 
 	dassert(kvstore != NULL);
 
-	rc = log_init("/var/log/cortx/fs/efs.log", LEVEL_DEBUG);
+	rc = log_init("/var/log/cortx/fs/cortxfs.log", LEVEL_DEBUG);
 	if (rc != 0) {
 		rc = -EINVAL;
 		printf("Log init failed, rc: %d\n", rc);
@@ -100,7 +100,7 @@ static int ut_kvtree_setup()
 	int rc = 0;
 	/* Creating namespace */
 	str256_t ns_name;
-	char *name = "efs";
+	char *name = "cortxfs";
 	size_t ns_size = 0;
 
 	rc = nsal_module_init(cfg_items);
@@ -283,7 +283,7 @@ static void test_kvtree_delete()
  *  2. Dump kvnode
  *  3. Verify written kvnode basic attributes by kvnode_load value
  * Expected behavior:
- *  1. No errors from EFS API.
+ *  1. No errors from CORTXFS API.
  *  2. node_attr recieved from kvnode_load should match written
  *     node_attr at time of node creation.
  */

@@ -17,23 +17,23 @@ INSTALL_DIR_ROOT=${INSTALL_DIR_ROOT:-"/opt/seagate"}
 DSAL_SOURCE_ROOT=${DSAL_SOURCE_ROOT:-$PWD}
 
 # Root folder for out-of-tree builds, i.e. location for the build folder.
-# For superproject builds: it is derived from CORTX_FS_BUILD_ROOT (efs/build-dsal).
+# For superproject builds: it is derived from CORTX_FS_BUILD_ROOT (cortxfs/build-dsal).
 # For local builds: it is based on $PWD (./build-dsal).
-DSAL_CMAKE_BUILD_ROOT=${EFS_BUILD_ROOT:-$DSAL_SOURCE_ROOT}
+DSAL_CMAKE_BUILD_ROOT=${CORTXFS_BUILD_ROOT:-$DSAL_SOURCE_ROOT}
 
 # Select DSAL DSTORE implementation.
 DSAL_DSTORE_BACKEND=${DSAL_DSTORE_BACKEND:-"cortx"}
 
 # Select DSAL Source Version.
-# Superproject: derived from efs version.
+# Superproject: derived from cortxfs version.
 # Local: taken fron VERSION file.
-DSAL_VERSION=${EFS_VERSION:-"$(cat $DSAL_SOURCE_ROOT/VERSION)"}
+DSAL_VERSION=${CORTXFS_VERSION:-"$(cat $DSAL_SOURCE_ROOT/VERSION)"}
 
 
 # Select DSAL Build Version.
-# Superproject: derived from efs version.
+# Superproject: derived from cortxfs version.
 # Local: taken from git rev.
-DSAL_BUILD_VERSION=${EFS_BUILD_VERSION:-"$(git rev-parse --short HEAD)"}
+DSAL_BUILD_VERSION=${CORTXFS_BUILD_VERSION:-"$(git rev-parse --short HEAD)"}
 
 # Optional, CORTX-UTILS source location.
 # Superproject: uses pre-defined location.
@@ -41,9 +41,9 @@ DSAL_BUILD_VERSION=${EFS_BUILD_VERSION:-"$(git rev-parse --short HEAD)"}
 CORTX_UTILS_SOURCE_ROOT=${CORTX_UTILS_SOURCE_ROOT:-"$DSAL_SOURCE_ROOT/../utils/c-utils"}
 
 # Optional, CORTX-UTILS build root location
-# Superproject: derived from EFS build root.
+# Superproject: derived from CORTXFS build root.
 # Local: located inside cortx-utils sources.
-CORTX_UTILS_CMAKE_BUILD_ROOT=${EFS_BUILD_ROOT:-"$DSAL_SOURCE_ROOT/../utils/c-utils"}
+CORTX_UTILS_CMAKE_BUILD_ROOT=${CORTXFS_BUILD_ROOT:-"$DSAL_SOURCE_ROOT/../utils/c-utils"}
 
 ###############################################################################
 # Local variables

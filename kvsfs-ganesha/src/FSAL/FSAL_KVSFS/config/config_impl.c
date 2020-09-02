@@ -142,7 +142,7 @@ void json_to_export_fsal_block(struct json_object *obj,
 			       struct export_fsal_block *block)
 {
 	str256_from_cstr(block->name, FSAL_NAME, strlen(FSAL_NAME));
-	str256_from_cstr(block->efs_config, EFS_CONFIG, strlen(EFS_CONFIG));
+	str256_from_cstr(block->cfs_config, CFS_CONFIG, strlen(CFS_CONFIG));
 
 	// Fill the pNFS block.
 	json_to_pnfs_block(obj, &block->pnfs_block);
@@ -443,7 +443,7 @@ static void export_to_buffer(struct export_block *block,
 	memset(str, '\0', sizeof(str));
 
 	sprintf(str, "\t\tcortxfs_config = %s;\n",
-		block->fsal_block.efs_config.s_str);
+		block->fsal_block.cfs_config.s_str);
 	append_data(buffer, str, strlen(str));
 	memset(str, '\0', sizeof(str));
 

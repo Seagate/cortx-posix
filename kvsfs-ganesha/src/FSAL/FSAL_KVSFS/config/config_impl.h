@@ -24,7 +24,7 @@
 #define PULGINS_DIR                             "/usr/lib64/ganesha/"
 #define FSAL_NAME                               "CORTX-FS"
 #define FSAL_SHARED_LIBRARY                     "/usr/lib64/ganesha/libfsalcortx-fs.so.4.2.0"
-#define EFS_CONFIG                              "/etc/cortx/cortxfs.conf"
+#define CFS_CONFIG                              "/etc/cortx/cortxfs.conf"
 #define DOMAIN_NAME				"localdomain"
 #define SERIALIZE_BUFFER_DEFAULT_SIZE           2048
 #define STRIPE_UNIT                             "8192"
@@ -44,7 +44,7 @@ struct pnfs_block {
 
 struct export_fsal_block {
 	str256_t name;
-	str256_t efs_config;
+	str256_t cfs_config;
 	struct pnfs_block pnfs_block;
 };
 

@@ -31,19 +31,19 @@
 #include <fsal_types.h>
 #include <FSAL/fsal_init.h>
 #include "fsal_internal.h"
-#include <efs.h>
+#include <cortxfs.h>
 
 
 /* TODO:ATTR4_SEC_LABEL are not supported yet. */
 #define KVSFS_SUPPORTED_ATTRIBUTES ((const attrmask_t) (ATTRS_POSIX | ATTR_ACL ))
 
-#define KVSFS_LINK_MAX         EFS_MAX_LINK
+#define KVSFS_LINK_MAX         CFS_MAX_LINK
 #define FSAL_NAME              "CORTX-FS"
 #define DBUS_INTERFACE_NAME    "org.ganesha.nfsd.config.fsal.cortxfs"
 
 const char module_name[] = FSAL_NAME;
 
-/* default parameters for EFS filesystem */
+/* default parameters for CORTXFS filesystem */
 static const struct fsal_staticfsinfo_t default_kvsfs_info = {
 	.maxfilesize	= INT64_MAX,		/*< maximum allowed filesize     */
 	.maxlink	= KVSFS_LINK_MAX,	/*< maximum hard links on a file */
@@ -174,9 +174,9 @@ static fsal_status_t kvsfs_init_config(struct fsal_module *fsal_hdl,
 	/* print final values in the log */
 	display_fsinfo(fsal_hdl);
 
-	rc = efs_init(EFS_DEFAULT_CONFIG, kvsfs_config_ops());
+	rc = cfs_init(CFS_DEFAULT_CONFIG, kvsfs_config_ops());
 	if (rc) {
-		LogCrit(COMPONENT_FSAL, "Cannot initialize EFS (%d).", rc);
+		LogCrit(COMPONENT_FSAL, "Cannot initialize CORTXFS (%d).", rc);
 		goto out;
 	}
 
@@ -320,9 +320,9 @@ static int kvsfs_unload(struct fsal_module *fsal_hdl)
 		goto out;
 	}
 
-	rc = efs_fini();
+	rc = cfs_fini();
 	if (rc) {
-		LogCrit(COMPONENT_FSAL, "efs_fini failed (%d)", rc);
+		LogCrit(COMPONENT_FSAL, "cfs_fini failed (%d)", rc);
 		goto out;
 	}
 

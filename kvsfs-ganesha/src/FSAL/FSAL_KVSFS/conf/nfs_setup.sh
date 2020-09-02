@@ -15,7 +15,7 @@ CORTXFS_CONF=/etc/cortx/cortxfs.conf
 CORTXFS_CONF_BAK=${CORTXFS_CONF}.$$
 GANESHA_CONF=/etc/ganesha/ganesha.conf
 GANESHA_CONF_BAK=${GANESHA_CONF}.$$
-EFS_FS_CLI="/usr/bin/efscli"
+CORTXFS_FS_CLI="/usr/bin/cortxfscli"
 NFS_INITIALIZED=/var/lib/nfs/nfs_initialized
 NFS_SETUP_LOG=/var/log/nfs_setup.log
 DEFAULT_EXPORT_OPTION="proto=nfs,secType=sys,Filesystem_id=192.1,client=1,"
@@ -44,7 +44,7 @@ function log {
 
 function create_fs {
 	echo -e "\nCreating default file system $DEFAULT_FS ..."
-	run $EFS_FS_CLI fs create $DEFAULT_FS
+	run $CORTXFS_FS_CLI fs create $DEFAULT_FS
 	[ $? -ne 0 ] && die "Failed to create $DEFAULT_FS"
 	
 	# Add pNFS options.
@@ -52,7 +52,7 @@ function create_fs {
 	DEFAULT_EXPORT_OPTION+="data_server=$pNFS_DATA_SERVER"
 
 	echo -e "\nExporting default file system $DEFAULT_FS $DEFAULT_EXPORT_OPTION ..."
-	run $EFS_FS_CLI endpoint create $DEFAULT_FS $DEFAULT_EXPORT_OPTION
+	run $CORTXFS_FS_CLI endpoint create $DEFAULT_FS $DEFAULT_EXPORT_OPTION
 	[ $? -ne 0 ] && die "Failed to create export $DEFAULT_FS "
 }
 
@@ -366,8 +366,8 @@ while [ ! -z $1 ]; do
 	shift 1
 done
 
-if [ ! -e $EFS_FS_CLI ]; then
-	die "efscli is not installed in the location $EFS_FS_CLI. Please install \
+if [ ! -e $CORTXFS_FS_CLI ]; then
+	die "cortxfscli is not installed in the location $CORTXFS_FS_CLI. Please install \
 		the corresponding RPM."
 fi
 

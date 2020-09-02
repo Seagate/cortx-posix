@@ -25,12 +25,12 @@ Install NFS Ganesha:
 * Make sure `jemalloc` is used as the allocator (check `make edit_cache` in the build dir). Find the directions to compile [here](https://github.com/nfs-ganesha/nfs-ganesha/wiki/Compiling).
 
 ### Build
-For the following procedure *efs* repository is assumed to be cloned at the path ` ~/efs`
+For the following procedure *cortxfs* repository is assumed to be cloned at the path ` ~/cortxfs`
 
-- Go to `~/efs`
+- Go to `~/cortxfs`
 
 ```sh
- $ cd ~/efs
+ $ cd ~/cortxfs
 ```
 Note: An error of ini_config.h may occur
 - Install libini_config-devel  (`yum install libini_config-devel`) 
@@ -41,7 +41,7 @@ Note: An error of ini_config.h may occur
 
 ```sh
 $ sudo ./jenkins/build.sh -h
-usage: build.sh [-p <ganesha src path>] [-g <git version>] [-v <efs version>] [-k <KV Store (motr|redis)>] [-e <ExtStore (motr|posix)>]
+usage: build.sh [-p <ganesha src path>] [-g <git version>] [-v <cortxfs version>] [-k <KV Store (motr|redis)>] [-e <ExtStore (motr|posix)>]
 ```
 **NOTE**: `-p` is a manadatory option which points to nfs ganesha source path. `-k` and `-e` i.e key value store and extstore if not specified will assume **motr** as KV store and extstore.
 

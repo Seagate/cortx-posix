@@ -113,7 +113,7 @@ kvsfs_ds_read(struct fsal_ds_handle *const ds_pub,
 	struct kvsfs_file_handle *kvsfs_fh = &ds->wire;
 	/* The amount actually read */
 	ssize_t amount_read = 0;
-	efs_cred_t cred;
+	cfs_cred_t cred;
 	struct kvsfs_fsal_obj_handle;
 	struct kvsfs_file_state fd = {0};
 	struct kvsfs_fsal_export *kvsfs_fsal_export = 
@@ -122,17 +122,17 @@ kvsfs_ds_read(struct fsal_ds_handle *const ds_pub,
 	
 	LogDebug(COMPONENT_PNFS," >> ENTER kvsfs_ds_read \n");
 
-	fd.efs_fd.ino = kvsfs_fh->kvsfs_handle;
+	fd.cfs_fd.ino = kvsfs_fh->kvsfs_handle;
 
 	cred.uid = req_ctx->creds->caller_uid;
 	cred.gid = req_ctx->creds->caller_gid;
 
 	/* read the data */
-	amount_read = efs_read(kvsfs_fsal_export->efs_fs, &cred, &fd.efs_fd,
+	amount_read = cfs_read(kvsfs_fsal_export->cfs_fs, &cred, &fd.cfs_fd,
 				buffer,requested_length, offset);
 	if (amount_read < 0) {
 		LogCrit(COMPONENT_FSAL,
-			"Error in efs_read\n");
+			"Error in cfs_read\n");
 		/* ignore any potential error on close if read failed? */
 
 		return posix2nfs4_error(-amount_read);
@@ -186,14 +186,14 @@ kvsfs_ds_write(struct fsal_ds_handle *const ds_pub,
 	struct kvsfs_file_handle *kvsfs_fh = &ds->wire;
 	/* The amount actually read */
 	ssize_t amount_written = 0;
-	efs_cred_t cred;
+	cfs_cred_t cred;
 	struct kvsfs_fsal_obj_handle;
 	struct kvsfs_file_state fd = {0};
 	struct kvsfs_fsal_export *kvsfs_fsal_export = 
 		container_of(ds_pub->pds->mds_fsal_export,
 			     struct kvsfs_fsal_export, export);
 	
-	fd.efs_fd.ino = kvsfs_fh->kvsfs_handle;
+	fd.cfs_fd.ino = kvsfs_fh->kvsfs_handle;
 
 	LogDebug(COMPONENT_PNFS," >> ENTER kvsfs_ds_write\n");
 
@@ -209,7 +209,7 @@ kvsfs_ds_write(struct fsal_ds_handle *const ds_pub,
 	/* @todo: We currently do not have any support for writeverf */
 
 	/* write the data */
-	amount_written = efs_write(kvsfs_fsal_export->efs_fs, &cred, &fd.efs_fd,
+	amount_written = cfs_write(kvsfs_fsal_export->cfs_fs, &cred, &fd.cfs_fd,
 				   buffer,(const)write_length, offset);
 	if (amount_written < 0) {
 		return posix2nfs4_error(-amount_written);

@@ -55,7 +55,7 @@
  *
  * NOTE: 'data' used in below examples act as node's basic attributes.
  *       Its (void *), but can be of any data-type.
- *       For EFS File-systems, this data can be stats of a file.
+ *       For CORTXFS File-systems, this data can be stats of a file.
  *
  * ## Initialize node
  *
@@ -142,7 +142,7 @@ struct kvnode {
 };
 
 /* On-disk structure for storing node basic attributes.
- * Uses cases: EFS file stats */
+ * Uses cases: CORTXFS file stats */
 struct kvnode_basic_attr;
 
 #define NODE_ID_F "{hi=%" PRIu64 ", lo=%" PRIu64 "}"

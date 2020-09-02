@@ -25,8 +25,8 @@
 #include "dstore.h" /* dstore init/fini */
 #include "common/log.h" /* logger init */
 
-/* Path to EFS config for DSAL tests */
-#define EFS_TEST_CONF_PATH "/etc/cortx/cortxfs.conf"
+/* Path to CORTXFS config for DSAL tests */
+#define CFS_TEST_CONF_PATH "/etc/cortx/cortxfs.conf"
 
 /* Default log level for DSAL tests */
 #define DEFAULT_LOG_LEVEL LEVEL_DEBUG
@@ -36,14 +36,14 @@ static struct dstore *dstore;
 static dstore_oid_t def_object = {0};
 static dstore_oid_t def_multi_obj[NUM_OF_OBJECTS] = {{0}};
 
-/* Global variables for efs config for m0_filesystem_stats */
+/* Global variables for cortxfs config for m0_filesystem_stats */
 char *server = NULL, *client = NULL;
-const char* config_path = EFS_TEST_CONF_PATH;
+const char* config_path = CFS_TEST_CONF_PATH;
 struct collection_item *cfg_items = NULL;
 struct collection_item *errors = NULL;
 struct collection_item *item = NULL;
 
-/* Read efs config parameter needed for m0_filesystem_stats */
+/* Read cortxfs config parameter needed for m0_filesystem_stats */
 int dtlib_get_motr_config_params(void)
 {
 	int rc = 0, len;
@@ -107,7 +107,7 @@ void dtlib_get_clnt_svr(char **srv, char **clnt)
 int dtlib_common_setup(int argc, char *argv[])
 {
 	int rc = 0;
-	const char* config_path = EFS_TEST_CONF_PATH;
+	const char* config_path = CFS_TEST_CONF_PATH;
 	struct collection_item *cfg_items = NULL;
 	struct collection_item *errors = NULL;
 	struct collection_item *item = NULL;

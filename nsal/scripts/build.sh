@@ -17,23 +17,23 @@ INSTALL_DIR_ROOT=${INSTALL_DIR_ROOT:-"/opt/seagate"}
 NSAL_SOURCE_ROOT=${NSAL_SOURCE_ROOT:-$PWD}
 
 # Root folder for out-of-tree builds, i.e. location for the build folder.
-# For superproject builds: it is derived from EFS_BUILD_ROOT (efs/build-nsal).
+# For superproject builds: it is derived from CORTXFS_BUILD_ROOT (cortxfs/build-nsal).
 # For local builds: it is based on $PWD (./build-nsal).
-NSAL_CMAKE_BUILD_ROOT=${EFS_BUILD_ROOT:-$NSAL_SOURCE_ROOT}
+NSAL_CMAKE_BUILD_ROOT=${CORTXFS_BUILD_ROOT:-$NSAL_SOURCE_ROOT}
 
 # Select NSAL KVSTORE implementation.
 NSAL_KVSTORE_BACKEND=${NSAL_KVSTORE_BACKEND:-"cortx"}
 
 # Select NSAL Source Version.
-# Superproject: derived from efs version.
+# Superproject: derived from cortxfs version.
 # Local: taken fron VERSION file.
-NSAL_VERSION=${EFS_VERSION:-"$(cat $NSAL_SOURCE_ROOT/VERSION)"}
+NSAL_VERSION=${CORTXFS_VERSION:-"$(cat $NSAL_SOURCE_ROOT/VERSION)"}
 
 
 # Select NSAL Build Version.
-# Superproject: derived from efs version.
+# Superproject: derived from cortxfs version.
 # Local: taken from git rev.
-NSAL_BUILD_VERSION=${EFS_BUILD_VERSION:-"$(git rev-parse --short HEAD)"}
+NSAL_BUILD_VERSION=${CORTXFS_BUILD_VERSION:-"$(git rev-parse --short HEAD)"}
 
 # Optional, CORTX-UTILS source location.
 # Superproject: uses pre-defined location.
@@ -41,9 +41,9 @@ NSAL_BUILD_VERSION=${EFS_BUILD_VERSION:-"$(git rev-parse --short HEAD)"}
 CORTX_UTILS_SOURCE_ROOT=${CORTX_UTILS_SOURCE_ROOT:-"$NSAL_SOURCE_ROOT/../utils/c-utils"}
 
 # Optional, CORTX-UTILS build root location
-# Superproject: derived from EFS build root.
+# Superproject: derived from CORTXFS build root.
 # Local: located inside cortx-utils sources.
-CORTX_UTILS_CMAKE_BUILD_ROOT=${EFS_BUILD_ROOT:-"$NSAL_SOURCE_ROOT/../utils/c-utils"}
+CORTX_UTILS_CMAKE_BUILD_ROOT=${CORTXFS_BUILD_ROOT:-"$NSAL_SOURCE_ROOT/../utils/c-utils"}
 
 ###############################################################################
 # Local variables
