@@ -72,6 +72,15 @@ static inline void dtlib_fill_data_block(uint8_t *data, size_t size)
 	}
 }
 
+static inline int dtlib_verify_data_block(char *data, size_t size, uint8_t value)
+{
+	char *buf = calloc(size, sizeof(char));
+	memset(buf, value, size);
+	int ret = memcmp(data, buf, size);
+   	free(buf);
+    	return ret;
+}
+
 #define DSAL_UT_RUN(_test_group, _setup, _teardown) ut_run(_test_group,\
 	sizeof(_test_group)/sizeof(_test_group[0]), _setup, _teardown)
 

@@ -188,4 +188,26 @@ void dstore_io_op_fini(struct dstore_io_op *op);
 
 struct dstore *dstore_get(void);
 
+int dstore_io_op_pwrite(struct dstore_obj *obj, off_t offset, size_t count,
+			size_t bs, char *buf);
+
+int dstore_io_op_pread(struct dstore_obj *obj, off_t offset, size_t count,
+		       size_t bs, char *buf);
+
+int pwrite_aligned(struct dstore_obj *obj, char *write_buf, size_t buf_size,
+		   off_t offset, dstore_io_op_cb_t cb, void *cb_ctx);
+
+int pread_aligned(struct dstore_obj *obj, char *read_buf, size_t buf_size,
+	 	  off_t offset, dstore_io_op_cb_t cb, void *cb_ctx);
+
+int pread_aligned_handle_holes(struct dstore_obj *obj, char *read_buf,
+			       size_t buf_size, off_t offset, size_t bs,
+			       dstore_io_op_cb_t cb, void *cb_ctx);
+
+int pwrite_unaligned(struct dstore_obj *obj, off_t offset, size_t count,
+		     size_t bs, char *buf, dstore_io_op_cb_t cb, void *cb_ctx);
+
+int pread_unaligned(struct dstore_obj *obj, off_t offset, size_t count,
+		    size_t bs, char *buf, dstore_io_op_cb_t cb, void *cb_ctx);
+
 #endif
