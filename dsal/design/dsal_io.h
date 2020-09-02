@@ -36,7 +36,7 @@ struct dsal_os;
 
 /** An object in OPEN state.
  * Depending on the backend implementation, it can be a POSIX file descriptor
- * or a runtime object (Clovis) or simply an FID (no runtime states).
+ * or a runtime object (Motr) or simply an FID (no runtime states).
  */
 struct dsal_obj;
 

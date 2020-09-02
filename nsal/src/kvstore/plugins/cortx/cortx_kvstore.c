@@ -19,7 +19,7 @@
 
 /*
  * This file contains APIs which implement NSAL's KVStore framework,
- * on top of cortx clovis index APIs.
+ * on top of cortx motr index APIs.
  */
  
 #include "internal/cortx/cortx_kvstore.h"
@@ -55,7 +55,7 @@ int cortx_kvs_index_create(const kvs_idx_fid_t *fid, struct kvs_idx *index)
 {
         int rc;
 	struct m0_uint128 mfid = M0_UINT128(0, 0);
-	struct m0_clovis_idx *idx = NULL;
+	struct m0_idx *idx = NULL;
 	kvs_idx_fid_t gfid;
 
 	index->index_priv = NULL;
@@ -85,7 +85,7 @@ int cortx_kvs_index_create(const kvs_idx_fid_t *fid, struct kvs_idx *index)
 		goto out;
 	}
 
-	/** Use KVStore index's priv to track Motr clovis index */
+	/** Use KVStore index's priv to track Motr motr index */
 	index->index_priv = idx;
 out:
         return rc;
@@ -112,7 +112,7 @@ int cortx_kvs_index_open(const kvs_idx_fid_t *fid, struct kvs_idx *index)
 {
 	int rc;
 	struct m0_uint128 mfid = M0_UINT128(0, 0);
-	struct m0_clovis_idx *idx = NULL;
+	struct m0_idx *idx = NULL;
 	kvs_idx_fid_t gfid;
 
 	index->index_priv = NULL;
@@ -148,7 +148,7 @@ out:
 
 int cortx_kvs_index_close(struct kvs_idx *index)
 {
-	struct m0_clovis_idx *idx = (struct m0_clovis_idx *)index->index_priv;
+	struct m0_idx *idx = (struct m0_idx *)index->index_priv;
 
         m0idx_close(idx);
 

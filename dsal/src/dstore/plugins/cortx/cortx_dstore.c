@@ -19,7 +19,7 @@
 
 /*
  * This file contains APIs which implement DSAL's dstore framework,
- * on top of cortx clovis object APIs.
+ * on top of cortx motr object APIs.
  */
 
 #include <sys/param.h> /* DEV_BSIZE */
@@ -36,7 +36,7 @@
 /** Private definition of DSTORE object for M0-based backend. */
 struct cortx_dstore_obj {
 	struct dstore_obj base;
-	struct m0_clovis_obj cobj;
+	struct m0_obj cobj;
 };
 _Static_assert((&((struct cortx_dstore_obj *) NULL)->base) == 0,
 	       "The offset of of the base field should be zero.\
@@ -134,7 +134,7 @@ struct cortx_io_bufext {
  */
 struct cortx_io_op {
 	struct dstore_io_op base;
-	struct m0_clovis_op *cop;
+	struct m0_op *cop;
 	struct cortx_io_bufext vec;
 	struct m0_bufvec attrs;
 };
@@ -493,16 +493,16 @@ void dstore_io_vec2bufext(struct dstore_io_vec *io_vec,
 	bufext->extents.iv_index = io_vec->ovec;
 }
 
-static void on_oop_executed(struct m0_clovis_op *cop)
+static void on_oop_executed(struct m0_op *cop)
 {
 	log_trace("IO op %p executed.", cop->op_datum);
 	/* noop */
 }
 
 
-static void on_oop_finished(struct m0_clovis_op *cop)
+static void on_oop_finished(struct m0_op *cop)
 {
-	int rc = m0_clovis_rc(cop);
+	int rc = m0_rc(cop);
 	struct cortx_io_op *op = cop->op_datum;
 	dassert(op->cop == cop);
 	RC_WRAP_SET(rc);
@@ -512,13 +512,13 @@ static void on_oop_finished(struct m0_clovis_op *cop)
 	log_trace("IO op %p finished.", op);
 }
 
-static void on_oop_failed(struct m0_clovis_op *cop)
+static void on_oop_failed(struct m0_op *cop)
 {
 	log_trace("IO op %p went to failed state.", cop->op_datum);
 	on_oop_finished(cop);
 }
 
-static const struct m0_clovis_op_ops cortx_io_op_cbs = {
+static const struct m0_op_ops cortx_io_op_cbs = {
 	.oop_executed = on_oop_executed,
 	.oop_failed = on_oop_failed,
 	.oop_stable = on_oop_finished,
@@ -526,16 +526,16 @@ static const struct m0_clovis_op_ops cortx_io_op_cbs = {
 /* Return an appropriate object operation value with respect to io operation
  * value
  */
-static enum m0_clovis_obj_opcode
+static enum m0_obj_opcode
 	dstore_io_op_type2m0_op_type(enum dstore_io_op_type type)
 {
-	enum m0_clovis_obj_opcode obj_opcode;
+	enum m0_obj_opcode obj_opcode;
 	switch (type) {
 		case DSTORE_IO_OP_WRITE:
-			obj_opcode = M0_CLOVIS_OC_WRITE;
+			obj_opcode = M0_OC_WRITE;
 			break;
 		case DSTORE_IO_OP_READ:
-			obj_opcode = M0_CLOVIS_OC_READ;
+			obj_opcode = M0_OC_READ;
 			break;
 		default:
 			/* Unsupported operation type */
@@ -581,13 +581,13 @@ static int cortx_ds_io_op_init(struct dstore_obj *dobj,
 
 	dstore_io_vec2bufext(&result->base.data, &result->vec);
 
-	RC_WRAP_LABEL(rc, out, m0_clovis_obj_op, &obj->cobj,
+	RC_WRAP_LABEL(rc, out, m0_obj_op, &obj->cobj,
 		      dstore_io_op_type2m0_op_type(type), &result->vec.extents,
 		      &result->vec.data,
 		      &result->attrs, empty_mask, &result->cop);
 
 	result->cop->op_datum = result;
-	m0_clovis_op_setup(result->cop, &cortx_io_op_cbs, schedule_now);
+	m0_op_setup(result->cop, &cortx_io_op_cbs, schedule_now);
 
 	*out = E2D_op(result);
 	result = NULL;
@@ -607,7 +607,7 @@ out:
 static int cortx_ds_io_op_submit(struct dstore_io_op *dop)
 {
 	struct cortx_io_op *op = D2E_op(dop);
-	m0_clovis_op_launch(&op->cop, 1);
+	m0_op_launch(&op->cop, 1);
 	log_debug("io_op_submit op=%p", op);
 	return 0; /* M0 launch is safe */
 }
@@ -616,13 +616,13 @@ static int cortx_ds_io_op_wait(struct dstore_io_op *dop)
 {
 	int rc;
 	struct cortx_io_op *op = D2E_op(dop);
-	const uint64_t wait_bits = M0_BITS(M0_CLOVIS_OS_FAILED,
-					   M0_CLOVIS_OS_STABLE);
+	const uint64_t wait_bits = M0_BITS(M0_OS_FAILED,
+					   M0_OS_STABLE);
 	const m0_time_t time_limit = M0_TIME_NEVER;
 
-	RC_WRAP_LABEL(rc, out, m0_clovis_op_wait, op->cop, wait_bits,
+	RC_WRAP_LABEL(rc, out, m0_op_wait, op->cop, wait_bits,
 		      time_limit);
-	RC_WRAP_LABEL(rc, out, m0_clovis_rc, op->cop);
+	RC_WRAP_LABEL(rc, out, m0_rc, op->cop);
 
 out:
 	log_debug("io_op_wait op=%p, rc=%d", op, rc);
@@ -633,8 +633,8 @@ static void cortx_ds_io_op_fini(struct dstore_io_op *dop)
 {
 	struct cortx_io_op *op = D2E_op(dop);
 
-	m0_clovis_op_fini(op->cop);
-	m0_clovis_op_free(op->cop);
+	m0_op_fini(op->cop);
+	m0_op_free(op->cop);
 	m0_free(op);
 }
 

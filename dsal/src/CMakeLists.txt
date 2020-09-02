@@ -98,7 +98,7 @@ if(USE_CORTX_STORE)
   find_library(HAVE_CORTX motr)
   check_library_exists(
 	motr
-	m0_clovis_init
+	m0_client_init
 	""
 	HAVE_CORTX
 	)

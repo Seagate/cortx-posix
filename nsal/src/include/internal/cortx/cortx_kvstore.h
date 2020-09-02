@@ -19,7 +19,7 @@
  */
 
 /*
- * This CORTX specific implementation is based on m0_clovis's index entity.
+ * This CORTX specific implementation is based on m0_client's index entity.
  */
 
 #ifndef _CORTX_KVSTORE_H

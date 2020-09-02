@@ -23,9 +23,9 @@
 #include <libgen.h>
 #include "c0appz.h"
 #include "helpers/helpers.h"
-#include "clovis/clovis.h"
-#include "clovis/clovis_internal.h"
-#include "clovis/clovis_idx.h"
+#include "motr/client.h"
+#include "motr/client_internal.h"
+#include "motr/idx.h"
 #include "lib/thread.h"
 #include <json-c/json.h>
 #include <sys/time.h>
@@ -59,12 +59,12 @@ struct cortxfs_xattr{
 
 static struct m0_fid ifid;
 static struct m0_ufid_generator cortxfs_ufid_generator;
-static struct m0_clovis_idx idx;
+static struct m0_idx idx;
 
 /* for one by one key and value calls */
 struct m0_bufvec key[100];
 struct m0_bufvec val[100];
-struct m0_clovis_op *op_arr[100];
+struct m0_op *op_arr[100];
 int *rcs;
 
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -80,7 +80,7 @@ void timer(struct timeval start1, struct timeval end1, char *msg)
 	printf("\nElapsed time for %s: %ld millisecs\n", msg, mtime);
 }
 
-static void callback(struct m0_clovis_op *op)
+static void callback(struct m0_op *op)
 {
 	//printf("(Callback) The thread id is %u \n", (unsigned int) syscall( __NR_gettid ));
 
@@ -95,20 +95,20 @@ static void callback(struct m0_clovis_op *op)
 	//m0_semaphore_up(&sem);
 }
 
-static int  m0_op_kvs_async(enum m0_clovis_idx_opcode opcode, struct m0_bufvec *key, struct m0_bufvec *val, struct m0_clovis_op **op)
+static int  m0_op_kvs_async(enum m0_idx_opcode opcode, struct m0_bufvec *key, struct m0_bufvec *val, struct m0_op **op)
 {
 	int rc;
 	rcs = (int*) m0_alloc(sizeof(int) * CNT);
 
-	struct m0_clovis_idx     *index = NULL;
-	struct m0_clovis_op_ops   op_ops;
+	struct m0_idx     *index = NULL;
+	struct m0_op_ops   op_ops;
 
 	index = &idx;
-	rc = m0_clovis_idx_op(index, opcode, key, val, rcs, M0_OIF_OVERWRITE, op);
+	rc = m0_idx_op(index, opcode, key, val, rcs, M0_OIF_OVERWRITE, op);
 
 	if (rc) 
 	{
-		printf("\nerror(%d): m0_clovis_idx_op", rc);
+		printf("\nerror(%d): m0_idx_op", rc);
 		return rc;
 	}
 
@@ -116,10 +116,10 @@ static int  m0_op_kvs_async(enum m0_clovis_idx_opcode opcode, struct m0_bufvec *
 	op_ops.oop_stable = callback;
 	op_ops.oop_failed = callback;
 
-	m0_clovis_op_setup(*op, &op_ops, 0);
+	m0_op_setup(*op, &op_ops, 0);
 
 	//printf("Before launch thread id is %u \n", (unsigned int) syscall( __NR_gettid ));
-	m0_clovis_op_launch(op, 1);
+	m0_op_launch(op, 1);
 
 	return rc;
 }
@@ -171,7 +171,7 @@ static int setAttr()
 	gettimeofday(&start1, NULL);
 	for (i = 0; i < BATCH; i++)
 	{
-		m0_op_kvs_async(M0_CLOVIS_IC_PUT, &key[i], &val[i], &op_arr[i]);
+		m0_op_kvs_async(M0_IC_PUT, &key[i], &val[i], &op_arr[i]);
 		//m0_semaphore_down(&sem);
 	}
 
@@ -185,7 +185,7 @@ static int setAttr()
 
 	for (i = 0; i < BATCH; i++)
 	{
-		m0_clovis_op_fini(op_arr[i]);
+		m0_op_fini(op_arr[i]);
 		m0_bufvec_free(&key[i]);
 		m0_bufvec_free(&val[i]);
 	}
@@ -234,7 +234,7 @@ static int delAttr()
 	gettimeofday(&start1, NULL);
 	for (i = 0; i < BATCH; i++)
 	{
-		m0_op_kvs_async(M0_CLOVIS_IC_DEL, &key[i], NULL, &op_arr[i]);
+		m0_op_kvs_async(M0_IC_DEL, &key[i], NULL, &op_arr[i]);
 		//m0_semaphore_down(&sem);
 	}
 
@@ -248,7 +248,7 @@ static int delAttr()
 
 	for (i = 0; i < BATCH; i++)
 	{
-		m0_clovis_op_fini(op_arr[i]);
+		m0_op_fini(op_arr[i]);
 		m0_bufvec_free(&key[i]);
 	}
 
@@ -279,9 +279,9 @@ int set_fid()
 		goto err_exit;
 	}
 
-	m0_clovis_idx_init(&idx, &clovis_container.co_realm, (struct m0_uint128 *)&ifid);
+	m0_idx_init(&idx, &motr_container.co_realm, (struct m0_uint128 *)&ifid);
 
-	rc = m0_ufid_init(clovis_instance, &cortxfs_ufid_generator);
+	rc = m0_ufid_init(motr_instance, &cortxfs_ufid_generator);
 	if (rc != 0) {
 		fprintf(stderr, "Failed to initialise fid generator: %d\n", rc);
 		goto err_exit;
@@ -311,7 +311,7 @@ int main(int argc, char **argv)
 
 	/* initialize resources */
 	if (c0appz_init(0) != 0) {
-		fprintf(stderr,"error! clovis initialization failed.\n");
+		fprintf(stderr,"error! motr initialization failed.\n");
 		return -2;
 	}
 

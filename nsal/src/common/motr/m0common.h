@@ -33,9 +33,9 @@
 #include <ini_config.h>
 
 #include <kvstore.h>
-#include "clovis/clovis.h"
-#include "clovis/clovis_internal.h"
-#include "clovis/clovis_idx.h"
+#include "motr/client.h"
+#include "motr/client_internal.h"
+#include "motr/idx.h"
 #include <debug.h>
 
 #ifdef ENABLE_DASSERT
@@ -50,23 +50,23 @@
 /* TODO:PERF:
  *	Performance of key iterators can be improved by:
  *	1. Usage of prefetch.
- *	2. Async Clovis calls.
+ *	2. Async Motr calls.
  *	3. Piggyback data for records.
  *	The features can be implemented without significant changes in
  *	the caller code and mostly isolated in the m0common module.
  *
  *	1. The key prefetch feature requires an additional argument to specify
- *	the amount of records to retrieve in a NEXT clovis call.
+ *	the amount of records to retrieve in a NEXT motr call.
  *	Then, key_iter_next walks over the prefetched records and issues
  *	a NEXT call after the last portion of records was processed by the user.
  *
- *	2. The async clovis calls feature can be used to speed up the case
+ *	2. The async motr calls feature can be used to speed up the case
  *	where the time of records processing by the caller is comparable with
- *	the time needed to receive next bunch of records from Clovis.
+ *	the time needed to receive next bunch of records from Motr.
  *	In this case a initial next call synchronously gets a bunch of records,
  *	and then immediately issues an asynchronous NEXT call.
  *	The consequent next call waits for the issued records,
- *	and again issues a NEXT call to clovis. In conjunction with the prefetch
+ *	and again issues a NEXT call to motr. In conjunction with the prefetch
  *	feature, it can help to speed up readdir() by issuing NEXT (dentry)
  *	and GET (inode attrs) concurrently.
  *
@@ -74,7 +74,7 @@
  *	the iterator can issue a GET call to get the inode attirbutes of
  *	prefetched dentries along with the next portion of NEXT dentries.
  *	So that, we can get a chunk of dentries and the attributes of the
- *	previous chunck witin a single clovis call.
+ *	previous chunck witin a single motr call.
  *	However, this feature make sense only for the recent version of
  *	nfs-ganesha where a FSAL is resposible for filling in attrlist
  *	(the current version calls fsal_getattr() instead of it).

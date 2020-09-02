@@ -10,7 +10,7 @@ The code for file access protocol (like NFS) for CORTX is distributed across mul
 
 Install motr:
 - Latest Motr rpms (`motr` and `motr-devel`) should be installed. Take the latest rpm from this [page](http://cortx-storage.colo.seagate.com/releases/eos/github/dev/rhel-7.7.1908/motr_last_successful/)
-- `m0singlenode` service should be up and running before running nfs ganesha with motr/clovis
+- `m0singlenode` service should be up and running before running nfs ganesha with motr
 
 Install NFS Ganesha:
 * Install jemalloc (`yum install jemalloc`).
@@ -96,8 +96,8 @@ kvs_fid = <0x780000000000000b:1>
 - Create the Index use by CORTXFS and listed in cortxfs.ini as `kvs_fid`
 
 ```sh
-$ sudo m0clovis --help
-Usage: m0clovis options...
+$ sudo m0mt --help
+Usage: m0mt options...
 
 where valid options are
 
@@ -106,12 +106,12 @@ where valid options are
 	  -l     string: Local endpoint address
 	  -h     string: HA address
 	  -f     string: Process FID
-	  -p     string: Profile options for Clovis
+	  -p     string: Profile options for Motr client
 ```
 Use values for the options from `/etc/cortxfs.d/cortxfs.ini`. For the sample configuration given above, this is how command should look like
 
 ```sh
-$ m0clovis -l 172.16.2.132@tcp:12345:44:301 \
+$ m0mt -l 172.16.2.132@tcp:12345:44:301 \
 		-h 172.16.2.132@tcp:12345:45:1 \
 		-p '0x7000000000000001:1' \
 		-f '0x7200000000000000:0'\

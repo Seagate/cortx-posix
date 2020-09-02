@@ -36,9 +36,9 @@
 #include <pthread.h>
 #include <dirent.h>
 
-#include "clovis/clovis.h"
-#include "clovis/clovis_internal.h"
-#include "clovis/clovis_idx.h"
+#include "motr/client.h"
+#include "motr/client_internal.h"
+#include "motr/idx.h"
 #include "lib/thread.h"
 #include "m0common.h"
 #include <motr/helpers/helpers.h>
@@ -48,7 +48,7 @@
 struct m0_key_iter_priv {
 	struct m0_bufvec key;
 	struct m0_bufvec val;
-	struct m0_clovis_op *op;
+	struct m0_op *op;
 	int rcs[1];
 	bool initialized;
 };
@@ -74,8 +74,8 @@ void m0_key_iter_fini(struct kvstore_iter *iter)
 	m0_bufvec_free(&priv->val);
 
 	if (priv->op) {
-		m0_clovis_op_fini(priv->op);
-		m0_clovis_op_free(priv->op);
+		m0_op_fini(priv->op);
+		m0_op_free(priv->op);
 	}
 
 out:
@@ -88,8 +88,8 @@ bool m0_key_iter_find(struct kvstore_iter *iter, const void* prefix,
 	struct m0_key_iter_priv *priv = m0_key_iter_priv(iter);
 	struct m0_bufvec *key = &priv->key;
 	struct m0_bufvec *val = &priv->val;
-	struct m0_clovis_op **op = &priv->op;
-	struct m0_clovis_idx *index = iter->idx.index_priv;
+	struct m0_op **op = &priv->op;
+	struct m0_idx *index = iter->idx.index_priv;
 	int rc;
 
 	if (prefix_len == 0)
@@ -107,17 +107,17 @@ bool m0_key_iter_find(struct kvstore_iter *iter, const void* prefix,
 
 	memcpy(priv->key.ov_buf[0], prefix, prefix_len);
 
-	rc = m0_clovis_idx_op(index, M0_CLOVIS_IC_NEXT, &priv->key, &priv->val,
-			      priv->rcs, 0, op);
+	rc = m0_idx_op(index, M0_IC_NEXT, &priv->key, &priv->val,
+		       priv->rcs, 0, op);
 
 	if (rc != 0) {
 		goto out_free_val;
 	}
 
 
-	m0_clovis_op_launch(op, 1);
-	rc = m0_clovis_op_wait(*op, M0_BITS(M0_CLOVIS_OS_STABLE),
-			       M0_TIME_NEVER);
+	m0_op_launch(op, 1);
+	rc = m0_op_wait(*op, M0_BITS(M0_OS_STABLE),
+			M0_TIME_NEVER);
 
 	if (rc != 0) {
 		goto out_free_op;
@@ -135,8 +135,8 @@ bool m0_key_iter_find(struct kvstore_iter *iter, const void* prefix,
 
 out_free_op:
 	if (op && *op) {
-		m0_clovis_op_fini(*op);
-		m0_clovis_op_free(*op);
+		m0_op_fini(*op);
+		m0_op_free(*op);
 	}
 
 out_free_val:
@@ -174,25 +174,25 @@ static void m0_bufvec_free_data(struct m0_bufvec *bufvec)
 bool m0_key_iter_next(struct kvstore_iter *iter)
 {
 	struct m0_key_iter_priv *priv = m0_key_iter_priv(iter);
-	struct m0_clovis_idx *index = iter->idx.index_priv;
+	struct m0_idx *index = iter->idx.index_priv;
 	bool can_get_next = false;
 
 	assert(priv->initialized);
 
-	/* Clovis API: "'vals' vector ... should contain NULLs" */
+	/* Motr API: "'vals' vector ... should contain NULLs" */
 	m0_bufvec_free_data(&priv->val);
 
-	iter->inner_rc = m0_clovis_idx_op(index, M0_CLOVIS_IC_NEXT,
-					  &priv->key, &priv->val, priv->rcs,
-					  M0_OIF_EXCLUDE_START_KEY,  &priv->op);
+	iter->inner_rc = m0_idx_op(index, M0_IC_NEXT,
+				   &priv->key, &priv->val, priv->rcs,
+				   M0_OIF_EXCLUDE_START_KEY,  &priv->op);
 
 	if (iter->inner_rc != 0) {
 		goto out;
 	}
 
-	m0_clovis_op_launch(&priv->op, 1);
-	iter->inner_rc = m0_clovis_op_wait(priv->op, M0_BITS(M0_CLOVIS_OS_STABLE),
-			       M0_TIME_NEVER);
+	m0_op_launch(&priv->op, 1);
+	iter->inner_rc = m0_op_wait(priv->op, M0_BITS(M0_OS_STABLE),
+				    M0_TIME_NEVER);
 
 	if (iter->inner_rc != 0) {
 		goto out;

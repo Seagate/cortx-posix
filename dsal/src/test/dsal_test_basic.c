@@ -352,7 +352,7 @@ static int test_write_read_validate(struct dstore_obj *obj,
 	rc = test_issue_read(obj, read_buf, r_size, r_offset);
 
 	if ( rc == -ENOENT ) {
-		/* Mero is not able to handle the case where some part of object
+		/* Motr is not able to handle the case where some part of object
 		 * have not been written or created. For that it returns -ENOENT
 		 * and zeroed out the data for all the read block even though
 		 * some of them are available and we should get valid data for
@@ -458,7 +458,7 @@ static void test_write_read_aligned(void **state)
  *	Check return code for read
  *	1. If it return rc = 0, verify the data integrity against written data.
  *	2.rc = -ENOENT
- *	Mero is not able to handle the case where some part of object have
+ *	Motr is not able to handle the case where some part of object have
  *	not been written or created. For that it returns -ENOENT and zeroed out
  *	the data for all the read block even though some of them are available
  *	and we should get valid data for them atleast. For such case, this is
