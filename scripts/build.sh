@@ -1,6 +1,6 @@
 #!/bin/bash
 ###############################################################################
-# Builds script for all CORTXFS components.
+# Builds script for all EFS components.
 #
 # Dev workflow:
 #   ./scripts/build.sh bootstrap -- Updates sub-modules and external repos.
@@ -16,7 +16,7 @@ set -e
 ###############################################################################
 # CMD Inteface
 
-cortxfs_cmd_usage() {
+efs_cmd_usage() {
     echo -e "
 Usage $0  [-p <ganesha src path>] [-v <version>] [-b <build>] [-k {cortx|redis}] [-e {cortx|posix}]
 
@@ -29,21 +29,21 @@ Arguments:
     -d (optional) Enable/disable dassert(ON/OFF, default:ON).
 
 Examples:
-    $0 -p ~/nfs-ganesha -- Builds CORTXFS with a custom NFS Ganesha
+    $0 -p ~/nfs-ganesha -- Builds EFS with a custom NFS Ganesha
     $0 -v 1.0.1 -b 99 -- Builds packages with version 1.0.1-99_<commit>.
-    $0 -k redis -- Builds CORTXFS with Redis as a KVS.
+    $0 -k redis -- Builds EFS with Redis as a KVS.
 "
 	exit 1;
 }
 
-cortxfs_parse_cmd() {
+efs_parse_cmd() {
     while getopts ":b:v:p:k:e:d:" o; do
         case "${o}" in
         b)
-            export CORTXFS_BUILD_VERSION="${OPTARG}_$(git rev-parse --short HEAD)"
+            export EFS_BUILD_VERSION="${OPTARG}_$(git rev-parse --short HEAD)"
             ;;
         v)
-            export CORTXFS_VERSION=${OPTARG}
+            export EFS_VERSION=${OPTARG}
             ;;
         p)
             local ganpath="${OPTARG}"
@@ -84,7 +84,7 @@ cortxfs_parse_cmd() {
             export ENABLE_DASSERT=${OPTARG}
             ;;
         *)
-            cortxfs_cmd_usage
+            efs_cmd_usage
             ;;
         esac
     done
@@ -93,43 +93,43 @@ cortxfs_parse_cmd() {
 ###############################################################################
 # Env
 
-cortxfs_set_env() {
+efs_set_env() {
     export PROJECT_NAME_BASE="cortx"
     export KVSFS_SOURCE_ROOT=$PWD/kvsfs-ganesha
     export NSAL_SOURCE_ROOT=$PWD/nsal
     export DSAL_SOURCE_ROOT=$PWD/dsal
     export CORTX_UTILS_SOURCE_ROOT=$PWD/utils/c-utils
 
-    export CORTXFS_SOURCE_ROOT=$PWD/cortxfs
+    export EFS_SOURCE_ROOT=$PWD/efs
 
-    export CORTXFS_BUILD_ROOT=${CORTXFS_BUILD_ROOT:-/tmp/cortxfs}
-    export CORTXFS_VERSION=${CORTXFS_VERSION:-"$(cat $PWD/VERSION)"}
-    export CORTXFS_BUILD_VERSION=${CORTXFS_BUILD_VERSION:-"$(git rev-parse --short HEAD)"}
+    export EFS_BUILD_ROOT=${EFS_BUILD_ROOT:-/tmp/efs}
+    export EFS_VERSION=${EFS_VERSION:-"$(cat $PWD/VERSION)"}
+    export EFS_BUILD_VERSION=${EFS_BUILD_VERSION:-"$(git rev-parse --short HEAD)"}
 
     export NSAL_KVSTORE_BACKEND=${NSAL_KVSTORE_BACKEND:-"cortx"}
     export DSAL_DSTORE_BACKEND=${DSAL_DSTORE_BACKEND:-"cortx"}
 
     export KVSFS_NFS_GANESHA_DIR=${KVSFS_NFS_GANESHA_DIR:-$PWD/../nfs-ganesha-cortx}
-    export KVSFS_NFS_GANESHA_BUILD_DIR=${KVSFS_NFS_GANESHA_BUILD_DIR:-$CORTXFS_BUILD_ROOT/build-nfs-ganesha}
+    export KVSFS_NFS_GANESHA_BUILD_DIR=${KVSFS_NFS_GANESHA_BUILD_DIR:-$EFS_BUILD_ROOT/build-nfs-ganesha}
     export ENABLE_DASSERT=${ENABLE_DASSERT:-"ON"}
     export INSTALL_DIR_ROOT="/opt/seagate"
 }
 
-cortxfs_print_env() {
-    cortxfs_set_env
+efs_print_env() {
+    efs_set_env
     local myenv=(
 	PROJECT_NAME_BASE
         KVSFS_SOURCE_ROOT
         NSAL_SOURCE_ROOT
         DSAL_SOURCE_ROOT
         CORTX_UTILS_SOURCE_ROOT
-        CORTXFS_BUILD_ROOT
-        CORTXFS_BUILD_VERSION
+        EFS_BUILD_ROOT
+        EFS_BUILD_VERSION
         NSAL_KVSTORE_BACKEND
         DSAL_DSTORE_BACKEND
         KVSFS_NFS_GANESHA_DIR
         KVSFS_NFS_GANESHA_BUILD_DIR
-        CORTXFS_SOURCE_ROOT
+        EFS_SOURCE_ROOT
         ENABLE_DASSERT
 	INSTALL_DIR_ROOT
     )
@@ -161,9 +161,9 @@ _dsal_build() {
     $DSAL_SOURCE_ROOT/scripts/build.sh "$@"
 }
 
-_cortxfs_build() {
-    echo "CORTXFS_BUILD: $@"
-    $CORTXFS_SOURCE_ROOT/scripts/build.sh "$@"
+_efs_build() {
+    echo "EFS_BUILD: $@"
+    $EFS_SOURCE_ROOT/scripts/build.sh "$@"
 }
 
 _nfs_ganesha_build() {
@@ -172,8 +172,8 @@ _nfs_ganesha_build() {
 }
 
 ###############################################################################
-cortxfs_bootstrap() {
-    cortxfs_set_env
+efs_bootstrap() {
+    efs_set_env
 
     if [ ! -f $UTILS_SOURCE_ROOT/src/CMakeLists.txt ]; then
         git submodule update --init --recursive $UTILS_SOURCE_ROOT
@@ -193,10 +193,10 @@ cortxfs_bootstrap() {
         echo "Skipping bootstrap for DSAL: $DSAL_SOURCE_ROOT"
     fi
 
-    if [ ! -f $CORTXFS_SOURCE_ROOT/src/CMakeLists.txt ]; then
-        git submodule update --init --recursive $CORTXFS_SOURCE_ROOT
+    if [ ! -f $EFS_SOURCE_ROOT/src/CMakeLists.txt ]; then
+        git submodule update --init --recursive $EFS_SOURCE_ROOT
     else
-        echo "Skipping bootstrap for CORTXFS: $CORTXFS_SOURCE_ROOT"
+        echo "Skipping bootstrap for EFS: $EFS_SOURCE_ROOT"
     fi
 
     if [ ! -f $KVSFS_SOURCE_ROOT/src/FSAL/FSAL_KVSFS/CMakeLists.txt ]; then
@@ -214,26 +214,26 @@ cortxfs_bootstrap() {
 }
 
 ###############################################################################
-cortxfs_jenkins_build() {
+efs_jenkins_build() {
     local rpms_dir="$HOME/rpmbuild/RPMS/x64_86"
 
-    if ! { cortxfs_parse_cmd "$@" && cortxfs_set_env && cortxfs_print_env; } ; then
+    if ! { efs_parse_cmd "$@" && efs_set_env && efs_print_env; } ; then
         echo "Failed set env variables"
         exit 1
     fi
 
-    if [ ! cortxfs_bootstrap ]; then
+    if [ ! efs_bootstrap ]; then
         echo "Failed to get extra git repositories"
         exit 1
     fi
 
     # Remove old build root dir
-    rm -fR $CORTXFS_BUILD_ROOT
+    rm -fR $EFS_BUILD_ROOT
 
     # Remove old packages
     rm -fR "$rpms_dir/"*.rpm
 
-    mkdir -p $CORTXFS_BUILD_ROOT &&
+    mkdir -p $EFS_BUILD_ROOT &&
         _nfs_ganesha_build config &&
 	_utils_build reconf &&
 	_utils_build make -j all &&
@@ -241,49 +241,49 @@ cortxfs_jenkins_build() {
         _nsal_build make -j all &&
         _dsal_build reconf &&
         _dsal_build make -j all &&
-	_cortxfs_build reconf &&
-	_cortxfs_build make -j all &&
+	_efs_build reconf &&
+	_efs_build make -j all &&
         _kvsfs_build reconf &&
         _kvsfs_build make -j all &&
         _utils_build rpm-gen &&
         _nsal_build rpm-gen &&
         _dsal_build rpm-gen &&
-	_cortxfs_build rpm-gen &&
+	_efs_build rpm-gen &&
         _kvsfs_build rpm-gen &&
         _kvsfs_build purge &&
-	_cortxfs_build purge &&
+	_efs_build purge &&
         _nsal_build purge &&
         _dsal_build purge &&
     echo "OK"
 }
 
 ###############################################################################
-cortxfs_configure() {
-    cortxfs_set_env &&
-    rm -fR "CORTXFS_BUILD_ROOT"
-    mkdir -p "$CORTXFS_BUILD_ROOT" &&
+efs_configure() {
+    efs_set_env &&
+    rm -fR "EFS_BUILD_ROOT"
+    mkdir -p "$EFS_BUILD_ROOT" &&
     _nfs_ganesha_build config &&
     _utils_build reconf &&
     _nsal_build reconf &&
     _dsal_build reconf &&
-    _cortxfs_build reconf &&
+    _efs_build reconf &&
     _kvsfs_build reconf &&
     echo "OK"
 }
 
 ###############################################################################
-cortxfs_make() {
-    cortxfs_set_env &&
+efs_make() {
+    efs_set_env &&
         _utils_build make "$@" &&
         _nsal_build make "$@" &&
         _dsal_build make "$@" &&
-	_cortxfs_build make "$@" &&
+	_efs_build make "$@" &&
         _kvsfs_build make "$@" &&
     echo "OK"
 }
 
 ###############################################################################
-cortxfs_rpm_gen() {
+efs_rpm_gen() {
     local rpms_dir="$HOME/rpmbuild/RPMS/x64_86"
 
     rm -fR "$rpms_dir/nfs-ganesha*"
@@ -291,64 +291,64 @@ cortxfs_rpm_gen() {
     rm -fR "$rpms_dir/cortx-utils*"
     rm -fR "$rpms_dir/cortx-nsal*"
     rm -fR "$rpms_dir/cortx-dsal*"
-    rm -fR "$rpms_dir/cortx-cfs*"
+    rm -fR "$rpms_dir/cortx-efs*"
     rm -fR "$rpmn_dir/kvsfs-ganesha*"
 
-    cortxfs_set_env &&
+    efs_set_env &&
         _nfs_ganesha_build rpm-gen &&
 	_utils_build rpm-gen &&
         _nsal_build rpm-gen &&
         _dsal_build rpm-gen &&
-	_cortxfs_build rpm-gen &&
+	_efs_build rpm-gen &&
         _kvsfs_build rpm-gen &&
     echo "OK"
 }
 
-cortxfs_rpm_install() {
-    cortxfs_set_env
+efs_rpm_install() {
+    efs_set_env
     sudo echo "Checking sudo access"
     _utils_build rpm-install
     _nsal_build rpm-install
     _dsal_build rpm-install
-    _cortxfs_build rpm-install
+    _efs_build rpm-install
     _kvsfs_build rpm-install
 }
 
-cortxfs_rpm_uninstall() {
-    cortxfs_set_env
+efs_rpm_uninstall() {
+    efs_set_env
     sudo echo "Checking sudo access"
     _utils_build rpm-uninstall
     _nsal_build rpm-uninstall
     _dsal_build rpm-uninstall
-    _cortxfs_build rpm-uninstall
+    _efs_build rpm-uninstall
     _kvsfs_build rpm-uninstall
 }
 
-cortxfs_reinstall() {
-    cortxfs_set_env
+efs_reinstall() {
+    efs_set_env
     sudo echo "Checking sudo access"
 
     _utils_build rpm-gen &&
     _nsal_build rpm-gen &&
     _dsal_build rpm-gen &&
-    _cortxfs_build rpm-gen &&
+    _efs_build rpm-gen &&
     _kvsfs_build rpm-gen &&
     _utils_build rpm-uninstall &&
     _nsal_build rpm-uninstall &&
     _dsal_build rpm-uninstall &&
-    _cortxfs_build rpm-uninstall &&
+    _efs_build rpm-uninstall &&
     _kvsfs_build rpm-uninstall &&
     _utils_build rpm-install &&
     _nsal_build rpm-install &&
     _dsal_build rpm-install &&
-    _cortxfs_build rpm-install &&
+    _efs_build rpm-install &&
     _kvsfs_build rpm-install
 }
 
 ###############################################################################
-cortxfs_usage() {
+efs_usage() {
     echo -e "
-CORTXFS Build script.
+EFS Build script.
 Usage:
     env <build environment> $0 <action>
 
@@ -374,7 +374,7 @@ Where action is one of the following:
      Available components: kvsfs nfs-ganesha.
 
 Dev workflow:
-    $0 bootstrap -- Download sources for CORTXFS components.
+    $0 bootstrap -- Download sources for EFS components.
     $0 update -- (optional) Update sources.
     $0 config -- Initialize the build folders
     $0 make -j -- and build binaries from the sources.
@@ -386,7 +386,7 @@ Sub-component examples:
 
 External sources:
     NFS Ganesha.
-    CORTXFS needs NFS Ganesha repo to build KVSFS-FSAL module.
+    EFS needs NFS Ganesha repo to build KVSFS-FSAL module.
     It also uses a generated config.h file, so that the repo
     needs to to be configured at least.
     Default location: $(dirname $PWD)/nfs-ganesha.
@@ -396,59 +396,59 @@ External sources:
 ###############################################################################
 case $1 in
     env)
-        cortxfs_print_env;;
+        efs_print_env;;
     jenkins)
         shift
-        cortxfs_jenkins_build "$@";;
+        efs_jenkins_build "$@";;
     bootstrap)
-        cortxfs_bootstrap;;
+        efs_bootstrap;;
 
 # Build steps
     config)
-        cortxfs_configure;;
+        efs_configure;;
     purge)
-        cortxfs_purge;;
+        efs_purge;;
     make)
         shift
-        cortxfs_make "$@" ;;
+        efs_make "$@" ;;
 
 # Pkg mmgmt:
     rpm-gen)
-        cortxfs_rpm_gen;;
+        efs_rpm_gen;;
     rpm-install)
-        cortxfs_rpm_install;;
+        efs_rpm_install;;
     rpm-uninstall)
-        cortxfs_rpm_uninstall;;
+        efs_rpm_uninstall;;
     reinstall)
-        cortxfs_reinstall;;
+        efs_reinstall;;
 
 # Sub-components:
     utils)
         shift
-        cortxfs_set_env
+        efs_set_env
         _utils_build "$@";;
     nsal)
         shift
-        cortxfs_set_env
+        efs_set_env
         _nsal_build "$@";;
     dsal)
         shift
-        cortxfs_set_env
+        efs_set_env
         _dsal_build "$@";;
-    cortxfs)
+    efs)
 	shift
-	cortxfs_set_env
-	_cortxfs_build "$@";;
+	efs_set_env
+	_efs_build "$@";;
     kvsfs)
         shift
-        cortxfs_set_env
+        efs_set_env
         _kvsfs_build "$@";;
     nfs-ganesha)
         shift
-        cortxfs_set_env
+        efs_set_env
         _nfs_ganesha_build "$@";;
     *)
-        cortxfs_usage;;
+        efs_usage;;
 esac
 
 ###############################################################################

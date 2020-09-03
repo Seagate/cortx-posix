@@ -9,7 +9,7 @@ NFS Ganesha FSAL API based on CORTXFS as an underlying filesystem.
 
 See also:
 
-* CORTXFS repo: https://github.com/Seagate/cortx-fs.git
+* EFS repo: https://github.com/Seagate/cortx-fs.git
 
 * NFS Ganesha repo: https://github.com/Seagate/nfs-ganesha.git
 
