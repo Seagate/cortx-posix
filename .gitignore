@@ -10,3 +10,8 @@ build-cortxfs
 build-kvsfs
 *.spec
 *.pc
+utils/
+nsal/
+dsal/
+kvsfs-ganesha/
+cortxfs/
