@@ -3,8 +3,21 @@ Created on Sep 7, 2020
 
 @author: 730728
 '''
-from utils import *
-from constants import *
+from cortxfscmd.utils import (read_conf_file,
+                              throw_exception_with_msg,
+                              regex_pattern_check,
+                              validate_inp_config_params
+                              )
+from cortxfscmd.constants import (fs_name_regex, 
+                                fs_name_max_len, 
+                                cortxfscli_validation_rule_dev,
+                                cortxfscli_default_validation_rules 
+                                )
+import os
+import sys
+import argparse
+import traceback
+import json
 
 class Command(object):
     """
@@ -170,7 +183,7 @@ class CommandFactory(object):
 
     commands = {FsCommand, EndpointCommand, AuthCommand}
 
-    def get_command(argv):
+    def get_command(self,argv):
         """
         Parse the command line as per the syntax and return command.
         """

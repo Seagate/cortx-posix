@@ -5,10 +5,8 @@ Created on Sep 7, 2020
 '''
 
 
-from response import Response
+from cortxfscmd.response import Response
 import json
-import http
-from http import HTTPStatus
 import http.client
 
 class Client:
