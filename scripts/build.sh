@@ -175,32 +175,35 @@ _nfs_ganesha_build() {
 cortxfs_bootstrap() {
     cortxfs_set_env
 
-    if [ ! -f $UTILS_SOURCE_ROOT/src/CMakeLists.txt ]; then
-        git submodule update --init --recursive $UTILS_SOURCE_ROOT
+	local utils_dir_path=$PWD/utils
+	local dev_branch="dev"
+
+    if [ ! -f $CORTX_UTILS_SOURCE_ROOT/src/CMakeLists.txt ]; then
+		git clone --branch $dev_branch https://github.com/Seagate/cortx-utils.git $utils_dir_path
     else
-        echo "Skipping bootstrap for UTILS: $UTILS_SOURCE_ROOT"
+        echo "Skipping bootstrap for UTILS: $utils_dir_path"
     fi
 
     if [ ! -f $NSAL_SOURCE_ROOT/src/CMakeLists.txt ]; then
-        git submodule update --init --recursive $NSAL_SOURCE_ROOT
+		git clone --branch $dev_branch https://github.com/Seagate/cortx-nsal.git $NSAL_SOURCE_ROOT
     else
         echo "Skipping bootstrap for NSAL: $NSAL_SOURCE_ROOT"
     fi
 
     if [ ! -f $DSAL_SOURCE_ROOT/src/CMakeLists.txt ]; then
-	git submodule update --init --recursive $DSAL_SOURCE_ROOT
+		git clone --branch $dev_branch https://github.com/Seagate/cortx-dsal.git $DSAL_SOURCE_ROOT
     else
         echo "Skipping bootstrap for DSAL: $DSAL_SOURCE_ROOT"
     fi
 
     if [ ! -f $CORTXFS_SOURCE_ROOT/src/CMakeLists.txt ]; then
-        git submodule update --init --recursive $CORTXFS_SOURCE_ROOT
+		git clone --branch $dev_branch https://github.com/Seagate/cortx-fs.git $CORTXFS_SOURCE_ROOT
     else
         echo "Skipping bootstrap for CORTXFS: $CORTXFS_SOURCE_ROOT"
     fi
 
     if [ ! -f $KVSFS_SOURCE_ROOT/src/FSAL/FSAL_KVSFS/CMakeLists.txt ]; then
-        git submodule update --init --recursive $KVSFS_SOURCE_ROOT
+		git clone --branch $dev_branch https://github.com/Seagate/cortx-fs-ganesha.git $KVSFS_SOURCE_ROOT
     else
         echo "Skipping bootstrap for KVSFS: $KVSFS_SOURCE_ROOT"
     fi
@@ -210,7 +213,6 @@ cortxfs_bootstrap() {
     else
         echo "Skipping bootstrap for NFS Ganesha: $KVSFS_NFS_GANESHA_DIR"
     fi
-
 }
 
 ###############################################################################
@@ -222,10 +224,8 @@ cortxfs_jenkins_build() {
         exit 1
     fi
 
-    if [ ! cortxfs_bootstrap ]; then
-        echo "Failed to get extra git repositories"
-        exit 1
-    fi
+    # Fetching external repositories
+    cortxfs_bootstrap
 
     # Remove old build root dir
     rm -fR $CORTXFS_BUILD_ROOT
