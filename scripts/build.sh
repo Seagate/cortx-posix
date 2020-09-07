@@ -95,7 +95,7 @@ cortxfs_parse_cmd() {
 
 cortxfs_set_env() {
     export PROJECT_NAME_BASE="cortx"
-    export KVSFS_SOURCE_ROOT=$PWD/kvsfs-ganesha
+    export KVSFS_SOURCE_ROOT=$PWD/cortx-fs-ganesha
     export NSAL_SOURCE_ROOT=$PWD/nsal
     export DSAL_SOURCE_ROOT=$PWD/dsal
     export CORTX_UTILS_SOURCE_ROOT=$PWD/utils/c-utils
@@ -202,7 +202,7 @@ cortxfs_bootstrap() {
         echo "Skipping bootstrap for CORTXFS: $CORTXFS_SOURCE_ROOT"
     fi
 
-    if [ ! -f $KVSFS_SOURCE_ROOT/src/FSAL/FSAL_KVSFS/CMakeLists.txt ]; then
+    if [ ! -f $KVSFS_SOURCE_ROOT/src/FSAL/FSAL_CORTXFS/CMakeLists.txt ]; then
 		git clone --branch $dev_branch https://github.com/Seagate/cortx-fs-ganesha.git $KVSFS_SOURCE_ROOT
     else
         echo "Skipping bootstrap for KVSFS: $KVSFS_SOURCE_ROOT"
