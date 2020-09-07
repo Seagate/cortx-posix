@@ -50,27 +50,6 @@ struct env {
 
 #define ENV_FROM_STATE(__state) (*((struct env **) __state))
 
-/* Do finalization of io_op, io_vec and io_buf
- * If any of the param is NULL then for that this
- * operation is noop.
- */
-static void test_io_cleanup(struct dstore_io_op *iop,
-                            struct dstore_io_vec *data,
-                            struct dstore_io_buf *buf)
-{
-	if (iop) {
-		dstore_io_op_fini(iop);
-	}
-
-	if (data) {
-		dstore_io_vec_fini(data);
-	}
-
-	if (buf) {
-		dstore_io_buf_fini(buf);
-	}
-}
-
 /* Try to create a new file and compare the expected results */
 static void test_create_file(struct dstore *dstore, dstore_oid_t *oid,
                              int expected_rc)
@@ -254,78 +233,16 @@ static void test_delete_open(void **state)
 	test_close_file(obj, 0);
 }
 
-/* Do write for given input param do cleanup before leaving this API
- */
-static int test_issue_write(struct dstore_obj *obj,
-                            void *write_buf,
-                            const size_t buf_size,
-                            const off_t offset)
-{
-	int rc;
-	struct dstore_io_op *wop = NULL;
-	struct dstore_io_vec *data = NULL;
-	struct dstore_io_buf *buf = NULL;
-
-	rc = dstore_io_buf_init(write_buf, buf_size, offset, &buf);
-	ut_assert_int_equal(rc, 0);
-
-	rc = dstore_io_buf2vec(&buf, &data);
-	ut_assert_int_equal(rc, 0);
-
-	rc = dstore_io_op_write(obj, data, NULL, NULL, &wop);
-	ut_assert_int_equal(rc, 0);
-	ut_assert_not_null(wop);
-
-	rc = dstore_io_op_wait(wop);
-
-	test_io_cleanup(wop, data, buf);
-	return rc;
-}
-
-/* Do read for given input param do cleanup before leaving this API
- */
-static int test_issue_read(struct dstore_obj *obj,
-                           void *read_buf,
-                           const size_t buf_size,
-                           const off_t offset)
-{
-	int rc;
-	struct dstore_io_op *rop = NULL;
-	struct dstore_io_vec *data = NULL;
-	struct dstore_io_buf *buf = NULL;
-
-	rc = dstore_io_buf_init(read_buf, buf_size, offset, &buf);
-	ut_assert_int_equal(rc, 0);
-
-	rc = dstore_io_buf2vec(&buf, &data);
-	ut_assert_int_equal(rc, 0);
-
-	rc = dstore_io_op_read(obj, data, NULL, NULL, &rop);
-	ut_assert_int_equal(rc, 0);
-	ut_assert_not_null(rop);
-
-	rc = dstore_io_op_wait(rop);
-
-	test_io_cleanup(rop, data, buf);
-	return rc;
-}
-
 /* This API will write random data pattern of given size/offset for a file
  * read the given size/offset data from a file, validate the data integrity
  * and free up the allocated buffers
- * NOTE: bsize and holebitmask will be used in case of reading holes from a
- * file bsize represents the size at which further read needs to be issued when
- * we encounters a read a hole bug
- * holebitmask represent actual holes present in a file first block will be
- * from LSB(First block as in from a given offset not from the start of a file)
  */
 static int test_write_read_validate(struct dstore_obj *obj,
                                     const size_t w_size,
                                     const off_t w_offset,
                                     const size_t r_size,
                                     const off_t r_offset,
-                                    const size_t bsize,
-                                    const uint32_t holebitmask)
+                                    const size_t bsize)
 {
 	int rc;
 	void *write_buf = NULL;
@@ -346,47 +263,11 @@ static int test_write_read_validate(struct dstore_obj *obj,
 
 	dtlib_fill_data_block(write_buf, w_size);
 
-	rc = test_issue_write(obj, write_buf, w_size, w_offset);
+	rc = dstore_io_op_pwrite(obj, w_offset, w_size, bsize, write_buf);
 	ut_assert_int_equal(rc, 0);
 
-	rc = test_issue_read(obj, read_buf, r_size, r_offset);
-
-	if ( rc == -ENOENT ) {
-		/* Motr is not able to handle the case where some part of object
-		 * have not been written or created. For that it returns -ENOENT
-		 * and zeroed out the data for all the read block even though
-		 * some of them are available and we should get valid data for
-		 * them atleast. For such case, this is the workaround where
-		 * if we are reading more than one block size we will read
-		 * all the block one by one so that for originally available
-		 * block we will get proper data.
-		 */
-		printf("rc = -ENOENT for w_size = %uk, w_offset = %uk "
-		       "r_size = %uk, r_offset = %uk\n",
-		       (unsigned int)w_size >> 10,
-		       (unsigned int)w_offset >> 10,
-		       (unsigned int)r_size >> 10,
-		       (unsigned int)r_offset >> 10);
-
-		uint32_t blkidx;
-		uint32_t num_blk = r_size / bsize;
-
-		ut_assert_int_not_equal(holebitmask, 0);
-
-		for (blkidx = 0; blkidx < num_blk; blkidx++) {
-			uint8_t *rbuf_add = (uint8_t *)read_buf +
-					    (blkidx * bsize);
-			off_t offset = r_offset + (blkidx * bsize );
-			int expectedrc = (holebitmask & ( 1 << blkidx )) ?
-					 -ENOENT : 0;
-
-			rc = test_issue_read(obj, (void *)rbuf_add, bsize,
-					     offset);
-			ut_assert_int_equal(rc, expectedrc);
-		}
-	} else {
-		ut_assert_int_equal(rc, 0);
-	}
+	rc = dstore_io_op_pread(obj, r_offset, r_size, bsize, read_buf);
+	ut_assert_int_equal(rc, 0);
 
 	/* Data integrity check */
 	rc = memcmp(write_buf, read_buf, w_size);
@@ -429,6 +310,7 @@ static void test_write_read_aligned(void **state)
 	struct env *env = ENV_FROM_STATE(state);
 	const off_t offset = 0;
 	const size_t size_array_k[] = {4, 8, 16, 1024};
+	const size_t bs = 4096;
 	uint32_t num_element = sizeof(size_array_k)/sizeof(size_array_k[0]);
 	uint32_t index;
 
@@ -438,7 +320,7 @@ static void test_write_read_aligned(void **state)
 	for (index = 0; index < num_element; index++) {
 		uint32_t buf_size = size_array_k[index] << 10;
 		test_write_read_validate(obj, buf_size, offset,
-					 buf_size, offset, 0, 0);
+					 buf_size, offset, bs);
 	}
 
 	test_close_file(obj, 0);
@@ -508,8 +390,7 @@ static void test_holes_in_file(void **state)
 						 (blkidx * buf_sz) /*w_offset*/,
 						 (buf_sz * 2) /*r_size*/,
 						 (blkidx * buf_sz)/*r_offset*/,
-						 buf_sz /*bsize*/,
-						 1 << 1 /*holebitmask*/);
+						 buf_sz /*bsize*/);
 		}
 
 		test_close_file(obj, 0);
@@ -550,7 +431,7 @@ static void test_write_basic(void **state)
 	test_create_file(env->dstore, &env->oid, 0);
 	test_open_file(env->dstore, &env->oid, &obj, 0, true);
 
-	rc = test_issue_write(obj, raw_buf, buf_size, offset);
+	rc = dstore_io_op_pwrite(obj, offset, buf_size, buf_size, raw_buf);
 	ut_assert_int_equal(rc, 0);
 
 	free(raw_buf);
@@ -571,8 +452,7 @@ static void test_write_basic(void **state)
  *	Close the new file.
  *	Delete the new file.
  * Expected behavior:
- *	ENOENT for the block we are reading
- *	as it is not written yet.
+ * No error from DSAL API and buffer shoud be filled with zero
  * Enviroment:
  *	Empty dstore.
  */
@@ -591,9 +471,12 @@ static void test_read_basic(void **state)
 	test_create_file(env->dstore, &env->oid, 0);
 	test_open_file(env->dstore, &env->oid, &obj, 0, true);
 
-	rc = test_issue_read(obj, raw_buf, buf_size, offset);
-	ut_assert_int_equal(rc, -ENOENT);
+	dtlib_fill_data_block(raw_buf, buf_size);
+	rc = dstore_io_op_pread(obj, offset, buf_size, buf_size, raw_buf);
+	ut_assert_int_equal(rc, 0);
 
+	rc = dtlib_verify_data_block(raw_buf, buf_size, 0);
+	ut_assert_int_equal(rc, 0);
 	free(raw_buf);
 
 	test_close_file(obj, 0);
@@ -612,8 +495,7 @@ static void test_read_basic(void **state)
  *	READ a block of data into the new file.
  *	Close the new file.
  * Expected behavior:
- *	ENOENT for the block we are reading
- *	as file is deleted and not present.
+ * No error from DSAL API and buffer should be filled with zero
  * Enviroment:
  *	Empty dstore.
  */
@@ -633,9 +515,12 @@ static void test_read_deleted_file(void **state)
 	test_open_file(env->dstore, &env->oid, &obj, 0, true);
 	test_delete_file(env->dstore, &env->oid, 0);
 
-	rc = test_issue_read(obj, raw_buf, buf_size, offset);
-	ut_assert_int_equal(rc, -ENOENT);
+	dtlib_fill_data_block(raw_buf, buf_size);
+	rc = dstore_io_op_pread(obj, offset, buf_size, buf_size, raw_buf);
+	ut_assert_int_equal(rc, 0);
 
+	rc = dtlib_verify_data_block(raw_buf, buf_size, 0);
+	ut_assert_int_equal(rc, 0);
 	test_close_file(obj, 0);
 	free(raw_buf);
 }

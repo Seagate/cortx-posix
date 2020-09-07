@@ -133,7 +133,7 @@ static void test_aligned_unaligned_io(void **state)
 
 	/* Write at offset 3000, count = 100 bytes.
 	 * This will test non left aligned and insider block write
-	 */ 
+	 */
 	count = 100;
 	offset = 3000;
 	write_buf = calloc(count, sizeof(char));
@@ -153,7 +153,7 @@ static void test_aligned_unaligned_io(void **state)
 	ut_assert_int_equal(rc, 0);
 
 	/* Read bs 4096 from offset 0.
-	 * This will test aligned read and if start, middle, end 
+	 * This will test aligned read and if start, middle, end
 	 * of a block are correctly written.
 	 */
 	free(read_buf);
@@ -176,7 +176,7 @@ static void test_aligned_unaligned_io(void **state)
 
 	/* Write at offset 3100, count = 2000
 	 * This will test non left aligned, non right aligned write
-	 */ 
+	 */
 
 	write_buf = calloc(count, sizeof(char));
 	memset(write_buf, 'B', count);
@@ -290,7 +290,7 @@ static void test_aligned_unaligned_io(void **state)
 	ut_assert_int_equal(rc, 0);
 
 	/* Read at offset 32768, count = 12288
-	 * We will test reading two holes in middle of 
+	 * We will test reading two holes in middle of
 	 * data written so far. And check the last block.
 	 */
 	count = 12288;

@@ -14,7 +14,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * For any questions about this software or licensing,
- * please email opensource@seagate.com or cortx-questions@seagate.com. 
+ * please email opensource@seagate.com or cortx-questions@seagate.com.
  */
 
 /* This file describes the public API of DSTORE module -- DSAL
@@ -139,75 +139,38 @@ typedef void (*dstore_io_op_cb_t)(void *cb_ctx,
 				  struct dstore_io_op *op,
 				  int op_rc);
 
-/** Initialize, submit and return WRITE IO operation.
- * This function creates a new IO operation, submits it
- * for execution and then returns it to the caller.
- * The IO operation created by this call should be finalized
- * using dstore_io_op_fini.
- * @param[in] obj An open object.
- * @param[in] bvec Associated data buffers and offsets to be written.
- * @param[in, opt] cb Callback for notifications. Can be NULL.
- * @param[in, opt] cb_ctx User-provided context for the callback. It can be NULL.
- * @param[out] out A new IO operation created by this function.
- * @return 0 or -errno. Particular error codes depend purely on the
- * underlying backend. The following error codes may be common across
- * most of the known implementations:
- *	- ENOMEM - No free memory available.
- *	- ENOSPC - No free space (partial writes are not allowed here).
- *	- EINVAL - Invalid input arguments.
- */
-int dstore_io_op_write(struct dstore_obj *obj,
-		       struct dstore_io_vec *bvec,
-		       dstore_io_op_cb_t cb,
-		       void *cb_ctx,
-		       struct dstore_io_op **out);
-
-/** Initialize, submit and return READ IO operation.
- * This function creates a new IO operation, submits it
- * for execution and then returns it to the caller.
- * The IO operation created by this call should be finalized
- * using dstore_io_op_fini.
- * @param[in] obj An open object.
- * @param[in] bvec Associated data buffers and offsets to be read out.
- * @param[in, opt] cb Callback for notifications. Can be NULL.
- * @param[in, opt] cb_ctx User-provided context for the callback. Can be NULL.
- * @param[out] out A new IO operation created by this function.
- * @return 0 or -errno.
- */
-int dstore_io_op_read(struct dstore_obj *obj,
-		      struct dstore_io_vec *bvec,
-		      dstore_io_op_cb_t cb,
-		      void *cb_ctx,
-		      struct dstore_io_op **out);
-
-/** Wait until the IO operation is stable. */
-int dstore_io_op_wait(struct dstore_io_op *op);
-
-/** Release the resources associated with an IO operation. */
-void dstore_io_op_fini(struct dstore_io_op *op);
-
 struct dstore *dstore_get(void);
 
+/** This API based on input decide whether the givevn request is aligned or not
+ * If it is aligned request it will directly write the requested amount of data
+ * to backend. If it is un-aligned then left and right aligned blocks might be
+ * read, modify in to intermediate buffer location. Also rest of the aligned
+ * blocks is being copied to intermediate buffer location to form uniform
+ * aligned write request, and same is issued to the backend.
+ * @paramp[in] obj - An open object.
+ * @paramp[in] offset - An offset from where write needs to be done.
+ * @paramp[in] count - Amount of data to be written
+ * @paramp[in] bs - A minimum block size on which backend operates
+ * @paramp[in] buf - Buffer from which data needs to be written to backend
+ */
 int dstore_io_op_pwrite(struct dstore_obj *obj, off_t offset, size_t count,
 			size_t bs, char *buf);
 
+/** This function based on input decide whether the given request is aligned or
+ * unaligned I/O. In case of aligned I/O it will simply issue a read request as
+ * it is to backend, data directly save in to a requested buffer. In case of
+ * unaligned I/O based on calculation an extra left or right aligned block might
+ * be read in temporary allocated buffer. Required amount of data is extracted
+ * from blocks being read and copied to reqested buffer. For rest of the aligned
+ * blocks in between the left and right un-aligned block, aligned read will be
+ * issued to backend and data is directly save in to requested buffer.
+ * @param[in] obj - An open object.
+ * @param[in] offset - An offset from where read needs to be done.
+ * @param[in] count  - Amount of data to be read.
+ * @param[in] bs - A minimum block size on which backend store operates.
+ * @param[in, out] buf - Buffer for storing the requested data.
+ * @return 0 or -errno.
+ */
 int dstore_io_op_pread(struct dstore_obj *obj, off_t offset, size_t count,
 		       size_t bs, char *buf);
-
-int pwrite_aligned(struct dstore_obj *obj, char *write_buf, size_t buf_size,
-		   off_t offset, dstore_io_op_cb_t cb, void *cb_ctx);
-
-int pread_aligned(struct dstore_obj *obj, char *read_buf, size_t buf_size,
-	 	  off_t offset, dstore_io_op_cb_t cb, void *cb_ctx);
-
-int pread_aligned_handle_holes(struct dstore_obj *obj, char *read_buf,
-			       size_t buf_size, off_t offset, size_t bs,
-			       dstore_io_op_cb_t cb, void *cb_ctx);
-
-int pwrite_unaligned(struct dstore_obj *obj, off_t offset, size_t count,
-		     size_t bs, char *buf, dstore_io_op_cb_t cb, void *cb_ctx);
-
-int pread_unaligned(struct dstore_obj *obj, off_t offset, size_t count,
-		    size_t bs, char *buf, dstore_io_op_cb_t cb, void *cb_ctx);
-
 #endif

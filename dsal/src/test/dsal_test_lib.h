@@ -74,11 +74,15 @@ static inline void dtlib_fill_data_block(uint8_t *data, size_t size)
 
 static inline int dtlib_verify_data_block(char *data, size_t size, uint8_t value)
 {
-	char *buf = calloc(size, sizeof(char));
-	memset(buf, value, size);
-	int ret = memcmp(data, buf, size);
-   	free(buf);
-    	return ret;
+	size_t index;
+	int ret = 0;
+	for ( index = 0; index < size; index++) {
+		if (data[index] !=  value) {
+			ret = 1;
+			break;
+		}
+	}
+	return ret;
 }
 
 #define DSAL_UT_RUN(_test_group, _setup, _teardown) ut_run(_test_group,\

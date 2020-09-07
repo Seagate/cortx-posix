@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * For any questions about this software or licensing,
- * please email opensource@seagate.com or cortx-questions@seagate.com. 
+ * please email opensource@seagate.com or cortx-questions@seagate.com.
  */
 
 #include <stdlib.h>
@@ -325,8 +325,9 @@ void dstore_io_op_fini(struct dstore_io_op *op)
 	log_trace("%s", (char *) "fini <<< ()");
 }
 
-int pwrite_aligned(struct dstore_obj *obj, char *write_buf, size_t buf_size,
-		   off_t offset, dstore_io_op_cb_t cb, void *cb_ctx)
+static int pwrite_aligned(struct dstore_obj *obj, char *write_buf,
+			  size_t buf_size, off_t offset, dstore_io_op_cb_t cb,
+			  void *cb_ctx)
 {
 	int rc = 0;
 
@@ -360,13 +361,14 @@ out:
 		dstore_io_buf_fini(buf);
 	}
 
-	log_trace("EXIT: rc=%d", rc);
+	log_trace("pwrite_aligned: rc=%d", rc);
 
 	return rc;
 }
 
-int pread_aligned(struct dstore_obj *obj, char *read_buf, size_t buf_size,
-		  off_t offset, dstore_io_op_cb_t cb, void *cb_ctx)
+static int pread_aligned(struct dstore_obj *obj, char *read_buf,
+			 size_t buf_size, off_t offset, dstore_io_op_cb_t cb,
+			 void *cb_ctx)
 {
 	int rc = 0;
 
@@ -400,11 +402,12 @@ out:
                 dstore_io_buf_fini(buf);
         }
 
-	log_trace("EXIT: rc=%d", rc);
+	log_trace("pread_aligned: rc=%d", rc);
 
         return rc;
 }
 
+static
 int pread_aligned_handle_holes(struct dstore_obj *obj, char *read_buf,
 			       size_t buf_size, off_t offset, size_t bs,
 			       dstore_io_op_cb_t cb, void *cb_ctx)
@@ -413,6 +416,17 @@ int pread_aligned_handle_holes(struct dstore_obj *obj, char *read_buf,
 
 	rc = pread_aligned(obj, read_buf, buf_size, offset, cb, cb_ctx);
 
+	/* The following logic handle two case which are explained below
+	 * 1. Motr is not able to handle the case where some part of object
+	 * have not been written or created. For that it returns -ENOENT
+	 * even though some of them are available and we should get valid data
+	 * for them atleast. For such case, this is the workaround where
+	 * if we are reading more than one block size we will read
+	 * all the block one by one so that for originally available
+	 * block we will get proper data.
+	 * 2. In case of sparse block, the block which is not written will be
+	 * filled with all zeros.
+	*/
 	if (rc == -ENOENT)
 	{
 		int count = buf_size/bs;
@@ -443,13 +457,14 @@ int pread_aligned_handle_holes(struct dstore_obj *obj, char *read_buf,
 		rc = 0;
 	}
 
-	log_trace("EXIT: rc=%d", rc);
+	log_trace("pread_aligned_handle_holes: rc=%d", rc);
 
 	return rc;
 }
 
-int pwrite_unaligned(struct dstore_obj *obj, off_t offset, size_t count,
-		     size_t bs, char *buf, dstore_io_op_cb_t cb, void *cb_ctx)
+static int pwrite_unaligned(struct dstore_obj *obj, off_t offset, size_t count,
+			    size_t bs, char *buf, dstore_io_op_cb_t cb,
+			    void *cb_ctx)
 {
 	int rc = 0;
 
@@ -475,7 +490,7 @@ int pwrite_unaligned(struct dstore_obj *obj, off_t offset, size_t count,
 	{
 		rc = pread_aligned_handle_holes(obj, tmpBuf,
 						bs, left_blk_num*bs,
-						bs, cb, cb_ctx);	
+						bs, cb, cb_ctx);
 		if (rc < 0)
 		{
 			log_err("Read failed at offset %lu block size %lu ,"
@@ -519,13 +534,14 @@ out:
 		free(tmpBuf);
 	}
 
-	log_trace("EXIT: rc=%d", rc);
+	log_trace("pwrite_unaligned: rc=%d", rc);
 	return rc;
 }
 
 
-int pread_unaligned(struct dstore_obj *obj, off_t offset, size_t count,
-		    size_t bs, char *buf, dstore_io_op_cb_t cb, void *cb_ctx)
+static int pread_unaligned(struct dstore_obj *obj, off_t offset, size_t count,
+			   size_t bs, char *buf, dstore_io_op_cb_t cb,
+			   void *cb_ctx)
 {
 	int rc = 0;
 	uint32_t cont_blk_count = 0;
@@ -622,7 +638,7 @@ out:
 	if (tmpBuf)
 		free(tmpBuf);
 
-	log_trace("EXIT: rc=%d", rc);
+	log_trace("pread_unaligned: rc=%d", rc);
 	return rc;
 }
 
@@ -643,7 +659,7 @@ int dstore_io_op_pwrite(struct dstore_obj *obj, off_t offset, size_t count,
 		rc = pwrite_unaligned(obj, offset, count, bs, buf, NULL, NULL);
 	}
 
-	log_trace("EXIT: rc=%d", rc);
+	log_trace("dstore_io_op_pwrite: rc=%d", rc);
 	return rc;
 }
 
@@ -657,13 +673,14 @@ int dstore_io_op_pread(struct dstore_obj *obj, off_t offset, size_t count,
 
 	if (count % bs == 0 && offset % bs == 0)
 	{
-		rc = pread_aligned_handle_holes(obj, buf, count, offset, bs, NULL, NULL);
+		rc = pread_aligned_handle_holes(obj, buf, count, offset, bs,
+						NULL, NULL);
 	}
 	else
 	{
 		rc = pread_unaligned(obj, offset, count, bs, buf, NULL, NULL);
 	}
 
-	log_trace("EXIT: rc=%d", rc);
+	log_trace("dstore_io_op_pread: rc=%d", rc);
 	return rc;
 }
