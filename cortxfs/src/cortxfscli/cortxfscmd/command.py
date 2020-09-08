@@ -25,16 +25,26 @@ class Command(object):
     """
 
     def __init__(self, args):
+        '''Initializing arguments
+        '''
         self._args = args
 
     def action(self):
+        '''Initiating action
+        '''
         return self._args.action
 
     def args(self):
+        '''
+        TODO:
+        '''
         return self._args
 
     def validate_args_payload(self, args):
-        return
+        '''
+        TODO:
+        '''
+        return args
 
 class FsCommand(Command):
     """
@@ -45,6 +55,8 @@ class FsCommand(Command):
         super().__init__(args)
 
     def name(self):
+        '''returning name
+        '''
         return "fs"
 
     @staticmethod
@@ -55,6 +67,8 @@ class FsCommand(Command):
         sbparser.set_defaults(command=FsCommand)
 
     def validate_args_payload(self, args):
+        '''Checking arguments and taking appropriate action
+        '''
         if args.action.lower() == 'list' and len(args.args) != 0:
             throw_exception_with_msg("Too many args for " + \
             args.action.lower())
@@ -76,9 +90,13 @@ class EndpointCommand(Command):
     """
 
     def __init__(self, args):
+        '''Initializing arguments
+        '''
         super().__init__(args)
 
     def name(self):
+        '''returning endpoint name
+        '''
         return "endpoint"
 
     @staticmethod
