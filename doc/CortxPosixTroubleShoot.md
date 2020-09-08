@@ -19,7 +19,7 @@
 			* `lctl list_nids`
 			output will be <ip-of-your-eth0>@tcp
   * `m0setup -cv`
-  * `rm -fR /var/mero/*`
+  * `rm -fR /var/motr/*`
   * `sudo m0setup -A` 
   * `sudo m0setup -Mv -s128`
   * `sudo m0singlenode start`
