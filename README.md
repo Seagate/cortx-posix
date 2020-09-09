@@ -17,13 +17,13 @@ Refer to the [CORTX-POSIX Quickstart Guide](https://github.com/Seagate/cortx-pos
 ## Contribute to CORTX-POSIX
 
 We welcome all Source Code and Documentation contributions to the CORTX-POSIX component repository.
-Refer to the [Contributing to CORTX-POSIX](ContributingToCortxPosix.md) document to submit your contributions.
+Refer to the [Contributing to CORTX-POSIX](https://github.com/Seagate/cortx-posix/blob/dev/doc/ContributingToCortxPosix.md) document to submit your contributions.
 
 ### CORTX Community
 
-We are excited about your interest in CORTX and hope you will join us. We take our community very seriously, and we are committed to creating a community built on respectful interactions and inclusivity, as documented in our [Code of conduct](CODE_OF_CONDUCT.md).
+We are excited about your interest in CORTX and hope you will join us. We take our community very seriously, and we are committed to creating a community built on respectful interactions and inclusivity, as documented in our [Code of conduct](https://github.com/Seagate/cortx/blob/main/CODE_OF_CONDUCT.md).
 
-Refer to the CORTX Community Guide <link placeholder> that hosts all information about community values, code of conduct, how to contribute code and documentation, community and code style guide, and how to reach out to us.
+Refer to the CORTX Community Guide that hosts all information about community values, code of conduct, how to contribute code and documentation, community and code style guide, and how to reach out to us.
 
 ## Thank You!
 
