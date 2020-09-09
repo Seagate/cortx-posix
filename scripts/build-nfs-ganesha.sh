@@ -75,7 +75,7 @@ _nfs_ganesha_check_installed_pkgs() {
 ###############################################################################
 nfs_ganesha_bootstrap() {
     local rc=0
-    local stable_branch="2.8-stable-eos"
+    local stable_branch="2.8-stable-cortx"
     local gan_deps=(
         bison
         cmake

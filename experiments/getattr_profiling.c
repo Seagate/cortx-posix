@@ -22,16 +22,16 @@
  * - Calculate time taken to get attributes for NUM_FILES
  */
 
-#include "ut_efs_helper.h"
+#include "ut_cortxfs_helper.h"
 #include <sys/time.h>
 #define NUM_FILES 10
 #define MAX_FILENAME_LENGTH 10
 #define DIR_ENV_FROM_STATE(__state) (*((struct ut_dir_env **)__state))
 
 struct ut_dir_env{
-	struct ut_efs_params ut_efs_objs;
+	struct ut_cfs_params ut_cfs_objs;
 	char **name_list;
-	efs_ino_t *file_inode;
+	cfs_ino_t *file_inode;
 };
 
 /**
@@ -41,13 +41,13 @@ struct ut_dir_env{
  *  1. Set ctime
  *  2. Verify setting ctime by getting attributes
  * Expected behavior:
- *  1. No errors from EFS API.
+ *  1. No errors from CORTXFS API.
  *  2. ctime recieved from getattr should match set ctime.
  */
 static void set_ctime(void **state)
 {
 	struct ut_dir_env *ut_dir_obj = DIR_ENV_FROM_STATE(state);
-	struct ut_efs_params *ut_efs_objs = &ut_dir_obj->ut_efs_objs;
+	struct ut_cfs_params *ut_cfs_objs = &ut_dir_obj->ut_cfs_objs;
 	time_t  set_time, start_time, end_time;
 
 	int rc = 0, i = 0;
@@ -73,9 +73,9 @@ static void set_ctime(void **state)
 		memset(&stat_in, 0, sizeof(stat_in));
 
 		stat_in.st_ctim.tv_sec = new_ctime;
-		ut_efs_objs->file_inode=ut_dir_obj->file_inode[i];
-		rc = efs_setattr(ut_efs_objs->efs_fs, &ut_efs_objs->cred,
-				&ut_efs_objs->file_inode, &stat_in, flag);
+		ut_cfs_objs->file_inode=ut_dir_obj->file_inode[i];
+		rc = cfs_setattr(ut_cfs_objs->cfs_fs, &ut_cfs_objs->cred,
+				&ut_cfs_objs->file_inode, &stat_in, flag);
 		ut_assert_int_equal(rc, 0);
 	}
 
@@ -86,9 +86,9 @@ static void set_ctime(void **state)
 	for (i=0;i<NUM_FILES;i++)
 	{
 		memset(&stat_out, 0, sizeof(stat_out));
-		ut_efs_objs->file_inode=ut_dir_obj->file_inode[i];
-		rc = efs_getattr(ut_efs_objs->efs_fs, &ut_efs_objs->cred,
-				&ut_efs_objs->file_inode, &stat_out);
+		ut_cfs_objs->file_inode=ut_dir_obj->file_inode[i];
+		rc = cfs_getattr(ut_cfs_objs->cfs_fs, &ut_cfs_objs->cred,
+				&ut_cfs_objs->file_inode, &stat_out);
 		ut_assert_int_equal(rc, 0);
 
 		ut_assert_int_equal(0, difftime(new_ctime, stat_out.st_ctime));
@@ -109,13 +109,13 @@ static void set_ctime(void **state)
  *  1. Set mtime
  *  2. Verify setting mtime by getting attributes
  * Expected behavior:
- *  1. No errors from EFS API.
+ *  1. No errors from CORTXFS API.
  *  2. mtime recieved from getattr should match set mtime.
  */
 static void set_mtime(void **state)
 {
 	struct ut_dir_env *ut_dir_obj = DIR_ENV_FROM_STATE(state);
-	struct ut_efs_params *ut_efs_objs = &ut_dir_obj->ut_efs_objs;
+	struct ut_cfs_params *ut_cfs_objs = &ut_dir_obj->ut_cfs_objs;
 
 	time_t start_time, end_time, set_time;
 	struct timeval st,et;
@@ -144,9 +144,9 @@ static void set_mtime(void **state)
 		stat_in.st_mtim.tv_sec = new_mtime;
 
 		time(&cur_time[i]);
-		ut_efs_objs->file_inode=ut_dir_obj->file_inode[i];
-		rc = efs_setattr(ut_efs_objs->efs_fs, &ut_efs_objs->cred,
-				 &ut_efs_objs->file_inode, &stat_in, flag);
+		ut_cfs_objs->file_inode=ut_dir_obj->file_inode[i];
+		rc = cfs_setattr(ut_cfs_objs->cfs_fs, &ut_cfs_objs->cred,
+				 &ut_cfs_objs->file_inode, &stat_in, flag);
 
 		ut_assert_int_equal(rc, 0);
 	}
@@ -157,9 +157,9 @@ static void set_mtime(void **state)
 	for (i=0;i<NUM_FILES;i++)
 	{
 		memset(&stat_out, 0, sizeof(stat_out));
-		ut_efs_objs->file_inode=ut_dir_obj->file_inode[i];
-		rc = efs_getattr(ut_efs_objs->efs_fs, &ut_efs_objs->cred,
-				 &ut_efs_objs->file_inode, &stat_out);
+		ut_cfs_objs->file_inode=ut_dir_obj->file_inode[i];
+		rc = cfs_getattr(ut_cfs_objs->cfs_fs, &ut_cfs_objs->cred,
+				 &ut_cfs_objs->file_inode, &stat_out);
 
 		ut_assert_int_equal(rc, 0);
 		ut_assert_int_equal(0, difftime(new_mtime, stat_out.st_mtime));
@@ -184,13 +184,13 @@ static void set_mtime(void **state)
  *  1. Set atime
  *  2. Verify setting atime by getting attributes
  * Expected behavior:
- *  1. No errors from EFS API.
+ *  1. No errors from CORTXFS API.
  *  2. atime recieved from getattr should match set atime.
  */
 static void set_atime(void **state)
 {
 	struct ut_dir_env *ut_dir_obj = DIR_ENV_FROM_STATE(state);
-	struct ut_efs_params *ut_efs_objs = &ut_dir_obj->ut_efs_objs;
+	struct ut_cfs_params *ut_cfs_objs = &ut_dir_obj->ut_cfs_objs;
 	int rc = 0,i;
 	int flag = STAT_ATIME_SET;
 	time_t start_time, end_time, set_time;
@@ -217,9 +217,9 @@ static void set_atime(void **state)
 
 		time(&cur_time[i]);
 
-		ut_efs_objs->file_inode=ut_dir_obj->file_inode[i];
-		rc = efs_setattr(ut_efs_objs->efs_fs, &ut_efs_objs->cred,
-				 &ut_efs_objs->file_inode, &stat_in, flag);
+		ut_cfs_objs->file_inode=ut_dir_obj->file_inode[i];
+		rc = cfs_setattr(ut_cfs_objs->cfs_fs, &ut_cfs_objs->cred,
+				 &ut_cfs_objs->file_inode, &stat_in, flag);
 		ut_assert_int_equal(rc, 0);
 	}
 	time(&set_time);
@@ -229,9 +229,9 @@ static void set_atime(void **state)
 	for (i=0;i<NUM_FILES;i++)
 	{
 		memset(&stat_out, 0, sizeof(stat_out));
-		ut_efs_objs->file_inode=ut_dir_obj->file_inode[i];
-		rc = efs_getattr(ut_efs_objs->efs_fs, &ut_efs_objs->cred,
-				&ut_efs_objs->file_inode, &stat_out);
+		ut_cfs_objs->file_inode=ut_dir_obj->file_inode[i];
+		rc = cfs_getattr(ut_cfs_objs->cfs_fs, &ut_cfs_objs->cred,
+				&ut_cfs_objs->file_inode, &stat_out);
 		ut_assert_int_equal(rc, 0);
 		ut_assert_int_equal(0, difftime(new_atime, stat_out.st_atime));
 
@@ -255,13 +255,13 @@ static void set_atime(void **state)
  *  1. Set gid
  *  2. Verify setting gid by getting attributes
  * Expected behavior:
- *  1. No errors from EFS API.
+ *  1. No errors from CORTXFS API.
  *  2. gid recieved from getattr should match set gid.
  */
 static void set_gid(void **state)
 {
 	struct ut_dir_env *ut_dir_obj = DIR_ENV_FROM_STATE(state);
-	struct ut_efs_params *ut_efs_objs = &ut_dir_obj->ut_efs_objs;
+	struct ut_cfs_params *ut_cfs_objs = &ut_dir_obj->ut_cfs_objs;
 	int rc = 0,i;
 	int flag = STAT_GID_SET;
 	time_t start_time, end_time, set_time;
@@ -283,9 +283,9 @@ static void set_gid(void **state)
 	{
 		time(&cur_time);
 
-		ut_efs_objs->file_inode=ut_dir_obj->file_inode[i];
-		rc = efs_setattr(ut_efs_objs->efs_fs, &ut_efs_objs->cred,
-				&ut_efs_objs->file_inode, &stat_in, flag);
+		ut_cfs_objs->file_inode=ut_dir_obj->file_inode[i];
+		rc = cfs_setattr(ut_cfs_objs->cfs_fs, &ut_cfs_objs->cred,
+				&ut_cfs_objs->file_inode, &stat_in, flag);
 
 		ut_assert_int_equal(rc, 0);
 	}
@@ -296,8 +296,8 @@ static void set_gid(void **state)
 	for (i=0;i<NUM_FILES;i++)
 	{
 		memset(&stat_out, 0, sizeof(stat_out));
-		rc = efs_getattr(ut_efs_objs->efs_fs, &ut_efs_objs->cred,
-				&ut_efs_objs->file_inode, &stat_out);
+		rc = cfs_getattr(ut_cfs_objs->cfs_fs, &ut_cfs_objs->cred,
+				&ut_cfs_objs->file_inode, &stat_out);
 
 		ut_assert_int_equal(rc, 0);
 
@@ -323,13 +323,13 @@ static void set_gid(void **state)
  *  1. Set uid
  *  2. Verify setting uid by getting attributes
  * Expected behavior:
- *  1. No errors from EFS API.
+ *  1. No errors from CORTXFS API.
  *  2. uid recieved from getattr should match set uid.
  */
 static void set_uid(void **state)
 {
 	struct ut_dir_env *ut_dir_obj = DIR_ENV_FROM_STATE(state);
-	struct ut_efs_params *ut_efs_objs = &ut_dir_obj->ut_efs_objs;
+	struct ut_cfs_params *ut_cfs_objs = &ut_dir_obj->ut_cfs_objs;
 	int rc = 0,i;
 	int flag = STAT_UID_SET;
 	time_t start_time, end_time, set_time;
@@ -349,9 +349,9 @@ static void set_uid(void **state)
 
 		time(&cur_time[i]);
 
-		ut_efs_objs->file_inode=ut_dir_obj->file_inode[i];
-		rc = efs_setattr(ut_efs_objs->efs_fs, &ut_efs_objs->cred,
-				&ut_efs_objs->file_inode, &stat_in, flag);
+		ut_cfs_objs->file_inode=ut_dir_obj->file_inode[i];
+		rc = cfs_setattr(ut_cfs_objs->cfs_fs, &ut_cfs_objs->cred,
+				&ut_cfs_objs->file_inode, &stat_in, flag);
 		ut_assert_int_equal(rc, 0);
 	}
 	time(&set_time);
@@ -361,8 +361,8 @@ static void set_uid(void **state)
 	for (i=0;i<NUM_FILES;i++)
 	{
 		memset(&stat_out, 0, sizeof(stat_out));
-		rc = efs_getattr(ut_efs_objs->efs_fs, &ut_efs_objs->cred,
-				&ut_efs_objs->file_inode, &stat_out);
+		rc = cfs_getattr(ut_cfs_objs->cfs_fs, &ut_cfs_objs->cred,
+				&ut_cfs_objs->file_inode, &stat_out);
 
 		ut_assert_int_equal(rc, 0);
 
@@ -401,7 +401,7 @@ static int attr_test_setup(void **state)
 	}
 
 	*state = ut_dir_obj;
-	rc = ut_efs_fs_setup(state);
+	rc = ut_cfs_fs_setup(state);
 
 	ut_assert_int_equal(rc, 0);
 
@@ -414,12 +414,12 @@ static int attr_test_setup(void **state)
 		}
 
 		snprintf(ut_dir_obj->name_list[i],MAX_FILENAME_LENGTH,"%d",i+1);
-		ut_dir_obj->ut_efs_objs.file_inode = 0LL;
-		ut_dir_obj->ut_efs_objs.file_name = ut_dir_obj->name_list[i];
+		ut_dir_obj->ut_cfs_objs.file_inode = 0LL;
+		ut_dir_obj->ut_cfs_objs.file_name = ut_dir_obj->name_list[i];
 
 		rc = ut_file_create(state);
 
-		ut_dir_obj->file_inode[i] = ut_dir_obj->ut_efs_objs.file_inode;
+		ut_dir_obj->file_inode[i] = ut_dir_obj->ut_cfs_objs.file_inode;
 		ut_assert_int_equal(rc, 0);
 	}
 	return rc;
@@ -435,12 +435,12 @@ static int attr_test_teardown(void **state)
 
 	for (i=0;i<NUM_FILES;i++)
 	{
-		ut_dir_obj->ut_efs_objs.file_name=ut_dir_obj->name_list[i];
+		ut_dir_obj->ut_cfs_objs.file_name=ut_dir_obj->name_list[i];
 		rc = ut_file_delete(state);
 		ut_assert_int_equal(rc, 0);
 	}
 
-	rc = ut_efs_fs_teardown(state);
+	rc = ut_cfs_fs_teardown(state);
 	ut_assert_int_equal(rc, 0);
 
 	for (i=0;i<NUM_FILES;i++)
@@ -457,7 +457,7 @@ static int attr_test_teardown(void **state)
 int main(void)
 {
 	int rc = 0;
-	char *test_log = "/var/log/cortx/test/ut/ut_efs.log";
+	char *test_log = "/var/log/cortx/test/ut/ut_cortxfs.log";
 
 	printf("Attribute Tests\n");
 
@@ -467,7 +467,7 @@ int main(void)
 		goto end;
 	}
 
-	test_log = ut_get_config("efs", "log_path", test_log);
+	test_log = ut_get_config("cortxfs", "log_path", test_log);
 
 	rc = ut_init(test_log);
 	if (rc != 0) {

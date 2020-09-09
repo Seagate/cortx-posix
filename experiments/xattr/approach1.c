@@ -22,9 +22,9 @@
 #include <libgen.h>
 #include "c0appz.h"
 #include "helpers/helpers.h"
-#include "clovis/clovis.h"
-#include "clovis/clovis_internal.h"
-#include "clovis/clovis_idx.h"
+#include "motr/client.h"
+#include "motr/client_internal.h"
+#include "motr/idx.h
 #include "lib/thread.h"
 #include <json-c/json.h>
 #include <sys/time.h>	
@@ -53,7 +53,7 @@ struct cortxfs_xattr{
 
 static struct m0_fid ifid;
 static struct m0_ufid_generator cortxfs_ufid_generator;
-static struct m0_clovis_idx idx;
+static struct m0_idx idx;
 
 static int *rcs_alloc(int count)
 {
@@ -76,32 +76,32 @@ void timer(struct timeval start1, struct timeval end1, char *msg)
 
 }
 
-static int m0_op_kvs(enum m0_clovis_idx_opcode opcode, struct m0_bufvec *key, struct m0_bufvec *val)
+static int m0_op_kvs(enum m0_idx_opcode opcode, struct m0_bufvec *key, struct m0_bufvec *val)
 {
-	struct m0_clovis_op	 *op = NULL;
+	struct m0_op	 *op = NULL;
 	int *rcs;
 	int rc;
 
-	struct m0_clovis_idx     *index = NULL;
+	struct m0_idx     *index = NULL;
 
 	index = &idx;
 	rcs = rcs_alloc(CNT);
 
-	rc = m0_clovis_idx_op(index, opcode, key, val, rcs, M0_OIF_OVERWRITE, &op);
+	rc = m0_idx_op(index, opcode, key, val, rcs, M0_OIF_OVERWRITE, &op);
 
 	if (rc)
 	{
-               printf("\nerror(%d): m0_clovis_idx_op", rc); 
+               printf("\nerror(%d): m0_idx_op", rc); 
 	       return rc;
 	}
-	m0_clovis_op_launch(&op, 1);
+	m0_op_launch(&op, 1);
 
-	rc = m0_clovis_op_wait(op, M0_BITS(M0_CLOVIS_OS_STABLE),
+	rc = m0_op_wait(op, M0_BITS(M0_OS_STABLE),
 			       M0_TIME_NEVER);
 	
 	if (rc)
 	{
-		printf("\nerror(%d): m0_clovis_op_wait", rc);
+		printf("\nerror(%d): m0_op_wait", rc);
 		goto out;
 	}
 	/* Check rcs array even if op is succesful */
@@ -117,7 +117,7 @@ static int m0_op_kvs(enum m0_clovis_idx_opcode opcode, struct m0_bufvec *key, st
 	}
 
 out:
-	m0_clovis_op_fini(op);
+	m0_op_fini(op);
 	/* it seems like 0_free(&op) is not needed */
 	return rc;
 }
@@ -155,7 +155,7 @@ int delete_batch(char *k1, char *ino)
 	for (i = 0; i < CNT; i++)
         	memcpy(key.ov_buf[i], xkey[i], klen);
 
-	rc = m0_op_kvs(M0_CLOVIS_IC_DEL, &key, NULL);
+	rc = m0_op_kvs(M0_IC_DEL, &key, NULL);
 	if (rc)
         {
 		printf("\nerror(%d): m0_op_kvs", rc);
@@ -194,7 +194,7 @@ int get_keyval(char *name, char *v, unsigned long long int ino2)
 
 	memcpy(key.ov_buf[0], xkey, klen);
 
-	rc = m0_op_kvs(M0_CLOVIS_IC_GET, &key, &val);
+	rc = m0_op_kvs(M0_IC_GET, &key, &val);
 	if (rc)
 	{
 		printf("\nerror(%d): m0_op_kvs", rc);
@@ -257,7 +257,7 @@ int set_batch(char *k1, char *v1, char *ino)
 		memcpy(val.ov_buf[i], v1, vlen);
 	}
 
-	rc = m0_op_kvs(M0_CLOVIS_IC_PUT, &key, &val);
+	rc = m0_op_kvs(M0_IC_PUT, &key, &val);
 	if (rc)
         {
 		printf("\nerror(%d): m0_op_kvs", rc);
@@ -310,7 +310,7 @@ int store_keyval(char *name, char *v, char *ino)
         memcpy(key.ov_buf[0], xkey, klen);
 	memcpy(val.ov_buf[0], v, vlen);
 
-	rc = m0_op_kvs(M0_CLOVIS_IC_PUT, &key, &val);
+	rc = m0_op_kvs(M0_IC_PUT, &key, &val);
 	if (rc)
         {
 		printf("\nerror(%d): m0_op_kvs", rc);
@@ -343,10 +343,10 @@ int set_fid()
                  goto err_exit;
          }
 
-         m0_clovis_idx_init(&idx, &clovis_container.co_realm,
-                            (struct m0_uint128 *)&ifid);
+         m0_idx_init(&idx, &motr_container.co_realm,
+                     (struct m0_uint128 *)&ifid);
 
-         rc = m0_ufid_init(clovis_instance, &cortxfs_ufid_generator);
+         rc = m0_ufid_init(motr_instance, &cortxfs_ufid_generator);
          if (rc != 0) {
 	 fprintf(stderr, "Failed to initialise fid generator: %d\n", rc);
                  goto err_exit;
@@ -365,7 +365,7 @@ int m0_search_pattern(struct cortxfs_xattr *xkey)
 	int *rcs;
 	struct m0_bufvec keys;
 	struct m0_bufvec vals;
-	struct m0_clovis_op *op = NULL;
+	struct m0_op *op = NULL;
 
 	int flags = 0;
 
@@ -393,16 +393,16 @@ int m0_search_pattern(struct cortxfs_xattr *xkey)
 	do{
 		counter ++;
 
-		rc = m0_clovis_idx_op(&idx, M0_CLOVIS_IC_NEXT, &keys, &vals,
-				      rcs, flags,  &op);
+		rc = m0_idx_op(&idx, M0_IC_NEXT, &keys, &vals,
+			       rcs, flags,  &op);
 		if (rc != 0) {
 			printf("\n line 375");
 			goto out;
 		}
 
-		m0_clovis_op_launch(&op, 1);
-		rc = m0_clovis_op_wait(op, M0_BITS(M0_CLOVIS_OS_STABLE),
-				       M0_TIME_NEVER);
+		m0_op_launch(&op, 1);
+		rc = m0_op_wait(op, M0_BITS(M0_OS_STABLE),
+				M0_TIME_NEVER);
 		if (rc != 0) {
 			printf("\n line 428");
 			goto out;
@@ -423,7 +423,7 @@ int m0_search_pattern(struct cortxfs_xattr *xkey)
 		for (j = 0; rc == 0 && j < CNT; j++)
 			rc = rcs[j];
 
-		m0_clovis_op_fini(op);
+		m0_op_fini(op);
 		memcpy(keys.ov_buf[0], keys.ov_buf[CNT-1], keys.ov_vec.v_count[CNT-1]);
 	} while (rc == 0);
 out:
@@ -486,7 +486,7 @@ int main(int argc, char **argv)
 	ino = argv[3];
 	/* initialize resources */
 	if (c0appz_init(0) != 0) {
-		fprintf(stderr,"error! clovis initialization failed.\n");
+		fprintf(stderr,"error! motr initialization failed.\n");
 		return -2;
 	}
 

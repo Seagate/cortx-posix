@@ -23,9 +23,9 @@
 #include <libgen.h>
 #include "c0appz.h"
 #include "helpers/helpers.h"
-#include "clovis/clovis.h"
-#include "clovis/clovis_internal.h"
-#include "clovis/clovis_idx.h"
+#include "motr/client.h"
+#include "motr/client_internal.h"
+#include "motr/idx.h"
 #include "lib/thread.h"
 #include <json-c/json.h>
 #include <sys/time.h>	
@@ -38,30 +38,30 @@
 
 static struct m0_fid ifid;
 static struct m0_ufid_generator cortxfs_ufid_generator;
-static struct m0_clovis_idx idx;
+static struct m0_idx idx;
 
-static int m0_op_kvs(enum m0_clovis_idx_opcode opcode, struct m0_bufvec *key, struct m0_bufvec *val)
+static int m0_op_kvs(enum m0_idx_opcode opcode, struct m0_bufvec *key, struct m0_bufvec *val)
 {
-	struct m0_clovis_op *op = NULL;
+	struct m0_op *op = NULL;
 	int rcs[1];
 	int rc;
 	
-	struct m0_clovis_idx *index = NULL;
+	struct m0_idx *index = NULL;
 	index = &idx;
 
-	rc = m0_clovis_idx_op(index, opcode, key, val, rcs, M0_OIF_OVERWRITE, &op);
+	rc = m0_idx_op(index, opcode, key, val, rcs, M0_OIF_OVERWRITE, &op);
 	if (rc)
 	{
-               printf("\nerror(%d): m0_clovis_idx_op", rc); 
+               printf("\nerror(%d): m0_idx_op", rc); 
 	       return rc;
 	}
-	m0_clovis_op_launch(&op, 1);
+	m0_op_launch(&op, 1);
 
-	rc = m0_clovis_op_wait(op, M0_BITS(M0_CLOVIS_OS_STABLE),
-			       M0_TIME_NEVER);
+	rc = m0_op_wait(op, M0_BITS(M0_OS_STABLE),
+			M0_TIME_NEVER);
 	if (rc)
 	{
-		printf("\nerror(%d): m0_clovis_op_wait", rc);
+		printf("\nerror(%d): m0_op_wait", rc);
 		goto out;
 	}
 	/* Check rcs array even if op is succesful */
@@ -73,7 +73,7 @@ static int m0_op_kvs(enum m0_clovis_idx_opcode opcode, struct m0_bufvec *key, st
 	}
 
 out:
-	m0_clovis_op_fini(op);
+	m0_op_fini(op);
 	/* it seems like 0_free(&op) is not needed */
 	return rc;
 }
@@ -119,7 +119,7 @@ int json_get(char *k, char *v)
 
 	memcpy(key.ov_buf[0], k, klen);
 
-	rc = m0_op_kvs(M0_CLOVIS_IC_GET, &key, &val);
+	rc = m0_op_kvs(M0_IC_GET, &key, &val);
 	if (rc)
 	{
 		printf("\nerror(%d): m0_op_kvs while json_get", rc);
@@ -137,7 +137,7 @@ out:
 
 }
 
-int in_clovis(char *k, const char *v)
+int in_motr(char *k, const char *v)
 {
 	size_t klen, vlen;
         int rc;
@@ -164,7 +164,7 @@ int in_clovis(char *k, const char *v)
 	memcpy(key.ov_buf[0], k, klen);
         memcpy(val.ov_buf[0], v, vlen);
 
-        rc = m0_op_kvs(M0_CLOVIS_IC_PUT, &key, &val);
+        rc = m0_op_kvs(M0_IC_PUT, &key, &val);
   out:
         m0_bufvec_free(&key);
         m0_bufvec_free(&val);
@@ -188,7 +188,7 @@ int json_store(char *k, char *v, char *ino)
 	const char *json_string = json_object_to_json_string(obj);
 	//printf("json string len %d\n",strlen(json_string)); 
 
-	rc = in_clovis(ino, json_string);
+	rc = in_motr(ino, json_string);
 	return rc;
 }
 
@@ -213,7 +213,7 @@ int json_update(char *k, char *v, char *ino, int no_of_keys)
 
 	const char *json_string = json_object_to_json_string(obj);
 
-        rc = in_clovis(ino, json_string);
+        rc = in_motr(ino, json_string);
 
 	return rc;
 }
@@ -236,7 +236,7 @@ int json_delete(char *k, char *ino)
 	}
 	const char *json_string = json_object_to_json_string(obj);
 
-        rc = in_clovis(ino, json_string);
+        rc = in_motr(ino, json_string);
 
 	return rc;
 }
@@ -260,10 +260,10 @@ int set_fid()
                  goto err_exit;
          }
 
-         m0_clovis_idx_init(&idx, &clovis_container.co_realm,
-                            (struct m0_uint128 *)&ifid);
+         m0_idx_init(&idx, &motr_container.co_realm,
+                     (struct m0_uint128 *)&ifid);
 
-         rc = m0_ufid_init(clovis_instance, &cortxfs_ufid_generator);
+         rc = m0_ufid_init(motr_instance, &cortxfs_ufid_generator);
          if (rc != 0) {
 	 fprintf(stderr, "Failed to initialise fid generator: %d\n", rc);
                  goto err_exit;
@@ -322,7 +322,7 @@ int main(int argc, char **argv)
 	
 	/* initialize resources */
 	if (c0appz_init(0) != 0) {
-		fprintf(stderr, "error! clovis initialization failed.\n");
+		fprintf(stderr, "error! motr initialization failed.\n");
 		return -2;
 	}
 
@@ -346,7 +346,7 @@ int main(int argc, char **argv)
 	gettimeofday(&end1, NULL);
 	timer(start1, end1, "stored 100 keys in json");
 
-	printf("Stored successfully json object in clovis");
+	printf("Stored successfully json object in motr");
 	
 	int no_of_keys;
 	printf("\n give no of keys to update in json\n");
