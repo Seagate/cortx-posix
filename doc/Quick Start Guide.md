@@ -20,11 +20,11 @@ Note: Following instructions are applicable only for single node setup.
   Before installing Motr, below mentioned RPMs are required on the system. If rpms are not installed, refer [Cortx-Motr-Quick-Start-Guide](https://github.com/Seagate/cortx-motr/blob/dev/doc/Quick-Start-Guide.rst).
   
   ```
-  cortx-motr
+     ` cortx-motr`
   
-  cortx-motr-devel
+     ` cortx-motr-devel`
   
-  cortx-motr-debuginfo
+     ` cortx-motr-debuginfo`
   ```
   
   Perform the below mentioned procedure to install Motr.
