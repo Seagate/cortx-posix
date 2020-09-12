@@ -105,7 +105,7 @@ Note: Following instructions are applicable only for single node setup.
     Recommended git version is 2.x.x . Check your git version using `$ git --version` command.)
   2. `$ cd cortx-posix`	
     
-  ### Build CORTX-FS
+  ### CORTX - FS
   * Build and install libevhtp
     * `./scripts/build-libevhtp.sh`
     * Install the libevhtp rpms from the  ~/rpmbuild/RPMS/x86_64/ directory
@@ -132,7 +132,7 @@ Note: Following instructions are applicable only for single node setup.
   
     `sudo ./scripts/build.sh rpm-install`
   
-  ### Install NFS Ganesha RPMs
+  ### NFS Ganesha RPMs
   
   For information on installing NFS Ganesha, refer [NFS Ganesha Installation Guide](https://github.com/VenkyOS/cortx-posix/blob/dev/doc/NFS%20Ganesha%20Installation%20Guide.md).
   
