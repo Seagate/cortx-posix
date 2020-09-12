@@ -144,20 +144,19 @@ Note: Following instructions are applicable only for single node setup.
 
   For information on uninstalling NFS Ganesha, refer [NFS Ganesha Installation Guide](https://github.com/VenkyOS/cortx-posix/blob/dev/doc/NFS%20Ganesha%20Installation%20Guide.md).
   
-## Reinstalling the rpms/code
+## Reinstalling
   
-  ### Reinstall CORTX-FS rpms
-  * reinstall cortx-fs rpms
-    * `sudo ./scripts/build.sh reinstall`
+  ### CORTX - FS rpms
+  
+  * Run the below mentioned command to reinstall the rpms.
+  
+      `sudo ./scripts/build.sh reinstall`
 
 ## Running the tests
 
-For information on tests to be performed, refer [Test Instructions](https://github.com/VenkyOS/cortx-posix/blob/dev/doc/Test%20Instructions.md)
+For information on tests to be performed, refer [Test Instructions](https://github.com/VenkyOS/cortx-posix/blob/dev/doc/Test%20Instructions.md).
 
 ## Troubleshooting
 
-If any error occurs, refer the [Troubleshooting Guide](https://github.com/VenkyOS/cortx-posix/blob/dev/doc/Troubleshooting%20Guide.md)
-
-
-In case of any queries, feel free to write to our [SUPPORT](SUPPORT.md).
+If any error occurs, refer the [Troubleshooting Guide](https://github.com/VenkyOS/cortx-posix/blob/dev/doc/Troubleshooting%20Guide.md).
 
