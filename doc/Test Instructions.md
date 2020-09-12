@@ -22,7 +22,9 @@ This document provides information on different tests and the respective procedu
 	
 
 ## Test using cortxfscli
-* For help
+
+The below mentioned code block would help you in exexuting the tests accurately and successfully.
+
 ```
 -bash-4.2$ cortxfscli -h
 usage: cortxfscli [-h] {fs,endpoint,auth} ...
