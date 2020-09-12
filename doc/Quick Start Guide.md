@@ -128,8 +128,9 @@ Note: Following instructions are applicable only for single node setup.
   
   ### CORTX - FS rpms
  
-  Run the 
-  * `sudo ./scripts/build.sh rpm-install`
+  * Run the following command to install the rpms.
+  
+    `sudo ./scripts/build.sh rpm-install`
   
   ### Install NFS Ganesha rpms
   To install NFS Ganesha rpms refer to [install-nfs-ganesha-rpms](https://github.com/Seagate/cortx-posix/blob/dev/doc/CortxPosixNFSGanesha.md#install-nfs-ganesha-rpms)
