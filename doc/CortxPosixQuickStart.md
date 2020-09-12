@@ -149,10 +149,12 @@ Note: Following instructions are applicable only for single node setup.
     * `sudo ./scripts/build.sh reinstall`
 
 ## Running the tests
-Refer to [CortxPosixTests](https://github.com/Seagate/cortx-posix/blob/dev/doc/CortxPosixTests.md)
 
-## TroubleShooting
-Refer to [CortxPosixTroubleShoot](https://github.com/Seagate/cortx-posix/blob/dev/doc/CortxPosixTroubleShoot.md)
+For information on tests to be performed, refer [Test Instructions](https://github.com/VenkyOS/cortx-posix/blob/dev/doc/Test%20Instructions.md)
+
+## Troubleshooting
+
+If any error occurs, refer the [Troubleshooting Guide](https://github.com/VenkyOS/cortx-posix/blob/dev/doc/Troubleshooting%20Guide.md)
 
 
 In case of any queries, feel free to write to our [SUPPORT](SUPPORT.md).
