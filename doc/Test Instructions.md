@@ -23,7 +23,7 @@ This document provides information on different tests and the respective procedu
 
 ## Test using cortxfscli
 
-The below mentioned code block would help you in exexuting the tests accurately and successfully.
+The below mentioned code block would help you in executing the tests accurately and successfully.
 
 ```
 -bash-4.2$ cortxfscli -h
@@ -63,7 +63,7 @@ optional arguments:
 
 ## Unit tests
 
-  The below mentioned code block would help you in exexuting the unit tests accurately and successfully.
+  The below mentioned code block would help you in executing the unit tests accurately and successfully.
   
   ```
   $ sudo ./scripts/test.sh -h
@@ -75,11 +75,14 @@ optional arguments:
     nsal          NSAL unit tests
     cortxfs       CORTXFS unit tests`
   ```
-  * Run all unit tests
-    * `$ sudo ./scripts/test.sh`
   
-  * Run specific group tests
-    * `$ sudo ./scripts/test.sh -t cortxfs`
+  * Run the below mentioned command to execute all unit tests.
+  
+      `$ sudo ./scripts/test.sh`
+  
+  * Run the below mentioned command to execute specific group tests.
+  
+      `$ sudo ./scripts/test.sh -t cortxfs`
   
   The output is displayed below.
   
