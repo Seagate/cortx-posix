@@ -16,7 +16,7 @@ This document provides step by step instructuctions to build NFS Ganesha and ins
   
   1. Run the below mentioned command to download the NFS Ganesha repository.
   
-    * `./scripts/build-nfs-ganesha.sh bootstrap`
+    * ./scripts/build-nfs-ganesha.sh bootstrap
     
   2. Run the below mentioned command to initialize the build folders.
   
