@@ -1,19 +1,23 @@
-# Cortx-Posix QuickStart guide
+# Quick Start guide
+
 This is a step by step guide to get Cortxfs ready for you on your system for file access protocol, NFS.
+
 Before cloning, you need RHEL 7.7 machine.
 
 Note: Following instructions are applicable only for single node setup.
 
-## Setting Dev enviornment
-  ### Install Development Tools
-  Install developement tools packages
+## Installation
+
+  ### Development Tools
+  
+  Run the below mentioned commands to install developement tools packages.
 
   * `yum group list`
   * `yum group install "Development Tools"`
   
   ### Install Motr (using root user)
   
-  Before setting up Motr below rpms are required on the system. If rpms are not installed refer [Cortx-Motr-Quick-Start-Guide](https://github.com/Seagate/cortx-motr/blob/dev/doc/Quick-Start-Guide.rst)
+  Before setting up Motr, below mentioned RPMs are required on the system. If rpms are not installed, refer [Cortx-Motr-Quick-Start-Guide](https://github.com/Seagate/cortx-motr/blob/dev/doc/Quick-Start-Guide.rst).
   ```
   cortx-motr
   cortx-motr-devel
@@ -138,10 +142,6 @@ Refer to [CortxPosixTests](https://github.com/Seagate/cortx-posix/blob/dev/doc/C
 ## TroubleShooting
 Refer to [CortxPosixTroubleShoot](https://github.com/Seagate/cortx-posix/blob/dev/doc/CortxPosixTroubleShoot.md)
 
-## You're all set & You're awesome
 
 In case of any queries, feel free to write to our [SUPPORT](SUPPORT.md).
 
-Let's start without a delay to contribute to Seagate's open source initiative and join this movement with us, keeping a common goal of making data storage better, more efficient and more accessible.
-
-Seagate welcomes You! :relaxed:
