@@ -74,7 +74,7 @@ Note: Following instructions are applicable only for single node setup.
   
   ### Dependency packages for CORTX - FS
   
-  * Run the below mentioned command to install the necessary packages. 
+  * Run the below mentioned commands to install the necessary packages. 
   
     * `sudo yum install bison cmake flex krb5-devel krb5-libs userspace-rcu-devel libini_config libini_config-devel jemalloc-devel json-c-devel dbus-devel`
   
@@ -109,7 +109,7 @@ Note: Following instructions are applicable only for single node setup.
   
   1. Run the below mentioned command to build libevhtp.
   
-    ./scripts/build-libevhtp.sh
+      ` ./scripts/build-libevhtp.sh`
     
   2. Run the below mentioned commands to install the libevhtp rpms from the  ~/rpmbuild/RPMS/x86_64/ directory.
     
