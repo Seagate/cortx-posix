@@ -25,13 +25,21 @@ Note: Following instructions are applicable only for single node setup.
   cortx-motr-debuginfo
   ```
   
-  * Enable Motr-related systemd services
+  Perform the below mentioned procedure to install Motr.
+  
+  1. Run the below mentioned command to enable Motr related systemd services.
+  
     * `m0singlenode activate`
-  * Create the storage for Motr
+    
+  2. Run the below mentioned command to create the storage for Motr.
+  
     * `m0setup -Mv -s128`
-  * Start Motr services
+    
+  3. Run the below mentioned command to start the Motr services.
+  
     * `m0singlenode start`
-  * Check status of Motr services
+    
+  4. Run the below mentioned command to check the status of Motr services.
     * `m0singlenode status`	
 	```
 	### Global state --------------------------------
