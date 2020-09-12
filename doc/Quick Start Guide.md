@@ -83,14 +83,16 @@ Note: Following instructions are applicable only for single node setup.
     * `sudo yum install cmake3 libevent-devel openssl-devel json-c-devel python-devel`
   
 ## Building the code
-  ### Clone CORTX-POSIX repo
- 
- * Accessing the code
-  
-  (For phase 1) The latest code which is getting evolved and contributed is on the Github server.
-    CORTX-POSIX Contributors will be referencing, cloning and committing their code to/from this [Github](https://github.com/Seagate/cortx-posix).
 
-  Following steps will make your access to server hassle free.
+  ### Cloning CORTX - POSIX Repository
+ 
+  Perform the procedure mentioned below.
+  
+  1. Become a root user.
+  
+     a. Set the root user password using `sudo passwd`, and enter the required password.
+   
+     b. Type `su -` and enter the root password to switch to the root user mode.
   
   1. From here on all the steps needs to be followed as the root user.
        * Set the root user password using `sudo passwd` and enter the required password.
@@ -105,7 +107,10 @@ Note: Following instructions are applicable only for single node setup.
     Note:If username prompted than enter github username and for password copy from [PAT](https://github.com/settings/tokens)
     or generate a new one using [Generate PAT](https://github.com/settings/tokens) and enable SSO ( It has been assumed that `git` is preinstalled ).
     Recommended git version is 2.x.x . Check your git version using `$ git --version` command.)
-  2. `$ cd cortx-posix`	
+  2. `$ cd cortx-posix`
+  
+  Note: The latest code which gets evolved and contributed to is on the Github server. CORTX-POSIX Contributors will be referencing, cloning and committing their code to/from this [Github](https://github.com/Seagate/cortx-posix).
+    
     
   ### CORTX - FS
   
