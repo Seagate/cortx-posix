@@ -2,7 +2,7 @@
 
 This document provides step by step instructuctions to build NFS Ganesha and install it.
 
-## Setting Dev Enviornment
+## Prerequisites
 
   ### Install pre-requisites packages for NFS Ganesha
   
@@ -10,17 +10,26 @@ This document provides step by step instructuctions to build NFS Ganesha and ins
   
     * `sudo yum install bison cmake flex krb5-devel krb5-libs userspace-rcu-devel libini_config libini_config-devel jemalloc-devel json-c-devel dbus-devel python-devel`
     
-## Building the code
+## Building the Code
   
-  ### Build NFS Ganesha
-  * Download NFS ganesha repository
+  Perform the below mentioned procedure to build the code of NFS Ganesha.
+  
+  1. Run the below mentioned command to download the NFS Ganesha repository.
+  
     * `./scripts/build-nfs-ganesha.sh bootstrap`
-  * Initialize the build folders
+    
+  2. Run the below mentioned command to initialize the build folders.
+  
     * `./scripts/build-nfs-ganesha.sh config`
-  * Build binaries from the sources
+    
+  3. Run the below mentioned command to build the binaries from the sources.
+  
     * `./scripts/build-nfs-ganesha.sh make -j`
-  * Generate RPMs
-    * `./scripts/build-nfs-ganesha.sh rpm-gen`   
+    
+  4. Run the below mentioned command to generate RPMs.
+  
+    * `./scripts/build-nfs-ganesha.sh rpm-gen`
+    
       If rpm-gen failed it will prompt to install following packages
         * `sudo yum install dbus-devel libcap-devel libblkid-devel libnfsidmap-devel libattr-devel`
 
