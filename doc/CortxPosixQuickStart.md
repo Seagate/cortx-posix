@@ -29,18 +29,19 @@ Note: Following instructions are applicable only for single node setup.
   
   1. Run the below mentioned command to enable Motr related systemd services.
   
-    * `m0singlenode activate`
+     `m0singlenode activate`
     
   2. Run the below mentioned command to create the storage for Motr.
   
-    * `m0setup -Mv -s128`
+      `m0setup -Mv -s128`
     
   3. Run the below mentioned command to start the Motr services.
   
-    * `m0singlenode start`
+      `m0singlenode start`
     
   4. Run the below mentioned command to check the status of Motr services.
-    * `m0singlenode status`	
+  
+      `m0singlenode status`	
 	```
 	### Global state --------------------------------
 	 State:                  loaded
