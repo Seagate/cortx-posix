@@ -14,7 +14,7 @@ This document provides step by step instructuctions to build NFS Ganesha and ins
   
   1. Run the below mentioned command to download the NFS Ganesha repository.
   
-    ./scripts/build-nfs-ganesha.sh bootstrap
+     `./scripts/build-nfs-ganesha.sh bootstrap`
     
   2. Run the below mentioned command to initialize the build folders.
   
@@ -22,15 +22,15 @@ This document provides step by step instructuctions to build NFS Ganesha and ins
     
   3. Run the below mentioned command to build the binaries from the sources.
   
-    ./scripts/build-nfs-ganesha.sh make -j
+     `./scripts/build-nfs-ganesha.sh make -j`
     
   4. Run the below mentioned command to generate RPMs.
   
-    ./scripts/build-nfs-ganesha.sh rpm-gen
+    `./scripts/build-nfs-ganesha.sh rpm-gen`
     
    If the RPM generation fails, you will be prompted to install packages using the below mentioned command.
      
-    sudo yum install dbus-devel libcap-devel libblkid-devel libnfsidmap-devel libattr-devel
+    `sudo yum install dbus-devel libcap-devel libblkid-devel libnfsidmap-devel libattr-devel`
 
 ## Installing the RPM (code)
   
@@ -40,9 +40,9 @@ This document provides step by step instructuctions to build NFS Ganesha and ins
   
   2. Run the the below mentioned commands to install the RPMs.
  
-    cd ~/rpmbuild/RPMS/x86_64/
+    `cd ~/rpmbuild/RPMS/x86_64/`
         
-    sudo yum install ./*.rpm
+    `sudo yum install ./*.rpm`
 
 ## Uninstalling the RPM (code)
   
@@ -50,8 +50,8 @@ This document provides step by step instructuctions to build NFS Ganesha and ins
   
   1. Run the following command to remove NFS Ganesha.
   
-    sudo yum remove '*nfs-ganesha*
+    `sudo yum remove '*nfs-ganesha*`
     
   2.Run the following command to remove *libntirpc*.
   
-    sudo yum remove '*libntirpc*'
+    `sudo yum remove '*libntirpc*'`
