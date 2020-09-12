@@ -1,9 +1,12 @@
-# Cortx-Posix Tests guide
-This is a step by step guide to run different tests for Cortx-Posix.
+# Test Instructions
+
+This document provides information on different tests and the respective procedures that must be followed in this component.
 
 ## Manual tests
-  * Create file system
-    * `sudo /opt/seagate/cortx/cortx-fs-ganesha/bin/nfs_setup.sh setup -d fs1`
+
+  * Run the below mentioned command to create a file system.
+  
+    `sudo /opt/seagate/cortx/cortx-fs-ganesha/bin/nfs_setup.sh setup -d fs1`
   * Create directory to mount file system
     * `sudo mkdir /mnt/dir1`
   * Mount file system
