@@ -40,16 +40,26 @@ positional arguments:
 optional arguments:
   -h, --help          show this help message and exit
 ```  
-* Create FS
-`cortxfscli fs create <fs_name>`
-* List FS
-`cortxfscli fs list`
-* Delete FS
-`cortxfscli fs delete <fs_name>`
-* Create Endpoint
-`cortxfscli endpoint create <fs_name> proto=nfs,secType=sys,Filesystem_id=192.1,client=1,clients=*,Squash=root_squash,access_type=RW,protocols=4`
-* Delete Endpoint
-`cortxfscli endpoint delete <fs_name>`
+
+* Run the below mentioned command to create FS.
+
+   `cortxfscli fs create <fs_name>`
+
+* Run the below mentioned command to list FS.
+
+   `cortxfscli fs list`
+
+* Run the below mentioned command to delete FS.
+
+   `cortxfscli fs delete <fs_name>`
+   
+* Run the below mentioned command to create an end point.
+
+   `cortxfscli endpoint create <fs_name> proto=nfs,secType=sys,Filesystem_id=192.1,client=1,clients=*,Squash=root_squash,access_type=RW,protocols=4`
+   
+* Run the below mentioned command to delete an end point.
+
+   `cortxfscli endpoint delete <fs_name>`
 
 ## Unit tests
   * For help
