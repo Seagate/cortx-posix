@@ -1,8 +1,8 @@
-# Building NFS Ganesha
+# NFS Ganesha
 
-This document provides is step by step instructuctions to build NFS Ganesha and install it.
+This document provides step by step instructuctions to build NFS Ganesha and install it.
 
-## Setting Dev enviornment
+## Setting Dev Enviornment
 
   ### Install pre-requisites packages for NFS Ganesha
   
