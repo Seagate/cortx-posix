@@ -1,14 +1,14 @@
-# Cortx-Posix TroubleShoot guide
+# Troubleshoot Guide
 
-## Motr troubleshoot
+## Motr
 
-  * Stop motr singlenode service
+  * Run the below mentioned command to stop the motr single node service.
     * `sudo m0singlenode stop`
-  * Perform cleanup 
+  * Run the below mentioned to perform the clean up action. 
     * `m0setup -cv`
-  * Stop lnet service
+  * Run the below mentioned command to stop the lnet service.
     * `service lnet stop`
-  * Remove lnet module
+  * Run the below mentioned command to remove the lnet module.
     * `modprobe -r lnet`
 		If it has failed then you need to reboot your machine
   * Load module
