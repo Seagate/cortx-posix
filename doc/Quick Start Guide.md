@@ -100,11 +100,11 @@ Note: Following instructions are applicable only for single node setup.
   
     ` $ git clone git@github.com:Seagate/cortx-posix.git -b main`
     
-    Note: If username prompted than enter github username and for password copy from [PAT](https://github.com/settings/tokens)
-    or generate a new one using [Generate PAT](https://github.com/settings/tokens) and enable SSO ( It has been assumed that `git` is preinstalled ).
-    Recommended git version is 2.x.x . Check your git version using `$ git --version` command.
-    
     ` $ cd cortx-posix`
+    
+    Note: If your credentials are required, enter your github user name, and for password, copy from [PAT](https://github.com/settings/tokens)
+    or generate a new one using [Generate PAT](https://github.com/settings/tokens) and enable SSO ( It has been assumed that `git` is preinstalled ).
+    Recommended git version is 2.x.x. Check your git version using `$ git --version` command.
     
       
   ### CORTX - FS
