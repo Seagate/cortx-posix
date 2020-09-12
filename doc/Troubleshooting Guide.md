@@ -2,8 +2,6 @@
 
 This guide explains how to troubleshoot issues that you might encounter while using working with the NFS component. 
 
-## Motr
-
   * Run the below mentioned command to stop the motr single node service.
   
     * `sudo m0singlenode stop`
@@ -32,9 +30,9 @@ This guide explains how to troubleshoot issues that you might encounter while us
     
   * Run the below mentioned command to check if lnet is up and running.
   
-   * `lctl list_nids`
+    * `lctl list_nids`
    
-    The output will be **<ip-of-your-eth0>@tcp**
+     The output will be **<ip-of-your-eth0>@tcp**
 	
   * `m0setup -cv`
   * `rm -fR /var/motr/*`
