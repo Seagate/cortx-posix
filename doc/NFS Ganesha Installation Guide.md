@@ -20,7 +20,7 @@ This document provides step by step instructuctions to build NFS Ganesha and ins
     
   2. Run the below mentioned command to initialize the build folders.
   
-    * `./scripts/build-nfs-ganesha.sh config`
+    ./scripts/build-nfs-ganesha.sh config
     
   3. Run the below mentioned command to build the binaries from the sources.
   
