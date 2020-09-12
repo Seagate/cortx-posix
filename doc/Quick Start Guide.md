@@ -94,24 +94,19 @@ Note: Following instructions are applicable only for single node setup.
    
      b. Type `su -` and enter the root password to switch to the root user mode.
   
-  1. From here on all the steps needs to be followed as the root user.
-       * Set the root user password using `sudo passwd` and enter the required password.
-       * Type `su -` and enter the root password to switch to the root user mode.
-  2. Create SSH Public Key
-       * [SSH generation](https://git-scm.com/book/en/v2/Git-on-the-Server-Generating-Your-SSH-Public-Key) will make your key generation super easy. Follow the instructions throughly.
-  3. Add New SSH Public Key on [Github](https://github.com/settings/keys) and [Enable SSO](https://docs.github.com/en/github/authenticating-to-github/authorizing-an-ssh-key-for-use-with-saml-single-sign-on).
-    
-  * Clone repository
+  2. Generate and copy SSH Public Key. Then, enable SSO. Refer [SSH Public Key](https://github.com/Seagate/cortx/blob/main/doc/SSH%20Public%20Key.rst).
   
-  1. `$ git clone git@github.com:Seagate/cortx-posix.git -b main`
-    Note:If username prompted than enter github username and for password copy from [PAT](https://github.com/settings/tokens)
+  3. Run the below mentioned commands to complete the cloning of repository.
+  
+    ` $ git clone git@github.com:Seagate/cortx-posix.git -b main`
+    
+    Note: If username prompted than enter github username and for password copy from [PAT](https://github.com/settings/tokens)
     or generate a new one using [Generate PAT](https://github.com/settings/tokens) and enable SSO ( It has been assumed that `git` is preinstalled ).
-    Recommended git version is 2.x.x . Check your git version using `$ git --version` command.)
-  2. `$ cd cortx-posix`
-  
-  Note: The latest code which gets evolved and contributed to is on the Github server. CORTX-POSIX Contributors will be referencing, cloning and committing their code to/from this [Github](https://github.com/Seagate/cortx-posix).
+    Recommended git version is 2.x.x . Check your git version using `$ git --version` command.
     
+    ` $ cd cortx-posix`
     
+      
   ### CORTX - FS
   
   1. Run the below mentioned command to build libevhtp.
