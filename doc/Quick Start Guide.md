@@ -120,19 +120,19 @@ Note: Following instructions are applicable only for single node setup.
   * Generate RPMs
     * `./scripts/build.sh rpm-gen`
   
-  ### Build NFS Ganesha
+  ### NFS Ganesha
   
-   To build NFS Ganesha refer to [build-nfs-ganesha](https://github.com/Seagate/cortx-posix/blob/dev/doc/CortxPosixNFSGanesha.md#build-nfs-ganesha)
+   For information on building NFS Ganesha, refer [NFS Ganesha Installation Guide](https://github.com/VenkyOS/cortx-posix/blob/dev/doc/NFS%20Ganesha%20Installation%20Guide.md).
     
 ## Installing
   
-  ### CORTX - FS rpms
+  ### CORTX - FS RPMs
  
   * Run the following command to install the rpms.
   
     `sudo ./scripts/build.sh rpm-install`
   
-  ### Install NFS Ganesha rpms
+  ### Install NFS Ganesha RPMs
   
   For information on installing NFS Ganesha, refer [NFS Ganesha Installation Guide](https://github.com/VenkyOS/cortx-posix/blob/dev/doc/NFS%20Ganesha%20Installation%20Guide.md).
   
