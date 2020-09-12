@@ -70,14 +70,14 @@ Note: Following instructions are applicable only for single node setup.
 
   ### NFS Ganesha
 
-  For information on the installation of NFS Ganesha, refer [NFS Ganesha Installation Guide](https://github.com/VenkyOS/cortx-posix/blob/dev/doc/NFS%20Ganesha%20Installation%20Guide.md)
+  For information on the installation of NFS Ganesha, refer [NFS Ganesha Installation Guide](https://github.com/VenkyOS/cortx-posix/blob/dev/doc/NFS%20Ganesha%20Installation%20Guide.md).
   
-  ### Install pre-requisites packages for CORTX-FS
+  ### Dependency packages for CORTX - FS
   
-  * Install following necessary packages 
+  * Run the below mentioned command to install the necessary packages. 
+  
     * `sudo yum install bison cmake flex krb5-devel krb5-libs userspace-rcu-devel libini_config libini_config-devel jemalloc-devel json-c-devel dbus-devel`
   
-  * Install the following necessary packages for management Server
     * `sudo yum install cmake3 libevent-devel openssl-devel json-c-devel python-devel`
   
 ## Building the code
