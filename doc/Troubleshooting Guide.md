@@ -17,7 +17,8 @@
   * Run the below mentioned command to remove the lnet module.
   
     * `modprobe -r lnet`
-		If there is a failure, you must reboot the machine.
+		
+      If there is a failure, you must reboot the machine.
 		
   * Run the below mentioned command to load the module.
   
