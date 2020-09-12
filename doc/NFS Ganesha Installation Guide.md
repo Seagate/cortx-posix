@@ -1,4 +1,4 @@
-# NFS Ganesha
+# NFS Ganesha Installation Guide
 
 This document provides step by step instructuctions to build NFS Ganesha and install it.
 
@@ -30,7 +30,7 @@ This document provides step by step instructuctions to build NFS Ganesha and ins
     
    If the RPM generation fails, you will be prompted to install packages using the below mentioned command.
      
-      ` sudo yum install dbus-devel libcap-devel libblkid-devel libnfsidmap-devel libattr-devel`
+     sudo yum install dbus-devel libcap-devel libblkid-devel libnfsidmap-devel libattr-devel
 
 ## Installing the RPM (code)
   
@@ -40,9 +40,9 @@ This document provides step by step instructuctions to build NFS Ganesha and ins
   
   2. Run the the below mentioned commands to install the RPMs.
  
-    `cd ~/rpmbuild/RPMS/x86_64/`
+      `cd ~/rpmbuild/RPMS/x86_64/`
         
-    `sudo yum install ./*.rpm`
+      `sudo yum install ./*.rpm`
 
 ## Uninstalling the RPM (code)
   
