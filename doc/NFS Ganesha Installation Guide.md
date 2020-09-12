@@ -30,7 +30,8 @@ This document provides step by step instructuctions to build NFS Ganesha and ins
   
     * `./scripts/build-nfs-ganesha.sh rpm-gen`
     
-      If rpm-gen failed it will prompt to install following packages
+     If the RPM generation fails, you will be prompted to install packages using the below mentioned command.
+     
         * `sudo yum install dbus-devel libcap-devel libblkid-devel libnfsidmap-devel libattr-devel`
 
 ## Installing the rpms/code
