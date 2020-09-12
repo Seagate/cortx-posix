@@ -4,33 +4,33 @@ This guide explains how to troubleshoot issues that you might encounter while us
 
   * Run the below mentioned command to stop the motr single node service.
   
-    * `sudo m0singlenode stop`
+    `sudo m0singlenode stop`
     
   * Run the below mentioned to perform the clean up action.
   
-    * `m0setup -cv`
+    `m0setup -cv`
     
   * Run the below mentioned command to stop the lnet service.
   
-    * `service lnet stop`
+    `service lnet stop`
     
   * Run the below mentioned command to remove the lnet module.
   
-    * `modprobe -r lnet`
+    `modprobe -r lnet`
 		
       If there is a failure, you must reboot the machine.
 		
   * Run the below mentioned command to load the module.
   
-    * `modprobe lnet`
+    `modprobe lnet`
     
   * Run the below mentioned command to start the lnet service.
   
-    * `service lnet start`
+    `service lnet start`
     
   * Run the below mentioned command to check if lnet is up and running.
   
-    * `lctl list_nids`
+    `lctl list_nids`
    
      The output will be **<ip-of-your-eth0>@tcp**.
 	
