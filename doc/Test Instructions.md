@@ -62,7 +62,9 @@ optional arguments:
    `cortxfscli endpoint delete <fs_name>`
 
 ## Unit tests
-  * For help
+
+  The below mentioned code block would help you in exexuting the unit tests accurately and successfully.
+  
   ```
   $ sudo ./scripts/test.sh -h
     usage: ./scripts/test.sh [-h] [-t <Test group>]
@@ -79,7 +81,8 @@ optional arguments:
   * Run specific group tests
     * `$ sudo ./scripts/test.sh -t cortxfs`
   
-  * Test output
+  The output is displayed below.
+  
   ```
   $ sudo ./scripts/test.sh
      --
