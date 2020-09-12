@@ -121,12 +121,17 @@ Note: Following instructions are applicable only for single node setup.
   
       `./scripts/build.sh bootstrap`
       
-  * Initialize the build folders
-    * `./scripts/build.sh config`
-  * Build binaries from the sources
-    * `./scripts/build.sh make -j`
-  * Generate RPMs
-    * `./scripts/build.sh rpm-gen`
+  4. Run the below mentioned command to initialize the build folders.
+  
+      `./scripts/build.sh config`
+      
+  5. Run the below mentioned command to build binaries from the sources.
+  
+      `./scripts/build.sh make -j`
+      
+  6. Run the below mentioned command to generate RPMs.
+  
+      `./scripts/build.sh rpm-gen`
   
   ### NFS Ganesha
   
