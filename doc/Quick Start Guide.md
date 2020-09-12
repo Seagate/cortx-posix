@@ -113,12 +113,14 @@ Note: Following instructions are applicable only for single node setup.
     
   2. Run the below mentioned commands to install the libevhtp rpms from the  ~/rpmbuild/RPMS/x86_64/ directory.
     
-    cd ~/rpmbuild/RPMS/x86_64/
+      ` cd ~/rpmbuild/RPMS/x86_64/`
     
-    sudo yum install libevhtp-1.2.18-2.el7.x86_64.rpm libevhtp-devel-1.2.18-2.el7.x86_64.rpm
+      ` sudo yum install libevhtp-1.2.18-2.el7.x86_64.rpm libevhtp-devel-1.2.18-2.el7.x86_64.rpm`
     
-  * Download sources for CORTXFS components
-    * `./scripts/build.sh bootstrap`
+  3. Run the below mentioned command to download the sources for CORTX - FS component.
+  
+      `./scripts/build.sh bootstrap`
+      
   * Initialize the build folders
     * `./scripts/build.sh config`
   * Build binaries from the sources
