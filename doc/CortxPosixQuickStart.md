@@ -6,7 +6,7 @@ Before cloning, you need RHEL 7.7 machine.
 
 Note: Following instructions are applicable only for single node setup.
 
-## Installation
+## Installing
 
   ### Development Tools
   
@@ -132,15 +132,17 @@ Note: Following instructions are applicable only for single node setup.
   ### Install NFS Ganesha rpms
   To install NFS Ganesha rpms refer to [install-nfs-ganesha-rpms](https://github.com/Seagate/cortx-posix/blob/dev/doc/CortxPosixNFSGanesha.md#install-nfs-ganesha-rpms)
   
-## Uninstalling the rpms/code
+## Uninstalling
   
-  ### Uninstall CORTX-FS rpms
-  * remove cortx-fs rpms
-    * `sudo ./scripts/build.sh rpm-uninstall`
+  ### CORTX - FS RPMs
   
-  ### Uninstall NFS Ganesha rpms
+  * Run the following code to remove the rpms.
+  
+     `sudo ./scripts/build.sh rpm-uninstall`
+  
+  ### NFS Ganesha RPMs
 
-  To uninstall NFS Ganesha rpms refer to [uninstall-nfs-ganesha-rpms](https://github.com/Seagate/cortx-posix/blob/dev/doc/CortxPosixNFSGanesha.md#uninstall-nfs-ganesha-rpms)
+  For information on uninstalling NFS Ganesha, refer [NFS Ganesha Installation Guide](https://github.com/VenkyOS/cortx-posix/blob/dev/doc/NFS%20Ganesha%20Installation%20Guide.md).
   
 ## Reinstalling the rpms/code
   
