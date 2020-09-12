@@ -68,9 +68,9 @@ Note: Following instructions are applicable only for single node setup.
 	### Trace ---------------------------------------
 	```
 
-  ### Install pre-requisites packages for NFS Ganesha
+  ### NFS Ganesha
 
-  To install pre-requisites packages for NFS Ganesha refer to [install-pre-requisites-packages-for-nfs-ganesha](https://github.com/Seagate/cortx-posix/blob/dev/doc/CortxPosixNFSGanesha.md#install-pre-requisites-packages-for-nfs-ganesha)
+  For information on the installation of NFS Ganesha, refer [NFS Ganesha Installation Guide](https://github.com/VenkyOS/cortx-posix/blob/dev/doc/NFS%20Ganesha%20Installation%20Guide.md)
   
   ### Install pre-requisites packages for CORTX-FS
   
