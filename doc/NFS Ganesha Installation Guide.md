@@ -40,9 +40,9 @@ This document provides step by step instructuctions to build NFS Ganesha and ins
   
   2. Run the the below mentioned commands to install the RPMs.
  
-      `cd ~/rpmbuild/RPMS/x86_64/`
+    * `cd ~/rpmbuild/RPMS/x86_64/`
         
-      `sudo yum install ./*.rpm`
+    *  `sudo yum install ./*.rpm`
 
 ## Uninstalling the RPM (code)
   
@@ -50,8 +50,8 @@ This document provides step by step instructuctions to build NFS Ganesha and ins
   
   1. Run the following command to remove NFS Ganesha.
   
-    `sudo yum remove '*nfs-ganesha*`
+     `sudo yum remove '*nfs-ganesha*`
     
   2.Run the following command to remove *libntirpc*.
   
-    `sudo yum remove '*libntirpc*'`
+     `sudo yum remove '*libntirpc*'`
