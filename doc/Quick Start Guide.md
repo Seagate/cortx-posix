@@ -98,9 +98,9 @@ Note: Following instructions are applicable only for single node setup.
   
   3. Run the below mentioned commands to complete the cloning of repository.
   
-    ` $ git clone git@github.com:Seagate/cortx-posix.git -b main`
+      ` $ git clone git@github.com:Seagate/cortx-posix.git -b main`
     
-    ` $ cd cortx-posix`
+      ` $ cd cortx-posix`
     
     Note: If your credentials are required, enter your github user name, and for password, copy from 
     [PAT](https://github.com/settings/tokens) or generate a new one using 
