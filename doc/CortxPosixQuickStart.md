@@ -41,7 +41,9 @@ Note: Following instructions are applicable only for single node setup.
     
   4. Run the below mentioned command to check the status of Motr services.
   
-      `m0singlenode status`	
+      `m0singlenode status`
+      
+      
 	```
 	### Global state --------------------------------
 	 State:                  loaded
