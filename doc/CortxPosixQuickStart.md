@@ -136,7 +136,7 @@ Note: Following instructions are applicable only for single node setup.
   
   ### CORTX - FS RPMs
   
-  * Run the following code to remove the rpms.
+  * Run the following command to remove the rpms.
   
      `sudo ./scripts/build.sh rpm-uninstall`
   
