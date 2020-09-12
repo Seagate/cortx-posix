@@ -6,7 +6,7 @@ This document provides step by step instructuctions to build NFS Ganesha and ins
   
   Run the below mentioned command to install the necessary dependency packages.
   
-    * `sudo yum install bison cmake flex krb5-devel krb5-libs userspace-rcu-devel libini_config libini_config-devel jemalloc-devel json-c-devel dbus-devel python-devel`
+    sudo yum install bison cmake flex krb5-devel krb5-libs userspace-rcu-devel libini_config libini_config-devel jemalloc-devel json-c-devel dbus-devel python-devel
     
 ## Building the Code
   
@@ -32,12 +32,17 @@ This document provides step by step instructuctions to build NFS Ganesha and ins
      
     sudo yum install dbus-devel libcap-devel libblkid-devel libnfsidmap-devel libattr-devel
 
-## Installing the rpms/code
+## Installing the RPM (code)
   
-  ### Install NFS Ganesha rpms
-  * Go into the packages directory and install the RPMS
-    * `cd ~/rpmbuild/RPMS/x86_64/`
-    * `sudo yum install ./*.rpm`
+  To install the RPMs, perform the procedure mentioned below.
+  
+  1. Navigate to the packages directory.
+  
+  2. Run the the below mentioned commands to install the RPMs.
+ 
+    cd ~/rpmbuild/RPMS/x86_64/
+    
+    sudo yum install ./*.rpm
 
 ## Uninstalling the rpms/code
   
