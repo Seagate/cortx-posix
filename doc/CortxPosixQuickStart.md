@@ -10,14 +10,15 @@ Note: Following instructions are applicable only for single node setup.
 
   ### Development Tools
   
-  Run the below mentioned commands to install developement tools packages.
+  Run the below mentioned commands to install development tools packages.
 
   * `yum group list`
   * `yum group install "Development Tools"`
   
-  ### Install Motr (using root user)
+  ### Motr (using root user)
   
-  Before setting up Motr, below mentioned RPMs are required on the system. If rpms are not installed, refer [Cortx-Motr-Quick-Start-Guide](https://github.com/Seagate/cortx-motr/blob/dev/doc/Quick-Start-Guide.rst).
+  Before installing Motr, below mentioned RPMs are required on the system. If rpms are not installed, refer [Cortx-Motr-Quick-Start-Guide](https://github.com/Seagate/cortx-motr/blob/dev/doc/Quick-Start-Guide.rst).
+  
   ```
   cortx-motr
   cortx-motr-devel
