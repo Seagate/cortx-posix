@@ -7,12 +7,18 @@ This document provides information on different tests and the respective procedu
   * Run the below mentioned command to create a file system.
   
     `sudo /opt/seagate/cortx/cortx-fs-ganesha/bin/nfs_setup.sh setup -d fs1`
-  * Create directory to mount file system
-    * `sudo mkdir /mnt/dir1`
-  * Mount file system
-    * `sudo mount -o vers=4.0 127.0.0.1:/fs1 /mnt/dir1`
-  * Unmount file system
-    * `sudo umount /mnt/dir1`
+    
+  * Run the below mentioned command to create a directory, to mount the file system.
+  
+    `sudo mkdir /mnt/dir1`
+    
+  * Run the below mentioned command to mount the file system.
+  
+    `sudo mount -o vers=4.0 127.0.0.1:/fs1 /mnt/dir1`
+    
+  * Run the below mentioned command to unmount the file system.
+  
+    `sudo umount /mnt/dir1`
 	
 
 ## Test using cortxfscli
