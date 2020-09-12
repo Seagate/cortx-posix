@@ -133,7 +133,8 @@ Note: Following instructions are applicable only for single node setup.
     `sudo ./scripts/build.sh rpm-install`
   
   ### Install NFS Ganesha rpms
-  To install NFS Ganesha rpms refer to [install-nfs-ganesha-rpms](https://github.com/Seagate/cortx-posix/blob/dev/doc/CortxPosixNFSGanesha.md#install-nfs-ganesha-rpms)
+  
+  For information on installing NFS Ganesha, refer [NFS Ganesha Installation Guide](https://github.com/VenkyOS/cortx-posix/blob/dev/doc/NFS%20Ganesha%20Installation%20Guide.md).
   
 ## Uninstalling
   
