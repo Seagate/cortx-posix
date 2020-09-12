@@ -54,4 +54,4 @@ This document provides step by step instructuctions to build NFS Ganesha and ins
     
   2.Run the following command to remove *libntirpc*.
   
-     `sudo yum remove '*libntirpc*'`
+      `sudo yum remove '*libntirpc*'`
