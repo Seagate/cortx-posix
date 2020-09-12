@@ -32,7 +32,7 @@ This guide explains how to troubleshoot issues that you might encounter while us
   
     * `lctl list_nids`
    
-     The output will be **<ip-of-your-eth0>@tcp**
+     The output will be **<ip-of-your-eth0>@tcp**.
 	
   * `m0setup -cv`
   * `rm -fR /var/motr/*`
