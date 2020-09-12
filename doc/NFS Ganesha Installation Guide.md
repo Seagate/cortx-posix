@@ -40,9 +40,9 @@ This document provides step by step instructuctions to build NFS Ganesha and ins
   
   2. Run the the below mentioned commands to install the RPMs.
  
-    * `cd ~/rpmbuild/RPMS/x86_64/`
+      `cd ~/rpmbuild/RPMS/x86_64/`
         
-    *  `sudo yum install ./*.rpm`
+      `sudo yum install ./*.rpm`
 
 ## Uninstalling the RPM (code)
   
