@@ -26,11 +26,11 @@ This document provides step by step instructuctions to build NFS Ganesha and ins
     
   4. Run the below mentioned command to generate RPMs.
   
-    `./scripts/build-nfs-ganesha.sh rpm-gen`
+     `./scripts/build-nfs-ganesha.sh rpm-gen`
     
    If the RPM generation fails, you will be prompted to install packages using the below mentioned command.
      
-    `sudo yum install dbus-devel libcap-devel libblkid-devel libnfsidmap-devel libattr-devel`
+      ` sudo yum install dbus-devel libcap-devel libblkid-devel libnfsidmap-devel libattr-devel`
 
 ## Installing the RPM (code)
   
