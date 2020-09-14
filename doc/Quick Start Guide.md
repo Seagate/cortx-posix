@@ -72,7 +72,7 @@ Note: Following instructions are applicable only for single node setup.
 
   ### NFS Ganesha
 
-  For information on the installation of NFS Ganesha, refer [NFS Ganesha Installation Guide](https://github.com/VenkyOS/cortx-posix/blob/dev/doc/NFS%20Ganesha%20Installation%20Guide.md).
+  For information on the installation of NFS Ganesha, refer [NFS Ganesha Build and Installation Guide](https://github.com/VenkyOS/cortx-posix/blob/dev/doc/NFS%20Ganesha%20Build%20and%20Installation%20Guide.md).
   
   ### Dependency packages for CORTX - FS
   
@@ -132,7 +132,7 @@ Note: Following instructions are applicable only for single node setup.
   
   ### NFS Ganesha
   
-   For information on building NFS Ganesha, refer [NFS Ganesha Installation Guide](https://github.com/VenkyOS/cortx-posix/blob/dev/doc/NFS%20Ganesha%20Installation%20Guide.md).
+   For information on building NFS Ganesha, refer [NFS Ganesha Build and Installation Guide](https://github.com/VenkyOS/cortx-posix/blob/dev/doc/NFS%20Ganesha%20Build%20and%20Installation%20Guide.md).
     
 ## Installing
   
@@ -144,7 +144,7 @@ Note: Following instructions are applicable only for single node setup.
   
   ### NFS Ganesha RPMs
   
-  For information on installing NFS Ganesha, refer [NFS Ganesha Installation Guide](https://github.com/VenkyOS/cortx-posix/blob/dev/doc/NFS%20Ganesha%20Installation%20Guide.md).
+  For information on installing NFS Ganesha, refer [NFS Ganesha Build and Installation Guide](https://github.com/VenkyOS/cortx-posix/blob/dev/doc/NFS%20Ganesha%20Build%20and%20Installation%20Guide.md).
   
 ## Uninstalling
   
@@ -156,7 +156,7 @@ Note: Following instructions are applicable only for single node setup.
   
   ### NFS Ganesha RPMs
 
-  For information on uninstalling NFS Ganesha, refer [NFS Ganesha Installation Guide](https://github.com/VenkyOS/cortx-posix/blob/dev/doc/NFS%20Ganesha%20Installation%20Guide.md).
+  For information on uninstalling NFS Ganesha, refer [NFS Ganesha Build and Installation Guide](https://github.com/VenkyOS/cortx-posix/blob/dev/doc/NFS%20Ganesha%20Build%20and%20Installation%20Guide.md).
   
 ## Reinstalling
   
