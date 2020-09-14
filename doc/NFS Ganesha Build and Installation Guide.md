@@ -1,4 +1,4 @@
-# NFS Ganesha Installation Guide
+# NFS Ganesha Build and Installation Guide
 
 This document provides step by step instructuctions to build NFS Ganesha and install it.
 
