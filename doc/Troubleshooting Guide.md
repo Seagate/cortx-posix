@@ -1,6 +1,6 @@
 # Troubleshooting Guide
 
-This guide explains how to troubleshoot issues that you might encounter while using working with the NFS component. For troubleshooting motr related issues, refer https://github.com/Seagate/cortx-motr/blob/dev/doc/Quick-Start-Guide.rst#troubleshooting.
+This guide explains how to troubleshoot issues that you might encounter while using working with the NFS component. For troubleshooting Motr related issues, refer https://github.com/Seagate/cortx-motr/blob/dev/doc/Quick-Start-Guide.rst#troubleshooting.
 
   * Run the below mentioned command to stop the motr single node service.
   
