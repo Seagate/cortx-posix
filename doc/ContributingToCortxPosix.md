@@ -156,7 +156,7 @@ Creating a pull request automatically triggers Jenkins jobs and System tests. To
 
 **A** Follow the steps mentioned below:
 
-> $ git pull origin master
+> $ git pull origin main
 >
 > $ git submodule update --init --recursive
 >
@@ -166,7 +166,7 @@ Creating a pull request automatically triggers Jenkins jobs and System tests. To
 >
 > $ git submodule update --init --recursive
 >
-> $ git rebase origin/master
+> $ git rebase origin/main
 
 To resolve conflicts, follow the troubleshooting steps mentioned in git error messages. 
 
