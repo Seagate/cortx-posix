@@ -17,9 +17,12 @@
     * `service lnet start`
 		Check if lnet is up and running using lctl command:
 			* `lctl list_nids`
-			output will be <ip-of-your-eth0>@tcp
+				output will be `ip-of-your-eth0@tcp`
   * `m0setup -cv`
   * `rm -fR /var/motr/*`
   * `sudo m0setup -A` 
   * `sudo m0setup -Mv -s128`
   * `sudo m0singlenode start`
+  
+  ### For more troubleshoot related to motr refer [motr-troubleshooting](https://github.com/Seagate/cortx-motr/blob/dev/doc/Quick-Start-Guide.rst#troubleshooting)
+
