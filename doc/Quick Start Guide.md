@@ -27,6 +27,18 @@ Note: Following instructions are applicable only for single node setup.
    cortx-motr-debuginfo
   ```
   
+  #### Verify lnet configuration
+
+   * Create the `/etc/modprobe.d/lnet.conf` file, if it does not exist. lnet.conf should render the output as
+
+	`options lnet networks=tcp(eth0) config_on_load=1`
+   
+   * `sudo systemctl restart lnet`
+   * `sudo lctl list_nids` should render the output as `ip-of-your-eth0@tcp`
+   Note: Make sure that the eth0 interface is present in the node by checking ifconfig. Else, update the new interface in the file.
+
+  #### Setup Motr
+  
   Perform the below mentioned procedure to install Motr.
   
   1. Run the below mentioned command to enable Motr related systemd services.
