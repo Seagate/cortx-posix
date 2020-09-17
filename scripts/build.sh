@@ -185,7 +185,7 @@ cortxfs_bootstrap() {
     fi
 
     if [ ! -f $NSAL_SOURCE_ROOT/src/CMakeLists.txt ]; then
-		git clone --branch $dev_branch https://github.com/Seagate/cortx-nsal.git $NSAL_SOURCE_ROOT
+		git clone --branch "EOS-12984" https://github.com/Seagate/cortx-nsal.git $NSAL_SOURCE_ROOT
     else
         echo "Skipping bootstrap for NSAL: $NSAL_SOURCE_ROOT"
     fi
