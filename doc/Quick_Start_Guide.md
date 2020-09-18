@@ -91,6 +91,8 @@ Note: Following instructions are applicable only for single node setup.
   * Run the below mentioned commands to install the necessary packages. 
   
     * `sudo yum install bison cmake flex krb5-devel krb5-libs userspace-rcu-devel libini_config libini_config-devel jemalloc-devel json-c-devel dbus-devel`
+    
+    * `sudo yum install libcmocka-devel jemalloc doxygen`
   
     * `sudo yum install cmake3 libevent-devel openssl-devel json-c-devel python-devel`
   
