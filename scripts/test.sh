@@ -57,9 +57,19 @@ execute_ut_cortxfs () {
 }
 
 execute_ut_dsal () {
-	# Do nothing. To be implemented
-	echo "${FUNCNAME[0]}: NotImplemented"
-	return 0
+	echo "DSAL Unit tests"
+	mkdir -p $UT_LOG_ROOT/dsal
+	cd $UT_LOG_ROOT/dsal
+
+	DSAL_TEST_DIR=$BUILD_DIR/build-dsal/test/ut
+	DSAL_TEST_LIST=(dsal_test_basic dsal_test_io dsal_test_space_stats)
+
+	[ ! -d $DSAL_TEST_DIR ] && die "DSAL is not built"
+	for tests in "${DSAL_TEST_LIST[@]}"
+	do
+		$DSAL_TEST_DIR/$tests
+		echo
+	done
 }
 
 execute_ut_utils () {
@@ -79,6 +89,7 @@ execute_all_ut () {
 	then
 		execute_ut_nsal
 		execute_ut_cortxfs
+		execute_ut_dsal
 	else
 		execute_ut_$TEST_GRP
 	fi

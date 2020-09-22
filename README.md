@@ -12,7 +12,7 @@ CORTX-POSIX assumes that MOTR code is installed on the system. For details on CO
 
 ## Get CORTX-POSIX ready! 
 
-Refer to the [CORTX-POSIX Quickstart Guide](https://github.com/Seagate/cortx-posix/blob/dev/doc/Quick%20Start%20Guide.md) to build and test the CORTX-POSIX Component.
+Refer to the [CORTX-POSIX Quickstart Guide](https://github.com/Seagate/cortx-posix/blob/dev/doc/Quick_Start_Guide.md) to build and test the CORTX-POSIX Component.
 
 ## Contribute to CORTX-POSIX
 
