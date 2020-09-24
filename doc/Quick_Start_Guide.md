@@ -108,7 +108,7 @@ Note: Following instructions are applicable only for single node setup.
    
      b. Type `su -` and enter the root password to switch to the root user mode.
   
-  2. Generate and copy SSH Public Key. Then, enable SSO. Refer [SSH Public Key](https://github.com/Seagate/cortx/blob/main/doc/SSH%20Public%20Key.rst).
+  2. Generate and copy SSH Public Key. Then, enable SSO. Refer [SSH Public Key](https://github.com/Seagate/cortx/blob/main/doc/SSH_Public_Key.rst).
   
   3. Run the below mentioned commands to complete the cloning of repository.
   
