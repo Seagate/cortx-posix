@@ -23,6 +23,7 @@ Refer to the [CORTX Contribution Guide](CONTRIBUTING.md) that hosts all informat
 ## Reach Out To Us
 
 - Please refer to our [Support](SUPPORT.md) section for support or to discuss things with your fellow CORTX Community members.
+- Click here to [view existing issues or to create new issues](https://github.com/Seagate/cortx-posix/issues).
 
 ## Thank You!
 
