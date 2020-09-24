@@ -88,13 +88,13 @@ nfs_ganesha_bootstrap() {
     local repo="https://github.com/Seagate/nfs-ganesha.git"
     rm -fR "$KVSFS_NFS_GANESHA_DIR"
     echo "Downloading NFS Ganesha sources into $KVSFS_NFS_GANESHA_DIR"
-    git clone --depth 1 --branch $stable_branch $repo $KVSFS_NFS_GANESHA_DIR
+    git clone --depth 1 --branch $stable_branch $repo "$KVSFS_NFS_GANESHA_DIR"
     rc=$?
     if (( rc != 0 )); then
         echo "Failed to clone NFS Ganesha sources ($rc)"
         return $rc
     fi
-    cd $KVSFS_NFS_GANESHA_DIR
+    cd "$KVSFS_NFS_GANESHA_DIR"
     git submodule update --init --recursive
     rc=$?
     if (( rc != 0 )); then
@@ -111,15 +111,20 @@ nfs_ganesha_bootstrap() {
             return $rc
         fi
     done
+
+	sed -i 's#--version-script=${PROJECT_BINARY_DIR}/libntirpc.map#--version-script=\\"${PROJECT_BINARY_DIR}/libntirpc.map\\"#g' \
+        "$KVSFS_NFS_GANESHA_DIR/src/libntirpc/src/CMakeLists.txt"
+    sed -i 's#--version-script=${CMAKE_SOURCE_DIR}/MainNFSD/libganesha_nfsd.ver#--version-script=\\"${CMAKE_SOURCE_DIR}/MainNFSD/libganesha_nfsd.ver\\"#g' \
+        "$KVSFS_NFS_GANESHA_DIR/src/MainNFSD/CMakeLists.txt"
 }
 
 ###############################################################################
 nfs_ganesha_update() {
-    if [ ! -d $KVSFS_NFS_GANESHA_DIR ]; then
+    if [ ! -d "$KVSFS_NFS_GANESHA_DIR" ]; then
         echo "Cannot find existing NFS Ganesha folder in $KVSFS_NFS_GANESHA_DIR."
         echo "Please clone it manually or use '$0 bootstrap' command."
     fi
-    cd $KVSFS_NFS_GANESHA_DIR
+    cd "$KVSFS_NFS_GANESHA_DIR"
     git submodule update --init --recursive
     cd -
 }
@@ -128,7 +133,7 @@ nfs_ganesha_update() {
 nfs_ganesha_configure() {
     local cmakerootfile="$KVSFS_NFS_GANESHA_DIR/src/CMakeLists.txt"
 
-    if [ ! -f $cmakerootfile ]; then
+    if [ ! -f "$cmakerootfile" ]; then
         echo "Cannot find $cmakerootfile in $KVSFS_NFS_GANESHA_DIR."
         echo "Please specify another locaton or update/bootstrap the repo."
         exit 1
@@ -141,13 +146,14 @@ nfs_ganesha_configure() {
 
     echo "Configuring NFS Ganesha $KVSFS_NFS_GANESHA_DIR -> $KVSFS_NFS_GANESHA_BUILD_DIR"
 
-    rm -fR $KVSFS_NFS_GANESHA_BUILD_DIR
-    mkdir $KVSFS_NFS_GANESHA_BUILD_DIR
+    rm -fR "$KVSFS_NFS_GANESHA_BUILD_DIR"
+    mkdir "$KVSFS_NFS_GANESHA_BUILD_DIR"
 
-    cd $KVSFS_NFS_GANESHA_BUILD_DIR
-    local cmake_cmd="cmake $KVSFS_NFS_GANESHA_DIR/src $KVSFS_NFS_GANESHA_CMAKE_ARGS"
-    echo "CMAKE: $cmake_cmd"
-    $cmake_cmd
+    cd "$KVSFS_NFS_GANESHA_BUILD_DIR"
+    #local cmake_cmd="cmake $KVSFS_NFS_GANESHA_DIR/src $KVSFS_NFS_GANESHA_CMAKE_ARGS"
+    echo "CMAKE: cmake $KVSFS_NFS_GANESHA_DIR/src $KVSFS_NFS_GANESHA_CMAKE_ARGS"
+    #$cmake_cmd
+	cmake "$KVSFS_NFS_GANESHA_DIR/src" $KVSFS_NFS_GANESHA_CMAKE_ARGS
     local rc=$?
     cd -
 
@@ -157,12 +163,12 @@ nfs_ganesha_configure() {
 
 ###############################################################################
 nfs_ganesha_make() {
-    if [ ! -d $KVSFS_NFS_GANESHA_BUILD_DIR ]; then
+    if [ ! -d "$KVSFS_NFS_GANESHA_BUILD_DIR" ]; then
         echo "Build folder $KVSFS_NFS_GANESHA_BUILD_DIR does not exist. Please run 'config'"
         exit 1;
     fi
 
-    cd $KVSFS_NFS_GANESHA_BUILD_DIR
+    cd "$KVSFS_NFS_GANESHA_BUILD_DIR"
     make "$@"
     cd -
 }
