@@ -176,36 +176,40 @@ cortxfs_bootstrap() {
     cortxfs_set_env
 
 	local utils_dir_path=$PWD/utils
-	local dev_branch="dev"
+	local cur_branch="$(git symbolic-ref -q --short HEAD)"
+
+	#If the brach checkout for cortx-posix is detached HEAD, then default branch is main
+	[[ -z "$cur_branch" ]] && cur_branch="main"
+	echo "Cloning repositories with branch:$cur_branch"
 
     if [ ! -f $CORTX_UTILS_SOURCE_ROOT/src/CMakeLists.txt ]; then
-		git clone --branch $dev_branch https://github.com/Seagate/cortx-utils.git $utils_dir_path
+		git clone --branch "$cur_branch" https://github.com/Seagate/cortx-utils.git "$utils_dir_path"
     else
         echo "Skipping bootstrap for UTILS: $utils_dir_path"
     fi
 
     if [ ! -f $NSAL_SOURCE_ROOT/src/CMakeLists.txt ]; then
-		git clone --branch $dev_branch https://github.com/Seagate/cortx-nsal.git $NSAL_SOURCE_ROOT
+		git clone --branch "$cur_branch" https://github.com/Seagate/cortx-nsal.git "$NSAL_SOURCE_ROOT"
     else
         echo "Skipping bootstrap for NSAL: $NSAL_SOURCE_ROOT"
     fi
 
     if [ ! -f $DSAL_SOURCE_ROOT/src/CMakeLists.txt ]; then
-		git clone --branch $dev_branch https://github.com/Seagate/cortx-dsal.git $DSAL_SOURCE_ROOT
+		git clone --branch "$cur_branch" https://github.com/Seagate/cortx-dsal.git "$DSAL_SOURCE_ROOT"
     else
         echo "Skipping bootstrap for DSAL: $DSAL_SOURCE_ROOT"
     fi
 
     if [ ! -f $CORTXFS_SOURCE_ROOT/src/CMakeLists.txt ]; then
-		git clone --branch $dev_branch https://github.com/Seagate/cortx-fs.git $CORTXFS_SOURCE_ROOT
+		git clone --branch "$cur_branch" https://github.com/Seagate/cortx-fs.git "$CORTXFS_SOURCE_ROOT"
     else
         echo "Skipping bootstrap for CORTXFS: $CORTXFS_SOURCE_ROOT"
     fi
 
     if [ ! -f $KVSFS_SOURCE_ROOT/src/FSAL/FSAL_CORTXFS/CMakeLists.txt ]; then
-		git clone --branch $dev_branch https://github.com/Seagate/cortx-fs-ganesha.git $KVSFS_SOURCE_ROOT
+		git clone --branch "$cur_branch" https://github.com/Seagate/cortx-fs-ganesha.git "$KVSFS_SOURCE_ROOT"
     else
-        echo "Skipping bootstrap for KVSFS: $KVSFS_SOURCE_ROOT"
+        echo "Skipping bootstrap for CORTX-FS-GANESHA: $KVSFS_SOURCE_ROOT"
     fi
 
     if [ ! -f $KVSFS_NFS_GANESHA_DIR/src/CMakeLists.txt ]; then

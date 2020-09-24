@@ -13,5 +13,5 @@ build-kvsfs
 utils/
 nsal/
 dsal/
-kvsfs-ganesha/
+cortx-fs-ganesha/
 cortxfs/
