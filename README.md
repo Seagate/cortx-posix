@@ -1,4 +1,3 @@
-[![Codacy Badge](https://app.codacy.com/project/badge/Grade/7e6ffd004e794ecf945f076988a9185a)](https://www.codacy.com?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=Seagate/cortx-posix&amp;utm_campaign=Badge_Grade)
 
 # CORTX-POSIX
 CORTX-POSIX is top level code repository, which helps in building various sub-components (like CORTXFS, NSAL, DSAL etc) to support different file access protocols (like SAMBA, NFS etc.) to Seagate CORTX. This code base consists of scripts which will facilitate in fetching the sub-components repos, and build the code.
