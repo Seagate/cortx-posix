@@ -17,7 +17,7 @@ Note: Following instructions are applicable only for single node setup.
   
   ### Motr (using root user)
   
-  Before installing Motr, below mentioned RPMs are required on the system. If rpms are not installed, refer [Cortx-Motr-Quick-Start-Guide](https://github.com/Seagate/cortx-motr/blob/dev/doc/Quick-Start-Guide.rst).
+  Before installing Motr, below mentioned RPMs are required on the system. If rpms are not installed, refer [Cortx-Motr-Quick-Start-Guide](https://github.com/Seagate/cortx-motr/blob/main/doc/Quick-Start-Guide.rst).
   
   ```
    cortx-motr
