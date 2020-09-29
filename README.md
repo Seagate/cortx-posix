@@ -10,11 +10,11 @@ Note that currently only NFS protocol is supported. The supported NFS server is 
 The code for file access protocol (like NFS) for CORTX is distributed across multiple repos. The code is still under active development.  We welcome anyone and everyone who is interested to join our community and track our progress and even participate in development or testing if you are so inclined!  Just please be advised that this code is not ready for production usage and is only provided to allow the external community to watch and participate in the development.
 
 ## Pre-requisites
-CORTX-POSIX assumes that MOTR code is installed on the system. For details on CORTX MOTR please refer to [Cortx-Motr-Quick-Start-Guide](https://github.com/Seagate/cortx-motr/blob/dev/doc/Quick-Start-Guide.rst)
+CORTX-POSIX assumes that MOTR code is installed on the system. For details on CORTX MOTR please refer to [Cortx-Motr-Quick-Start-Guide](https://github.com/Seagate/cortx-motr/blob/main/doc/Quick-Start-Guide.rst).
 
 ## Get CORTX-POSIX ready! 
 
-Refer to the [CORTX-POSIX Quickstart Guide](https://github.com/Seagate/cortx-posix/blob/dev/doc/Quick_Start_Guide.md) to build and test the CORTX-POSIX Component.
+Refer to the [CORTX-POSIX Quickstart Guide](https://github.com/Seagate/cortx-posix/blob/main/doc/Quick_Start_Guide.md) to build and test the CORTX-POSIX Component.
 
 ## Contribute to CORTX-POSIX
 
