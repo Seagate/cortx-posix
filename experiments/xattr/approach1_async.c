@@ -193,6 +193,7 @@ static int setAttr()
 	for (i = 0; i < CALLS; i++)
 		free(xkey[i]);
 
+    free(v1);
 	return rc;
 }
 
