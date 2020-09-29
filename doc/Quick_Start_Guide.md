@@ -84,7 +84,7 @@ Note: Following instructions are applicable only for single node setup.
 
   ### NFS Ganesha
 
-  For information on the installation of NFS Ganesha, refer [NFS Ganesha Build and Installation Guide](https://github.com/VenkyOS/cortx-posix/blob/dev/doc/NFS%20Ganesha%20Build%20and%20Installation%20Guide.md).
+  For information on the installation of NFS Ganesha, refer [NFS Ganesha Build and Installation Guide](https://github.com/Seagate/cortx-posix/blob/main/doc/NFS_%20Ganesha_Build_and_Installation_Guide.md).
   
   ### Dependency packages for CORTX - FS
   
@@ -146,7 +146,7 @@ Note: Following instructions are applicable only for single node setup.
   
   ### NFS Ganesha
   
-   For information on building NFS Ganesha, refer [NFS Ganesha Build and Installation Guide](https://github.com/VenkyOS/cortx-posix/blob/dev/doc/NFS%20Ganesha%20Build%20and%20Installation%20Guide.md).
+   For information on building NFS Ganesha, refer [NFS Ganesha Build and Installation Guide](https://github.com/Seagate/cortx-posix/blob/main/doc/NFS_%20Ganesha_Build_and_Installation_Guide.md).
     
 ## Installing
   
@@ -158,7 +158,7 @@ Note: Following instructions are applicable only for single node setup.
   
   ### NFS Ganesha RPMs
   
-  For information on installing NFS Ganesha, refer [NFS Ganesha Build and Installation Guide](https://github.com/VenkyOS/cortx-posix/blob/dev/doc/NFS%20Ganesha%20Build%20and%20Installation%20Guide.md).
+  For information on installing NFS Ganesha, refer [NFS Ganesha Build and Installation Guide](https://github.com/Seagate/cortx-posix/blob/main/doc/NFS_%20Ganesha_Build_and_Installation_Guide.md).
   
 ## Uninstalling
   
@@ -170,7 +170,7 @@ Note: Following instructions are applicable only for single node setup.
   
   ### NFS Ganesha RPMs
 
-  For information on uninstalling NFS Ganesha, refer [NFS Ganesha Build and Installation Guide](https://github.com/VenkyOS/cortx-posix/blob/dev/doc/NFS%20Ganesha%20Build%20and%20Installation%20Guide.md).
+  For information on uninstalling NFS Ganesha, refer [NFS Ganesha Build and Installation Guide](https://github.com/Seagate/cortx-posix/blob/main/doc/NFS_%20Ganesha_Build_and_Installation_Guide.md).
   
 ## Reinstalling
   
@@ -182,9 +182,9 @@ Note: Following instructions are applicable only for single node setup.
 
 ## Running the tests
 
-For information on tests to be performed, refer [Test Instructions](https://github.com/VenkyOS/cortx-posix/blob/dev/doc/Test%20Instructions.md).
+For information on tests to be performed, refer [Test Instructions](https://github.com/Seagate/cortx-posix/blob/main/doc/Test_Instructions.md).
 
 ## Troubleshooting
 
-If any error occurs, refer the [Troubleshooting Guide](https://github.com/VenkyOS/cortx-posix/blob/dev/doc/Troubleshooting%20Guide.md).
+If any error occurs, refer the [Troubleshooting Guide](https://github.com/Seagate/cortx-posix/blob/main/doc/Troubleshooting_Guide.md).
 
