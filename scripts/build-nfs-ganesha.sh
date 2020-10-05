@@ -112,6 +112,8 @@ nfs_ganesha_bootstrap() {
         fi
     done
 
+	#Adding double quote to prevent word splitting
+	#Since we dont want to modify nfs-ganesha code, we are doing it after checkout
 	sed -i 's#--version-script=${PROJECT_BINARY_DIR}/libntirpc.map#--version-script=\\"${PROJECT_BINARY_DIR}/libntirpc.map\\"#g' \
         "$KVSFS_NFS_GANESHA_DIR/src/libntirpc/src/CMakeLists.txt"
     sed -i 's#--version-script=${CMAKE_SOURCE_DIR}/MainNFSD/libganesha_nfsd.ver#--version-script=\\"${CMAKE_SOURCE_DIR}/MainNFSD/libganesha_nfsd.ver\\"#g' \
