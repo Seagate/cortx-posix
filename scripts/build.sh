@@ -103,7 +103,8 @@ cortxfs_set_env() {
     export CORTXFS_SOURCE_ROOT=$PWD/cortxfs
 
     export CORTXFS_BUILD_ROOT=${CORTXFS_BUILD_ROOT:-/tmp/cortxfs}
-    export CORTXFS_VERSION=${CORTXFS_VERSION:-"$(cat $PWD/VERSION)"}
+    CORTXFS_VERSION_TEMP=$(cat "$PWD/VERSION")
+    export CORTXFS_VERSION=${CORTXFS_VERSION:-"$CORTXFS_VERSION_TEMP"}
     export CORTXFS_BUILD_VERSION=${CORTXFS_BUILD_VERSION:-"$(git rev-parse --short HEAD)"}
 
     export NSAL_KVSTORE_BACKEND=${NSAL_KVSTORE_BACKEND:-"cortx"}
@@ -143,27 +144,27 @@ cortxfs_print_env() {
 
 _kvsfs_build() {
     echo "KVSFS_BUILD: $@"
-    $KVSFS_SOURCE_ROOT/scripts/build.sh "$@"
+    "$KVSFS_SOURCE_ROOT/scripts/build.sh" "$@"
 }
 
 _utils_build() {
     echo "UTILS_BUILD: $@"
-    $CORTX_UTILS_SOURCE_ROOT/scripts/build.sh "$@"
+    "$CORTX_UTILS_SOURCE_ROOT/scripts/build.sh" "$@"
 }
 
 _nsal_build() {
     echo "NSAL_BUILD: $@"
-    $NSAL_SOURCE_ROOT/scripts/build.sh "$@"
+    "$NSAL_SOURCE_ROOT/scripts/build.sh" "$@"
 }
 
 _dsal_build() {
     echo "DSAL_BUILD: $@"
-    $DSAL_SOURCE_ROOT/scripts/build.sh "$@"
+    "$DSAL_SOURCE_ROOT/scripts/build.sh" "$@"
 }
 
 _cortxfs_build() {
     echo "CORTXFS_BUILD: $@"
-    $CORTXFS_SOURCE_ROOT/scripts/build.sh "$@"
+    "$CORTXFS_SOURCE_ROOT/scripts/build.sh" "$@"
 }
 
 _nfs_ganesha_build() {
@@ -182,37 +183,37 @@ cortxfs_bootstrap() {
 	[[ -z "$cur_branch" ]] && cur_branch="main"
 	echo "Cloning repositories with branch:$cur_branch"
 
-    if [ ! -f $CORTX_UTILS_SOURCE_ROOT/src/CMakeLists.txt ]; then
+    if [ ! -f "$CORTX_UTILS_SOURCE_ROOT/src/CMakeLists.txt" ]; then
 		git clone --branch "$cur_branch" https://github.com/Seagate/cortx-utils.git "$utils_dir_path"
     else
         echo "Skipping bootstrap for UTILS: $utils_dir_path"
     fi
 
-    if [ ! -f $NSAL_SOURCE_ROOT/src/CMakeLists.txt ]; then
+    if [ ! -f "$NSAL_SOURCE_ROOT/src/CMakeLists.txt" ]; then
 		git clone --branch "$cur_branch" https://github.com/Seagate/cortx-nsal.git "$NSAL_SOURCE_ROOT"
     else
         echo "Skipping bootstrap for NSAL: $NSAL_SOURCE_ROOT"
     fi
 
-    if [ ! -f $DSAL_SOURCE_ROOT/src/CMakeLists.txt ]; then
+    if [ ! -f "$DSAL_SOURCE_ROOT/src/CMakeLists.txt" ]; then
 		git clone --branch "$cur_branch" https://github.com/Seagate/cortx-dsal.git "$DSAL_SOURCE_ROOT"
     else
         echo "Skipping bootstrap for DSAL: $DSAL_SOURCE_ROOT"
     fi
 
-    if [ ! -f $CORTXFS_SOURCE_ROOT/src/CMakeLists.txt ]; then
+    if [ ! -f "$CORTXFS_SOURCE_ROOT/src/CMakeLists.txt" ]; then
 		git clone --branch "$cur_branch" https://github.com/Seagate/cortx-fs.git "$CORTXFS_SOURCE_ROOT"
     else
         echo "Skipping bootstrap for CORTXFS: $CORTXFS_SOURCE_ROOT"
     fi
 
-    if [ ! -f $KVSFS_SOURCE_ROOT/src/FSAL/FSAL_CORTXFS/CMakeLists.txt ]; then
+    if [ ! -f "$KVSFS_SOURCE_ROOT/src/FSAL/FSAL_CORTXFS/CMakeLists.txt" ]; then
 		git clone --branch "$cur_branch" https://github.com/Seagate/cortx-fs-ganesha.git "$KVSFS_SOURCE_ROOT"
     else
         echo "Skipping bootstrap for CORTX-FS-GANESHA: $KVSFS_SOURCE_ROOT"
     fi
 
-    if [ ! -f $KVSFS_NFS_GANESHA_DIR/src/CMakeLists.txt ]; then
+    if [ ! -f "$KVSFS_NFS_GANESHA_DIR/src/CMakeLists.txt" ]; then
         _nfs_ganesha_build bootstrap
     else
         echo "Skipping bootstrap for NFS Ganesha: $KVSFS_NFS_GANESHA_DIR"
@@ -232,12 +233,12 @@ cortxfs_jenkins_build() {
     cortxfs_bootstrap
 
     # Remove old build root dir
-    rm -fR $CORTXFS_BUILD_ROOT
+    rm -fR "$CORTXFS_BUILD_ROOT"
 
     # Remove old packages
     rm -fR "$rpms_dir/"*.rpm
 
-    mkdir -p $CORTXFS_BUILD_ROOT &&
+    mkdir -p "$CORTXFS_BUILD_ROOT" &&
         _nfs_ganesha_build config &&
 	_utils_build reconf &&
 	_utils_build make -j all &&
