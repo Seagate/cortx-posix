@@ -343,6 +343,11 @@ int main(int argc, char **argv)
 	return 0;
 }
 
+
+static test(void) {
+
+}
+
 /*
  *  Local variables:
  *  c-indentation-style: "K&R"
