@@ -24,7 +24,7 @@ execute_ut_nsal () {
 	cd $UT_LOG_ROOT/nsal
 
 	NSAL_TEST_DIR=$BUILD_DIR/build-nsal/test/ut
-	NSAL_TEST_LIST=(ut_nsal_ns_ops ut_nsal_iter_ops ut_nsal_kvtree_ops)
+	NSAL_TEST_LIST=(ut_nsal_ns_ops ut_nsal_iter_ops ut_nsal_kvtree_ops ut_global_kvs)
 
 	[ ! -d $NSAL_TEST_DIR ] && die "NSAL is not built"
 
