@@ -27,6 +27,7 @@ Arguments:
     -k (optional) NSAL KVSTORE backend (cortx/redis).
     -e (optional) DSAL DSTORE backend (cortx/posix).
     -d (optional) Enable/disable dassert(ON/OFF, default:ON).
+    -t (optional) Enable/disable addb based tsdb perf. profiling(ON/OFF, default:OFF).
 
 Examples:
     $0 -p ~/nfs-ganesha -- Builds CORTXFS with a custom NFS Ganesha
@@ -37,7 +38,7 @@ Examples:
 }
 
 cortxfs_parse_cmd() {
-    while getopts ":b:v:p:k:e:d:" o; do
+    while getopts ":b:v:p:k:e:d:t:" o; do
         case "${o}" in
         b)
             export CORTXFS_BUILD_VERSION="${OPTARG}_$(git rev-parse --short HEAD)"
@@ -83,6 +84,9 @@ cortxfs_parse_cmd() {
         d)
             export ENABLE_DASSERT=${OPTARG}
             ;;
+        t)
+            export ENABLE_TSDB_ADDB=${OPTARG}
+            ;;
         *)
             cortxfs_cmd_usage
             ;;
@@ -113,6 +117,7 @@ cortxfs_set_env() {
     export KVSFS_NFS_GANESHA_DIR=${KVSFS_NFS_GANESHA_DIR:-$PWD/../nfs-ganesha-cortx}
     export KVSFS_NFS_GANESHA_BUILD_DIR=${KVSFS_NFS_GANESHA_BUILD_DIR:-$CORTXFS_BUILD_ROOT/build-nfs-ganesha}
     export ENABLE_DASSERT=${ENABLE_DASSERT:-"ON"}
+    export ENABLE_TSDB_ADDB=${ENABLE_TSDB_ADDB:-"OFF"}
     export INSTALL_DIR_ROOT="/opt/seagate"
 }
 
@@ -132,6 +137,7 @@ cortxfs_print_env() {
         KVSFS_NFS_GANESHA_BUILD_DIR
         CORTXFS_SOURCE_ROOT
         ENABLE_DASSERT
+        ENABLE_TSDB_ADDB
 	INSTALL_DIR_ROOT
     )
     for i in ${myenv[@]}; do
