@@ -55,7 +55,7 @@ optional arguments:
    
 * Run the below mentioned command to create an end point.
 
-   `cortxfscli endpoint create <fs_name> proto=nfs,secType=sys,Filesystem_id=192.1,client=1,clients=*,Squash=root_squash,access_type=RW,protocols=4`
+   `cortxfscli endpoint create <fs_name> proto=nfs,secType=sys,client=1,clients=*,Squash=root_squash,access_type=RW,protocols=3,disable_acl=true`
    
 * Run the below mentioned command to delete an end point.
 
