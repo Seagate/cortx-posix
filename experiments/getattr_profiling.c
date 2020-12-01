@@ -49,11 +49,7 @@ static void set_ctime(void **state)
 	struct ut_dir_env *ut_dir_obj = DIR_ENV_FROM_STATE(state);
 	struct ut_cfs_params *ut_cfs_objs = &ut_dir_obj->ut_cfs_objs;
 	time_t  set_time, start_time, end_time;
-<<<<<<< HEAD
 	struct cfs_fh *fh[NUM_FILES];
-=======
-	struct cfs_fh *fh = NULL;
->>>>>>> 37b5107aa4ec2a55abf690daf14e9037183daaad
 
 	int rc = 0, i = 0;
 	int flag = STAT_CTIME_SET;
@@ -69,11 +65,7 @@ static void set_ctime(void **state)
 
 	new_ctime = mktime(now_tm);
 
-<<<<<<< HEAD
 	struct stat stat_in;
-=======
-	struct stat stat_in, *stat_out;
->>>>>>> 37b5107aa4ec2a55abf690daf14e9037183daaad
 	struct timeval st,et;
 	time(&start_time);
 	printf("set_ctime:Start time %s\n",ctime(&start_time));	
@@ -84,15 +76,9 @@ static void set_ctime(void **state)
 		stat_in.st_ctim.tv_sec = new_ctime;
 		ut_cfs_objs->file_inode=ut_dir_obj->file_inode[i];
 		rc = cfs_fh_from_ino(ut_cfs_obj->cfs_fs,
-<<<<<<< HEAD
 				    &ut_cfs_objs->file_inode, &fh[i]);
 		ut_assert_int_equal(rc, 0);
 		rc = cfs_setattr(fh[i], &ut_cfs_objs->cred, &stat_in, flag);
-=======
-					&ut_cfs_objs->file_inode, &fh);
-		ut_assert_int_equal(rc, 0);
-		rc = cfs_setattr(fh, &ut_cfs_objs->cred, &stat_in, flag);
->>>>>>> 37b5107aa4ec2a55abf690daf14e9037183daaad
 		ut_assert_int_equal(rc, 0);
 	}
 
@@ -102,21 +88,12 @@ static void set_ctime(void **state)
 	gettimeofday(&st,NULL);
 	for (i=0;i<NUM_FILES;i++)
 	{
-<<<<<<< HEAD
 		struct stat *stat_out;
 		ut_cfs_objs->file_inode=ut_dir_obj->file_inode[i];
 		ut_assert_int_equal(rc, 0);
 		stat_out = cfs_fh_stat(fh[i]);
 		ut_assert_int_equal(0, difftime(new_ctime, stat_out->st_ctime));
 		cfs_fh_destroy_and_dump_stat(fh[i]);
-=======
-		ut_cfs_objs->file_inode=ut_dir_obj->file_inode[i];
-		rc = cfs_fh_from_ino(ut_cfs_obj->cfs_fs,
-					&ut_cfs_objs->file_inode, &fh);
-		ut_assert_int_equal(rc, 0);
-		stat_out = cfs_fh_stat(fh);
-		ut_assert_int_equal(0, difftime(new_ctime, stat_out->st_ctime));
->>>>>>> 37b5107aa4ec2a55abf690daf14e9037183daaad
 	}
 	gettimeofday(&et,NULL);
 	int elapsed = ((et.tv_sec - st.tv_sec)*1000000)+(et.tv_usec-st.tv_usec);
@@ -141,11 +118,7 @@ static void set_mtime(void **state)
 {
 	struct ut_dir_env *ut_dir_obj = DIR_ENV_FROM_STATE(state);
 	struct ut_cfs_params *ut_cfs_objs = &ut_dir_obj->ut_cfs_objs;
-<<<<<<< HEAD
 	struct cfs_fh *fh[NUM_FILES];
-=======
-	struct cfs_fh *fh = NULL;
->>>>>>> 37b5107aa4ec2a55abf690daf14e9037183daaad
 
 	time_t start_time, end_time, set_time;
 	struct timeval st,et;
@@ -163,11 +136,7 @@ static void set_mtime(void **state)
 
 	new_mtime = mktime(now_tm);
 
-<<<<<<< HEAD
 	struct stat stat_in;
-=======
-	struct stat stat_in, *stat_out;
->>>>>>> 37b5107aa4ec2a55abf690daf14e9037183daaad
 
 	time(&start_time);
 	printf("set_mtime:Start time %s\n",ctime(&start_time));	
@@ -180,15 +149,9 @@ static void set_mtime(void **state)
 		time(&cur_time[i]);
 		ut_cfs_objs->file_inode=ut_dir_obj->file_inode[i];
 		rc = cfs_fh_from_ino(ut_cfs_obj->cfs_fs,
-<<<<<<< HEAD
 				    &ut_cfs_objs->file_inode, &fh[i]);
 		ut_assert_int_equal(rc, 0);
 		rc = cfs_setattr(fh[i], &ut_cfs_objs->cred, &stat_in, flag);
-=======
-					&ut_cfs_objs->file_inode, &fh);
-		ut_assert_int_equal(rc, 0);
-		rc = cfs_setattr(fh, &ut_cfs_objs->cred, &stat_in, flag);
->>>>>>> 37b5107aa4ec2a55abf690daf14e9037183daaad
 		ut_assert_int_equal(rc, 0);
 	}
 	time(&set_time);
@@ -197,18 +160,10 @@ static void set_mtime(void **state)
 	gettimeofday(&st,NULL);
 	for (i=0;i<NUM_FILES;i++)
 	{
-<<<<<<< HEAD
 		struct stat *stat_out;
 		ut_cfs_objs->file_inode=ut_dir_obj->file_inode[i];
 		ut_assert_int_equal(rc, 0);
 		stat_out = cfs_fh_stat(fh[i]);
-=======
-		ut_cfs_objs->file_inode=ut_dir_obj->file_inode[i];
-		rc = cfs_fh_from_ino(ut_cfs_obj->cfs_fs,
-					&ut_cfs_obj->file_inode, &fh);
-		ut_assert_int_equal(rc, 0);
-		stat_out = cfs_fh_stat(fh);
->>>>>>> 37b5107aa4ec2a55abf690daf14e9037183daaad
 		ut_assert_int_equal(0, difftime(new_mtime, stat_out->st_mtime));
 
 		if (difftime(stat_out->st_ctime, cur_time[i]) < 0) {
@@ -243,11 +198,7 @@ static void set_atime(void **state)
 	int flag = STAT_ATIME_SET;
 	time_t start_time, end_time, set_time;
 	struct timeval st,et;
-<<<<<<< HEAD
 	struct cfs_fh *fh[NUM_FILES];
-=======
-	struct cfs_fh *fh = NULL;
->>>>>>> 37b5107aa4ec2a55abf690daf14e9037183daaad
 
 	time_t new_atime, cur_time[NUM_FILES];
 	time(&new_atime);
@@ -260,11 +211,7 @@ static void set_atime(void **state)
 
 	new_atime = mktime(now_tm);
 
-<<<<<<< HEAD
 	struct stat stat_in;
-=======
-	struct stat stat_in, *stat_out;
->>>>>>> 37b5107aa4ec2a55abf690daf14e9037183daaad
 	time(&start_time);
 	printf("set_atime:Start time %s\n",ctime(&start_time));	
 	for (i=0;i<NUM_FILES;i++)
@@ -276,11 +223,7 @@ static void set_atime(void **state)
 
 		ut_cfs_objs->file_inode=ut_dir_obj->file_inode[i];
 		rc = cfs_fh_from_ino(ut_cfs_obj->cfs_fs,
-<<<<<<< HEAD
 					&ut_cfs_objs->file_inode, &fh[i]);
-=======
-					&ut_cfs_objs->file_inode, &fh);
->>>>>>> 37b5107aa4ec2a55abf690daf14e9037183daaad
 		ut_assert_int_equal(rc, 0);
 		rc = cfs_setattr(fh, &ut_cfs_objs->cred, &stat_in, flag);
 		ut_assert_int_equal(rc, 0);
@@ -291,18 +234,10 @@ static void set_atime(void **state)
 	gettimeofday(&st,NULL);
 	for (i=0;i<NUM_FILES;i++)
 	{
-<<<<<<< HEAD
 		struct stat *stat_out;
 		ut_cfs_objs->file_inode=ut_dir_obj->file_inode[i];
 		ut_assert_int_equal(rc, 0);
 		stat_out = cfs_fh_stat(fh[i]);
-=======
-		ut_cfs_objs->file_inode=ut_dir_obj->file_inode[i];
-		rc = cfs_fh_from_ino(ut_cfs_obj->cfs_fs,
-					&ut_cfs_objs->file_inode, &fh);
-		ut_assert_int_equal(rc, 0);
-		stat_out = cfs_fh_stat(fh);
->>>>>>> 37b5107aa4ec2a55abf690daf14e9037183daaad
 		ut_assert_int_equal(0, difftime(new_atime, stat_out->st_atime));
 
 		if (difftime(stat_out->st_ctime, cur_time[i]) < 0) {
@@ -337,21 +272,13 @@ static void set_gid(void **state)
 	int flag = STAT_GID_SET;
 	time_t start_time, end_time, set_time;
 	struct timeval st,et;
-<<<<<<< HEAD
 	struct cfs_fh *fh[NUM_FILES];
-=======
-	struct cfs_fh *fh = NULL;
->>>>>>> 37b5107aa4ec2a55abf690daf14e9037183daaad
 
 	gid_t new_gid =100;
 
 	time_t cur_time;
 
-<<<<<<< HEAD
 	struct stat stat_in;
-=======
-	struct stat stat_in, *stat_out;
->>>>>>> 37b5107aa4ec2a55abf690daf14e9037183daaad
 
 	memset(&stat_in, 0, sizeof(stat_in));
 	stat_in.st_gid = new_gid;
@@ -365,15 +292,9 @@ static void set_gid(void **state)
 
 		ut_cfs_objs->file_inode=ut_dir_obj->file_inode[i];
 		rc = cfs_fh_from_ino(ut_cfs_obj->cfs_fs,
-<<<<<<< HEAD
 					&ut_cfs_objs->file_inode, &fh[i]);
 		ut_assert_int_equal(rc, 0);
 		rc = cfs_setattr(fh[i], &ut_cfs_objs->cred, &stat_in, flag);
-=======
-					&ut_cfs_objs->file_inode, &fh);
-		ut_assert_int_equal(rc, 0);
-		rc = cfs_setattr(fh, &ut_cfs_objs->cred, &stat_in, flag);
->>>>>>> 37b5107aa4ec2a55abf690daf14e9037183daaad
 		ut_assert_int_equal(rc, 0);
 	}
 	time(&set_time);
@@ -382,16 +303,9 @@ static void set_gid(void **state)
 	gettimeofday(&st,NULL);
 	for (i=0;i<NUM_FILES;i++)
 	{
-<<<<<<< HEAD
 		struct stat *stat_out;
 		ut_assert_int_equal(rc, 0);
 		stat_out = cfs_fh_stat(fh[i]);
-=======
-		rc = cfs_fh_from_ino(ut_cfs_obj->cfs_fs,
-					&ut_cfs_objs->file_inode, &fh);
-		ut_assert_int_equal(rc, 0);
-		stat_out = cfs_fh_stat(fh);
->>>>>>> 37b5107aa4ec2a55abf690daf14e9037183daaad
 		ut_assert_int_equal(stat_out->st_gid, new_gid);
 
 		if (difftime(stat_out->st_ctime, cur_time) < 0) {
@@ -426,21 +340,13 @@ static void set_uid(void **state)
 	int flag = STAT_UID_SET;
 	time_t start_time, end_time, set_time;
 	struct timeval st,et;
-<<<<<<< HEAD
 	struct cfs_fh *fh[NUM_FILES];
-=======
-	struct cfs_fh *fh = NULL;
->>>>>>> 37b5107aa4ec2a55abf690daf14e9037183daaad
 
 	uid_t new_uid = 100;
 
 	time_t cur_time[NUM_FILES];
 
-<<<<<<< HEAD
 	struct stat stat_in;
-=======
-	struct stat stat_in, *stat_out;
->>>>>>> 37b5107aa4ec2a55abf690daf14e9037183daaad
 	time(&start_time);
 	printf("set_uid:Start time %s\n",ctime(&start_time));	
 	for (i=0;i<NUM_FILES;i++)
@@ -452,15 +358,9 @@ static void set_uid(void **state)
 
 		ut_cfs_objs->file_inode=ut_dir_obj->file_inode[i];
 		rc = cfs_fh_from_ino(ut_cfs_obj->cfs_fs,
-<<<<<<< HEAD
 					&ut_cfs_objs->file_inode, &fh[i]);
 		ut_assert_int_equal(rc, 0);
 		rc = cfs_setattr(fh[i], &ut_cfs_objs->cred, &stat_in, flag);
-=======
-					&ut_cfs_objs->file_inode, &fh);
-		ut_assert_int_equal(rc, 0);
-		rc = cfs_setattr(fh, &ut_cfs_objs->cred, &stat_in, flag);
->>>>>>> 37b5107aa4ec2a55abf690daf14e9037183daaad
 		ut_assert_int_equal(rc, 0);
 	}
 	time(&set_time);
@@ -469,16 +369,9 @@ static void set_uid(void **state)
 	gettimeofday(&st,NULL);
 	for (i=0;i<NUM_FILES;i++)
 	{
-<<<<<<< HEAD
 		struct stat *stat_out;
 		ut_assert_int_equal(rc, 0);
 		stat_out = cfs_fh_stat(fh[i]);
-=======
-		rc = cfs_fh_from_ino(ut_cfs_obj->cfs_fs,
-					&ut_cfs_objs->file_inode, &fh);
-		ut_assert_int_equal(rc, 0);
-		stat_out = cfs_fh_stat(fh);
->>>>>>> 37b5107aa4ec2a55abf690daf14e9037183daaad
 
 		if (difftime(stat_out->st_ctime, cur_time[i]) < 0) {
 			ut_assert_true(0);
