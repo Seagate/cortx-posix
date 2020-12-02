@@ -76,7 +76,7 @@ static void set_ctime(void **state)
 		stat_in.st_ctim.tv_sec = new_ctime;
 		ut_cfs_objs->file_inode=ut_dir_obj->file_inode[i];
 		rc = cfs_fh_from_ino(ut_cfs_obj->cfs_fs,
-				    &ut_cfs_objs->file_inode, &fh[i]);
+				     &ut_cfs_objs->file_inode, &fh[i]);
 		ut_assert_int_equal(rc, 0);
 		rc = cfs_setattr(fh[i], &ut_cfs_objs->cred, &stat_in, flag);
 		ut_assert_int_equal(rc, 0);
@@ -149,7 +149,7 @@ static void set_mtime(void **state)
 		time(&cur_time[i]);
 		ut_cfs_objs->file_inode=ut_dir_obj->file_inode[i];
 		rc = cfs_fh_from_ino(ut_cfs_obj->cfs_fs,
-				    &ut_cfs_objs->file_inode, &fh[i]);
+				     &ut_cfs_objs->file_inode, &fh[i]);
 		ut_assert_int_equal(rc, 0);
 		rc = cfs_setattr(fh[i], &ut_cfs_objs->cred, &stat_in, flag);
 		ut_assert_int_equal(rc, 0);
@@ -223,7 +223,7 @@ static void set_atime(void **state)
 
 		ut_cfs_objs->file_inode=ut_dir_obj->file_inode[i];
 		rc = cfs_fh_from_ino(ut_cfs_obj->cfs_fs,
-					&ut_cfs_objs->file_inode, &fh[i]);
+				     &ut_cfs_objs->file_inode, &fh[i]);
 		ut_assert_int_equal(rc, 0);
 		rc = cfs_setattr(fh, &ut_cfs_objs->cred, &stat_in, flag);
 		ut_assert_int_equal(rc, 0);
@@ -292,7 +292,7 @@ static void set_gid(void **state)
 
 		ut_cfs_objs->file_inode=ut_dir_obj->file_inode[i];
 		rc = cfs_fh_from_ino(ut_cfs_obj->cfs_fs,
-					&ut_cfs_objs->file_inode, &fh[i]);
+				     &ut_cfs_objs->file_inode, &fh[i]);
 		ut_assert_int_equal(rc, 0);
 		rc = cfs_setattr(fh[i], &ut_cfs_objs->cred, &stat_in, flag);
 		ut_assert_int_equal(rc, 0);
@@ -358,7 +358,7 @@ static void set_uid(void **state)
 
 		ut_cfs_objs->file_inode=ut_dir_obj->file_inode[i];
 		rc = cfs_fh_from_ino(ut_cfs_obj->cfs_fs,
-					&ut_cfs_objs->file_inode, &fh[i]);
+				     &ut_cfs_objs->file_inode, &fh[i]);
 		ut_assert_int_equal(rc, 0);
 		rc = cfs_setattr(fh[i], &ut_cfs_objs->cred, &stat_in, flag);
 		ut_assert_int_equal(rc, 0);
