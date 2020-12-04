@@ -132,7 +132,7 @@ Note: Following instructions are applicable only for single node setup.
   
       `./scripts/build.sh bootstrap`
       
-  4. Run the below mentioned command to initialize the build folders.
+  4. Run the below mentioned command to initialize the build folders. To enable ADDB in CORTXFS, turn on ENABLE_TSDB_ADDB flag in build script "scripts/build.sh", or pass '-t ON' option in jenkins build.
   
       `./scripts/build.sh config`
       
