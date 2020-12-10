@@ -41,9 +41,9 @@ optional arguments:
   -h, --help          show this help message and exit
 ```  
 
-* Run the below mentioned command to create FS.
+* Run the below mentioned command to create FS. Valid block sizes are 2^12 to 2^20.
 
-   `cortxfscli fs create <fs_name>`
+   `cortxfscli fs create <fs_name> proto=nfs,fs_bsize=<block_size>`
 
 * Run the below mentioned command to list FS.
 
