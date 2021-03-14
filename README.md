@@ -1,7 +1,7 @@
 
 # CORTX-POSIX
 
-[![Codacy Badge](https://api.codacy.com/project/badge/Grade/9b53934395164e83b24e9caed221c4ae)](https://app.codacy.com/gh/Seagate/cortx-posix?utm_source=github.com&utm_medium=referral&utm_content=Seagate/cortx-posix&utm_campaign=Badge_Grade) [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://github.com/Seagate/cortx-posix/blob/main/LICENSE) [![Slack](https://img.shields.io/badge/chat-on%20Slack-blue")](https://cortx.link/join-slack) [![YouTube](https://img.shields.io/badge/Video-YouTube-red)](https://cortx.link/videos) 
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/9b53934395164e83b24e9caed221c4ae)](https://app.codacy.com/gh/Seagate/cortx-posix?utm_source=github.com&utm_medium=referral&utm_content=Seagate/cortx-posix&utm_campaign=Badge_Grade) [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://github.com/Seagate/cortx-posix/blob/main/LICENSE) [![Slack](https://img.shields.io/badge/chat-on%20Slack-blue")](https://cortx.link/join-slack) [![YouTube](https://img.shields.io/badge/Video-YouTube-red)](https://cortx.link/videos) [![GitHub contributors](https://img.shields.io/github/contributors/Seagate/cortx-posix)](https://github.com/Seagate/cortx-posix/graphs/contributors/)
 
 CORTX-POSIX is top level code repository, which helps in building various sub-components (like CORTXFS, NSAL, DSAL etc) to support different file access protocols (like SAMBA, NFS etc.) to Seagate CORTX. This code base consists of scripts which will facilitate in fetching the sub-components repos, and build the code.
 Note that currently only NFS protocol is supported. The supported NFS server is user-space implementation (a.k.a. NFS Ganesha).
