@@ -193,6 +193,7 @@ static int setAttr()
 	for (i = 0; i < CALLS; i++)
 		free(xkey[i]);
 
+    free(v1);
 	return rc;
 }
 
@@ -340,6 +341,11 @@ int main(int argc, char **argv)
 	/* success */
 	fprintf(stderr, "%s success\n", basename(argv[0]));
 	return 0;
+}
+
+
+static test(void) {
+
 }
 
 /*
