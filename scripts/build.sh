@@ -103,6 +103,7 @@ cortxfs_set_env() {
     export NSAL_SOURCE_ROOT=$PWD/nsal
     export DSAL_SOURCE_ROOT=$PWD/dsal
     export CORTX_UTILS_SOURCE_ROOT=$PWD/utils/c-utils
+    export DECODER_SOURCE_ROOT=$PWD/decoder
 
     export CORTXFS_SOURCE_ROOT=$PWD/cortxfs
 
@@ -129,6 +130,7 @@ cortxfs_print_env() {
         NSAL_SOURCE_ROOT
         DSAL_SOURCE_ROOT
         CORTX_UTILS_SOURCE_ROOT
+        DECODER_SOURCE_ROOT
         CORTXFS_BUILD_ROOT
         CORTXFS_BUILD_VERSION
         NSAL_KVSTORE_BACKEND
@@ -176,6 +178,11 @@ _cortxfs_build() {
 _nfs_ganesha_build() {
     echo "NFS_GANESHA_BUILD: $@"
     ./scripts/build-nfs-ganesha.sh "$@"
+}
+
+_decoder_build() {
+    echo "DECODER_BUILD: $@"
+    "$DECODER_SOURCE_ROOT/scripts/build.sh" "$@"
 }
 
 ###############################################################################
@@ -256,6 +263,8 @@ cortxfs_jenkins_build() {
 	_cortxfs_build make -j all &&
         _kvsfs_build reconf &&
         _kvsfs_build make -j all &&
+        _decoder_build reconf &&
+        _decoder_build make -j all &&
         _utils_build rpm-gen &&
         _nsal_build rpm-gen &&
         _dsal_build rpm-gen &&
@@ -265,6 +274,8 @@ cortxfs_jenkins_build() {
 	_cortxfs_build purge &&
         _nsal_build purge &&
         _dsal_build purge &&
+        _decoder_build purge &&
+
     echo "OK"
 }
 
@@ -279,6 +290,7 @@ cortxfs_configure() {
     _dsal_build reconf &&
     _cortxfs_build reconf &&
     _kvsfs_build reconf &&
+    _decoder_build reconf &&
     echo "OK"
 }
 
@@ -290,6 +302,7 @@ cortxfs_make() {
         _dsal_build make "$@" &&
 	_cortxfs_build make "$@" &&
         _kvsfs_build make "$@" &&
+        _decoder_build make "$@" &&
     echo "OK"
 }
 
@@ -458,6 +471,10 @@ case $1 in
         shift
         cortxfs_set_env
         _nfs_ganesha_build "$@";;
+    decoder)
+        shift
+        cortxfs_set_env
+        _decoder_build "$@";;
     *)
         cortxfs_usage;;
 esac
